@@ -57,7 +57,7 @@ async function CatalogContent({
       search: resolvedParams.q,
       sortBy,
       page: resolvedParams.pagina ? parseInt(resolvedParams.pagina, 10) : 1,
-      pageSize: 30,
+      pageSize: 40,
     },
     deps
   );
@@ -70,35 +70,40 @@ async function CatalogContent({
       )}
 
       {/* Navegación por categorías con scroll horizontal (BR-16, BR-22, BR-38) */}
-      <div className="mb-4">
+      <section aria-label="Categorías" className="mb-4">
         <CategoryNav
           categories={allCategories}
           activeSlug={resolvedParams.categoria}
         />
-      </div>
+      </section>
 
       {/* Barra de ordenamiento y conteo (BR-21, BR-22) */}
-      <div className="mb-6">
+      <section aria-label="Orden y resultados" className="mb-6">
         <SortFilterBar
           total={productsResult.total}
           currentSort={resolvedParams.orden || "newest"}
         />
-      </div>
+      </section>
 
       {/* Grilla de productos responsiva */}
-      <ProductGrid products={productsResult.items} />
+      <section aria-label="Listado de prendas">
+        <ProductGrid products={productsResult.items} />
+      </section>
     </>
   );
 }
 
 function CatalogSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="h-9 w-72 animate-pulse rounded-full bg-stone-200/80" />
-      <div className="h-6 w-full animate-pulse rounded bg-stone-100" />
+    <div className="space-y-6" aria-busy="true" aria-label="Cargando catálogo">
+      <div className="h-10 w-80 animate-pulse rounded-full bg-[#f0ece1]" />
+      <div className="h-8 w-full animate-pulse rounded-lg bg-[#f5f2eb]" />
       <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-stone-200/60" />
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div
+            key={i}
+            className="aspect-[3/4] animate-pulse rounded-xl border border-[#e7e2da] bg-[#f5f2eb]"
+          />
         ))}
       </div>
     </div>
@@ -110,24 +115,32 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const brandName = (await deps.settingsRepo?.get("brand_name")) || "Aura Studio";
 
   return (
-    <div className="min-h-screen bg-stone-50/50 text-stone-900">
+    <div className="min-h-screen bg-[#faf8f5] text-[#1c1917]">
       {/* Header fijo con buscador por código (BR-24) */}
       <Header brandName={brandName} />
 
       {/* Contenido principal del catálogo */}
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        {/* Banner editorial sutil */}
-        <div className="mb-6 rounded-2xl bg-gradient-to-r from-stone-900 to-stone-800 p-6 text-stone-100 shadow-sm sm:p-8">
-          <p className="font-mono text-[11px] font-medium tracking-[0.2em] text-amber-300 uppercase">
-            Colección & Showroom
-          </p>
-          <h1 className="mt-1 font-serif text-2xl font-light tracking-wide sm:text-3xl">
-            Piezas Únicas & Selección Exclusiva
-          </h1>
-          <p className="mt-2 max-w-xl text-xs text-stone-300 sm:text-sm">
-            Explora nuestras prendas disponibles. Cada pieza es única y puedes reservarla directamente por WhatsApp.
-          </p>
-        </div>
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        {/* Banner editorial de bienvenida */}
+        <section
+          aria-labelledby="hero-title"
+          className="relative mb-8 overflow-hidden rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-10 shadow-xs"
+        >
+          <div className="max-w-2xl">
+            <span className="font-mono text-[10px] font-semibold tracking-[0.25em] text-[#926a3c] uppercase">
+              Colección Seleccionada
+            </span>
+            <h1
+              id="hero-title"
+              className="mt-2 font-serif text-3xl font-light tracking-wide text-stone-900 sm:text-4xl"
+            >
+              Piezas únicas con carácter propio
+            </h1>
+            <p className="mt-3 text-xs leading-relaxed text-stone-600 sm:text-sm">
+              Cada prenda de nuestro showroom es única e irrepetible. Explora el catálogo y reserva tu pieza al instante vía WhatsApp.
+            </p>
+          </div>
+        </section>
 
         {/* Streaming con Suspense para Partial Prerendering de Next.js 16 */}
         <Suspense fallback={<CatalogSkeleton />}>
@@ -136,13 +149,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </main>
 
       {/* Footer minimalista */}
-      <footer className="mt-20 border-t border-stone-200 bg-white py-10 text-center text-xs text-stone-500">
-        <p className="font-serif tracking-widest uppercase">{brandName}</p>
-        <p className="mt-1 text-[11px] text-stone-400">
-          Piezas únicas con reserva directa por WhatsApp · Buenos Aires, Argentina
+      <footer
+        role="contentinfo"
+        className="mt-20 border-t border-[#e7e2da] bg-white py-12 text-center text-xs text-stone-500"
+      >
+        <p className="font-serif text-base tracking-[0.2em] font-medium text-stone-900 uppercase">
+          {brandName}
+        </p>
+        <p className="mt-1 text-[11px] text-stone-500">
+          Showroom & Archivo · Buenos Aires, Argentina
+        </p>
+        <p className="mt-3 text-[10px] text-stone-400">
+          Atención y reservas directas a través de WhatsApp
         </p>
       </footer>
     </div>
   );
 }
-

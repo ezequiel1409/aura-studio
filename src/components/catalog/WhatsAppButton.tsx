@@ -22,13 +22,14 @@ export function WhatsAppButton({
 
   if (disabled) {
     return (
-      <button
-        disabled
-        className="flex w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-full bg-stone-200 py-3.5 px-6 font-medium text-stone-400 shadow-none"
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-full border border-stone-300 bg-stone-100 px-6 py-3.5 text-center text-xs font-semibold tracking-wider text-stone-500 uppercase cursor-not-allowed select-none"
       >
-        <MessageCircle className="h-5 w-5" />
-        <span>Pieza no disponible</span>
-      </button>
+        <MessageCircle aria-hidden="true" className="h-4 w-4" />
+        <span>Pieza agotada</span>
+      </div>
     );
   }
 
@@ -38,11 +39,11 @@ export function WhatsAppButton({
       target="_blank"
       rel="noopener noreferrer"
       onClick={handleClick}
-      className="flex w-full items-center justify-center gap-2.5 rounded-full bg-emerald-700 py-3.5 px-6 font-medium text-white shadow-md transition-all duration-200 hover:bg-emerald-800 hover:shadow-lg active:scale-[0.98]"
+      aria-label={`${label} - Abre chat de WhatsApp con mensaje prearmado`}
+      className="group flex min-h-[52px] w-full items-center justify-center gap-2.5 rounded-full bg-[#155e42] px-6 py-3.5 text-xs font-semibold tracking-widest text-white uppercase shadow-md transition-all duration-200 hover:bg-[#0f4631] hover:shadow-lg active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-[#155e42] focus-visible:outline-offset-2"
     >
-      <MessageCircle className="h-5 w-5" />
-      <span className="text-sm font-semibold tracking-wide uppercase">{label}</span>
+      <MessageCircle aria-hidden="true" className="h-5 w-5 transition-transform group-hover:scale-110" />
+      <span>{label}</span>
     </a>
   );
 }
-

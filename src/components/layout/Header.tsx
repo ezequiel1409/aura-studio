@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Sparkles } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { parseProductCode } from "../../domain/product/rules";
 
 interface HeaderProps {
@@ -11,7 +11,7 @@ interface HeaderProps {
   initialSearch?: string;
 }
 
-export function Header({ brandName = "AURA STUDIO", initialSearch = "" }: HeaderProps) {
+export function Header({ brandName = "Aura Studio", initialSearch = "" }: HeaderProps) {
   const router = useRouter();
   const [query, setQuery] = useState(initialSearch);
 
@@ -23,7 +23,7 @@ export function Header({ brandName = "AURA STUDIO", initialSearch = "" }: Header
       return;
     }
 
-    // BR-24: Búsqueda por código (#023 o 023) lleva directo a esa prenda
+    // BR-24: Búsqueda directa por código (#023 o 023)
     const codeNumber = parseProductCode(trimmed);
     if (codeNumber !== null) {
       const paddedCode = codeNumber.toString().padStart(3, "0");
@@ -31,34 +31,70 @@ export function Header({ brandName = "AURA STUDIO", initialSearch = "" }: Header
       return;
     }
 
-    // Búsqueda por texto filtra en el catálogo
+    // Búsqueda por texto en catálogo
     router.push(`/?q=${encodeURIComponent(trimmed)}`);
   };
 
+  const clearSearch = () => {
+    setQuery("");
+    router.push("/");
+  };
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-stone-200/80 bg-stone-50/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        {/* Marca / Logo */}
-        <Link href="/" className="group flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-amber-700/80 transition-transform group-hover:scale-110" />
-          <span className="font-serif text-xl tracking-[0.2em] font-semibold text-stone-900 uppercase">
+    <header
+      role="banner"
+      className="sticky top-0 z-40 w-full border-b border-[#e7e2da] bg-[#faf8f5]/90 backdrop-blur-md transition-colors"
+    >
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
+        {/* Marca / Logotipo editorial */}
+        <Link
+          href="/"
+          aria-label={`${brandName} - Inicio del catálogo`}
+          className="group flex flex-col focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-stone-900"
+        >
+          <span className="font-serif text-2xl tracking-[0.22em] font-normal text-stone-900 uppercase transition-opacity group-hover:opacity-80">
             {brandName}
+          </span>
+          <span className="text-[9px] tracking-[0.3em] font-medium text-stone-500 uppercase">
+            Showroom & Archivo
           </span>
         </Link>
 
-        {/* Buscador por código o texto (BR-24) */}
-        <form onSubmit={handleSearch} className="relative w-44 sm:w-72">
+        {/* Buscador por código o texto (BR-24) accesible */}
+        <form
+          role="search"
+          onSubmit={handleSearch}
+          className="relative w-48 sm:w-80"
+        >
+          <label htmlFor="catalog-search" className="sr-only">
+            Buscar prendas por nombre o código numérico
+          </label>
           <input
-            type="text"
+            id="catalog-search"
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar o #código..."
-            className="w-full rounded-full border border-stone-300 bg-white/90 py-1.5 pl-8 pr-3 text-xs text-stone-800 placeholder:text-stone-400 focus:border-stone-800 focus:bg-white focus:outline-none sm:text-sm"
+            autoComplete="off"
+            aria-label="Buscar en el catálogo"
+            className="w-full rounded-full border border-[#d8d2c7] bg-white/80 py-2 pl-9 pr-8 text-xs text-stone-900 placeholder:text-stone-400 shadow-xs transition-all focus:border-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-900 sm:text-sm"
           />
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400" />
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              aria-label="Borrar búsqueda"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-stone-400 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-stone-900"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </form>
       </div>
     </header>
   );
 }
-

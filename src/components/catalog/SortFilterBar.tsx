@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowDownUp } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 
 interface SortFilterBarProps {
   total: number;
@@ -26,24 +26,30 @@ export function SortFilterBar({ total, currentSort = "newest" }: SortFilterBarPr
   };
 
   return (
-    <div className="flex items-center justify-between border-y border-stone-200/70 py-2.5 text-xs text-stone-500">
-      <div>
-        <span className="font-medium text-stone-800">{total}</span>{" "}
-        {total === 1 ? "pieza disponible" : "piezas"}
+    <div
+      aria-label="Opciones de listado"
+      className="flex flex-wrap items-center justify-between gap-3 border-y border-[#e7e2da] py-3 text-xs text-stone-600"
+    >
+      {/* Conteo de piezas */}
+      <div className="flex items-center gap-1.5" aria-live="polite">
+        <span className="font-mono text-xs font-semibold text-stone-900">{total}</span>
+        <span className="text-stone-500 font-light">
+          {total === 1 ? "pieza encontrada" : "piezas en catálogo"}
+        </span>
       </div>
 
-      {/* Ordenamiento (BR-21, BR-22) */}
-      <div className="flex items-center gap-1.5">
-        <ArrowDownUp className="h-3.5 w-3.5 text-stone-400" />
-        <label htmlFor="sort-select" className="sr-only">
-          Ordenar por
+      {/* Selector de orden accesible (BR-21, BR-22) */}
+      <div className="flex items-center gap-2">
+        <SlidersHorizontal aria-hidden="true" className="h-3.5 w-3.5 text-stone-500" />
+        <label htmlFor="sort-select" className="text-stone-500 font-medium">
+          Ordenar:
         </label>
         <select
           id="sort-select"
           value={currentSort}
           onChange={handleSortChange}
-          aria-label="Ordenar productos"
-          className="rounded-md border-0 bg-transparent py-0.5 pl-1 pr-6 font-medium text-stone-800 focus:outline-none focus:ring-0 cursor-pointer"
+          aria-label="Ordenar piezas del catálogo"
+          className="min-h-[38px] rounded-lg border border-[#d8d2c7] bg-white px-3 py-1.5 font-medium text-stone-800 shadow-xs transition-colors hover:border-stone-400 focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer"
         >
           <option value="newest">Recién llegados</option>
           <option value="price_asc">Precio: menor a mayor</option>
@@ -53,4 +59,3 @@ export function SortFilterBar({ total, currentSort = "newest" }: SortFilterBarPr
     </div>
   );
 }
-

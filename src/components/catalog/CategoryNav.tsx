@@ -12,7 +12,6 @@ interface CategoryNavProps {
 export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
   const searchParams = useSearchParams();
 
-  // Preserva parámetros existentes al cambiar de categoría (BR-22)
   const createQueryString = (slug?: string) => {
     const params = new URLSearchParams(searchParams.toString());
     if (slug) {
@@ -20,22 +19,25 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
     } else {
       params.delete("categoria");
     }
-    // Al cambiar de categoría volvemos a la página 1
     params.delete("pagina");
     const str = params.toString();
     return str ? `/?${str}` : "/";
   };
 
   return (
-    <nav className="w-full overflow-x-auto no-scrollbar py-2.5">
-      <div className="flex items-center gap-2 px-4 sm:px-0">
+    <nav
+      aria-label="Filtro de categorías"
+      className="w-full overflow-x-auto no-scrollbar py-2"
+    >
+      <div className="flex items-center gap-2 px-1 py-1">
         {/* Opción Todo */}
         <Link
           href={createQueryString(undefined)}
-          className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+          aria-current={!activeSlug ? "page" : undefined}
+          className={`inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full px-5 py-2 text-xs tracking-wider uppercase transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
             !activeSlug
-              ? "bg-stone-900 text-stone-50 shadow-sm"
-              : "bg-stone-100 text-stone-600 hover:bg-stone-200/80 hover:text-stone-900"
+              ? "bg-[#1c1917] font-semibold text-[#faf8f5] shadow-xs"
+              : "border border-[#e7e2da] bg-white/70 font-medium text-stone-700 hover:border-stone-400 hover:bg-white hover:text-stone-900"
           }`}
         >
           Todo
@@ -50,10 +52,11 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
               <Link
                 key={cat.id}
                 href={createQueryString(cat.slug)}
-                className={`whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-medium transition-colors ${
+                aria-current={isActive ? "page" : undefined}
+                className={`inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full px-5 py-2 text-xs tracking-wider uppercase transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
                   isActive
-                    ? "bg-stone-900 text-stone-50 shadow-sm"
-                    : "bg-stone-100 text-stone-600 hover:bg-stone-200/80 hover:text-stone-900"
+                    ? "bg-[#1c1917] font-semibold text-[#faf8f5] shadow-xs"
+                    : "border border-[#e7e2da] bg-white/70 font-medium text-stone-700 hover:border-stone-400 hover:bg-white hover:text-stone-900"
                 }`}
               >
                 {cat.name}
@@ -64,4 +67,3 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
     </nav>
   );
 }
-
