@@ -8,6 +8,7 @@ import {
 } from "../domain/ports/repositories.port";
 import {
   calculateSoldOutAt,
+  calculateTotalStock,
   validateStatusTransition,
 } from "../domain/product/rules";
 import {
@@ -19,7 +20,7 @@ import {
   StatusSource,
 } from "../domain/product/types";
 import { SYSTEM_UNCATEGORIZED_SLUG } from "../domain/category/types";
-import { parseProductText } from "../lib/parser/product-parser";
+import { parseProductText, parseSizesList } from "../lib/parser/product-parser";
 import { sanitizePlainText } from "../lib/parser/sanitize";
 
 export interface ProductServiceDeps {
@@ -94,15 +95,41 @@ export async function createProduct(
     categoryId = uncategorized.id;
   }
 
-  // 4. Generación atómica del código correlativo (BR-01)
+  // 4. Preparación de colores y talles con stock (BR-05, BR-20)
+  let colorsData = input.colors;
+  if (!colorsData || colorsData.length === 0) {
+    const rawSizes = size || parsed.size;
+    const sizesList = parseSizesList(rawSizes);
+    const resolvedSizes = sizesList.length > 0 ? sizesList : ["ÚNICO"];
+    colorsData = [
+      {
+        name: "Único",
+        hexCode: null,
+        position: 0,
+        sizes: resolvedSizes.map((s) => ({
+          size: s,
+          stock: 1,
+          reservedStock: 0,
+        })),
+      },
+    ];
+  }
+
+  // 5. Generación atómica del código correlativo (BR-01)
   const nextCode = await counterRepo.getNextSequence("product_code");
 
   const now = Date.now();
 
-  // 5. Creación del producto en base de datos
+  // Calcular stock total para determinar estado inicial si corresponde
+  const totalStock = calculateTotalStock(colorsData);
+  const initialStatus: ProductStatus = totalStock === 0 ? "SOLD_OUT" : "AVAILABLE";
+  const initialSoldOutAt = initialStatus === "SOLD_OUT" ? now : null;
+
+  // 6. Creación del producto en base de datos
   const photosData = (input.photos || []).map((p, idx) => ({
     keyThumb: p.keyThumb,
     keyFull: p.keyFull,
+    productColorId: p.productColorId || null,
     position: p.position ?? idx,
   }));
 
@@ -114,21 +141,31 @@ export async function createProduct(
     currency,
     size,
     categoryId,
-    status: "AVAILABLE",
-    soldOutAt: null,
+    status: initialStatus,
+    soldOutAt: initialSoldOutAt,
     reservedUntil: null,
     manualFields,
     createdAt: now,
     updatedAt: now,
+    colors: colorsData.map((c, idx) => ({
+      name: c.name,
+      hexCode: c.hexCode || null,
+      position: c.position ?? idx,
+      sizes: (c.sizes || []).map((s) => ({
+        size: s.size,
+        stock: s.stock ?? 0,
+        reservedStock: s.reservedStock ?? 0,
+      })),
+    })),
     photos: photosData,
   });
 
-  // 6. Auditoría de estado inicial en status_history (BR-28)
+  // 7. Auditoría de estado inicial en status_history (BR-28)
   await statusHistoryRepo.record({
     productId: created.id,
     productCode: created.code,
     fromStatus: null,
-    toStatus: "AVAILABLE",
+    toStatus: initialStatus,
     at: now,
     source: input.source || "web",
   });

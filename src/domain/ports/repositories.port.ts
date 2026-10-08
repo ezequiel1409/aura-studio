@@ -7,13 +7,24 @@ import {
   StatusHistoryEntry,
 } from "../product/types";
 
+export interface CreateProductColorRepoData {
+  name: string;
+  hexCode?: string | null;
+  position: number;
+  sizes: Array<{
+    size: string;
+    stock: number;
+    reservedStock?: number;
+  }>;
+}
+
 export interface CreateProductRepoData {
   code: number;
   rawText: string;
   title: string | null;
   priceCents: number | null;
   currency: string;
-  size: string | null;
+  size?: string | null;
   categoryId: number;
   status: ProductStatus;
   soldOutAt: number | null;
@@ -21,10 +32,12 @@ export interface CreateProductRepoData {
   manualFields: string[];
   createdAt: number;
   updatedAt: number;
+  colors?: CreateProductColorRepoData[];
   photos?: Array<{
     keyThumb: string;
     keyFull: string;
     position: number;
+    productColorId?: number | null;
   }>;
 }
 

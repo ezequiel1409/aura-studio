@@ -74,3 +74,47 @@ export function calculateSoldOutAt(
   return null;
 }
 
+/**
+ * BR-02, BR-20: Calcula el stock total sumando todas las combinaciones de color y talle.
+ */
+export function calculateTotalStock(colors?: Array<{ sizes?: Array<{ stock: number }> }>): number {
+  if (!colors || colors.length === 0) return 0;
+  return colors.reduce((accColor, color) => {
+    const colorTotal = (color.sizes || []).reduce((accSize, s) => accSize + (s.stock || 0), 0);
+    return accColor + colorTotal;
+  }, 0);
+}
+
+/**
+ * BR-02: Deriva el estado en base al stock disponible.
+ * Si el stock llega a 0, el producto pasa a SOLD_OUT.
+ * Si tiene stock y estaba SOLD_OUT, se reactiva a AVAILABLE.
+ */
+export function deriveStatusFromStock(
+  totalStock: number,
+  currentStatus: ProductStatus = "AVAILABLE"
+): ProductStatus {
+  if (totalStock <= 0) {
+    return "SOLD_OUT";
+  }
+  if (currentStatus === "SOLD_OUT" && totalStock > 0) {
+    return "AVAILABLE";
+  }
+  return currentStatus;
+}
+
+/**
+ * Obtiene la lista ordenada de talles únicos de un conjunto de colores.
+ */
+export function getDistinctSizes(colors?: Array<{ sizes?: Array<{ size: string }> }>): string[] {
+  if (!colors || colors.length === 0) return [];
+  const set = new Set<string>();
+  for (const color of colors) {
+    for (const size of color.sizes || []) {
+      if (size.size) set.add(size.size.trim().toUpperCase());
+    }
+  }
+  return Array.from(set);
+}
+
+

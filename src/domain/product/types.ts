@@ -1,8 +1,26 @@
 export type ProductStatus = "AVAILABLE" | "RESERVED" | "SOLD_OUT";
 
+export interface ProductColorSize {
+  id: number;
+  productColorId: number;
+  size: string;
+  stock: number;
+  reservedStock: number;
+}
+
+export interface ProductColor {
+  id: number;
+  productId: number;
+  name: string;
+  hexCode?: string | null;
+  position: number;
+  sizes: ProductColorSize[];
+}
+
 export interface ProductPhoto {
   id: number;
   productId: number;
+  productColorId?: number | null;
   position: number;
   keyThumb: string;
   keyFull: string;
@@ -23,7 +41,7 @@ export interface Product {
   title: string | null;
   priceCents: number | null;
   currency: string;
-  size: string | null;
+  size?: string | null;
   categoryId: number;
   status: ProductStatus;
   soldOutAt: number | null;
@@ -31,6 +49,7 @@ export interface Product {
   manualFields: string[];
   createdAt: number;
   updatedAt: number;
+  colors?: ProductColor[];
   photos?: ProductPhoto[];
   stats?: ProductStats;
 }
@@ -47,6 +66,19 @@ export interface StatusHistoryEntry {
   source: StatusSource;
 }
 
+export interface CreateColorSizeInput {
+  size: string;
+  stock: number;
+  reservedStock?: number;
+}
+
+export interface CreateColorInput {
+  name: string;
+  hexCode?: string | null;
+  position?: number;
+  sizes?: CreateColorSizeInput[];
+}
+
 export interface CreateProductInput {
   rawText: string;
   title?: string | null;
@@ -54,10 +86,12 @@ export interface CreateProductInput {
   currency?: string;
   size?: string | null;
   categoryId?: number;
+  colors?: CreateColorInput[];
   photos?: Array<{
     keyThumb: string;
     keyFull: string;
     position?: number;
+    productColorId?: number | null;
   }>;
   source?: StatusSource;
 }

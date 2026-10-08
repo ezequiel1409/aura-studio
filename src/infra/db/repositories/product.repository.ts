@@ -14,6 +14,8 @@ import {
   ListProductsFilter,
   PaginatedResult,
   Product,
+  ProductColor,
+  ProductColorSize,
   ProductPhoto,
   ProductStats,
   ProductStatus,
@@ -23,7 +25,13 @@ import {
   IProductRepository,
 } from "../../../domain/ports/repositories.port";
 import { DbClient } from "../client";
-import { productPhotos, productStats, products } from "../schema";
+import {
+  productColorSizes,
+  productColors,
+  productPhotos,
+  productStats,
+  products,
+} from "../schema";
 
 export class DrizzleProductRepository implements IProductRepository {
   constructor(private readonly db: DbClient) {}
@@ -48,6 +56,54 @@ export class DrizzleProductRepository implements IProductRepository {
       })
       .returning();
 
+    // Inserta colores y talles
+    const insertedColors: ProductColor[] = [];
+    if (data.colors && data.colors.length > 0) {
+      for (const col of data.colors) {
+        const [c] = await this.db
+          .insert(productColors)
+          .values({
+            productId: inserted.id,
+            name: col.name,
+            hexCode: col.hexCode || null,
+            position: col.position ?? 0,
+          })
+          .returning();
+
+        const colorSizes: ProductColorSize[] = [];
+        if (col.sizes && col.sizes.length > 0) {
+          for (const s of col.sizes) {
+            const [sizeRow] = await this.db
+              .insert(productColorSizes)
+              .values({
+                productColorId: c.id,
+                size: s.size,
+                stock: s.stock ?? 0,
+                reservedStock: s.reservedStock ?? 0,
+              })
+              .returning();
+
+            colorSizes.push({
+              id: sizeRow.id,
+              productColorId: sizeRow.productColorId,
+              size: sizeRow.size,
+              stock: sizeRow.stock,
+              reservedStock: sizeRow.reservedStock,
+            });
+          }
+        }
+
+        insertedColors.push({
+          id: c.id,
+          productId: c.productId,
+          name: c.name,
+          hexCode: c.hexCode,
+          position: c.position,
+          sizes: colorSizes,
+        });
+      }
+    }
+
     // Inserta fotos si existen
     const insertedPhotos: ProductPhoto[] = [];
     if (data.photos && data.photos.length > 0) {
@@ -56,6 +112,7 @@ export class DrizzleProductRepository implements IProductRepository {
           .insert(productPhotos)
           .values({
             productId: inserted.id,
+            productColorId: photo.productColorId || null,
             position: photo.position,
             keyThumb: photo.keyThumb,
             keyFull: photo.keyFull,
@@ -66,6 +123,7 @@ export class DrizzleProductRepository implements IProductRepository {
         insertedPhotos.push({
           id: p.id,
           productId: p.productId,
+          productColorId: p.productColorId,
           position: p.position,
           keyThumb: p.keyThumb,
           keyFull: p.keyFull,
@@ -97,6 +155,7 @@ export class DrizzleProductRepository implements IProductRepository {
       manualFields: JSON.parse(inserted.manualFields || "[]"),
       createdAt: inserted.createdAt,
       updatedAt: inserted.updatedAt,
+      colors: insertedColors,
       photos: insertedPhotos,
       stats: {
         productId: inserted.id,
@@ -117,8 +176,9 @@ export class DrizzleProductRepository implements IProductRepository {
 
     const photos = await this.getPhotosForProduct(row.id);
     const stats = await this.getStatsForProduct(row.id);
+    const colors = await this.getColorsForProduct(row.id);
 
-    return this.mapToEntity(row, photos, stats);
+    return this.mapToEntity(row, photos, stats, colors);
   }
 
   async findByCode(code: number): Promise<Product | null> {
@@ -131,8 +191,9 @@ export class DrizzleProductRepository implements IProductRepository {
 
     const photos = await this.getPhotosForProduct(row.id);
     const stats = await this.getStatsForProduct(row.id);
+    const colors = await this.getColorsForProduct(row.id);
 
-    return this.mapToEntity(row, photos, stats);
+    return this.mapToEntity(row, photos, stats, colors);
   }
 
   async update(
@@ -251,12 +312,13 @@ export class DrizzleProductRepository implements IProductRepository {
       .limit(pageSize)
       .offset(offset);
 
-    // Mapea productos y obtiene sus fotos
+    // Mapea productos y obtiene sus fotos, estadísticas y colores/talles
     const items: Product[] = [];
     for (const row of rows) {
       const photos = await this.getPhotosForProduct(row.id);
       const stats = await this.getStatsForProduct(row.id);
-      items.push(this.mapToEntity(row, photos, stats));
+      const colors = await this.getColorsForProduct(row.id);
+      items.push(this.mapToEntity(row, photos, stats, colors));
     }
 
     const totalPages = Math.ceil(total / pageSize);
@@ -283,6 +345,39 @@ export class DrizzleProductRepository implements IProductRepository {
     await this.db.delete(products).where(eq(products.id, id));
   }
 
+  private async getColorsForProduct(productId: number): Promise<ProductColor[]> {
+    const colorRows = await this.db
+      .select()
+      .from(productColors)
+      .where(eq(productColors.productId, productId))
+      .orderBy(asc(productColors.position));
+
+    const colors: ProductColor[] = [];
+    for (const c of colorRows) {
+      const sizeRows = await this.db
+        .select()
+        .from(productColorSizes)
+        .where(eq(productColorSizes.productColorId, c.id))
+        .orderBy(asc(productColorSizes.id));
+
+      colors.push({
+        id: c.id,
+        productId: c.productId,
+        name: c.name,
+        hexCode: c.hexCode,
+        position: c.position,
+        sizes: sizeRows.map((s) => ({
+          id: s.id,
+          productColorId: s.productColorId,
+          size: s.size,
+          stock: s.stock,
+          reservedStock: s.reservedStock,
+        })),
+      });
+    }
+    return colors;
+  }
+
   private async getPhotosForProduct(productId: number): Promise<ProductPhoto[]> {
     const rows = await this.db
       .select()
@@ -293,6 +388,7 @@ export class DrizzleProductRepository implements IProductRepository {
     return rows.map((p) => ({
       id: p.id,
       productId: p.productId,
+      productColorId: p.productColorId,
       position: p.position,
       keyThumb: p.keyThumb,
       keyFull: p.keyFull,
@@ -319,8 +415,23 @@ export class DrizzleProductRepository implements IProductRepository {
   private mapToEntity(
     row: typeof products.$inferSelect,
     photos?: ProductPhoto[],
-    stats?: ProductStats
+    stats?: ProductStats,
+    colors?: ProductColor[]
   ): Product {
+    // Si row.size no está seteado pero tenemos colors con talles, derivamos la representación resumida
+    let sizeDisplay = row.size;
+    if (!sizeDisplay && colors && colors.length > 0) {
+      const uniqueSizes = new Set<string>();
+      for (const col of colors) {
+        for (const sz of col.sizes) {
+          if (sz.size) uniqueSizes.add(sz.size.trim().toUpperCase());
+        }
+      }
+      if (uniqueSizes.size > 0) {
+        sizeDisplay = Array.from(uniqueSizes).join(", ");
+      }
+    }
+
     return {
       id: row.id,
       code: row.code,
@@ -328,7 +439,7 @@ export class DrizzleProductRepository implements IProductRepository {
       title: row.title,
       priceCents: row.priceCents,
       currency: row.currency,
-      size: row.size,
+      size: sizeDisplay,
       categoryId: row.categoryId,
       status: row.status as ProductStatus,
       soldOutAt: row.soldOutAt,
@@ -336,6 +447,7 @@ export class DrizzleProductRepository implements IProductRepository {
       manualFields: JSON.parse(row.manualFields || "[]"),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      colors: colors || [],
       photos: photos || [],
       stats,
     };
