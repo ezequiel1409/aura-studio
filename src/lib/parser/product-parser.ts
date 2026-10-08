@@ -154,6 +154,42 @@ export function parseSizesList(sizeStr: string | null | undefined): string[] {
 }
 
 /**
+ * Formatea la etiqueta de talles para la tarjeta del catálogo evitando desbordes en móviles:
+ * - 1 talle: "T. M" o "ÚNICO"
+ * - 2 o 3 talles: "S · M" o "S · M · L"
+ * - Rango numérico (ej: 34, 36, 38, 40, 42): "34 al 42"
+ * - Rango de letras (ej: XS, S, M, L, XL): "XS al XL"
+ * - Otros 4+ talles: "S, M +2"
+ */
+export function formatSizesForBadge(sizes: string[]): string {
+  if (sizes.length === 0) return "";
+  if (sizes.length === 1) {
+    return sizes[0] === "ÚNICO" ? "ÚNICO" : `T. ${sizes[0]}`;
+  }
+  if (sizes.length <= 3) {
+    return sizes.join(" · ");
+  }
+
+  const first = sizes[0];
+  const last = sizes[sizes.length - 1];
+
+  // Si todos son numéricos (ej: 34, 36, 38, 40, 42)
+  const allNumbers = sizes.every((s) => /^[0-9]+$/.test(s));
+  if (allNumbers) {
+    return `${first} al ${last}`;
+  }
+
+  // Si es secuencia estándar de letras
+  const standardLetterOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"];
+  if (standardLetterOrder.includes(first) && standardLetterOrder.includes(last)) {
+    return `${first} al ${last}`;
+  }
+
+  // Fallback compacto para listas mixtas
+  return `${first}, ${sizes[1]} +${sizes.length - 2}`;
+}
+
+/**
  * Sugiere una categoría a partir de palabras clave en el texto.
  */
 export function suggestCategory(text: string): string | undefined {

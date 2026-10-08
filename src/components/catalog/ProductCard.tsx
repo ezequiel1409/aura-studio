@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Product } from "../../domain/product/types";
 import { formatProductCode } from "../../domain/product/rules";
 import { formatPrice } from "../../lib/format/currency";
-import { parseSizesList } from "../../lib/parser/product-parser";
+import { parseSizesList, formatSizesForBadge } from "../../lib/parser/product-parser";
 
 interface ProductCardProps {
   product: Product;
@@ -81,9 +81,9 @@ export function ProductCard({ product }: ProductCardProps) {
             </h2>
           </div>
 
-          <div className="mt-2.5 flex items-baseline justify-between gap-1 border-t border-[#f0ece1] pt-2">
+          <div className="mt-2.5 flex items-baseline justify-between gap-1.5 border-t border-[#f0ece1] pt-2">
             {/* Precio destacado */}
-            <span className="font-serif text-base font-semibold tracking-tight text-stone-900">
+            <span className="font-serif text-base font-semibold tracking-tight text-stone-900 shrink-0">
               {priceDisplay}
             </span>
 
@@ -91,9 +91,13 @@ export function ProductCard({ product }: ProductCardProps) {
             {(() => {
               const sizes = parseSizesList(product.size);
               if (sizes.length === 0) return null;
+              const badgeText = formatSizesForBadge(sizes);
               return (
-                <span className="rounded border border-[#e7e2da] bg-[#faf8f5] px-2 py-0.5 font-mono text-[10px] font-semibold text-stone-700">
-                  {sizes.length > 1 ? `Talles: ${sizes.join(" · ")}` : `T. ${sizes[0]}`}
+                <span
+                  title={`Talles disponibles: ${sizes.join(", ")}`}
+                  className="max-w-[55%] truncate shrink-0 rounded border border-[#e7e2da] bg-[#faf8f5] px-2 py-0.5 font-mono text-[10px] font-semibold text-stone-700"
+                >
+                  {badgeText}
                 </span>
               );
             })()}

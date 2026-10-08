@@ -3,6 +3,7 @@ import {
   extractPriceCents,
   extractSize,
   parseSizesList,
+  formatSizesForBadge,
   parseProductText,
 } from "../src/lib/parser/product-parser";
 import { sanitizePlainText } from "../src/lib/parser/sanitize";
@@ -58,6 +59,23 @@ describe("Price and Size Extraction (BR-20, BR-23)", () => {
     expect(parseSizesList("M")).toEqual(["M"]);
     expect(parseSizesList(null)).toEqual([]);
     expect(parseSizesList(undefined)).toEqual([]);
+  });
+
+  it("formatea talles para la tarjeta del catálogo de forma compacta (formatSizesForBadge)", () => {
+    // 1 talle
+    expect(formatSizesForBadge(["M"])).toBe("T. M");
+    expect(formatSizesForBadge(["ÚNICO"])).toBe("ÚNICO");
+
+    // 2 y 3 talles
+    expect(formatSizesForBadge(["S", "M"])).toBe("S · M");
+    expect(formatSizesForBadge(["S", "M", "L"])).toBe("S · M · L");
+
+    // 4 o más talles: rangos inteligentes
+    expect(formatSizesForBadge(["34", "36", "38", "40", "42"])).toBe("34 al 42");
+    expect(formatSizesForBadge(["XS", "S", "M", "L", "XL"])).toBe("XS al XL");
+    expect(formatSizesForBadge(["1", "2", "3", "4"])).toBe("1 al 4");
+    expect(formatSizesForBadge(["A", "B", "C", "D", "E"])).toBe("A, B +3");
+    expect(formatSizesForBadge([])).toBe("");
   });
 
   it("formatea moneda en ARS con soporte para 'Consultar precio' (BR-23)", () => {
