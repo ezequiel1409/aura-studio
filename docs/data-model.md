@@ -2,7 +2,7 @@
 
 Base: Cloudflare D1 (SQLite) + Drizzle. Todo cambio va con migración versionada (AR-05).
 
-## garments
+## products
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | integer PK autoincrement | Garantiza BR-01 (no se reutiliza) |
@@ -21,18 +21,19 @@ Base: Cloudflare D1 (SQLite) + Drizzle. Todo cambio va con migración versionada
 
 Índices: `(status, created_at)`, `(category_id, status)`, `(price_cents)`, `(sold_out_at)`.
 
-## garment_photos
-`id`, `garment_id` FK (cascade), `position`, `key_thumb`, `key_full` (claves en R2), `created_at`.
+## product_photos
+`id`, `product_id` FK (cascade), `position`, `key_thumb`, `key_full` (claves en R2), `created_at`.
 
 ## categories
 `id`, `parent_id` FK null, `name`, `slug` unique, `position`, `is_hidden`, `is_system`.
 Restricciones de aplicación: profundidad máxima 2 (BR-15); `is_system` para "Sin clasificar" (BR-19).
+Nota: Prendas/indumentaria ("Garment"), calzado, accesorios, etc. son ramas/categorías del catálogo.
 
 ## status_history
-`id`, `garment_id`, `from_status`, `to_status`, `at`, `source` (`web` / `telegram` / `system`). Auditoría y base del "Deshacer" (BR-28).
+`id`, `product_id`, `product_code`, `from_status`, `to_status`, `at`, `source` (`web` / `telegram` / `system`). Auditoría y base del "Deshacer" (BR-28).
 
 ## purge_runs
-`id`, `started_at`, `mode` (`auto` / `manual` / `dry_run`), `garments_deleted`, `photos_deleted`, `errors` (JSON). BR-32.
+`id`, `started_at`, `mode` (`auto` / `manual` / `dry_run`), `products_deleted`, `photos_deleted`, `errors` (JSON). BR-32.
 
 ## settings
 `key` PK, `value`. Claves: `whatsapp_number`, `brand_name`, `reservation_hours`. BR-35.
@@ -47,15 +48,15 @@ Restricciones de aplicación: profundidad máxima 2 (BR-15); `is_system` para "S
 | views_count | integer default 0 | Visitas acumuladas a la sección/categoría |
 | last_viewed_at | integer null | Timestamp unix de la última visita |
 
-## garment_stats
+## product_stats
 | Campo | Tipo | Notas |
 |---|---|---|
-| garment_id | integer PK FK | Relación 1:1 con `garments` (cascade al purgar). BR-39 |
-| views_count | integer default 0 | Visitas a la ficha de la prenda |
+| product_id | integer PK FK | Relación 1:1 con `products` (cascade al purgar). BR-39 |
+| views_count | integer default 0 | Visitas a la ficha del producto |
 | whatsapp_clicks | integer default 0 | Clics en "Consultar / Reservar por WhatsApp" |
 | last_viewed_at | integer null | Timestamp unix de la última visita |
 
 ## Notas
-- `status_history.garment_id` no tiene FK con cascade, para conservar la auditoría tras la purga (se guarda el `code`).
+- `status_history.product_id` no tiene FK con cascade, para conservar la auditoría tras la purga (se guarda el `product_code`).
 - Los códigos usan un contador propio (`sqlite_sequence` o tabla `counters`) y no `MAX()+1`.
-- `garment_stats` y `category_stats` se mantienen separados de sus tablas maestras para evitar mutar `updated_at` e invalidar cachés de lectura cada vez que se registra una vista pública (AR-07).
+- `product_stats` y `category_stats` se mantienen separados de sus tablas maestras para evitar mutar `updated_at` e invalidar cachés de lectura cada vez que se registra una vista pública (AR-07).

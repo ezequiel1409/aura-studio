@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "aura-studio",
+  "compatibility_date": "2026-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "aura-studio-db",
+      "database_id": "16950865-bcc4-4717-b426-addff6831dc9"
+    }
+  ]
+}
+
