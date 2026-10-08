@@ -28,6 +28,16 @@ Seguimos una variante de **Conventional Commits** adaptada a nuestro sistema de 
 <tipo>(<ámbito>): <descripción concisa en español y minúsculas> [(BR-xx | AR-xx)]
 ```
 
+### Regla del Propósito: Qué y Para Qué
+
+Cada commit debe formularse respondiendo al criterio:
+> **"Se edita [X] para establecer funcionalidad para el objetivo [X]"**
+
+- **Qué se edita:** el archivo, tabla, módulo o regla específica.
+- **Para qué objetivo:** la capacidad funcional o valor que habilita en el sistema.
+
+*Evitá mensajes vagos como "cambios en ficha", "fix", "update". Especificá siempre la acción y su objetivo.*
+
 ### Tipos permitidos
 
 | Tipo | Cuándo se usa |
@@ -95,3 +105,4 @@ flowchart LR
 - [ ] ¿La compilación y tipos de TypeScript están limpios (`npm run build` o `npx tsc --noEmit`)?
 - [ ] ¿El mensaje sigue la estructura `<tipo>(<ámbito>): <descripción> [(BR-xx)]`?
 - [ ] ¿Evitaste commitear archivos temporales, logs o claves secretas?
+
