@@ -79,6 +79,26 @@ export function ProductCard({ product }: ProductCardProps) {
             <h2 className="line-clamp-1 font-serif text-base font-normal tracking-wide text-stone-900 transition-colors group-hover:text-amber-950">
               {titleDisplay}
             </h2>
+            {product.colors && product.colors.length > 1 && (
+              <div
+                className="mt-1 flex items-center gap-1.5"
+                title={`Colores disponibles: ${product.colors.map((c) => c.name).join(", ")}`}
+              >
+                <div className="flex items-center -space-x-1">
+                  {product.colors.slice(0, 4).map((c) => (
+                    <span
+                      key={c.id}
+                      className="inline-block h-2.5 w-2.5 rounded-full border border-white shadow-2xs"
+                      style={{ backgroundColor: c.hexCode || "#78716c" }}
+                      aria-hidden="true"
+                    />
+                  ))}
+                </div>
+                <span className="text-[10px] text-stone-500 font-sans">
+                  {product.colors.length} colores
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="mt-2.5 flex items-baseline justify-between gap-1.5 border-t border-[#f0ece1] pt-2">

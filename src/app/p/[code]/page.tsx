@@ -213,7 +213,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Selector interactivo de talles y conversión directa a WhatsApp (BR-13, BR-14) */}
+            {/* Selector interactivo de colores, talles y conversión directa a WhatsApp (BR-13, BR-14, BR-20) */}
             <ProductOrderSection
               productId={product.id}
               code={product.code}
@@ -221,6 +221,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               title={product.title}
               priceCents={product.priceCents}
               currency={product.currency}
+              colors={product.colors}
               sizes={sizes}
               whatsappNumber={whatsappNumber}
               brandName={brandName}
