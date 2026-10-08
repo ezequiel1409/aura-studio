@@ -8,8 +8,8 @@ Panel privado de la administradora. Diseño **mobile-first**: todo debe poder ha
 |---|---|---|
 | **Resumen** | Contadores y alertas: disponibles, reservadas, agotadas, por vencer, sin clasificar, sin precio. Cada contador lleva a la lista ya filtrada. | BR-36 |
 | **Prendas** | Lista con foto, código, precio, estado, categoría y métricas (visitas y clics WhatsApp). Búsqueda por código, filtros por estado/categoría, selección múltiple. | BR-27, 29, 31, 39 |
-| **Cargar prenda** | Subir fotos + pegar texto → vista previa con datos propuestos → confirmar. | BR-05, 26 |
-| **Ficha de prenda** | Editar texto, precio, talle, categoría, fotos; cambiar estado; ver historial y métricas de conversión (visitas vs consultas); eliminar. | BR-27, 28, 33, 34, 39 |
+| **Cargar prenda** | Subir fotos + pegar texto → vista previa con datos propuestos (título, precio, categoría, colores y talles con stock) → confirmar o ajustar. | BR-05, 20, 26 |
+| **Ficha de prenda** | Editar texto, precio, colores, talles, stock por talle (+/-), categoría, fotos (asignables a color); cambiar estado; ver historial y métricas; eliminar. | BR-27, 28, 33, 34, 39 |
 | **Categorías** | Árbol de categorías y subcategorías: crear, renombrar, reordenar, mover, ocultar, eliminar, y ver visitas por sección. | BR-15 a 19, 38, 39 |
 | **Barrido** | Vista previa de lo que se purgaría, ejecutar, historial de corridas. | BR-04, 32 |
 | **Configuración** | WhatsApp, nombre del showroom, horas de reserva. | BR-35 |
@@ -19,7 +19,7 @@ Panel privado de la administradora. Diseño **mobile-first**: todo debe poder ha
 ### Cargar una prenda (objetivo: menos de 30 segundos)
 1. Tocar **+ Cargar**.
 2. Elegir fotos (se comprimen en el navegador) y pegar el texto.
-3. Ver la **vista previa**: título, precio, talle y categoría propuestos. Los campos no detectados quedan vacíos y marcados.
+3. Ver la **vista previa**: título, precio, categoría propuestos y matriz rápida de **Colores y Talles** (ej: Color Negro → S: 2, M: 1). Si no se detectan variantes, se asigna Color: "Único", Talle: "ÚNICO", Stock: 1 con opción de editarlo con un toque.
 4. Tocar **Publicar**. Si falta algo, igual publica.
 5. Mensaje: "Prenda #024 publicada · Ver · Cargar otra".
 

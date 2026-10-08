@@ -11,18 +11,47 @@ Base: Cloudflare D1 (SQLite) + Drizzle. Todo cambio va con migración versionada
 | title | text null | Interpretado o editado |
 | price_cents | integer null | BR-20 / BR-23 |
 | currency | text default 'ARS' | |
-| size | text null | Normalizado (BR-20) |
 | category_id | integer FK | Nunca nulo: "Sin clasificar" por defecto (BR-19) |
-| status | text | `AVAILABLE` / `RESERVED` / `SOLD_OUT` |
-| sold_out_at | integer null | BR-03 |
+| status | text | `AVAILABLE` / `RESERVED` / `SOLD_OUT` (derivado de stock global o manual) |
+| sold_out_at | integer null | BR-03 (se setea al llegar a stock total 0) |
 | reserved_until | integer null | BR-30 |
 | manual_fields | text (JSON) | Campos corregidos a mano, no se pisan (BR-33) |
 | created_at / updated_at | integer | |
 
 Índices: `(status, created_at)`, `(category_id, status)`, `(price_cents)`, `(sold_out_at)`.
 
+## product_colors (Variantes de Color)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| product_id | integer FK (cascade) | Pertenece a un producto |
+| name | text not null | Nombre del color (ej: "Negro", "Blanco", "Celeste Vintage") |
+| hex_code | text null | Código hexadecimal opcional (ej: `#000000`, `#E7DEC8`) |
+| position | integer default 0 | Orden de visualización en el catálogo |
+
+Índices: `(product_id, position)`.
+
+## product_color_sizes (Talles y Stock por Color)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| product_color_id | integer FK (cascade) | Pertenece a un color del producto |
+| size | text not null | Normalizado: "S", "M", "L", "38", "40", "ÚNICO" (BR-20) |
+| stock | integer not null default 0 | Cantidad física disponible (>= 0) |
+| reserved_stock | integer not null default 0 | Cantidad comprometida en reservas temporales (>= 0) |
+
+Índices: `(product_color_id, size)`.
+
 ## product_photos
-`id`, `product_id` FK (cascade), `position`, `key_thumb`, `key_full` (claves en R2), `created_at`.
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| product_id | integer FK (cascade) | Producto al que pertenece |
+| product_color_id | integer FK null (set null) | Opcional: foto asignada a un color específico |
+| position | integer default 0 | Orden en el carrusel |
+| key_thumb | text | Clave/URL en R2 (versión miniatura) |
+| key_full | text | Clave/URL en R2 (versión completa) |
+| created_at | integer | Timestamp unix |
 
 ## categories
 `id`, `parent_id` FK null, `name`, `slug` unique, `position`, `is_hidden`, `is_system`.
@@ -57,6 +86,9 @@ Nota: Prendas/indumentaria ("Garment"), calzado, accesorios, etc. son ramas/cate
 | last_viewed_at | integer null | Timestamp unix de la última visita |
 
 ## Notas
+- **Jerarquía de Stock**: Un producto tiene 1 o más colores (`product_colors`), y cada color tiene 1 o más talles con stock numérico (`product_color_sizes`).
+- Si un producto es de talle y color único, se modela con un color `"Único"` y un talle `"ÚNICO"`.
+- El estado `SOLD_OUT` se activa automáticamente cuando la suma de `stock` de todas sus combinaciones (color + talle) es igual a 0.
 - `status_history.product_id` no tiene FK con cascade, para conservar la auditoría tras la purga (se guarda el `product_code`).
-- Los códigos usan un contador propio (`sqlite_sequence` o tabla `counters`) y no `MAX()+1`.
+- Los códigos usan un contador propio (`counters`) y no `MAX()+1` (BR-01).
 - `product_stats` y `category_stats` se mantienen separados de sus tablas maestras para evitar mutar `updated_at` e invalidar cachés de lectura cada vez que se registra una vista pública (AR-07).

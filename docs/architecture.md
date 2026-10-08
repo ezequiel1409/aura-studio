@@ -25,3 +25,5 @@ src/
 - **AR-05**: Todo cambio de schema va con migración versionada.
 - **AR-06**: Toda regla `BR-xx` crítica tiene al menos un test.
 - **AR-07**: Telemetría y analítica desacopladas de la lectura. El registro de métricas públicas (vistas de ficha, vistas de categoría, clics en WhatsApp) nunca bloquea el renderizado ni la entrega de páginas cacheadas. Se procesa de forma asíncrona mediante un endpoint ligero (`/api/analytics/track` o `navigator.sendBeacon`) con debouncing para no saturar escrituras en D1.
+- **AR-08**: Agregado de Producto: `Product` es la raíz del agregado (Aggregate Root) y encapsula sus colores (`ProductColor`) y los talles con stock de cada color (`ProductColorSize`). El estado general del producto y su ciclo de vida (`AVAILABLE`, `SOLD_OUT`) se calculan a partir de la disponibilidad agregada de su stock.
+
