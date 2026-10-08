@@ -11,7 +11,7 @@ src/
   infra/
     db/             → schema Drizzle, repositorios
     storage/        → adaptador R2 (interfaz StoragePort)
-    payments/       → adaptadores (whatsapp ahora, mercadopago después)
+    payments/       → adaptadores ( mercadopago después)
     auth/
   lib/              → utilidades (parser de texto, sanitización, formato ARS)
 ```
@@ -24,3 +24,4 @@ src/
 - **AR-04**: Variables de entorno validadas con Zod al arrancar. Sin secretos en el repo.
 - **AR-05**: Todo cambio de schema va con migración versionada.
 - **AR-06**: Toda regla `BR-xx` crítica tiene al menos un test.
+- **AR-07**: Telemetría y analítica desacopladas de la lectura. El registro de métricas públicas (vistas de ficha, vistas de categoría, clics en WhatsApp) nunca bloquea el renderizado ni la entrega de páginas cacheadas. Se procesa de forma asíncrona mediante un endpoint ligero (`/api/analytics/track` o `navigator.sendBeacon`) con debouncing para no saturar escrituras en D1.
