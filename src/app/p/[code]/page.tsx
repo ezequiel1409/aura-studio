@@ -1,12 +1,12 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Sparkles, Tag, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Sparkles, Tag } from "lucide-react";
 import { getProductServiceDeps } from "../../../infra/db/connection";
 import { parseProductCode, formatProductCode } from "../../../domain/product/rules";
 import { formatPrice } from "../../../lib/format/currency";
-import { WhatsAppPaymentAdapter } from "../../../infra/payments/whatsapp.adapter";
+import { parseSizesList } from "../../../lib/parser/product-parser";
 import { ProductGallery } from "../../../components/catalog/ProductGallery";
-import { WhatsAppButton } from "../../../components/catalog/WhatsAppButton";
+import { ProductOrderSection } from "../../../components/catalog/ProductOrderSection";
 import { ProductGrid } from "../../../components/catalog/ProductGrid";
 import { AnalyticsTracker } from "../../../components/analytics/AnalyticsTracker";
 import { listProducts } from "../../../services/product.service";
@@ -122,21 +122,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   const brandName =
     (await deps.settingsRepo?.get("brand_name")) || "Aura Studio";
 
-  // Generar acción de pago/reserva mediante WhatsAppPaymentAdapter (BR-13, BR-14)
   const formattedCode = formatProductCode(product.code);
-  const paymentAdapter = new WhatsAppPaymentAdapter({
-    whatsappNumber,
-    brandName,
-  });
-
-  const paymentAction = paymentAdapter.createPaymentAction({
-    code: product.code,
-    formattedCode,
-    title: product.title,
-    priceCents: product.priceCents,
-    currency: product.currency,
-  });
-
+  const sizes = parseSizesList(product.size);
   const isSoldOut = product.status === "SOLD_OUT";
   const isReserved = product.status === "RESERVED";
 
@@ -218,35 +205,28 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               </span>
             </div>
 
-            {/* Talle y Categoría */}
-            <div className="mt-5 flex flex-wrap items-center gap-2.5">
-              {product.size && (
-                <div className="flex items-center gap-1.5 rounded-lg border border-[#e7e2da] bg-white px-3.5 py-1.5 text-xs font-medium text-stone-900 shadow-2xs">
-                  <span className="text-stone-500">Talle:</span>
-                  <span className="font-bold">{product.size}</span>
-                </div>
-              )}
-              {category && category.slug !== "sin-clasificar" && (
-                <div className="flex items-center gap-1.5 rounded-lg border border-[#e7e2da] bg-white px-3.5 py-1.5 text-xs font-medium text-stone-700 shadow-2xs">
-                  <Tag className="h-3.5 w-3.5 text-stone-400" />
-                  <span>{category.name}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Bloque de Acción Principal (WhatsApp Conversion) */}
-            <div className="mt-8 rounded-2xl border border-[#e7e2da] bg-white p-5 sm:p-6 shadow-2xs">
-              <WhatsAppButton
-                productId={product.id}
-                url={paymentAction.url}
-                label={isSoldOut ? "Pieza Agotada" : paymentAction.label}
-                disabled={isSoldOut}
-              />
-              <div className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs text-stone-500">
-                <ShieldCheck className="h-4 w-4 text-[#926a3c]" />
-                <span>Atención personalizada · Reserva directa desde el showroom</span>
+            {/* Categoría si aplica */}
+            {category && category.slug !== "sin-clasificar" && (
+              <div className="mt-3 flex items-center gap-1.5 text-xs text-stone-600">
+                <Tag className="h-3.5 w-3.5 text-stone-400" />
+                <span className="font-medium text-stone-700">{category.name}</span>
               </div>
-            </div>
+            )}
+
+            {/* Selector interactivo de talles y conversión directa a WhatsApp (BR-13, BR-14) */}
+            <ProductOrderSection
+              productId={product.id}
+              code={product.code}
+              formattedCode={formattedCode}
+              title={product.title}
+              priceCents={product.priceCents}
+              currency={product.currency}
+              sizes={sizes}
+              whatsappNumber={whatsappNumber}
+              brandName={brandName}
+              isSoldOut={isSoldOut}
+              isReserved={isReserved}
+            />
 
             {/* Descripción y Texto Original (BR-05, BR-06) */}
             <div className="mt-8 border-t border-[#e7e2da] pt-6">

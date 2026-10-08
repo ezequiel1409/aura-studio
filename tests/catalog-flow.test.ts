@@ -35,6 +35,37 @@ describe("Phase 2 - Public Catalog Flow & Adapters", () => {
       expect(decodeURIComponent(action.url)).toContain("Top Lino Blanco");
       expect(decodeURIComponent(action.url)).toContain("Aura Studio");
     });
+
+    it("incluye el talle seleccionado en el mensaje de WhatsApp", () => {
+      const adapter = new WhatsAppPaymentAdapter({
+        whatsappNumber: "+54 9 11 1234-5678",
+        brandName: "Aura Studio",
+      });
+
+      // Talle con letra o número
+      const actionM = adapter.createPaymentAction({
+        code: 1,
+        formattedCode: "#001",
+        title: "Top Florencia Lino",
+        priceCents: 1850000,
+        currency: "ARS",
+        selectedSize: "M",
+      });
+      const decodedM = decodeURIComponent(actionM.url);
+      expect(decodedM).toContain("en talle M");
+
+      // Talle único
+      const actionUnico = adapter.createPaymentAction({
+        code: 3,
+        formattedCode: "#003",
+        title: "Blazer Milano",
+        priceCents: 6500000,
+        currency: "ARS",
+        selectedSize: "ÚNICO",
+      });
+      const decodedUnico = decodeURIComponent(actionUnico.url);
+      expect(decodedUnico).toContain("en talle único");
+    });
   });
 
   describe("Decoupled Analytics Tracking (AR-07, BR-39)", () => {

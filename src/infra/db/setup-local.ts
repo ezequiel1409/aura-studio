@@ -43,16 +43,17 @@ async function main() {
 
   const countRow = sqlite.prepare("SELECT count(*) as count FROM products").get() as { count: number };
   if (countRow.count === 0) {
-    console.log("Insertando productos de muestra con carrusel de 3 fotos...");
+    console.log("Insertando productos de muestra con carrusel de fotos y talles variados...");
     const remerasCat = await deps.categoryRepo.findBySlug("remeras-y-tops");
     const jeansCat = await deps.categoryRepo.findBySlug("jeans");
     const abrigosCat = await deps.categoryRepo.findBySlug("abrigos");
+    const vestidosCat = await deps.categoryRepo.findBySlug("vestidos-y-enteritos");
 
-    // Prenda 1 con 3 fotos
+    // Prenda 1: Múltiples talles en letras (S, M, L)
     await createProduct(
       {
         rawText: `✨ Top Florencia Lino
-Talle: M
+Talles: S, M, L
 Precio: $ 18.500
 Confeccionado en lino 100% puro con escote cuadrado y tirantes regulables. Espalda con lazo ajustable.`,
         categoryId: remerasCat?.id,
@@ -77,11 +78,11 @@ Confeccionado en lino 100% puro con escote cuadrado y tirantes regulables. Espal
       deps
     );
 
-    // Prenda 2 con 2 fotos
+    // Prenda 2: Múltiples talles numéricos (36, 38, 40)
     await createProduct(
       {
         rawText: `Jean Wide Leg Vintage Celeste
-Talle: 38
+Talles: 36, 38, 40
 Precio: $ 42.000
 Denim rígido 100% algodón, tiro alto con lavado celeste vintage y terminación deshilachada artesanal.`,
         categoryId: jeansCat?.id,
@@ -101,7 +102,7 @@ Denim rígido 100% algodón, tiro alto con lavado celeste vintage y terminación
       deps
     );
 
-    // Prenda 3 con 3 fotos
+    // Prenda 3: Talle Único
     await createProduct(
       {
         rawText: `Blazer Milano Sastrero Negro
@@ -129,44 +130,56 @@ Corte oversize sastrero con solapa clásica, hombreras suaves y forro interno sa
       },
       deps
     );
+
+    // Prenda 4: Talle individual clásico (M)
+    await createProduct(
+      {
+        rawText: `Vestido Midi Seda Noche
+Talle: M
+Precio: $ 58.000
+Vestido lencero confeccionado en satén premium con escote drapeado y espalda cruzada.`,
+        categoryId: vestidosCat?.id,
+        photos: [
+          {
+            keyThumb: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&auto=format&fit=crop&q=80",
+            keyFull: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=1600&auto=format&fit=crop&q=90",
+            position: 0,
+          },
+        ],
+      },
+      deps
+    );
   } else {
-    // Si ya existen productos pero tienen 1 sola foto, agregamos fotos adicionales a la prenda 1 y 2
-    const p1 = await deps.productRepo.findByCode(1);
-    if (p1 && (!p1.photos || p1.photos.length < 3)) {
-      sqlite.prepare(
-        "INSERT INTO product_photos (product_id, position, key_thumb, key_full, created_at) VALUES (?, ?, ?, ?, ?)"
-      ).run(
-        p1.id,
-        1,
-        "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1600&auto=format&fit=crop&q=90",
-        Date.now()
+    // Si ya existen productos, actualizamos sus talles para la demostración
+    sqlite.prepare("UPDATE products SET size = 'S, M, L' WHERE code = 1").run();
+    sqlite.prepare("UPDATE products SET size = '36, 38, 40' WHERE code = 2").run();
+    sqlite.prepare("UPDATE products SET size = 'ÚNICO' WHERE code = 3").run();
+
+    // Verificamos si existe la prenda #004
+    const p4 = await deps.productRepo.findByCode(4);
+    if (!p4) {
+      const vestidosCat = await deps.categoryRepo.findBySlug("vestidos-y-enteritos");
+      await createProduct(
+        {
+          rawText: `Vestido Midi Seda Noche
+Talle: M
+Precio: $ 58.000
+Vestido lencero confeccionado en satén premium con escote drapeado y espalda cruzada.`,
+          categoryId: vestidosCat?.id,
+          photos: [
+            {
+              keyThumb: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&auto=format&fit=crop&q=80",
+              keyFull: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=1600&auto=format&fit=crop&q=90",
+              position: 0,
+            },
+          ],
+        },
+        deps
       );
-      sqlite.prepare(
-        "INSERT INTO product_photos (product_id, position, key_thumb, key_full, created_at) VALUES (?, ?, ?, ?, ?)"
-      ).run(
-        p1.id,
-        2,
-        "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=1600&auto=format&fit=crop&q=90",
-        Date.now()
-      );
-      console.log("Fotos adicionales agregadas a la prenda #001.");
+      console.log("Prenda #004 creada con talle individual.");
     }
 
-    const p2 = await deps.productRepo.findByCode(2);
-    if (p2 && (!p2.photos || p2.photos.length < 2)) {
-      sqlite.prepare(
-        "INSERT INTO product_photos (product_id, position, key_thumb, key_full, created_at) VALUES (?, ?, ?, ?, ?)"
-      ).run(
-        p2.id,
-        1,
-        "https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=600&auto=format&fit=crop&q=80",
-        "https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=1600&auto=format&fit=crop&q=90",
-        Date.now()
-      );
-      console.log("Foto adicional agregada a la prenda #002.");
-    }
+    console.log("Talles de prueba actualizados en productos existentes.");
   }
 
   console.log("Base de datos local actualizada con carruseles.");

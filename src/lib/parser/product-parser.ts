@@ -75,15 +75,31 @@ export function extractPriceCents(text: string): number | null {
 /**
  * Normaliza y extrae el talle (BR-20).
  * Soporta:
- * - Talle S, M, L, XL, XXL, XS
- * - Talle 1, 2, 3, 4
- * - Talle 36, 38, 40, 42
  * - Talle único / unico
+ * - Múltiples talles: "Talles: S, M, L", "Talles: 36, 38, 40", "Talles: S / M / L", "Talles 1 y 2"
+ * - Talles individuales: Talle S, M, L, XL, XXL, XS, 1, 2, 38, 40...
  */
 export function extractSize(text: string): string | null {
   // Talle único
   if (/(?:talle\s+)?(?:único|unico)\b/i.test(text) || /\b(?:[uú]nico)\b/iu.test(text)) {
     return "ÚNICO";
+  }
+
+  // Múltiples talles: ej "Talles: S, M, L", "Talles: 36, 38, 40", "Talles: S / M / L"
+  const multiMatch = text.match(/(?:talles?|t\.)\s*:?\s*([a-z0-9\s,/|y+-]+)(?:\n|$|\.|\bprecio|\bconfeccionado|\btiro|\bdenim|\b100%)/i);
+  if (multiMatch) {
+    const rawList = multiMatch[1].trim();
+    // Verificamos si contiene separadores comunes de listas (, o / o y)
+    if (/[,/|]|\s+y\s+/i.test(rawList)) {
+      const parts = rawList
+        .split(/[,/|]|\s+y\s+/i)
+        .map((p) => p.trim().toUpperCase())
+        .filter((p) => /^[a-z0-9+-]+$/i.test(p));
+
+      if (parts.length > 1) {
+        return parts.join(", ");
+      }
+    }
   }
 
   // Patrones tipo "Talle: M", "Talle M", "T: L", "Talle: 38", "T. 2"
@@ -111,6 +127,30 @@ export function extractSize(text: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Convierte el string de talle de la base de datos en una lista estructurada para selectores.
+ * Ej: "S, M, L" -> ["S", "M", "L"]
+ * Ej: "36, 38, 40" -> ["36", "38", "40"]
+ * Ej: "ÚNICO" -> ["ÚNICO"]
+ * Ej: "M" -> ["M"]
+ */
+export function parseSizesList(sizeStr: string | null | undefined): string[] {
+  if (!sizeStr) return [];
+  const trimmed = sizeStr.trim();
+  if (!trimmed) return [];
+
+  if (trimmed.toUpperCase() === "ÚNICO" || trimmed.toUpperCase() === "UNICO") {
+    return ["ÚNICO"];
+  }
+
+  const tokens = trimmed
+    .split(/[,/|]/)
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean);
+
+  return tokens.length > 0 ? tokens : [trimmed.toUpperCase()];
 }
 
 /**

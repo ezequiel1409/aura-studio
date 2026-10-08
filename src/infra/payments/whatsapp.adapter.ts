@@ -20,7 +20,14 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
     const brand = options?.brandName || this.defaultOptions.brandName || "Aura Studio";
 
     const titlePart = item.title ? ` (${item.title})` : "";
-    const rawMessage = `¡Hola! Me gustaría consultar por la prenda ${item.formattedCode}${titlePart} de ${brand}. ¿Sigue disponible?`;
+    let sizePart = "";
+    if (item.selectedSize) {
+      sizePart =
+        item.selectedSize.toUpperCase() === "ÚNICO" || item.selectedSize.toUpperCase() === "UNICO"
+          ? " en talle único"
+          : ` en talle ${item.selectedSize}`;
+    }
+    const rawMessage = `¡Hola! Me gustaría consultar por la prenda ${item.formattedCode}${titlePart}${sizePart} de ${brand}. ¿Sigue disponible?`;
 
     const encodedMessage = encodeURIComponent(rawMessage);
     const whatsappUrl = `https://wa.me/${number}?text=${encodedMessage}`;

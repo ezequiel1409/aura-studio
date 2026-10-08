@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractPriceCents,
   extractSize,
+  parseSizesList,
   parseProductText,
 } from "../src/lib/parser/product-parser";
 import { sanitizePlainText } from "../src/lib/parser/sanitize";
@@ -44,6 +45,19 @@ describe("Price and Size Extraction (BR-20, BR-23)", () => {
     expect(extractSize("Talle 2")).toBe("2");
     expect(extractSize("Talle 38")).toBe("38");
     expect(extractSize("Sin talle especificado")).toBeNull();
+  });
+
+  it("soporta extracción y lista de múltiples talles (S, M, L / 36, 38, 40)", () => {
+    expect(extractSize("Top lino\nTalles: S, M, L\nPrecio: $15.000")).toBe("S, M, L");
+    expect(extractSize("Jean rígido\nTalles: 36, 38, 40")).toBe("36, 38, 40");
+    expect(extractSize("Vestido\nTalles: S / M / L")).toBe("S, M, L");
+
+    expect(parseSizesList("S, M, L")).toEqual(["S", "M", "L"]);
+    expect(parseSizesList("36, 38, 40")).toEqual(["36", "38", "40"]);
+    expect(parseSizesList("ÚNICO")).toEqual(["ÚNICO"]);
+    expect(parseSizesList("M")).toEqual(["M"]);
+    expect(parseSizesList(null)).toEqual([]);
+    expect(parseSizesList(undefined)).toEqual([]);
   });
 
   it("formatea moneda en ARS con soporte para 'Consultar precio' (BR-23)", () => {

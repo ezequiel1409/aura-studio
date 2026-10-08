@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Product } from "../../domain/product/types";
 import { formatProductCode } from "../../domain/product/rules";
 import { formatPrice } from "../../lib/format/currency";
+import { parseSizesList } from "../../lib/parser/product-parser";
 
 interface ProductCardProps {
   product: Product;
@@ -86,12 +87,16 @@ export function ProductCard({ product }: ProductCardProps) {
               {priceDisplay}
             </span>
 
-            {/* Talle si aplica */}
-            {product.size && (
-              <span className="rounded border border-[#e7e2da] bg-[#faf8f5] px-2 py-0.5 text-[10px] font-semibold text-stone-700">
-                T. {product.size}
-              </span>
-            )}
+            {/* Talles disponibles si aplica */}
+            {(() => {
+              const sizes = parseSizesList(product.size);
+              if (sizes.length === 0) return null;
+              return (
+                <span className="rounded border border-[#e7e2da] bg-[#faf8f5] px-2 py-0.5 font-mono text-[10px] font-semibold text-stone-700">
+                  {sizes.length > 1 ? `Talles: ${sizes.join(" · ")}` : `T. ${sizes[0]}`}
+                </span>
+              );
+            })()}
           </div>
         </div>
       </Link>
