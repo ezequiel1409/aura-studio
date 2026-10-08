@@ -132,7 +132,7 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
   // Si no hay fotos, mostrar placeholder elegante
   if (totalPhotos === 0) {
     return (
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] flex flex-col items-center justify-center p-8 text-center text-stone-400">
+      <div className="relative mx-auto flex h-[310px] xs:h-[340px] sm:h-[390px] md:h-[410px] lg:h-[440px] w-full max-w-[360px] md:max-w-[400px] overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] flex-col items-center justify-center p-8 text-center text-stone-400">
         <span className="font-serif text-5xl font-light text-stone-300">AURA</span>
         <span className="mt-2 font-mono text-xs tracking-widest text-stone-400">{code}</span>
       </div>
@@ -143,19 +143,26 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
   const photoAlt = title ? `${title} - Foto ${currentIndex + 1} de ${totalPhotos}` : `Foto de ${code}`;
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-col gap-3">
       {/* Contenedor Principal del Carrusel */}
       <div
-        className="group relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] shadow-xs select-none"
+        className="group relative mx-auto flex h-[310px] xs:h-[340px] sm:h-[390px] md:h-[410px] lg:h-[440px] w-full max-w-[360px] md:max-w-[400px] items-center justify-center overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] shadow-xs select-none"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Imagen del Slide Actual */}
+        {/* Fondo difuminado ambiental suave en el tono de la prenda */}
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-15 blur-lg scale-110 pointer-events-none"
+          style={{ backgroundImage: `url(${currentPhoto.keyThumb || currentPhoto.keyFull})` }}
+          aria-hidden="true"
+        />
+
+        {/* Imagen del Slide Actual (con object-contain para ver el producto completo sin recortes) */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={currentPhoto.keyFull || currentPhoto.keyThumb}
           alt={photoAlt}
-          className="h-full w-full object-cover object-center transition-all duration-300 cursor-zoom-in"
+          className="relative z-10 h-full w-full object-contain p-2 transition-all duration-300 cursor-zoom-in drop-shadow-xs"
           onClick={() => setIsLightboxOpen(true)}
         />
 
@@ -164,7 +171,7 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
           type="button"
           onClick={() => setIsLightboxOpen(true)}
           aria-label="Ampliar imagen para ver detalles"
-          className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-stone-200/80 bg-white/90 px-3 py-1.5 text-[11px] font-medium tracking-wide text-stone-800 shadow-xs backdrop-blur-md transition-all hover:bg-white hover:shadow-md focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer"
+          className="absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full border border-stone-200/80 bg-white/90 px-2.5 py-1 text-[11px] font-medium tracking-wide text-stone-800 shadow-xs backdrop-blur-md transition-all hover:bg-white hover:shadow-md focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer"
         >
           <ZoomIn className="h-3.5 w-3.5 text-stone-600" />
           <span className="hidden sm:inline">Ver detalle</span>
@@ -172,7 +179,7 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
 
         {/* Indicador de posición (ej: 1 / 3) */}
         {totalPhotos > 1 && (
-          <span className="absolute left-3 top-3 rounded-full bg-stone-950/60 px-2.5 py-1 font-mono text-[10px] font-medium text-white backdrop-blur-xs">
+          <span className="absolute left-3 top-3 z-20 rounded-full bg-stone-950/60 px-2.5 py-1 font-mono text-[10px] font-medium text-white backdrop-blur-xs">
             {currentIndex + 1} / {totalPhotos}
           </span>
         )}
@@ -184,24 +191,24 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
               type="button"
               onClick={prevSlide}
               aria-label="Ver foto anterior"
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-stone-200/80 bg-white/85 text-stone-800 shadow-xs backdrop-blur-xs transition-all hover:scale-105 hover:bg-white hover:shadow-md active:scale-95 focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer sm:opacity-90 sm:group-hover:opacity-100"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border border-stone-200/80 bg-white/85 text-stone-800 shadow-xs backdrop-blur-xs transition-all hover:scale-105 hover:bg-white hover:shadow-md active:scale-95 focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer"
             >
-              <ChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <button
               type="button"
               onClick={nextSlide}
               aria-label="Ver foto siguiente"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-stone-200/80 bg-white/85 text-stone-800 shadow-xs backdrop-blur-xs transition-all hover:scale-105 hover:bg-white hover:shadow-md active:scale-95 focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer sm:opacity-90 sm:group-hover:opacity-100"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border border-stone-200/80 bg-white/85 text-stone-800 shadow-xs backdrop-blur-xs transition-all hover:scale-105 hover:bg-white hover:shadow-md active:scale-95 focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer"
             >
-              <ChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </>
         )}
 
         {/* Puntos indicadores inferiores del carrusel */}
         {totalPhotos > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-stone-950/40 px-2.5 py-1 backdrop-blur-xs">
+          <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full bg-stone-950/40 px-2.5 py-1 backdrop-blur-xs">
             {photos.map((_, idx) => (
               <button
                 key={idx}
@@ -219,40 +226,48 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
 
       {/* Miniaturas inferiores para selección directa (1 a 3 fotos) */}
       {totalPhotos > 1 && (
-        <div
-          className="flex gap-2.5 overflow-x-auto no-scrollbar py-1"
-          role="tablist"
-          aria-label="Miniaturas de la prenda"
-        >
-          {photos.map((photo, index) => {
-            const isSelected = index === currentIndex;
-            return (
-              <button
-                key={photo.id || index}
-                type="button"
-                role="tab"
-                aria-selected={isSelected}
-                aria-label={`Foto ${index + 1} de ${totalPhotos}`}
-                onClick={() => {
-                  setCurrentIndex(index);
-                  setZoomLevel(1);
-                  setPanPosition({ x: 0, y: 0 });
-                }}
-                className={`relative h-20 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-stone-900 ${
-                  isSelected
-                    ? "border-stone-900 shadow-sm opacity-100"
-                    : "border-transparent opacity-60 hover:opacity-100"
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.keyThumb || photo.keyFull}
-                  alt={`Miniatura ${index + 1}`}
-                  className="h-full w-full object-cover object-center"
-                />
-              </button>
-            );
-          })}
+        <div className="flex flex-col items-center gap-1">
+          <div
+            className="flex items-center justify-center gap-2 sm:gap-2.5 py-0.5"
+            role="tablist"
+            aria-label="Miniaturas de la prenda"
+          >
+            {photos.map((photo, index) => {
+              const isSelected = index === currentIndex;
+              return (
+                <button
+                  key={photo.id || index}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-label={`Foto ${index + 1} de ${totalPhotos}`}
+                  onClick={() => {
+                    setCurrentIndex(index);
+                    setZoomLevel(1);
+                    setPanPosition({ x: 0, y: 0 });
+                  }}
+                  className={`group/thumb relative h-14 w-12 sm:h-16 sm:w-14 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-stone-900 ${
+                    isSelected
+                      ? "border-stone-900 shadow-sm ring-2 ring-stone-900/10 scale-102 opacity-100"
+                      : "border-[#e7e2da] bg-white opacity-60 hover:opacity-100 hover:border-stone-400"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo.keyThumb || photo.keyFull}
+                    alt={`Miniatura ${index + 1}`}
+                    className="h-full w-full object-cover object-center"
+                  />
+                  <span className="absolute bottom-0.5 right-0.5 rounded bg-stone-950/75 px-1 py-0.2 font-mono text-[9px] font-bold text-white leading-none">
+                    {index + 1}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-[11px] font-medium tracking-wide text-stone-500">
+            {totalPhotos} fotos disponibles · Toca para alternar
+          </span>
         </div>
       )}
 

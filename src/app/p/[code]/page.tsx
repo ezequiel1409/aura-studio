@@ -168,10 +168,10 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       </header>
 
       {/* Contenedor de la Ficha */}
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-12">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:gap-14">
+      <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-12 items-start">
           {/* Galería de Fotos */}
-          <div>
+          <div className="md:sticky md:top-20">
             <ProductGallery
               photos={product.photos || []}
               title={product.title}
