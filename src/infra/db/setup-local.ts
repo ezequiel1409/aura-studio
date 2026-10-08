@@ -20,11 +20,29 @@ async function main() {
   const sqlite = new Database(dbPath);
   sqlite.pragma("foreign_keys = ON");
 
-  // Aplica migración idempotente
-  const initSqlPath = path.resolve(process.cwd(), "drizzle/init-db.sql");
-  if (fs.existsSync(initSqlPath)) {
-    const initSql = fs.readFileSync(initSqlPath, "utf-8");
-    sqlite.exec(initSql);
+  // Aplica todas las migraciones SQL de Drizzle Kit (AR-05)
+  const migrationsDir = path.resolve(process.cwd(), "drizzle/migrations");
+  if (fs.existsSync(migrationsDir)) {
+    const migrationFiles = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+
+    for (const file of migrationFiles) {
+      const migrationSql = fs.readFileSync(path.join(migrationsDir, file), "utf-8");
+      const statements = migrationSql
+        .split("--> statement-breakpoint")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      for (const statement of statements) {
+        try {
+          sqlite.exec(statement);
+        } catch (err) {
+          // Ignora si la columna/tabla o índice ya existe
+        }
+      }
+    }
   }
 
   const db = drizzle(sqlite, { schema });
@@ -41,22 +59,66 @@ async function main() {
     settingsRepo: new DrizzleSettingsRepository(db),
   };
 
-  const countRow = sqlite.prepare("SELECT count(*) as count FROM products").get() as { count: number };
-  if (countRow.count === 0) {
-    console.log("Insertando productos de muestra con carrusel de fotos y talles variados...");
+  // Verifica si ya existen los 5 productos con colores y talles completos
+  const productsCountRow = sqlite
+    .prepare("SELECT count(*) as count FROM products")
+    .get() as { count: number };
+
+  if (productsCountRow.count < 5) {
+    console.log("Limpiando productos anteriores para insertar nuevos mocks con Colores, Talles y Stock...");
+    sqlite.prepare("DELETE FROM products").run();
+    sqlite.prepare("DELETE FROM product_photos").run();
+    sqlite.prepare("DELETE FROM product_colors").run();
+    sqlite.prepare("DELETE FROM product_color_sizes").run();
+    sqlite.prepare("UPDATE counters SET value = 0 WHERE name = 'product_code'").run();
+
+    console.log("Insertando productos de muestra con jerarquía Producto -> Colores -> Talles con Stock...");
     const remerasCat = await deps.categoryRepo.findBySlug("remeras-y-tops");
     const jeansCat = await deps.categoryRepo.findBySlug("jeans");
     const abrigosCat = await deps.categoryRepo.findBySlug("abrigos");
     const vestidosCat = await deps.categoryRepo.findBySlug("vestidos-y-enteritos");
+    const buzosCat = await deps.categoryRepo.findBySlug("buzos-y-sweaters");
 
-    // Prenda 1: Múltiples talles en letras (S, M, L)
+    // Prenda 1: Top Florencia Lino (3 colores, talles S, M, L)
     await createProduct(
       {
         rawText: `✨ Top Florencia Lino
-Talles: S, M, L
-Precio: $ 18.500
-Confeccionado en lino 100% puro con escote cuadrado y tirantes regulables. Espalda con lazo ajustable.`,
+Confeccionado en lino 100% puro con escote cuadrado y tirantes regulables. Espalda con lazo ajustable.
+Colores disponibles: Blanco, Negro y Beige Lino.
+Precio: $ 18.500`,
         categoryId: remerasCat?.id,
+        colors: [
+          {
+            name: "Blanco",
+            hexCode: "#FFFFFF",
+            position: 0,
+            sizes: [
+              { size: "S", stock: 2 },
+              { size: "M", stock: 3 },
+              { size: "L", stock: 1 },
+            ],
+          },
+          {
+            name: "Negro",
+            hexCode: "#1C1917",
+            position: 1,
+            sizes: [
+              { size: "S", stock: 1 },
+              { size: "M", stock: 2 },
+              { size: "L", stock: 0 }, // Agotado en L para testing
+            ],
+          },
+          {
+            name: "Beige Lino",
+            hexCode: "#E7DEC8",
+            position: 2,
+            sizes: [
+              { size: "S", stock: 1 },
+              { size: "M", stock: 2 },
+              { size: "L", stock: 1 },
+            ],
+          },
+        ],
         photos: [
           {
             keyThumb: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&auto=format&fit=crop&q=80",
@@ -78,14 +140,36 @@ Confeccionado en lino 100% puro con escote cuadrado y tirantes regulables. Espal
       deps
     );
 
-    // Prenda 2: Múltiples talles numéricos (36, 38, 40)
+    // Prenda 2: Jean Wide Leg Vintage (2 colores, talles numéricos 36, 38, 40, 42)
     await createProduct(
       {
-        rawText: `Jean Wide Leg Vintage Celeste
-Talles: 36, 38, 40
-Precio: $ 42.000
-Denim rígido 100% algodón, tiro alto con lavado celeste vintage y terminación deshilachada artesanal.`,
+        rawText: `Jean Wide Leg Vintage
+Denim rígido 100% algodón, tiro alto con terminación deshilachada artesanal.
+Colores: Celeste Vintage y Denim Oscuro.
+Precio: $ 42.000`,
         categoryId: jeansCat?.id,
+        colors: [
+          {
+            name: "Celeste Vintage",
+            hexCode: "#8EABC2",
+            position: 0,
+            sizes: [
+              { size: "36", stock: 3 },
+              { size: "38", stock: 4 },
+              { size: "40", stock: 2 },
+            ],
+          },
+          {
+            name: "Denim Oscuro",
+            hexCode: "#1E293B",
+            position: 1,
+            sizes: [
+              { size: "38", stock: 2 },
+              { size: "40", stock: 2 },
+              { size: "42", stock: 1 },
+            ],
+          },
+        ],
         photos: [
           {
             keyThumb: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=600&auto=format&fit=crop&q=80",
@@ -102,14 +186,35 @@ Denim rígido 100% algodón, tiro alto con lavado celeste vintage y terminación
       deps
     );
 
-    // Prenda 3: Talle Único
+    // Prenda 3: Blazer Milano Sastrero (3 colores, Talle ÚNICO con stock)
     await createProduct(
       {
-        rawText: `Blazer Milano Sastrero Negro
+        rawText: `Blazer Milano Sastrero
+Corte oversize sastrero con solapa clásica, hombreras suaves y forro interno satinado en tono visón.
+Colores: Negro Sastrero, Camel y Gris Perla.
 Talle: ÚNICO
-Precio: $ 65.000
-Corte oversize sastrero con solapa clásica, hombreras suaves y forro interno satinado en tono visón.`,
+Precio: $ 65.000`,
         categoryId: abrigosCat?.id,
+        colors: [
+          {
+            name: "Negro Sastrero",
+            hexCode: "#111111",
+            position: 0,
+            sizes: [{ size: "ÚNICO", stock: 4 }],
+          },
+          {
+            name: "Camel",
+            hexCode: "#C19A6B",
+            position: 1,
+            sizes: [{ size: "ÚNICO", stock: 2 }],
+          },
+          {
+            name: "Gris Perla",
+            hexCode: "#D1D5DB",
+            position: 2,
+            sizes: [{ size: "ÚNICO", stock: 1 }],
+          },
+        ],
         photos: [
           {
             keyThumb: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&auto=format&fit=crop&q=80",
@@ -131,14 +236,35 @@ Corte oversize sastrero con solapa clásica, hombreras suaves y forro interno sa
       deps
     );
 
-    // Prenda 4: Talle individual clásico (M)
+    // Prenda 4: Vestido Midi Seda Noche (2 colores: Esmeralda y Champagne)
     await createProduct(
       {
         rawText: `Vestido Midi Seda Noche
-Talle: M
-Precio: $ 58.000
-Vestido lencero confeccionado en satén premium con escote drapeado y espalda cruzada.`,
+Vestido lencero confeccionado en satén premium con escote drapeado y espalda cruzada.
+Colores: Esmeralda y Champagne.
+Precio: $ 58.000`,
         categoryId: vestidosCat?.id,
+        colors: [
+          {
+            name: "Verde Esmeralda",
+            hexCode: "#064E3B",
+            position: 0,
+            sizes: [
+              { size: "S", stock: 1 },
+              { size: "M", stock: 2 },
+            ],
+          },
+          {
+            name: "Champagne",
+            hexCode: "#F7E7CE",
+            position: 1,
+            sizes: [
+              { size: "S", stock: 0 }, // Agotado
+              { size: "M", stock: 2 },
+              { size: "L", stock: 1 },
+            ],
+          },
+        ],
         photos: [
           {
             keyThumb: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&auto=format&fit=crop&q=80",
@@ -149,40 +275,52 @@ Vestido lencero confeccionado en satén premium con escote drapeado y espalda cr
       },
       deps
     );
+
+    // Prenda 5: Sweater Roma Cuello Tortuga (2 colores)
+    await createProduct(
+      {
+        rawText: `Sweater Roma Cuello Tortuga
+Tejido punto trenzado suave, abrigado y con terminaciones acanaladas en puños y cintura.
+Colores: Off White y Moka.
+Precio: $ 39.000`,
+        categoryId: buzosCat?.id,
+        colors: [
+          {
+            name: "Off White",
+            hexCode: "#F8FAFC",
+            position: 0,
+            sizes: [
+              { size: "S", stock: 2 },
+              { size: "M", stock: 3 },
+            ],
+          },
+          {
+            name: "Marrón Moka",
+            hexCode: "#4A3728",
+            position: 1,
+            sizes: [
+              { size: "S", stock: 1 },
+              { size: "M", stock: 1 },
+            ],
+          },
+        ],
+        photos: [
+          {
+            keyThumb: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=600&auto=format&fit=crop&q=80",
+            keyFull: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=1600&auto=format&fit=crop&q=90",
+            position: 0,
+          },
+        ],
+      },
+      deps
+    );
+
+    console.log("5 prendas creadas exitosamente con colores y stocks asignados.");
   } else {
-    // Si ya existen productos, actualizamos sus talles para la demostración
-    sqlite.prepare("UPDATE products SET size = 'S, M, L' WHERE code = 1").run();
-    sqlite.prepare("UPDATE products SET size = '36, 38, 40' WHERE code = 2").run();
-    sqlite.prepare("UPDATE products SET size = 'ÚNICO' WHERE code = 3").run();
-
-    // Verificamos si existe la prenda #004
-    const p4 = await deps.productRepo.findByCode(4);
-    if (!p4) {
-      const vestidosCat = await deps.categoryRepo.findBySlug("vestidos-y-enteritos");
-      await createProduct(
-        {
-          rawText: `Vestido Midi Seda Noche
-Talle: M
-Precio: $ 58.000
-Vestido lencero confeccionado en satén premium con escote drapeado y espalda cruzada.`,
-          categoryId: vestidosCat?.id,
-          photos: [
-            {
-              keyThumb: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&auto=format&fit=crop&q=80",
-              keyFull: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=1600&auto=format&fit=crop&q=90",
-              position: 0,
-            },
-          ],
-        },
-        deps
-      );
-      console.log("Prenda #004 creada con talle individual.");
-    }
-
-    console.log("Talles de prueba actualizados en productos existentes.");
+    console.log("Los productos con variantes ya están presentes en la base de datos.");
   }
 
-  console.log("Base de datos local actualizada con carruseles.");
+  console.log("Base de datos local lista y verificada.");
 }
 
 main().catch(console.error);

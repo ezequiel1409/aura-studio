@@ -17,16 +17,18 @@ export function createTestEnvironment() {
   const sqlite = new Database(":memory:");
   sqlite.pragma("foreign_keys = ON");
 
-  // Lee y aplica la migración SQL generada por Drizzle Kit (AR-05)
-  const migrationPath = path.resolve(
-    process.cwd(),
-    "drizzle/migrations/0000_fixed_doctor_spectrum.sql"
-  );
-  const migrationSql = fs.readFileSync(migrationPath, "utf-8");
+  // Lee y aplica todas las migraciones SQL generadas por Drizzle Kit (AR-05)
+  const migrationsDir = path.resolve(process.cwd(), "drizzle/migrations");
+  const migrationFiles = fs
+    .readdirSync(migrationsDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
 
-  // Divide por statement-breakpoint o ejecuta directamente
-  const cleanedSql = migrationSql.replace(/--> statement-breakpoint/g, "");
-  sqlite.exec(cleanedSql);
+  for (const file of migrationFiles) {
+    const migrationSql = fs.readFileSync(path.join(migrationsDir, file), "utf-8");
+    const cleanedSql = migrationSql.replace(/--> statement-breakpoint/g, "");
+    sqlite.exec(cleanedSql);
+  }
 
   const db = drizzle(sqlite, { schema });
 

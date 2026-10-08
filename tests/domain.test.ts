@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateSoldOutAt,
+  calculateTotalStock,
   canTransitionStatus,
+  deriveStatusFromStock,
   formatProductCode,
+  getDistinctSizes,
   parseProductCode,
   validateStatusTransition,
 } from "../src/domain/product/rules";
+import { WhatsAppPaymentAdapter } from "../src/infra/payments/whatsapp.adapter";
 import {
   validateCategoryDeletion,
   validateCategoryDepth,
@@ -146,5 +150,98 @@ describe("Category Domain Rules (BR-15, BR-18, BR-19)", () => {
     );
 
     expect(() => validateCategoryRename(uncategorized, "Sin clasificar")).not.toThrow();
+  });
+});
+
+describe("Variants & Stock Rules (BR-02, BR-20)", () => {
+  it("calcula el stock total sumando todas las combinaciones de color y talle", () => {
+    const colors = [
+      {
+        name: "Blanco",
+        sizes: [
+          { size: "S", stock: 2 },
+          { size: "M", stock: 3 },
+          { size: "L", stock: 1 },
+        ],
+      },
+      {
+        name: "Negro",
+        sizes: [
+          { size: "S", stock: 1 },
+          { size: "M", stock: 0 },
+        ],
+      },
+    ];
+
+    expect(calculateTotalStock(colors)).toBe(7);
+    expect(calculateTotalStock([])).toBe(0);
+    expect(calculateTotalStock(undefined)).toBe(0);
+  });
+
+  it("deriva el estado a SOLD_OUT cuando el stock total es 0, y AVAILABLE si se repone stock (BR-02)", () => {
+    expect(deriveStatusFromStock(0, "AVAILABLE")).toBe("SOLD_OUT");
+    expect(deriveStatusFromStock(5, "SOLD_OUT")).toBe("AVAILABLE");
+    expect(deriveStatusFromStock(3, "AVAILABLE")).toBe("AVAILABLE");
+    expect(deriveStatusFromStock(3, "RESERVED")).toBe("RESERVED");
+  });
+
+  it("obtiene lista ordenada y única de talles de un conjunto de colores", () => {
+    const colors = [
+      {
+        name: "Blanco",
+        sizes: [{ size: "S" }, { size: "M" }],
+      },
+      {
+        name: "Negro",
+        sizes: [{ size: "M" }, { size: "L" }],
+      },
+    ];
+
+    expect(getDistinctSizes(colors)).toEqual(["S", "M", "L"]);
+  });
+});
+
+describe("WhatsApp Adapter with Color and Size (BR-13)", () => {
+  it("construye el mensaje de WhatsApp incluyendo color y talle seleccionados", () => {
+    const adapter = new WhatsAppPaymentAdapter({
+      whatsappNumber: "+5491100000000",
+      brandName: "Aura Studio",
+    });
+
+    const action = adapter.createPaymentAction({
+      code: 1,
+      formattedCode: "#001",
+      title: "Top Florencia Lino",
+      priceCents: 1850000,
+      currency: "ARS",
+      selectedColor: "Blanco",
+      selectedSize: "M",
+    });
+
+    expect(action.type).toBe("url");
+    expect(decodeURIComponent(action.url)).toContain(
+      "¡Hola! Me gustaría consultar por la prenda #001 (Top Florencia Lino) en color Blanco, talle M de Aura Studio. ¿Sigue disponible?"
+    );
+  });
+
+  it("omite mención de color si es único y formatea talle único limpiamente", () => {
+    const adapter = new WhatsAppPaymentAdapter({
+      whatsappNumber: "+5491100000000",
+      brandName: "Aura Studio",
+    });
+
+    const action = adapter.createPaymentAction({
+      code: 3,
+      formattedCode: "#003",
+      title: "Blazer Milano",
+      priceCents: 6500000,
+      currency: "ARS",
+      selectedColor: "Único",
+      selectedSize: "ÚNICO",
+    });
+
+    expect(decodeURIComponent(action.url)).toContain(
+      "¡Hola! Me gustaría consultar por la prenda #003 (Blazer Milano) en talle único de Aura Studio. ¿Sigue disponible?"
+    );
   });
 });

@@ -226,6 +226,65 @@ Precio: $ 34.000`;
       expect(searchByNumber.total).toBe(1);
       expect(searchByNumber.items[0].id).toBe(p2.id);
     });
+
+    it("crea y persiste productos con jerarquía de Colores, Talles y Stock (BR-02, BR-20)", async () => {
+      const created = await createProduct(
+        {
+          rawText: "Top Seda Lino $18.500",
+          colors: [
+            {
+              name: "Blanco",
+              hexCode: "#FFFFFF",
+              position: 0,
+              sizes: [
+                { size: "S", stock: 2 },
+                { size: "M", stock: 3 },
+              ],
+            },
+            {
+              name: "Negro",
+              hexCode: "#000000",
+              position: 1,
+              sizes: [
+                { size: "S", stock: 1 },
+                { size: "M", stock: 0 },
+              ],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      expect(created.status).toBe("AVAILABLE");
+      expect(created.colors?.length).toBe(2);
+
+      // Verificamos que al consultar por código devuelve la estructura completa
+      const fetched = await env.deps.productRepo.findByCode(created.code);
+      expect(fetched).not.toBeNull();
+      expect(fetched?.colors?.length).toBe(2);
+      expect(fetched?.colors?.[0].name).toBe("Blanco");
+      expect(fetched?.colors?.[0].sizes.length).toBe(2);
+      expect(fetched?.colors?.[0].sizes[0]).toMatchObject({ size: "S", stock: 2 });
+      expect(fetched?.colors?.[1].sizes[1]).toMatchObject({ size: "M", stock: 0 });
+    });
+
+    it("marca como SOLD_OUT automáticamente un producto nuevo cuyo stock total es 0 (BR-02, BR-03)", async () => {
+      const soldOutProduct = await createProduct(
+        {
+          rawText: "Prenda sin stock de muestra",
+          colors: [
+            {
+              name: "Gris",
+              sizes: [{ size: "ÚNICO", stock: 0 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      expect(soldOutProduct.status).toBe("SOLD_OUT");
+      expect(soldOutProduct.soldOutAt).not.toBeNull();
+    });
   });
 });
 
