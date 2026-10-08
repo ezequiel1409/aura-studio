@@ -20,14 +20,24 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
     const brand = options?.brandName || this.defaultOptions.brandName || "Aura Studio";
 
     const titlePart = item.title ? ` (${item.title})` : "";
+    let colorPart = "";
+    if (item.selectedColor) {
+      const lower = item.selectedColor.toLowerCase();
+      if (lower !== "único" && lower !== "unico") {
+        colorPart = ` en color ${item.selectedColor}`;
+      }
+    }
     let sizePart = "";
     if (item.selectedSize) {
-      sizePart =
-        item.selectedSize.toUpperCase() === "ÚNICO" || item.selectedSize.toUpperCase() === "UNICO"
-          ? " en talle único"
-          : ` en talle ${item.selectedSize}`;
+      const upper = item.selectedSize.toUpperCase();
+      const isUnico = upper === "ÚNICO" || upper === "UNICO";
+      if (colorPart) {
+        sizePart = isUnico ? ", talle único" : `, talle ${item.selectedSize}`;
+      } else {
+        sizePart = isUnico ? " en talle único" : ` en talle ${item.selectedSize}`;
+      }
     }
-    const rawMessage = `¡Hola! Me gustaría consultar por la prenda ${item.formattedCode}${titlePart}${sizePart} de ${brand}. ¿Sigue disponible?`;
+    const rawMessage = `¡Hola! Me gustaría consultar por la prenda ${item.formattedCode}${titlePart}${colorPart}${sizePart} de ${brand}. ¿Sigue disponible?`;
 
     const encodedMessage = encodeURIComponent(rawMessage);
     const whatsappUrl = `https://wa.me/${number}?text=${encodedMessage}`;

@@ -4,6 +4,7 @@ export interface CheckoutItem {
   title: string | null;
   priceCents: number | null;
   currency: string;
+  selectedColor?: string | null;
   selectedSize?: string | null;
 }
 
