@@ -55,6 +55,44 @@ export const products = sqliteTable(
 );
 
 /**
+ * Variantes de color de un producto (BR-20)
+ */
+export const productColors = sqliteTable(
+  "product_colors",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    hexCode: text("hex_code"),
+    position: integer("position").notNull().default(0),
+  },
+  (table) => [
+    index("product_colors_product_id_position_idx").on(table.productId, table.position),
+  ]
+);
+
+/**
+ * Talles y stock asignados a un color de producto (BR-20)
+ */
+export const productColorSizes = sqliteTable(
+  "product_color_sizes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    productColorId: integer("product_color_id")
+      .notNull()
+      .references(() => productColors.id, { onDelete: "cascade" }),
+    size: text("size").notNull(),
+    stock: integer("stock").notNull().default(0),
+    reservedStock: integer("reserved_stock").notNull().default(0),
+  },
+  (table) => [
+    index("product_color_sizes_color_size_idx").on(table.productColorId, table.size),
+  ]
+);
+
+/**
  * Fotos asociadas a un producto (BR-07)
  */
 export const productPhotos = sqliteTable("product_photos", {
@@ -62,6 +100,10 @@ export const productPhotos = sqliteTable("product_photos", {
   productId: integer("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),
+  productColorId: integer("product_color_id").references(
+    (): AnySQLiteColumn => productColors.id,
+    { onDelete: "set null" }
+  ),
   position: integer("position").notNull().default(0),
   keyThumb: text("key_thumb").notNull(),
   keyFull: text("key_full").notNull(),

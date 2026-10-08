@@ -32,14 +32,36 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
 	`locked_until` integer
 );
 
+CREATE TABLE IF NOT EXISTS `product_colors` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`product_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`hex_code` text,
+	`position` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS `product_colors_product_id_position_idx` ON `product_colors` (`product_id`,`position`);
+
+CREATE TABLE IF NOT EXISTS `product_color_sizes` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`product_color_id` integer NOT NULL,
+	`size` text NOT NULL,
+	`stock` integer DEFAULT 0 NOT NULL,
+	`reserved_stock` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`product_color_id`) REFERENCES `product_colors`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE INDEX IF NOT EXISTS `product_color_sizes_color_size_idx` ON `product_color_sizes` (`product_color_id`,`size`);
+
 CREATE TABLE IF NOT EXISTS `product_photos` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`product_id` integer NOT NULL,
+	`product_color_id` integer,
 	`position` integer DEFAULT 0 NOT NULL,
 	`key_thumb` text NOT NULL,
 	`key_full` text NOT NULL,
 	`created_at` integer NOT NULL,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`product_color_id`) REFERENCES `product_colors`(`id`) ON UPDATE no action ON DELETE set null
 );
 
 CREATE TABLE IF NOT EXISTS `product_stats` (
