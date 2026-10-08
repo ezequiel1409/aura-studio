@@ -1,69 +1,148 @@
-import Image from "next/image";
+import { Suspense } from "react";
+import { getProductServiceDeps } from "../infra/db/connection";
+import { listProducts } from "../services/product.service";
+import { Header } from "../components/layout/Header";
+import { CategoryNav } from "../components/catalog/CategoryNav";
+import { SortFilterBar } from "../components/catalog/SortFilterBar";
+import { ProductGrid } from "../components/catalog/ProductGrid";
+import { AnalyticsTracker } from "../components/analytics/AnalyticsTracker";
+import { ProductSortOption } from "../domain/product/types";
 
-export default function Home() {
+interface HomePageProps {
+  searchParams: Promise<{
+    categoria?: string;
+    orden?: string;
+    q?: string;
+    pagina?: string;
+  }>;
+}
+
+export const instant = false;
+
+async function CatalogContent({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    categoria?: string;
+    orden?: string;
+    q?: string;
+    pagina?: string;
+  }>;
+}) {
+  const resolvedParams = await searchParams;
+  const deps = getProductServiceDeps();
+
+  // 1. Obtener todas las categorías para la navegación (BR-38)
+  const allCategories = await deps.categoryRepo.listAll();
+
+  // 2. Resolver categoría activa si se especificó en la URL
+  let activeCategoryId: number | undefined = undefined;
+  if (resolvedParams.categoria) {
+    const matchedCategory = allCategories.find((c) => c.slug === resolvedParams.categoria);
+    if (matchedCategory) {
+      activeCategoryId = matchedCategory.id;
+    }
+  }
+
+  // 3. Resolver orden (BR-21)
+  const sortBy: ProductSortOption =
+    resolvedParams.orden === "price_asc" || resolvedParams.orden === "price_desc"
+      ? resolvedParams.orden
+      : "newest";
+
+  // 4. Obtener productos mediante el servicio listProducts (AR-02)
+  const productsResult = await listProducts(
+    {
+      categoryId: activeCategoryId,
+      search: resolvedParams.q,
+      sortBy,
+      page: resolvedParams.pagina ? parseInt(resolvedParams.pagina, 10) : 1,
+      pageSize: 30,
+    },
+    deps
+  );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <>
+      {/* Tracking de vista de categoría si está filtrado (AR-07, BR-39) */}
+      {activeCategoryId && (
+        <AnalyticsTracker type="category_view" categoryId={activeCategoryId} />
+      )}
+
+      {/* Navegación por categorías con scroll horizontal (BR-16, BR-22, BR-38) */}
+      <div className="mb-4">
+        <CategoryNav
+          categories={allCategories}
+          activeSlug={resolvedParams.categoria}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
+
+      {/* Barra de ordenamiento y conteo (BR-21, BR-22) */}
+      <div className="mb-6">
+        <SortFilterBar
+          total={productsResult.total}
+          currentSort={resolvedParams.orden || "newest"}
+        />
+      </div>
+
+      {/* Grilla de productos responsiva */}
+      <ProductGrid products={productsResult.items} />
+    </>
+  );
+}
+
+function CatalogSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="h-9 w-72 animate-pulse rounded-full bg-stone-200/80" />
+      <div className="h-6 w-full animate-pulse rounded bg-stone-100" />
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-stone-200/60" />
+        ))}
+      </div>
     </div>
   );
 }
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const deps = getProductServiceDeps();
+  const brandName = (await deps.settingsRepo?.get("brand_name")) || "Aura Studio";
+
+  return (
+    <div className="min-h-screen bg-stone-50/50 text-stone-900">
+      {/* Header fijo con buscador por código (BR-24) */}
+      <Header brandName={brandName} />
+
+      {/* Contenido principal del catálogo */}
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        {/* Banner editorial sutil */}
+        <div className="mb-6 rounded-2xl bg-gradient-to-r from-stone-900 to-stone-800 p-6 text-stone-100 shadow-sm sm:p-8">
+          <p className="font-mono text-[11px] font-medium tracking-[0.2em] text-amber-300 uppercase">
+            Colección & Showroom
+          </p>
+          <h1 className="mt-1 font-serif text-2xl font-light tracking-wide sm:text-3xl">
+            Piezas Únicas & Selección Exclusiva
+          </h1>
+          <p className="mt-2 max-w-xl text-xs text-stone-300 sm:text-sm">
+            Explora nuestras prendas disponibles. Cada pieza es única y puedes reservarla directamente por WhatsApp.
+          </p>
+        </div>
+
+        {/* Streaming con Suspense para Partial Prerendering de Next.js 16 */}
+        <Suspense fallback={<CatalogSkeleton />}>
+          <CatalogContent searchParams={searchParams} />
+        </Suspense>
+      </main>
+
+      {/* Footer minimalista */}
+      <footer className="mt-20 border-t border-stone-200 bg-white py-10 text-center text-xs text-stone-500">
+        <p className="font-serif tracking-widest uppercase">{brandName}</p>
+        <p className="mt-1 text-[11px] text-stone-400">
+          Piezas únicas con reserva directa por WhatsApp · Buenos Aires, Argentina
+        </p>
+      </footer>
+    </div>
+  );
+}
+
