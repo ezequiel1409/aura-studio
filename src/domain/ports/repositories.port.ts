@@ -6,6 +6,12 @@ import {
   ProductStatus,
   StatusHistoryEntry,
 } from "../product/types";
+import {
+  AdminRole,
+  AdminStatus,
+  AdminUser,
+  PasswordResetToken,
+} from "../auth/types";
 
 export interface CreateProductColorRepoData {
   name: string;
@@ -99,3 +105,33 @@ export interface BackofficeSummaryCounts {
   uncategorized: number;
   noPrice: number;
 }
+
+export interface CreateAdminUserData {
+  email: string;
+  name: string;
+  passwordHash: string;
+  passwordSalt: string;
+  role?: AdminRole;
+  status?: AdminStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface IAdminUserRepository {
+  create(data: CreateAdminUserData): Promise<AdminUser>;
+  findById(id: number): Promise<AdminUser | null>;
+  findByEmail(email: string): Promise<AdminUser | null>;
+  listAll(): Promise<AdminUser[]>;
+  updateStatus(id: number, status: AdminStatus, updatedAt: number): Promise<AdminUser>;
+  updatePassword(id: number, passwordHash: string, passwordSalt: string, updatedAt: number): Promise<void>;
+  count(): Promise<number>;
+}
+
+export interface IPasswordResetTokenRepository {
+  createToken(userId: number, tokenHash: string, expiresAt: number, createdAt: number): Promise<PasswordResetToken>;
+  findByTokenHash(tokenHash: string): Promise<PasswordResetToken | null>;
+  markAsUsed(id: number, usedAt: number): Promise<void>;
+}
+
+export * from "./email.port";
+

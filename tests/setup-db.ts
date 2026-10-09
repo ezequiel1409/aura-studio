@@ -5,14 +5,16 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "../src/infra/db/schema";
 import { seedDatabase } from "../src/infra/db/seed";
 import {
+  DrizzleAdminUserRepository,
   DrizzleCategoryRepository,
   DrizzleCounterRepository,
   DrizzleLoginAttemptRepository,
+  DrizzlePasswordResetTokenRepository,
   DrizzleProductRepository,
   DrizzleSettingsRepository,
   DrizzleStatusHistoryRepository,
 } from "../src/infra/db";
-import { ProductServiceDeps } from "../src/services/product.service";
+import { GlobalAppDeps } from "../src/infra/db/connection";
 
 export function createTestEnvironment() {
   const sqlite = new Database(":memory:");
@@ -39,14 +41,18 @@ export function createTestEnvironment() {
   const counterRepo = new DrizzleCounterRepository(db);
   const settingsRepo = new DrizzleSettingsRepository(db);
   const loginAttemptRepo = new DrizzleLoginAttemptRepository(db);
+  const adminUserRepo = new DrizzleAdminUserRepository(db);
+  const passwordResetTokenRepo = new DrizzlePasswordResetTokenRepository(db);
 
-  const deps: ProductServiceDeps & { loginAttemptRepo: DrizzleLoginAttemptRepository } = {
+  const deps: GlobalAppDeps = {
     productRepo,
     categoryRepo,
     statusHistoryRepo,
     counterRepo,
     settingsRepo,
     loginAttemptRepo,
+    adminUserRepo,
+    passwordResetTokenRepo,
   };
 
   return {

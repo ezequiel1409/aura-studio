@@ -1,6 +1,8 @@
 import { SYSTEM_UNCATEGORIZED_NAME, SYSTEM_UNCATEGORIZED_SLUG } from "../../domain/category/types";
+import { hashPassword } from "../../lib/crypto/password";
 import { DbClient } from "./client";
 import {
+  adminUsers,
   categories,
   categoryStats,
   counters,
@@ -143,6 +145,23 @@ export async function seedDatabase(db: DbClient, options: SeedOptions = {}): Pro
         lastViewedAt: null,
       }).onConflictDoNothing();
     }
+  }
+
+  // 6. Super Admin inicial con contraseña hasheada (PBKDF2-HMAC-SHA512) (BR-08, BR-10)
+  const existingUsers = await db.select().from(adminUsers).limit(1);
+  if (existingUsers.length === 0) {
+    const { hash, salt } = await hashPassword("aura-admin-secret-2026");
+    const now = Date.now();
+    await db.insert(adminUsers).values({
+      email: "admin@aurastudio.com",
+      name: "Administradora Principal",
+      passwordHash: hash,
+      passwordSalt: salt,
+      role: "SUPER_ADMIN",
+      status: "ACTIVE",
+      createdAt: now,
+      updatedAt: now,
+    });
   }
 }
 

@@ -4,17 +4,25 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 import { DbClient } from "./client";
 import {
+  DrizzleAdminUserRepository,
   DrizzleCategoryRepository,
   DrizzleCounterRepository,
   DrizzleLoginAttemptRepository,
+  DrizzlePasswordResetTokenRepository,
   DrizzleProductRepository,
   DrizzleSettingsRepository,
   DrizzleStatusHistoryRepository,
 } from "./index";
 import { ProductServiceDeps } from "../../services/product.service";
 
+export interface GlobalAppDeps extends ProductServiceDeps {
+  loginAttemptRepo: DrizzleLoginAttemptRepository;
+  adminUserRepo: DrizzleAdminUserRepository;
+  passwordResetTokenRepo: DrizzlePasswordResetTokenRepository;
+}
+
 let globalDb: DbClient | null = null;
-let globalDeps: (ProductServiceDeps & { loginAttemptRepo: DrizzleLoginAttemptRepository }) | null = null;
+let globalDeps: GlobalAppDeps | null = null;
 
 export function getDb(): DbClient {
   if (globalDb) return globalDb;
@@ -28,7 +36,7 @@ export function getDb(): DbClient {
   return globalDb;
 }
 
-export function getProductServiceDeps(): ProductServiceDeps & { loginAttemptRepo: DrizzleLoginAttemptRepository } {
+export function getProductServiceDeps(): GlobalAppDeps {
   if (globalDeps) return globalDeps;
 
   const db = getDb();
@@ -39,6 +47,8 @@ export function getProductServiceDeps(): ProductServiceDeps & { loginAttemptRepo
     counterRepo: new DrizzleCounterRepository(db),
     settingsRepo: new DrizzleSettingsRepository(db),
     loginAttemptRepo: new DrizzleLoginAttemptRepository(db),
+    adminUserRepo: new DrizzleAdminUserRepository(db),
+    passwordResetTokenRepo: new DrizzlePasswordResetTokenRepository(db),
   };
 
   return globalDeps;
