@@ -51,6 +51,7 @@ export interface IProductRepository {
   ): Promise<Product>;
   list(filter: ListProductsFilter, categoryIdsToInclude?: number[]): Promise<PaginatedResult<Product>>;
   countByCategoryId(categoryId: number): Promise<number>;
+  getSummaryCounts(uncategorizedCategoryId: number, now?: number): Promise<BackofficeSummaryCounts>;
   delete(id: number): Promise<void>;
 }
 

@@ -21,6 +21,7 @@ import {
   ProductStatus,
 } from "../../../domain/product/types";
 import {
+  BackofficeSummaryCounts,
   CreateProductRepoData,
   IProductRepository,
 } from "../../../domain/ports/repositories.port";
@@ -343,6 +344,34 @@ export class DrizzleProductRepository implements IProductRepository {
 
   async delete(id: number): Promise<void> {
     await this.db.delete(products).where(eq(products.id, id));
+  }
+
+  async getSummaryCounts(
+    uncategorizedCategoryId: number,
+    now: number = Date.now()
+  ): Promise<BackofficeSummaryCounts> {
+    // BR-31: prendas que llevan >= 23 dias en SOLD_OUT (les quedan <= 7 dias para purga a los 30 dias)
+    const twentyThreeDaysAgo = now - 23 * 24 * 60 * 60 * 1000;
+
+    const [row] = await this.db
+      .select({
+        available: sql<number>`COALESCE(SUM(CASE WHEN ${products.status} = 'AVAILABLE' THEN 1 ELSE 0 END), 0)`,
+        reserved: sql<number>`COALESCE(SUM(CASE WHEN ${products.status} = 'RESERVED' THEN 1 ELSE 0 END), 0)`,
+        soldOut: sql<number>`COALESCE(SUM(CASE WHEN ${products.status} = 'SOLD_OUT' THEN 1 ELSE 0 END), 0)`,
+        expiringSoon: sql<number>`COALESCE(SUM(CASE WHEN ${products.status} = 'SOLD_OUT' AND ${products.soldOutAt} IS NOT NULL AND ${products.soldOutAt} <= ${twentyThreeDaysAgo} THEN 1 ELSE 0 END), 0)`,
+        uncategorized: sql<number>`COALESCE(SUM(CASE WHEN ${products.categoryId} = ${uncategorizedCategoryId} THEN 1 ELSE 0 END), 0)`,
+        noPrice: sql<number>`COALESCE(SUM(CASE WHEN ${products.priceCents} IS NULL THEN 1 ELSE 0 END), 0)`,
+      })
+      .from(products);
+
+    return {
+      available: Number(row?.available ?? 0),
+      reserved: Number(row?.reserved ?? 0),
+      soldOut: Number(row?.soldOut ?? 0),
+      expiringSoon: Number(row?.expiringSoon ?? 0),
+      uncategorized: Number(row?.uncategorized ?? 0),
+      noPrice: Number(row?.noPrice ?? 0),
+    };
   }
 
   private async getColorsForProduct(productId: number): Promise<ProductColor[]> {
