@@ -106,3 +106,13 @@ flowchart LR
 - [ ] ¿El mensaje sigue la estructura `<tipo>(<ámbito>): <descripción> [(BR-xx)]`?
 - [ ] ¿Evitaste commitear archivos temporales, logs o claves secretas?
 
+---
+
+## 6. Cierre de Fases del Roadmap
+
+Al completar cada fase o hito estipulado en [`docs/roadmap.md`](roadmap.md):
+1. **Sin commits monolíticos**: Está prohibido agrupar todos los cambios de una fase en un solo commit ("fase completa" o "squash" ciego).
+2. **Secuencia canónica obligatoria**: Se deben aplicar los commits atómicos por capa siguiendo el orden: `docs:` → `feat(db):` → `feat(domain):` → `feat(services):` → `feat(catalog | backoffice):` → `test:`.
+3. **Cierre formal**: Tras completar los commits y verificar que los tests y el build estén limpios, cada fase concluye con PR hacia `main`, CI en verde, deploy a producción, tag semántico (`vX.Y.Z`) y release en GitHub.
+
+

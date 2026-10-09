@@ -11,7 +11,41 @@
 | **6 · Telegram** | Webhook seguro, álbumes, whitelist, respuesta con resumen | BR-12 | `v0.7.0` |
 | **7 · Pagos & Carrito** | Payment adapter (WhatsApp → Mercado Pago), carrito/bolsa multi-prenda gestionada con store global (Zustand) | BR-13, 14, AR-10 | `v1.0.0` |
 
-Cada fase termina con: PR a `main`, CI en verde, deploy, tag y release en GitHub.
+---
+
+## Convención de Cierre y Commits por Fase del Roadmap
+
+Al finalizar cada fase o entrega del roadmap, es **mandatorio** registrar los cambios aplicando de forma rigurosa la convención oficial definida en [docs/git-conventions.md](file:///c:/Users/Ezequ/Documents/emprendimiento/aura-studio/docs/git-conventions.md):
+
+1. **Commits Atómicos por Capa (Secuencia Canónica)**:
+   - Prohibido consolidar toda una fase en un único commit masivo ("squash" ciego o "fase completa").
+   - Los cambios deben registrarse secuencialmente por capa técnica:
+     1. `docs:` Actualización de especificaciones funcionales, modelo de datos y reglas de negocio (`docs/business-rules.md`, `docs/data-model.md`, `docs/architecture.md`, `docs/roadmap.md`).
+     2. `feat(db):` Esquemas Drizzle (`schema.ts`) y migraciones SQL versionadas (`drizzle/migrations/`).
+     3. `feat(domain):` Entidades, tipos TypeScript puros (`src/domain/product/types.ts`) y reglas de negocio (`rules.ts`).
+     4. `feat(services | payments | auth):` Servicios de aplicación, casos de uso y adaptadores de infraestructura (`src/services/`, `src/infra/`).
+     5. `feat(catalog | backoffice):` Componentes de interfaz de usuario, páginas y feedback interactivo (`src/components/`, `src/app/`).
+     6. `test:` Suites de pruebas automatizadas, fixtures y verificaciones (`tests/`).
+
+2. **Formato y Propósito del Mensaje**:
+   - Estructura obligatoria:
+     ```text
+     <tipo>(<ámbito>): <descripción concisa en minúsculas> [(BR-xx | AR-xx)]
+     ```
+   - Cumplir el principio rector: **"Se edita [X] para establecer funcionalidad para el objetivo [X]"** (evitar mensajes genéricos como *"ajustes de fase"* o *"update"*).
+   - Indicar explícitamente las reglas de negocio (`BR-xx`) o de arquitectura (`AR-xx`) resueltas por el commit.
+
+3. **Checklist Obligatorio de Aprobación Previa al Commit**:
+   - [ ] Todos los tests de la suite en verde (`npm test` / `npx vitest run`).
+   - [ ] Verificación de tipos y build de producción limpio (`npm run build`).
+   - [ ] Sin archivos temporales, logs ni credenciales en el `git status`.
+
+4. **Publicación de la Fase**:
+   - Cada fase concluye formalmente con:
+     - Pull Request hacia `main`.
+     - CI en verde en el repositorio.
+     - Deploy exitoso a producción.
+     - Tag semántico correspondiente al roadmap (ej: `v0.1.0`, `v0.2.0`, `v0.3.0`, etc.) y Release documentado en GitHub.
 
 ---
 
