@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { getProductServiceDeps } from "../infra/db/connection";
 import { listProducts } from "../services/product.service";
 import { Header } from "../components/layout/Header";
@@ -162,6 +163,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <p className="mt-3 text-[10px] text-stone-400">
           Atención y reservas directas a través de WhatsApp
         </p>
+        <div className="mt-6 pt-4 border-t border-[#f0ece1]/80 flex justify-center">
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-1.5 text-[11px] text-stone-400 hover:text-stone-800 transition-colors py-1 px-2.5 rounded-md hover:bg-stone-100"
+          >
+            <span>Acceso Showroom / Admin</span>
+            <span className="text-[9px] font-mono text-stone-400">→</span>
+          </Link>
+        </div>
       </footer>
     </div>
   );
