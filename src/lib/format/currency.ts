@@ -16,3 +16,5 @@ export function formatPrice(priceCents: number | null | undefined, currency: str
   }).format(amount);
 }
 
+export const formatPriceARS = formatPrice;
+
