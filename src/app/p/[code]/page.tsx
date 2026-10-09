@@ -159,7 +159,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-12 items-start">
           {/* Galería de Fotos */}
-          <div className="md:sticky md:top-20">
+          <div className="md:sticky md:top-20 z-10">
             <ProductGallery
               photos={product.photos || []}
               title={product.title}
