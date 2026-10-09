@@ -15,6 +15,13 @@
       "when": 1791496675105,
       "tag": "0001_white_retro_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791548569256,
+      "tag": "0002_cute_swordsman",
+      "breakpoints": true
     }
   ]
 }

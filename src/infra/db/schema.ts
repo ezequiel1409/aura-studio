@@ -184,3 +184,51 @@ export const counters = sqliteTable("counters", {
   value: integer("value").notNull().default(0),
 });
 
+/**
+ * Tabla de Usuarios Administradores (BR-08, BR-10)
+ * Soporta jerarquía Super Admin y Admins delegados con estados ACTIVE y SUSPENDED.
+ */
+export const adminUsers = sqliteTable(
+  "admin_users",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    email: text("email").notNull().unique(),
+    name: text("name").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    passwordSalt: text("password_salt").notNull(),
+    role: text("role", { enum: ["SUPER_ADMIN", "ADMIN"] })
+      .notNull()
+      .default("ADMIN"),
+    status: text("status", { enum: ["ACTIVE", "SUSPENDED"] })
+      .notNull()
+      .default("ACTIVE"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("admin_users_email_idx").on(table.email),
+    index("admin_users_status_idx").on(table.status),
+  ]
+);
+
+/**
+ * Tokens de un solo uso para recuperación de contraseña por email (BR-10)
+ */
+export const passwordResetTokens = sqliteTable(
+  "password_reset_tokens",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => adminUsers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: integer("expires_at").notNull(),
+    usedAt: integer("used_at"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("password_reset_tokens_token_hash_idx").on(table.tokenHash),
+    index("password_reset_tokens_user_id_idx").on(table.userId),
+  ]
+);
+
