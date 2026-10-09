@@ -53,12 +53,24 @@ export interface IProductRepository {
   findByCode(code: number): Promise<Product | null>;
   update(
     id: number,
-    data: Partial<Omit<Product, "id" | "code" | "createdAt">>
+    data: Partial<Omit<Product, "id" | "code" | "createdAt" | "colors" | "photos">> & {
+      colors?: CreateProductColorRepoData[];
+      photos?: Array<{
+        keyThumb: string;
+        keyFull: string;
+        position: number;
+        productColorId?: number | null;
+      }>;
+    }
   ): Promise<Product>;
   list(filter: ListProductsFilter, categoryIdsToInclude?: number[]): Promise<PaginatedResult<Product>>;
   countByCategoryId(categoryId: number): Promise<number>;
   getSummaryCounts(uncategorizedCategoryId: number, now?: number): Promise<BackofficeSummaryCounts>;
   delete(id: number): Promise<void>;
+  reassignCategory(fromCategoryId: number, toCategoryId: number): Promise<number>;
+  bulkUpdateStatus(ids: number[], newStatus: ProductStatus, soldOutAt: number | null, reservedUntil: number | null, now: number): Promise<void>;
+  bulkUpdateCategory(ids: number[], categoryId: number, now: number): Promise<void>;
+  bulkDelete(ids: number[]): Promise<void>;
 }
 
 export interface ICategoryRepository {
@@ -66,6 +78,7 @@ export interface ICategoryRepository {
   findById(id: number): Promise<Category | null>;
   findBySlug(slug: string): Promise<Category | null>;
   listAll(): Promise<Category[]>;
+  listAllWithStats(): Promise<Category[]>;
   findSubcategories(parentId: number): Promise<Category[]>;
   update(id: number, data: Partial<Omit<Category, "id">>): Promise<Category>;
   delete(id: number): Promise<void>;

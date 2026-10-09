@@ -96,6 +96,24 @@ export interface CreateProductInput {
   source?: StatusSource;
 }
 
+export interface UpdateProductInput {
+  rawText?: string;
+  title?: string | null;
+  priceCents?: number | null;
+  currency?: string;
+  size?: string | null;
+  categoryId?: number;
+  status?: ProductStatus;
+  colors?: CreateColorInput[];
+  photos?: Array<{
+    keyThumb: string;
+    keyFull: string;
+    position?: number;
+    productColorId?: number | null;
+  }>;
+  source?: StatusSource;
+}
+
 export type ProductSortOption = "newest" | "price_asc" | "price_desc";
 
 export interface ListProductsFilter {

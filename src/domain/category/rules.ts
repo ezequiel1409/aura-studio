@@ -55,3 +55,33 @@ export function validateCategoryRename(category: Category, newName: string): voi
     );
   }
 }
+
+/**
+ * BR-18: Una categoría con prendas directas no puede recibir subcategorías hasta reasignar esas prendas.
+ */
+export function validateParentCanHaveSubcategories(
+  parentProductsCount: number,
+  parentName: string
+): void {
+  if (parentProductsCount > 0) {
+    throw new ProtectedCategoryError(
+      `La categoría '${parentName}' tiene ${parentProductsCount} prenda(s) directa(s). Reasigne esas prendas antes de asignarle subcategorías (BR-18).`
+    );
+  }
+}
+
+/**
+ * BR-38: Genera un slug normalizado para una categoría.
+ * El slug se genera al crear y no cambia al renombrar.
+ */
+export function generateCategorySlug(name: string): string {
+  const normalized = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized || "categoria";
+}
