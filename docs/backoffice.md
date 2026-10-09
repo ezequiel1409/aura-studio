@@ -6,6 +6,7 @@ Panel privado de la administradora. Diseño **mobile-first**: todo debe poder ha
 
 | Pantalla | Para qué sirve | Reglas |
 |---|---|---|
+| **Login seguro** | Acceso privado con contraseña, bloqueo tras 5 intentos fallidos por 60s persistido en DB y sesión por inactividad. | BR-10, BR-11, BR-37 |
 | **Resumen** | Contadores y alertas: disponibles, reservadas, agotadas, por vencer, sin clasificar, sin precio. Cada contador lleva a la lista ya filtrada. | BR-36 |
 | **Prendas** | Lista con foto, código, precio, estado, categoría y métricas (visitas y clics WhatsApp). Búsqueda por código, filtros por estado/categoría, selección múltiple. | BR-27, 29, 31, 39 |
 | **Cargar prenda** | Subir fotos + pegar texto → vista previa con datos propuestos (título, precio, categoría, colores y talles con stock) → confirmar o ajustar. | BR-05, 20, 26 |
@@ -16,17 +17,25 @@ Panel privado de la administradora. Diseño **mobile-first**: todo debe poder ha
 
 ## Flujos clave
 
+### Acceso seguro al panel (BR-10, BR-11, BR-37)
+1. Ingresar a `/admin` (redirige automáticamente a `/admin/login` si no hay sesión activa).
+2. Ingresar la contraseña de administradora.
+3. Tras 5 intentos fallidos consecutivos, el sistema bloquea el acceso durante 60 segundos registrando el bloqueo en base de datos.
+4. Con credenciales válidas, se emite una cookie segura `httpOnly` con token de sesión que expira por inactividad.
+
 ### Cargar una prenda (objetivo: menos de 30 segundos)
 1. Tocar **+ Cargar**.
-2. Elegir fotos (se comprimen en el navegador) y pegar el texto.
+2. Elegir fotos (se comprimen en el navegador a WebP sin EXIF) y pegar el texto.
 3. Ver la **vista previa**: título, precio, categoría propuestos y matriz rápida de **Colores y Talles** (ej: Color Negro → S: 2, M: 1). Si no se detectan variantes, se asigna Color: "Único", Talle: "ÚNICO", Stock: 1 con opción de editarlo con un toque.
 4. Tocar **Publicar**. Si falta algo, igual publica.
 5. Mensaje: "Prenda #024 publicada · Ver · Cargar otra".
 
-### Marcar una prenda como agotada
-- Desde la lista: deslizar la fila (o botón de estado) → **Agotada**.
-- Aparece un aviso **"Deshacer"** durante unos segundos.
-- La prenda queda con la cuenta regresiva "se elimina en 30 días".
+### Marcar una prenda o cambiar estado con deshacer (BR-27, BR-28)
+- Desde la lista o ficha: botón rápido de estado → **Disponible**, **Reservada** o **Agotada**.
+- Aparece un aviso flotante interactivo con botón **"Deshacer"** durante unos segundos.
+- Si se pulsa "Deshacer", se revierte de inmediato al estado anterior y se audita el evento.
+- La prenda en estado `Agotada` muestra la cuenta regresiva "se elimina en N días" (BR-31).
+- Toda transición queda registrada en el historial accesible desde la prenda (BR-28).
 
 ### Gestionar categorías
 - Vista de árbol con arrastrar y soltar para reordenar.
