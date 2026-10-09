@@ -38,7 +38,7 @@ async function main() {
       for (const statement of statements) {
         try {
           sqlite.exec(statement);
-        } catch (err) {
+        } catch {
           // Ignora si la columna/tabla o índice ya existe
         }
       }

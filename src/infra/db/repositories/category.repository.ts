@@ -93,6 +93,38 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
     }));
   }
 
+  async listAllWithStats(): Promise<Category[]> {
+    const rows = await this.db
+      .select({
+        category: categories,
+        stats: categoryStats,
+      })
+      .from(categories)
+      .leftJoin(categoryStats, eq(categories.id, categoryStats.categoryId))
+      .orderBy(categories.position, categories.name);
+
+    return rows.map(({ category: row, stats }) => ({
+      id: row.id,
+      parentId: row.parentId,
+      name: row.name,
+      slug: row.slug,
+      position: row.position,
+      isHidden: Boolean(row.isHidden),
+      isSystem: Boolean(row.isSystem),
+      stats: stats
+        ? {
+            categoryId: stats.categoryId,
+            viewsCount: stats.viewsCount,
+            lastViewedAt: stats.lastViewedAt,
+          }
+        : {
+            categoryId: row.id,
+            viewsCount: 0,
+            lastViewedAt: null,
+          },
+    }));
+  }
+
   async findSubcategories(parentId: number): Promise<Category[]> {
     const rows = await this.db
       .select()

@@ -22,6 +22,7 @@ import {
 } from "../../../domain/product/types";
 import {
   BackofficeSummaryCounts,
+  CreateProductColorRepoData,
   CreateProductRepoData,
   IProductRepository,
 } from "../../../domain/ports/repositories.port";
@@ -199,7 +200,15 @@ export class DrizzleProductRepository implements IProductRepository {
 
   async update(
     id: number,
-    data: Partial<Omit<Product, "id" | "code" | "createdAt">>
+    data: Partial<Omit<Product, "id" | "code" | "createdAt" | "colors" | "photos">> & {
+      colors?: CreateProductColorRepoData[];
+      photos?: Array<{
+        keyThumb: string;
+        keyFull: string;
+        position: number;
+        productColorId?: number | null;
+      }>;
+    }
   ): Promise<Product> {
     const updateValues: Partial<typeof products.$inferInsert> = {
       updatedAt: data.updatedAt || Date.now(),
@@ -223,10 +232,53 @@ export class DrizzleProductRepository implements IProductRepository {
       .where(eq(products.id, id))
       .returning();
 
+    // Actualiza colores si se especifican
+    if (data.colors !== undefined) {
+      await this.db.delete(productColors).where(eq(productColors.productId, id));
+      for (const col of data.colors) {
+        const [c] = await this.db
+          .insert(productColors)
+          .values({
+            productId: id,
+            name: col.name,
+            hexCode: col.hexCode || null,
+            position: col.position ?? 0,
+          })
+          .returning();
+
+        if (col.sizes && col.sizes.length > 0) {
+          for (const s of col.sizes) {
+            await this.db.insert(productColorSizes).values({
+              productColorId: c.id,
+              size: s.size,
+              stock: s.stock ?? 0,
+              reservedStock: s.reservedStock ?? 0,
+            });
+          }
+        }
+      }
+    }
+
+    // Actualiza fotos si se especifican
+    if (data.photos !== undefined) {
+      await this.db.delete(productPhotos).where(eq(productPhotos.productId, id));
+      for (const photo of data.photos) {
+        await this.db.insert(productPhotos).values({
+          productId: id,
+          productColorId: photo.productColorId || null,
+          position: photo.position,
+          keyThumb: photo.keyThumb,
+          keyFull: photo.keyFull,
+          createdAt: Date.now(),
+        });
+      }
+    }
+
     const photos = await this.getPhotosForProduct(updated.id);
     const stats = await this.getStatsForProduct(updated.id);
+    const colors = await this.getColorsForProduct(updated.id);
 
-    return this.mapToEntity(updated, photos, stats);
+    return this.mapToEntity(updated, photos, stats, colors);
   }
 
   /**
@@ -344,6 +396,51 @@ export class DrizzleProductRepository implements IProductRepository {
 
   async delete(id: number): Promise<void> {
     await this.db.delete(products).where(eq(products.id, id));
+  }
+
+  async reassignCategory(fromCategoryId: number, toCategoryId: number): Promise<number> {
+    const updated = await this.db
+      .update(products)
+      .set({ categoryId: toCategoryId, updatedAt: Date.now() })
+      .where(eq(products.categoryId, fromCategoryId))
+      .returning();
+
+    return updated.length;
+  }
+
+  async bulkUpdateStatus(
+    ids: number[],
+    newStatus: ProductStatus,
+    soldOutAt: number | null,
+    reservedUntil: number | null,
+    now: number
+  ): Promise<void> {
+    if (ids.length === 0) return;
+    await this.db
+      .update(products)
+      .set({
+        status: newStatus,
+        soldOutAt,
+        reservedUntil,
+        updatedAt: now,
+      })
+      .where(inArray(products.id, ids));
+  }
+
+  async bulkUpdateCategory(ids: number[], categoryId: number, now: number): Promise<void> {
+    if (ids.length === 0) return;
+    await this.db
+      .update(products)
+      .set({
+        categoryId,
+        updatedAt: now,
+      })
+      .where(inArray(products.id, ids));
+  }
+
+  async bulkDelete(ids: number[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.db.delete(products).where(inArray(products.id, ids));
   }
 
   async getSummaryCounts(
