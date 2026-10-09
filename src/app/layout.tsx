@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Cormorant_Garamond, Geist, Geist_Mono } from "next/font/google";
+import { RouteLoadingIndicator } from "../components/layout/RouteLoadingIndicator";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,8 +32,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#faf8f5] text-[#1c1917] selection:bg-[#926a3c]/20">
+        <Suspense fallback={null}>
+          <RouteLoadingIndicator />
+        </Suspense>
         {children}
       </body>
     </html>
   );
 }
+

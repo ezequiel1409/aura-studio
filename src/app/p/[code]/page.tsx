@@ -141,6 +141,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
           <Link
             href="/"
+            prefetch={true}
             aria-label="Volver al catálogo principal"
             className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-[#e7e2da] bg-white px-4 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
           >

@@ -31,6 +31,7 @@ export function ProductCard({ product }: ProductCardProps) {
     <article className="group relative flex flex-col">
       <Link
         href={href}
+        prefetch={true}
         aria-label={accessibleLabel}
         className="flex flex-col overflow-hidden rounded-xl border border-[#e7e2da] bg-white shadow-2xs transition-all duration-300 hover:border-stone-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-stone-900"
       >
