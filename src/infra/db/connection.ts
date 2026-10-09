@@ -6,6 +6,7 @@ import { DbClient } from "./client";
 import {
   DrizzleCategoryRepository,
   DrizzleCounterRepository,
+  DrizzleLoginAttemptRepository,
   DrizzleProductRepository,
   DrizzleSettingsRepository,
   DrizzleStatusHistoryRepository,
@@ -13,7 +14,7 @@ import {
 import { ProductServiceDeps } from "../../services/product.service";
 
 let globalDb: DbClient | null = null;
-let globalDeps: ProductServiceDeps | null = null;
+let globalDeps: (ProductServiceDeps & { loginAttemptRepo: DrizzleLoginAttemptRepository }) | null = null;
 
 export function getDb(): DbClient {
   if (globalDb) return globalDb;
@@ -27,7 +28,7 @@ export function getDb(): DbClient {
   return globalDb;
 }
 
-export function getProductServiceDeps(): ProductServiceDeps {
+export function getProductServiceDeps(): ProductServiceDeps & { loginAttemptRepo: DrizzleLoginAttemptRepository } {
   if (globalDeps) return globalDeps;
 
   const db = getDb();
@@ -37,6 +38,7 @@ export function getProductServiceDeps(): ProductServiceDeps {
     statusHistoryRepo: new DrizzleStatusHistoryRepository(db),
     counterRepo: new DrizzleCounterRepository(db),
     settingsRepo: new DrizzleSettingsRepository(db),
+    loginAttemptRepo: new DrizzleLoginAttemptRepository(db),
   };
 
   return globalDeps;

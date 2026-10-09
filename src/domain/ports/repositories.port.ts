@@ -77,3 +77,24 @@ export interface ISettingsRepository {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<void>;
 }
+
+export interface LoginAttemptRecord {
+  key: string;
+  failedCount: number;
+  lockedUntil: number | null;
+}
+
+export interface ILoginAttemptRepository {
+  get(key: string): Promise<LoginAttemptRecord | null>;
+  incrementFailed(key: string, now?: number): Promise<{ failedCount: number; lockedUntil: number | null; isLocked: boolean }>;
+  reset(key: string): Promise<void>;
+}
+
+export interface BackofficeSummaryCounts {
+  available: number;
+  reserved: number;
+  soldOut: number;
+  expiringSoon: number;
+  uncategorized: number;
+  noPrice: number;
+}

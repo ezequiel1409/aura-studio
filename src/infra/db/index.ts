@@ -6,4 +6,5 @@ export * from "./repositories/category.repository";
 export * from "./repositories/status-history.repository";
 export * from "./repositories/counter.repository";
 export * from "./repositories/settings.repository";
+export * from "./repositories/login-attempt.repository";
 

@@ -6,6 +6,8 @@ const envSchema = z.object({
   DEFAULT_BRAND_NAME: z.string().default("Aura Studio"),
   DEFAULT_RESERVATION_HOURS: z.coerce.number().int().positive().default(48),
   DATABASE_URL: z.string().optional(),
+  ADMIN_PASSWORD: z.string().default("aura-admin-secret-2026"),
+  SESSION_SECRET: z.string().default("aura-studio-session-secret-key-at-least-32-chars-long"),
 });
 
 export type Env = z.infer<typeof envSchema>;

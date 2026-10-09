@@ -7,6 +7,7 @@ import { seedDatabase } from "../src/infra/db/seed";
 import {
   DrizzleCategoryRepository,
   DrizzleCounterRepository,
+  DrizzleLoginAttemptRepository,
   DrizzleProductRepository,
   DrizzleSettingsRepository,
   DrizzleStatusHistoryRepository,
@@ -37,13 +38,15 @@ export function createTestEnvironment() {
   const statusHistoryRepo = new DrizzleStatusHistoryRepository(db);
   const counterRepo = new DrizzleCounterRepository(db);
   const settingsRepo = new DrizzleSettingsRepository(db);
+  const loginAttemptRepo = new DrizzleLoginAttemptRepository(db);
 
-  const deps: ProductServiceDeps = {
+  const deps: ProductServiceDeps & { loginAttemptRepo: DrizzleLoginAttemptRepository } = {
     productRepo,
     categoryRepo,
     statusHistoryRepo,
     counterRepo,
     settingsRepo,
+    loginAttemptRepo,
   };
 
   return {

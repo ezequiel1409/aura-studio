@@ -4,4 +4,6 @@ export * from "./product/rules";
 export * from "./category/types";
 export * from "./category/rules";
 export * from "./ports/repositories.port";
+export * from "./auth/types";
+export * from "./auth/rules";
 
