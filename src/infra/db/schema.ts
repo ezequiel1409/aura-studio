@@ -40,6 +40,7 @@ export const products = sqliteTable(
     status: text("status", { enum: ["AVAILABLE", "RESERVED", "SOLD_OUT"] })
       .notNull()
       .default("AVAILABLE"),
+    isFeatured: integer("is_featured").notNull().default(0),
     soldOutAt: integer("sold_out_at"),
     reservedUntil: integer("reserved_until"),
     manualFields: text("manual_fields").notNull().default("[]"),
@@ -51,6 +52,7 @@ export const products = sqliteTable(
     index("products_category_id_status_idx").on(table.categoryId, table.status),
     index("products_price_cents_idx").on(table.priceCents),
     index("products_sold_out_at_idx").on(table.soldOutAt),
+    index("products_is_featured_idx").on(table.isFeatured),
   ]
 );
 

@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS `products` (
 	`size` text,
 	`category_id` integer NOT NULL,
 	`status` text DEFAULT 'AVAILABLE' NOT NULL,
+	`is_featured` integer DEFAULT 0 NOT NULL,
 	`sold_out_at` integer,
 	`reserved_until` integer,
 	`manual_fields` text DEFAULT '[]' NOT NULL,
@@ -94,6 +95,7 @@ CREATE INDEX IF NOT EXISTS `products_status_created_at_idx` ON `products` (`stat
 CREATE INDEX IF NOT EXISTS `products_category_id_status_idx` ON `products` (`category_id`,`status`);
 CREATE INDEX IF NOT EXISTS `products_price_cents_idx` ON `products` (`price_cents`);
 CREATE INDEX IF NOT EXISTS `products_sold_out_at_idx` ON `products` (`sold_out_at`);
+CREATE INDEX IF NOT EXISTS `products_is_featured_idx` ON `products` (`is_featured`);
 
 CREATE TABLE IF NOT EXISTS `purge_runs` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
