@@ -21,15 +21,15 @@ Los IDs **no se renumeran**: si una regla deja de aplicar se marca como *derogad
 - **BR-05 · Carga en bloque único.** La admin sube fotos + un texto libre. Siempre se guarda el **texto crudo original**. El parseo (título, colores, talles con stock sugerido, precio) es un enriquecimiento y **nunca bloquea la publicación**; si no se especifica color o talle, se asigna por defecto Color: "Único", Talle: "ÚNICO", Stock: 1.
 - **BR-06 · Texto seguro.** Todo texto se trata como texto plano con UTF-8 completo (emojis incluidos). Nunca se renderiza como HTML.
 - **BR-07 · Fotos.** Se comprimen y redimensionan en el navegador antes de subir (WebP, versión miniatura y completa, sin EXIF/geolocalización, con tope de tamaño). Pueden asociarse al producto general o a un color específico. El Worker no procesa imágenes.
-- **BR-08 · Solo la admin escribe.** Únicamente la administradora autenticada (o el canal Telegram autorizado) puede crear, editar o eliminar. El catálogo público es de solo lectura.
+- **BR-08 · Solo la admin escribe y jerarquía de roles.** Únicamente administradoras activas autenticadas (o el canal Telegram autorizado) pueden crear, editar o eliminar. El catálogo público es de solo lectura. Existen roles `SUPER_ADMIN` y `ADMIN`: solo el `SUPER_ADMIN` puede crear, listar, dar de baja (`SUSPENDED`) o reactivar administradores delegados. Un administrador suspendido tiene el acceso revocado de inmediato.
 - **BR-09 · URL estable.** Cada prenda tiene una URL compartible y estable (`/p/001`). Si fue purgada o eliminada, se muestra una página amable de "pieza ya no disponible" con sugerencias, no un 404 seco.
 
 ## 2. Seguridad
 
-- **BR-10 · Login.** La verificación de contraseña es siempre en el servidor. Ningún hash, salt ni contraseña llega al cliente.
+- **BR-10 · Login y contraseñas seguras.** La verificación de contraseña es siempre en el servidor. Las contraseñas se protegen con hashing salado PBKDF2-HMAC-SHA512 (100.000 iteraciones, salt de 16 bytes). Ningún hash ni salt llega al cliente. Se provee recuperación de contraseña vía correo electrónico (adaptador Resend) mediante tokens de un solo uso con expiración de 1 hora.
 - **BR-11 · Fuerza bruta.** Tras 5 intentos fallidos consecutivos, bloqueo de 60 segundos. El contador se persiste en base de datos / KV (no en memoria ni en el navegador).
 - **BR-12 · Telegram.** Solo se procesan mensajes del `ADMIN_CHAT_ID` autorizado y con `secret_token` válido en el webhook.
-- **BR-37 · Sesión y acciones destructivas.** La sesión expira por inactividad. Eliminar prendas, eliminar categorías y ejecutar el barrido piden confirmación explícita.
+- **BR-37 · Sesión y acciones destructivas.** La sesión expira por inactividad. Eliminar prendas, eliminar categorías, dar de baja administradores y ejecutar el barrido piden confirmación explícita.
 
 ## 3. Compras
 

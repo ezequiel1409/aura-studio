@@ -68,7 +68,29 @@ Nota: Prendas/indumentaria ("Garment"), calzado, accesorios, etc. son ramas/cate
 `key` PK, `value`. Claves: `whatsapp_number`, `brand_name`, `reservation_hours`. BR-35.
 
 ## login_attempts
-`key` (IP o global), `failed_count`, `locked_until`. BR-11.
+`key` (IP o identificador), `failed_count`, `locked_until`. BR-11.
+
+## admin_users
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| email | text not null unique | Email normalizado en minúsculas |
+| name | text not null | Nombre y apellido o alias |
+| password_hash | text not null | Hash PBKDF2-HMAC-SHA512 (100.000 iteraciones) |
+| password_salt | text not null | Salt criptográfico aleatorio de 16 bytes (hex) |
+| role | text not null default 'ADMIN' | `SUPER_ADMIN` (gestiona otros admins) o `ADMIN` |
+| status | text not null default 'ACTIVE' | `ACTIVE` o `SUSPENDED` (bloqueo por Super Admin) |
+| created_at / updated_at | integer not null | Timestamp unix |
+
+## password_reset_tokens
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| user_id | integer not null FK | Referencia a `admin_users(id)` (cascade) |
+| token_hash | text not null unique | Hash SHA-256 del token aleatorio de un solo uso |
+| expires_at | integer not null | Vencimiento (1 hora por defecto) |
+| used_at | integer null | Timestamp de consumo |
+| created_at | integer not null | |
 
 ## category_stats
 | Campo | Tipo | Notas |
