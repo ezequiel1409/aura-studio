@@ -66,10 +66,15 @@ export function UndoToast({
   };
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-4 flex flex-col gap-2.5 backdrop-blur-md">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl p-4 flex flex-col gap-2.5 backdrop-blur-md"
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
+          <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" aria-hidden="true" />
           <p className="text-xs sm:text-sm text-zinc-100 font-medium truncate">
             {action.message}
           </p>
@@ -80,25 +85,34 @@ export function UndoToast({
             type="button"
             onClick={handleUndoClick}
             disabled={undoing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-300 text-zinc-950 font-bold text-xs hover:bg-amber-200 active:scale-[0.96] transition-all shadow-sm"
+            aria-label={`Deshacer cambio de estado en prenda #${String(action.productCode).padStart(3, "0")}`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-300 text-zinc-950 font-bold text-xs hover:bg-amber-200 active:scale-[0.96] transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none disabled:opacity-50"
           >
-            <RotateCcw size={12} className={undoing ? "animate-spin" : ""} />
+            <RotateCcw size={12} className={undoing ? "animate-spin" : ""} aria-hidden="true" />
             <span>{undoing ? "Revirtiendo..." : "Deshacer"}</span>
           </button>
 
           <button
             type="button"
             onClick={onDismiss}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+            aria-label="Cerrar notificación de deshacer"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             title="Cerrar aviso"
           >
-            <X size={14} />
+            <X size={14} aria-hidden="true" />
           </button>
         </div>
       </div>
 
       {/* Barra de progreso de tiempo restante para deshacer */}
-      <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+      <div
+        role="progressbar"
+        aria-label="Tiempo restante para revertir el cambio"
+        aria-valuenow={Math.round(progress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden"
+      >
         <div
           className="h-full bg-amber-400 transition-all duration-75 ease-linear"
           style={{ width: `${progress}%` }}

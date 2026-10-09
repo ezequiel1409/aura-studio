@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertCircle,
   ArrowDown,
   ArrowUp,
+  CheckCircle2,
   Edit2,
   EyeOff,
   Folder,
   FolderPlus,
+  Info,
   Plus,
   Shield,
   Trash2,
@@ -41,9 +44,20 @@ export function CategoryManagerClient({
   const [deletingNode, setDeletingNode] = useState<CategoryTreeNode | null>(null);
   const [reassignTargetId, setReassignTargetId] = useState<number | "">("");
 
-  // Estado de carga y feedback
+  // Estado de carga y feedback amigable accesible (sin alert() bloqueante)
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [feedbackNotice, setFeedbackNotice] = useState<{
+    text: string;
+    type: "info" | "error" | "success";
+  } | null>(null);
+
+  const showNotice = (
+    text: string,
+    type: "info" | "error" | "success" = "info"
+  ) => {
+    setFeedbackNotice({ text, type });
+  };
 
   // Obtener lista plana de nodos hoja válidos para reasignar prendas (BR-15)
   const leafNodes = tree.flatMap((root) => {
@@ -174,7 +188,10 @@ export function CategoryManagerClient({
         router.refresh();
       }
     } catch {
-      alert("Error al reordenar categorías.");
+      showNotice(
+        "No se pudo reordenar las categorías. Por favor, intentá nuevamente.",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -183,12 +200,16 @@ export function CategoryManagerClient({
   // Abrir diálogo de eliminación con protección (BR-18, BR-19)
   const handleInitiateDelete = (node: CategoryTreeNode) => {
     if (node.isSystem) {
-      alert("La categoría del sistema 'Sin clasificar' no puede ser eliminada (BR-19).");
+      showNotice(
+        "La categoría del sistema 'Sin clasificar' no puede ser eliminada porque contiene prendas por defecto (BR-19).",
+        "info"
+      );
       return;
     }
     if (node.children.length > 0) {
-      alert(
-        `La categoría '${node.name}' tiene ${node.children.length} subcategoría(s). Debe eliminar o mover las subcategorías primero (BR-18).`
+      showNotice(
+        `La categoría '${node.name}' tiene ${node.children.length} subcategoría(s). Es necesario mover o eliminar las subcategorías primero (BR-18).`,
+        "info"
       );
       return;
     }
@@ -270,6 +291,40 @@ export function CategoryManagerClient({
         </button>
       </div>
 
+      {/* Banner de feedback amigable y accesible */}
+      {feedbackNotice && (
+        <div
+          role={feedbackNotice.type === "error" ? "alert" : "status"}
+          aria-live="polite"
+          className={`flex items-start justify-between gap-3 p-4 rounded-xl text-xs border ${
+            feedbackNotice.type === "error"
+              ? "bg-rose-950/40 border-rose-800 text-rose-300"
+              : feedbackNotice.type === "success"
+              ? "bg-emerald-950/40 border-emerald-800 text-emerald-300"
+              : "bg-amber-950/40 border-amber-800/80 text-amber-200"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {feedbackNotice.type === "error" ? (
+              <AlertCircle size={16} className="shrink-0 text-rose-400" aria-hidden="true" />
+            ) : feedbackNotice.type === "success" ? (
+              <CheckCircle2 size={16} className="shrink-0 text-emerald-400" aria-hidden="true" />
+            ) : (
+              <Info size={16} className="shrink-0 text-amber-300" aria-hidden="true" />
+            )}
+            <p className="font-medium leading-relaxed">{feedbackNotice.text}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedbackNotice(null)}
+            aria-label="Cerrar aviso informativo"
+            className="p-1 rounded-lg hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {/* Árbol Visual de Categorías */}
       <div className="space-y-4">
         {tree.map((root, rootIdx) => {
@@ -285,7 +340,7 @@ export function CategoryManagerClient({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-amber-200 shrink-0">
-                    <Folder size={18} />
+                    <Folder size={18} aria-hidden="true" />
                   </div>
 
                   <div className="min-w-0">
@@ -296,14 +351,14 @@ export function CategoryManagerClient({
 
                       {root.isSystem && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
-                          <Shield size={10} />
+                          <Shield size={10} aria-hidden="true" />
                           <span>Sistema (BR-19)</span>
                         </span>
                       )}
 
                       {root.isHidden && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950/40 text-rose-300 border border-rose-800">
-                          <EyeOff size={10} />
+                          <EyeOff size={10} aria-hidden="true" />
                           <span>Oculta</span>
                         </span>
                       )}
@@ -311,9 +366,9 @@ export function CategoryManagerClient({
 
                     <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono mt-0.5">
                       <span>/{root.slug}</span>
-                      <span>•</span>
+                      <span aria-hidden="true">•</span>
                       <span className="text-zinc-300">{root.productsCount} prendas</span>
-                      <span>•</span>
+                      <span aria-hidden="true">•</span>
                       <span className="text-emerald-400">{root.viewsCount} visitas</span>
                     </div>
                   </div>
@@ -326,20 +381,22 @@ export function CategoryManagerClient({
                     type="button"
                     onClick={() => handleMoveOrder(tree, rootIdx, "up")}
                     disabled={rootIdx === 0 || loading}
-                    className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 transition-all"
+                    aria-label={`Subir posición de la categoría ${root.name}`}
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     title="Subir posición"
                   >
-                    <ArrowUp size={14} />
+                    <ArrowUp size={14} aria-hidden="true" />
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleMoveOrder(tree, rootIdx, "down")}
                     disabled={rootIdx === tree.length - 1 || loading}
-                    className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 transition-all"
+                    aria-label={`Bajar posición de la categoría ${root.name}`}
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     title="Bajar posición"
                   >
-                    <ArrowDown size={14} />
+                    <ArrowDown size={14} aria-hidden="true" />
                   </button>
 
                   {/* Agregar Subcategoría (BR-15, BR-18) */}
@@ -348,8 +405,9 @@ export function CategoryManagerClient({
                       type="button"
                       onClick={() => {
                         if (!canAddSubcategory) {
-                          alert(
-                            `La categoría '${root.name}' tiene ${root.productsCount} prenda(s) directa(s). Debe reasignar esas prendas antes de asignarle subcategorías (BR-18).`
+                          showNotice(
+                            `La categoría '${root.name}' tiene ${root.productsCount} prenda(s) asignadas directamente. Debés reasignar esas prendas antes de asignarle subcategorías (BR-18).`,
+                            "info"
                           );
                           return;
                         }
@@ -359,10 +417,11 @@ export function CategoryManagerClient({
                         setErrorMessage(null);
                         setCreateModalOpen(true);
                       }}
-                      className="p-1.5 rounded-lg text-amber-200 hover:bg-zinc-800 transition-all"
+                      className="p-1.5 rounded-lg text-amber-200 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       title="Agregar subcategoría"
+                      aria-label={`Agregar subcategoría dentro de ${root.name}`}
                     >
-                      <Plus size={15} />
+                      <Plus size={15} aria-hidden="true" />
                     </button>
                   )}
 
@@ -377,10 +436,11 @@ export function CategoryManagerClient({
                         setErrorMessage(null);
                         setEditModalOpen(true);
                       }}
-                      className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-all"
+                      aria-label={`Editar categoría ${root.name}`}
+                      className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       title="Editar categoría"
                     >
-                      <Edit2 size={14} />
+                      <Edit2 size={14} aria-hidden="true" />
                     </button>
                   )}
 
@@ -389,10 +449,11 @@ export function CategoryManagerClient({
                     <button
                       type="button"
                       onClick={() => handleInitiateDelete(root)}
-                      className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-all"
+                      aria-label={`Eliminar categoría ${root.name}`}
+                      className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       title="Eliminar categoría"
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={14} aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -420,10 +481,10 @@ export function CategoryManagerClient({
 
                         <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono">
                           <span>/{sub.slug}</span>
-                          <span>•</span>
+                          <span aria-hidden="true">•</span>
                           <span>{sub.productsCount} prendas</span>
-                          <span>•</span>
-                          <span className="text-emerald-400">{sub.viewsCount} vistas</span>
+                          <span aria-hidden="true">•</span>
+                          <span className="text-emerald-400">{sub.viewsCount} visitas</span>
                         </div>
                       </div>
 
@@ -433,18 +494,22 @@ export function CategoryManagerClient({
                           type="button"
                           onClick={() => handleMoveOrder(root.children, subIdx, "up")}
                           disabled={subIdx === 0 || loading}
-                          className="p-1 rounded text-zinc-400 hover:text-zinc-100 disabled:opacity-30"
+                          aria-label={`Subir posición de la subcategoría ${sub.name}`}
+                          title={`Subir posición de ${sub.name}`}
+                          className="p-1 rounded text-zinc-400 hover:text-zinc-100 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                         >
-                          <ArrowUp size={13} />
+                          <ArrowUp size={13} aria-hidden="true" />
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleMoveOrder(root.children, subIdx, "down")}
                           disabled={subIdx === root.children.length - 1 || loading}
-                          className="p-1 rounded text-zinc-400 hover:text-zinc-100 disabled:opacity-30"
+                          aria-label={`Bajar posición de la subcategoría ${sub.name}`}
+                          title={`Bajar posición de ${sub.name}`}
+                          className="p-1 rounded text-zinc-400 hover:text-zinc-100 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                         >
-                          <ArrowDown size={13} />
+                          <ArrowDown size={13} aria-hidden="true" />
                         </button>
 
                         <button
@@ -456,17 +521,21 @@ export function CategoryManagerClient({
                             setErrorMessage(null);
                             setEditModalOpen(true);
                           }}
-                          className="p-1 rounded text-zinc-400 hover:text-zinc-100"
+                          aria-label={`Editar subcategoría ${sub.name}`}
+                          title={`Editar subcategoría ${sub.name}`}
+                          className="p-1 rounded text-zinc-400 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                         >
-                          <Edit2 size={13} />
+                          <Edit2 size={13} aria-hidden="true" />
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleInitiateDelete(sub)}
-                          className="p-1 rounded text-zinc-500 hover:text-rose-400"
+                          aria-label={`Eliminar subcategoría ${sub.name}`}
+                          title={`Eliminar subcategoría ${sub.name}`}
+                          className="p-1 rounded text-zinc-500 hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={13} aria-hidden="true" />
                         </button>
                       </div>
                     </div>
@@ -480,31 +549,43 @@ export function CategoryManagerClient({
 
       {/* Modal: Crear Categoría / Subcategoría */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-category-heading"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setCreateModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm"
+        >
           <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-serif text-lg font-bold text-zinc-100">
+              <h3 id="create-category-heading" className="font-serif text-lg font-bold text-zinc-100">
                 {createParentId ? "Nueva Subcategoría" : "Nueva Categoría Raíz"}
               </h3>
               <button
                 type="button"
                 onClick={() => setCreateModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-100"
+                aria-label="Cerrar modal de creación de categoría"
+                className="text-zinc-400 hover:text-zinc-100 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
 
             <form onSubmit={handleCreateCategory} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400">Nombre</label>
+                <label htmlFor="newCategoryNameInput" className="text-xs text-zinc-400">
+                  Nombre
+                </label>
                 <input
+                  id="newCategoryNameInput"
                   type="text"
                   required
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   placeholder="Ej: Remeras, Calzado, Carteras"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"
                 />
               </div>
 
@@ -514,15 +595,15 @@ export function CategoryManagerClient({
                   id="newHidden"
                   checked={newCategoryHidden}
                   onChange={(e) => setNewCategoryHidden(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-amber-300"
+                  className="rounded border-zinc-700 bg-zinc-950 text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400"
                 />
-                <label htmlFor="newHidden" className="text-xs text-zinc-300">
+                <label htmlFor="newHidden" className="text-xs text-zinc-300 cursor-pointer">
                   Ocultar del menú público (BR-38)
                 </label>
               </div>
 
               {errorMessage && (
-                <p className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
+                <p role="alert" className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
                   {errorMessage}
                 </p>
               )}
@@ -531,14 +612,14 @@ export function CategoryManagerClient({
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                 >
                   {loading ? "Creando..." : "Crear"}
                 </button>
@@ -550,36 +631,51 @@ export function CategoryManagerClient({
 
       {/* Modal: Editar / Renombrar Categoría */}
       {editModalOpen && editingNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="edit-category-heading"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setEditModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm"
+        >
           <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-serif text-lg font-bold text-zinc-100">
+              <h3 id="edit-category-heading" className="font-serif text-lg font-bold text-zinc-100">
                 Editar Categoría
               </h3>
               <button
                 type="button"
                 onClick={() => setEditModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-100"
+                aria-label="Cerrar modal de edición de categoría"
+                className="text-zinc-400 hover:text-zinc-100 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
 
             <form onSubmit={handleEditCategory} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400">Nombre</label>
+                <label htmlFor="editCategoryNameInput" className="text-xs text-zinc-400">
+                  Nombre
+                </label>
                 <input
+                  id="editCategoryNameInput"
                   type="text"
                   required
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-zinc-400">Slug permanente (BR-38)</label>
+                <label htmlFor="editCategorySlugInput" className="text-xs text-zinc-400">
+                  Slug permanente (BR-38)
+                </label>
                 <input
+                  id="editCategorySlugInput"
                   type="text"
                   disabled
                   value={editingNode.slug}
@@ -596,15 +692,15 @@ export function CategoryManagerClient({
                   id="editHidden"
                   checked={editHidden}
                   onChange={(e) => setEditHidden(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-amber-300"
+                  className="rounded border-zinc-700 bg-zinc-950 text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400"
                 />
-                <label htmlFor="editHidden" className="text-xs text-zinc-300">
+                <label htmlFor="editHidden" className="text-xs text-zinc-300 cursor-pointer">
                   Ocultar del menú público (BR-38)
                 </label>
               </div>
 
               {errorMessage && (
-                <p className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
+                <p role="alert" className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
                   {errorMessage}
                 </p>
               )}
@@ -613,14 +709,14 @@ export function CategoryManagerClient({
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                 >
                   {loading ? "Guardando..." : "Guardar Cambios"}
                 </button>
@@ -632,18 +728,27 @@ export function CategoryManagerClient({
 
       {/* Modal: Eliminar Categoría con Reasignación (BR-18, BR-37) */}
       {deleteModalOpen && deletingNode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-category-heading"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setDeleteModalOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm"
+        >
           <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-serif text-lg font-bold text-rose-300">
+              <h3 id="delete-category-heading" className="font-serif text-lg font-bold text-rose-300">
                 Eliminar Categoría
               </h3>
               <button
                 type="button"
                 onClick={() => setDeleteModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-100"
+                aria-label="Cerrar modal de eliminación de categoría"
+                className="text-zinc-400 hover:text-zinc-100 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
 
@@ -657,14 +762,16 @@ export function CategoryManagerClient({
                 <p className="text-amber-200 font-semibold">
                   Esta categoría contiene {deletingNode.productsCount} prenda(s).
                 </p>
-                <p className="text-zinc-400">
+                <label htmlFor="reassignTargetSelect" className="block text-zinc-400">
                   Para eliminarla protegida (BR-18), debés seleccionar a qué categoría mover esas prendas:
-                </p>
+                </label>
 
                 <select
+                  id="reassignTargetSelect"
+                  aria-label="Seleccionar categoría de destino para reasignar prendas"
                   value={reassignTargetId}
                   onChange={(e) => setReassignTargetId(Number(e.target.value))}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"
                 >
                   <option value="">-- Seleccionar categoría de destino --</option>
                   {leafNodes
@@ -679,7 +786,7 @@ export function CategoryManagerClient({
             )}
 
             {errorMessage && (
-              <p className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
+              <p role="alert" className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
                 {errorMessage}
               </p>
             )}
@@ -688,7 +795,7 @@ export function CategoryManagerClient({
               <button
                 type="button"
                 onClick={() => setDeleteModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               >
                 Cancelar
               </button>
@@ -696,7 +803,7 @@ export function CategoryManagerClient({
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={loading}
-                className="px-5 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-500 disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-500 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
               >
                 {loading ? "Eliminando..." : "Confirmar Eliminación"}
               </button>

@@ -103,9 +103,10 @@ export default async function AdminDashboardPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/productos/nuevo"
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-200 text-zinc-950 font-semibold text-sm hover:bg-amber-100 active:scale-[0.98] transition-all shadow-md shadow-amber-950/30"
+            aria-label="Cargar nueva prenda al catálogo"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-200 text-zinc-950 font-semibold text-sm hover:bg-amber-100 active:scale-[0.98] transition-all shadow-md shadow-amber-950/30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
-            <PlusCircle size={18} />
+            <PlusCircle size={18} aria-hidden="true" />
             <span>+ Cargar Prenda</span>
           </Link>
         </div>
@@ -119,7 +120,8 @@ export default async function AdminDashboardPage() {
             <Link
               key={card.title}
               href={card.href}
-              className={`flex flex-col justify-between p-4 md:p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 transition-all hover:bg-zinc-800/50 active:scale-[0.99] group ${card.accentBorder}`}
+              aria-label={`${card.title}: ${card.count} prendas. ${card.description}. Ver listado filtrado.`}
+              className={`flex flex-col justify-between p-4 md:p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 transition-all hover:bg-zinc-800/50 active:scale-[0.99] group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${card.accentBorder}`}
             >
               <div className="flex items-start justify-between">
                 <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
@@ -127,6 +129,7 @@ export default async function AdminDashboardPage() {
                 </span>
                 <span
                   className={`p-2 rounded-xl border ${card.bgBadge}`}
+                  aria-hidden="true"
                 >
                   <Icon size={16} />
                 </span>
@@ -140,7 +143,7 @@ export default async function AdminDashboardPage() {
 
               <div className="flex items-center justify-between text-[11px] text-zinc-500 group-hover:text-zinc-400 transition-colors pt-2 border-t border-zinc-800/60">
                 <span className="line-clamp-1">{card.description}</span>
-                <ArrowRight size={12} className="shrink-0 ml-1 group-hover:translate-x-0.5 transition-transform" />
+                <ArrowRight size={12} aria-hidden="true" className="shrink-0 ml-1 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </Link>
           );
@@ -151,10 +154,11 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
         <Link
           href="/admin/productos"
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group"
+          aria-label="Ir a lista de prendas: gestión de stock, edición y acciones en lote"
+          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-zinc-800 text-zinc-200">
+            <div className="p-2.5 rounded-lg bg-zinc-800 text-zinc-200" aria-hidden="true">
               <Package size={18} />
             </div>
             <div>
@@ -162,15 +166,16 @@ export default async function AdminDashboardPage() {
               <p className="text-xs text-zinc-400">Stock, edición y acciones en lote</p>
             </div>
           </div>
-          <ArrowRight size={16} className="text-zinc-500 group-hover:text-zinc-200 group-hover:translate-x-1 transition-all" />
+          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-zinc-200 group-hover:translate-x-1 transition-all" />
         </Link>
 
         <Link
           href="/admin/categorias"
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group"
+          aria-label="Ir a categorías: árbol, orden y métricas de visitas"
+          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-zinc-800 text-amber-200">
+            <div className="p-2.5 rounded-lg bg-zinc-800 text-amber-200" aria-hidden="true">
               <FolderTree size={18} />
             </div>
             <div>
@@ -178,15 +183,16 @@ export default async function AdminDashboardPage() {
               <p className="text-xs text-zinc-400">Árbol, orden y métricas (BR-15)</p>
             </div>
           </div>
-          <ArrowRight size={16} className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />
+          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />
         </Link>
 
         <Link
           href="/admin/configuracion"
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group"
+          aria-label="Ir a configuración del showroom: WhatsApp, marca y reservas"
+          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-zinc-800 text-emerald-300">
+            <div className="p-2.5 rounded-lg bg-zinc-800 text-emerald-300" aria-hidden="true">
               <Settings size={18} />
             </div>
             <div>
@@ -194,17 +200,18 @@ export default async function AdminDashboardPage() {
               <p className="text-xs text-zinc-400">WhatsApp, showroom y reservas (BR-35)</p>
             </div>
           </div>
-          <ArrowRight size={16} className="text-zinc-500 group-hover:text-emerald-300 group-hover:translate-x-1 transition-all" />
+          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-emerald-300 group-hover:translate-x-1 transition-all" />
         </Link>
 
         <a
           href="/"
           target="_blank"
           rel="noreferrer"
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group"
+          aria-label="Abrir catálogo público de la tienda como clienta (en nueva pestaña)"
+          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-zinc-800 text-amber-200">
+            <div className="p-2.5 rounded-lg bg-zinc-800 text-amber-200" aria-hidden="true">
               <ShoppingBag size={18} />
             </div>
             <div>
@@ -212,7 +219,7 @@ export default async function AdminDashboardPage() {
               <p className="text-xs text-zinc-400">Explorar como clienta</p>
             </div>
           </div>
-          <ArrowRight size={16} className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />
+          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />
         </a>
       </div>
     </div>

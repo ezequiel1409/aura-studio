@@ -185,8 +185,12 @@ export function AdminUsersClient() {
     <div className="space-y-6">
       {/* Toast de Éxito */}
       {successToast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-emerald-950/90 border border-emerald-700 text-emerald-200 px-4 py-3 rounded-xl shadow-2xl text-xs backdrop-blur-md animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-emerald-950/90 border border-emerald-700 text-emerald-200 px-4 py-3 rounded-xl shadow-2xl text-xs backdrop-blur-md animate-in fade-in slide-in-from-bottom-2"
+        >
+          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" aria-hidden="true" />
           <span>{successToast}</span>
         </div>
       )}
@@ -209,21 +213,29 @@ export function AdminUsersClient() {
 
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all shadow-md shadow-amber-950/20 shrink-0"
+          aria-label="Dar de alta nuevo administrador"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all shadow-md shadow-amber-950/20 shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
-          <UserPlus size={15} />
+          <UserPlus size={15} aria-hidden="true" />
           <span>Nuevo Administrador</span>
         </button>
       </div>
 
       {/* Estado de Carga / Error */}
       {loading ? (
-        <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-12 text-center text-zinc-400">
-          <Loader2 size={24} className="animate-spin mx-auto text-amber-200 mb-2" />
+        <div
+          role="status"
+          aria-live="polite"
+          className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-12 text-center text-zinc-400"
+        >
+          <Loader2 size={24} className="animate-spin mx-auto text-amber-200 mb-2" aria-hidden="true" />
           <p className="text-xs">Cargando administradores...</p>
         </div>
       ) : error ? (
-        <div className="bg-red-950/20 border border-red-800/80 rounded-2xl p-6 text-center text-red-200 text-xs">
+        <div
+          role="alert"
+          className="bg-red-950/20 border border-red-800/80 rounded-2xl p-6 text-center text-red-200 text-xs"
+        >
           {error}
         </div>
       ) : (
@@ -307,7 +319,12 @@ export function AdminUsersClient() {
                     <button
                       onClick={() => handleToggleStatus(user)}
                       disabled={isBusy}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                      aria-label={
+                        isSuspended
+                          ? `Reactivar acceso al administrador ${user.name}`
+                          : `Suspender acceso al administrador ${user.name}`
+                      }
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                         isSuspended
                           ? "bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-800"
                           : "bg-red-950/40 hover:bg-red-900/60 text-red-200 border border-red-800"
@@ -319,15 +336,15 @@ export function AdminUsersClient() {
                       }
                     >
                       {isBusy ? (
-                        <Loader2 size={13} className="animate-spin" />
+                        <Loader2 size={13} className="animate-spin" aria-hidden="true" />
                       ) : isSuspended ? (
                         <>
-                          <ShieldCheck size={13} />
+                          <ShieldCheck size={13} aria-hidden="true" />
                           <span>Reactivar</span>
                         </>
                       ) : (
                         <>
-                          <UserX size={13} />
+                          <UserX size={13} aria-hidden="true" />
                           <span>Suspender</span>
                         </>
                       )}
@@ -342,21 +359,30 @@ export function AdminUsersClient() {
 
       {/* Modal para Crear Administrador */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-admin-heading"
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && !creating) setShowModal(false);
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in"
+        >
           <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl relative">
             <button
               onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-100 p-1"
+              aria-label="Cerrar modal de alta de administrador"
+              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-100 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
-              <X size={18} />
+              <X size={18} aria-hidden="true" />
             </button>
 
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 flex items-center justify-center" aria-hidden="true">
                 <UserPlus size={18} />
               </div>
               <div>
-                <h3 className="font-semibold text-sm text-zinc-100">
+                <h3 id="create-admin-heading" className="font-semibold text-sm text-zinc-100">
                   Dar de alta nuevo Administrador
                 </h3>
                 <p className="text-[11px] text-zinc-400">
@@ -367,50 +393,53 @@ export function AdminUsersClient() {
 
             <form onSubmit={handleCreateAdmin} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-zinc-300 uppercase tracking-wider mb-1.5">
+                <label htmlFor="adminNameInput" className="block text-xs font-medium text-zinc-300 uppercase tracking-wider mb-1.5">
                   Nombre y Apellido
                 </label>
                 <input
+                  id="adminNameInput"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ej: Sofía Herrera"
                   disabled={creating}
-                  className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+                  className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 uppercase tracking-wider mb-1.5">
+                <label htmlFor="adminEmailInput" className="block text-xs font-medium text-zinc-300 uppercase tracking-wider mb-1.5">
                   Correo Electrónico
                 </label>
                 <input
+                  id="adminEmailInput"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="sofia@aurastudio.com"
                   disabled={creating}
-                  className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+                  className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-zinc-300 uppercase tracking-wider mb-1.5">
+                <label htmlFor="adminPasswordInput" className="block text-xs font-medium text-zinc-300 uppercase tracking-wider mb-1.5">
                   Contraseña Inicial (mínimo 8 caracteres)
                 </label>
                 <div className="relative">
                   <input
+                    id="adminPasswordInput"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Mínimo 8 caracteres"
                     disabled={creating}
-                    className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+                    className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400"
                     required
                   />
-                  <KeyRound size={14} className="absolute right-3.5 top-3 text-zinc-500 pointer-events-none" />
+                  <KeyRound size={14} className="absolute right-3.5 top-3 text-zinc-500 pointer-events-none" aria-hidden="true" />
                 </div>
                 <p className="text-[10px] text-zinc-500 mt-1">
                   Se almacenará hasheada con PBKDF2-HMAC-SHA512 (100.000 iteraciones y salt único).
@@ -418,7 +447,7 @@ export function AdminUsersClient() {
               </div>
 
               {modalError && (
-                <div className="p-2.5 rounded-xl border bg-red-950/40 border-red-800 text-red-200 text-xs">
+                <div role="alert" className="p-2.5 rounded-xl border bg-red-950/40 border-red-800 text-red-200 text-xs">
                   {modalError}
                 </div>
               )}
@@ -428,18 +457,18 @@ export function AdminUsersClient() {
                   type="button"
                   onClick={() => setShowModal(false)}
                   disabled={creating}
-                  className="px-4 py-2.5 rounded-xl text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={creating || !name.trim() || !email.trim() || password.length < 8}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center gap-1.5 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                 >
                   {creating ? (
                     <>
-                      <Loader2 size={13} className="animate-spin" />
+                      <Loader2 size={13} className="animate-spin" aria-hidden="true" />
                       <span>Creando...</span>
                     </>
                   ) : (
