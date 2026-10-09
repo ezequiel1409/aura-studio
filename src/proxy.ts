@@ -25,9 +25,14 @@ export async function proxy(req: NextRequest) {
     ? (await verifySessionToken(token, env.SESSION_SECRET)).valid
     : false;
 
-  // Si intenta ir a /admin/login estando ya autenticada, redirigir al panel principal
-  if (pathname === "/admin/login") {
-    if (isAuth) {
+  const isPublicAuthRoute =
+    pathname === "/admin/login" ||
+    pathname.startsWith("/admin/recuperar") ||
+    pathname.startsWith("/admin/restablecer");
+
+  // Si intenta ir a login o recuperación estando ya autenticada, redirigir al panel principal
+  if (isPublicAuthRoute) {
+    if (isAuth && pathname === "/admin/login") {
       return NextResponse.redirect(new URL("/admin", req.url));
     }
     return response;

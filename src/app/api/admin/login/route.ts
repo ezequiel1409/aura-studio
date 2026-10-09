@@ -5,7 +5,7 @@ import { loginAdmin } from "../../../../services/auth.service";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { password } = body;
+    const { email, password } = body;
 
     if (!password || typeof password !== "string") {
       return NextResponse.json(
@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
 
     const deps = getProductServiceDeps();
     const result = await loginAdmin(
-      { password, clientKey: clientIp },
-      { loginAttemptRepo: deps.loginAttemptRepo }
+      { email, password, clientKey: clientIp },
+      { loginAttemptRepo: deps.loginAttemptRepo, adminUserRepo: deps.adminUserRepo }
     );
 
     if (!result.success) {

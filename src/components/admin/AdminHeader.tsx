@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, LogOut, Package, PlusCircle, LayoutDashboard } from "lucide-react";
+import { ArrowUpRight, LogOut, Package, PlusCircle, LayoutDashboard, Users } from "lucide-react";
 import { useState } from "react";
 
 export function AdminHeader() {
@@ -10,8 +10,12 @@ export function AdminHeader() {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // No renderizar barra en la página de login
-  if (pathname === "/admin/login") {
+  // No renderizar barra en páginas de login y recuperación
+  if (
+    pathname === "/admin/login" ||
+    pathname === "/admin/recuperar" ||
+    pathname.startsWith("/admin/restablecer")
+  ) {
     return null;
   }
 
@@ -33,6 +37,7 @@ export function AdminHeader() {
     { href: "/admin", label: "Resumen", icon: LayoutDashboard },
     { href: "/admin/productos", label: "Prendas", icon: Package },
     { href: "/admin/productos/nuevo", label: "Cargar", icon: PlusCircle },
+    { href: "/admin/usuarios", label: "Equipo", icon: Users },
   ];
 
   return (
