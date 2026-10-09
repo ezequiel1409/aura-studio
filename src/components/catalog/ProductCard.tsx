@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Star } from "lucide-react";
 import { Product } from "../../domain/product/types";
 import { formatProductCode } from "../../domain/product/rules";
 import { formatPrice } from "../../lib/format/currency";
@@ -24,8 +25,10 @@ export function ProductCard({ product }: ProductCardProps) {
   const titleDisplay = product.title || `Pieza ${formattedCode}`;
 
   const accessibleLabel = `${titleDisplay}, código ${formattedCode}, ${priceDisplay}${
-    product.size ? `, talle ${product.size}` : ""
-  }${isReserved ? ", estado reservada" : ""}${isSoldOut ? ", estado agotada" : ""}`;
+    product.isFeatured ? ", prenda destacada" : ""
+  }${product.size ? `, talle ${product.size}` : ""}${
+    isReserved ? ", estado reservada" : ""
+  }${isSoldOut ? ", estado agotada" : ""}`;
 
   return (
     <article className="group relative flex flex-col">
@@ -54,8 +57,14 @@ export function ProductCard({ product }: ProductCardProps) {
             </div>
           )}
 
-          {/* Badges de Estado de Alto Contraste (BR-02) */}
-          <div className="absolute left-2.5 top-2.5 flex flex-col gap-1">
+          {/* Badges de Estado y Destacado */}
+          <div className="absolute left-2.5 top-2.5 flex flex-col gap-1 items-start">
+            {product.isFeatured && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/80 bg-amber-50/95 px-2.5 py-0.5 font-sans text-[10px] font-bold tracking-wider text-amber-900 uppercase shadow-xs backdrop-blur-xs">
+                <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" aria-hidden="true" />
+                Destacada
+              </span>
+            )}
             {isReserved && (
               <span className="rounded-full border border-amber-600/40 bg-amber-500/95 px-2.5 py-0.5 font-sans text-[10px] font-bold tracking-wider text-white uppercase shadow-sm">
                 Reservada

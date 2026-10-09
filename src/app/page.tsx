@@ -15,6 +15,7 @@ interface HomePageProps {
     orden?: string;
     q?: string;
     pagina?: string;
+    destacados?: string;
   }>;
 }
 
@@ -28,6 +29,7 @@ async function CatalogContent({
     orden?: string;
     q?: string;
     pagina?: string;
+    destacados?: string;
   }>;
 }) {
   const resolvedParams = await searchParams;
@@ -51,12 +53,15 @@ async function CatalogContent({
       ? resolvedParams.orden
       : "newest";
 
+  const isFeaturedFilter = resolvedParams.destacados === "true";
+
   // 4. Obtener productos mediante el servicio listProducts (AR-02)
   const productsResult = await listProducts(
     {
       categoryId: activeCategoryId,
       search: resolvedParams.q,
       sortBy,
+      isFeatured: isFeaturedFilter ? true : undefined,
       page: resolvedParams.pagina ? parseInt(resolvedParams.pagina, 10) : 1,
       pageSize: 40,
     },
@@ -83,6 +88,7 @@ async function CatalogContent({
         <SortFilterBar
           total={productsResult.total}
           currentSort={resolvedParams.orden || "newest"}
+          isFeaturedOnly={isFeaturedFilter}
         />
       </section>
 

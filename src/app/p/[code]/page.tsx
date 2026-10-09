@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Sparkles, Tag } from "lucide-react";
+import { ArrowLeft, Sparkles, Star, Tag } from "lucide-react";
 import { getProductServiceDeps } from "../../../infra/db/connection";
 import { parseProductCode, formatProductCode } from "../../../domain/product/rules";
 import { formatPrice } from "../../../lib/format/currency";
@@ -170,10 +170,17 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           {/* Detalles de la Prenda */}
           <div className="flex flex-col justify-start">
             {/* Cabecera con Código y Estado */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5">
               <span className="rounded-md border border-[#e7e2da] bg-white px-2.5 py-1 font-mono text-xs font-semibold text-stone-900">
                 {formattedCode}
               </span>
+
+              {product.isFeatured && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/80 bg-amber-50 px-3 py-1 text-xs font-bold tracking-wider text-amber-900 uppercase">
+                  <Star className="h-3 w-3 fill-amber-500 text-amber-500" aria-hidden="true" />
+                  Destacada
+                </span>
+              )}
 
               {isReserved && (
                 <span className="rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold tracking-wider text-amber-900 uppercase">
