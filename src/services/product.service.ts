@@ -9,6 +9,7 @@ import {
 import {
   calculateSoldOutAt,
   calculateTotalStock,
+  deriveStatusFromStock,
   validateStatusTransition,
 } from "../domain/product/rules";
 import {
@@ -18,6 +19,7 @@ import {
   Product,
   ProductStatus,
   StatusSource,
+  UpdateProductInput,
 } from "../domain/product/types";
 import { SYSTEM_UNCATEGORIZED_SLUG } from "../domain/category/types";
 import { parseProductText, parseSizesList } from "../lib/parser/product-parser";
@@ -259,8 +261,261 @@ export async function changeProductStatus(
   return updated;
 }
 
+/**
+ * BR-02, BR-03, BR-15, BR-20, BR-28, BR-33
+ * Edición completa de una prenda.
+ * Al editar el texto crudo se vuelve a interpretar, pero NO se pisan los datos corregidos a mano (manualFields).
+ */
+export async function updateProduct(
+  id: number,
+  input: UpdateProductInput,
+  deps: ProductServiceDeps
+): Promise<Product> {
+  const { productRepo, categoryRepo, statusHistoryRepo } = deps;
+
+  const existing = await productRepo.findById(id);
+  if (!existing) {
+    throw new ProductNotFoundError(id);
+  }
+
+  const manualFields = new Set<string>(existing.manualFields || []);
+
+  let rawText = existing.rawText;
+  let parsed = null;
+
+  if (input.rawText !== undefined) {
+    const sanitizedRaw = sanitizePlainText(input.rawText);
+    rawText = sanitizedRaw;
+    parsed = parseProductText(sanitizedRaw);
+  }
+
+  // Título: Si se pasa explícito en input, es manual.
+  // Si no se pasa explícito pero se editó rawText: si NO era manual, adopta parsed.title
+  let title = existing.title;
+  if (input.title !== undefined) {
+    manualFields.add("title");
+    title = input.title;
+  } else if (parsed && !manualFields.has("title") && parsed.title) {
+    title = parsed.title;
+  }
+
+  // Precio: Si se pasa explícito en input, es manual.
+  // Si no se pasa explícito pero se editó rawText: si NO era manual, adopta parsed.priceCents
+  let priceCents = existing.priceCents;
+  if (input.priceCents !== undefined) {
+    manualFields.add("priceCents");
+    priceCents = input.priceCents;
+  } else if (parsed && !manualFields.has("priceCents") && parsed.priceCents !== null) {
+    priceCents = parsed.priceCents;
+  }
+
+  const currency = input.currency || existing.currency || "ARS";
+
+  // Talle: Si se pasa explícito en input, es manual.
+  let size = existing.size;
+  if (input.size !== undefined) {
+    manualFields.add("size");
+    size = input.size;
+  } else if (parsed && !manualFields.has("size") && parsed.size) {
+    size = parsed.size;
+  }
+
+  // Categoría: Si se pasa explícito en input, validar y es manual.
+  let categoryId = existing.categoryId;
+  if (input.categoryId !== undefined) {
+    manualFields.add("categoryId");
+    const cat = await categoryRepo.findById(input.categoryId);
+    if (!cat) {
+      throw new CategoryNotFoundError(input.categoryId);
+    }
+    // BR-15: Las prendas deben pertenecer a un nodo hoja
+    const subcategories = await categoryRepo.findSubcategories(cat.id);
+    if (subcategories.length > 0) {
+      throw new Error(
+        `La categoría '${cat.name}' contiene subcategorías. Las prendas solo pueden asignarse a subcategorías o nodos hoja (BR-15).`
+      );
+    }
+    categoryId = cat.id;
+  } else if (parsed && !manualFields.has("categoryId") && parsed.suggestedCategorySlug) {
+    const suggested = await categoryRepo.findBySlug(parsed.suggestedCategorySlug);
+    if (suggested) {
+      const subcategories = await categoryRepo.findSubcategories(suggested.id);
+      if (subcategories.length === 0) {
+        categoryId = suggested.id;
+      }
+    }
+  }
+
+  const now = Date.now();
+
+  // Colores y talles con cálculo de stock total
+  let colorsData = undefined;
+  let totalStock = 0;
+  if (input.colors !== undefined) {
+    colorsData = input.colors.map((c, idx) => ({
+      name: c.name,
+      hexCode: c.hexCode || null,
+      position: c.position ?? idx,
+      sizes: (c.sizes || []).map((s) => ({
+        size: s.size,
+        stock: s.stock ?? 0,
+        reservedStock: s.reservedStock ?? 0,
+      })),
+    }));
+    totalStock = calculateTotalStock(colorsData);
+  } else {
+    totalStock = calculateTotalStock(existing.colors);
+  }
+
+  // Estado: derivación automática por stock o transición explícita
+  let targetStatus = existing.status;
+  if (input.status !== undefined) {
+    targetStatus = input.status;
+  } else if (input.colors !== undefined) {
+    targetStatus = deriveStatusFromStock(totalStock, existing.status);
+  }
+
+  let soldOutAt = existing.soldOutAt;
+  let reservedUntil = existing.reservedUntil;
+
+  if (targetStatus !== existing.status) {
+    validateStatusTransition(existing.status, targetStatus);
+    soldOutAt = calculateSoldOutAt(existing.status, targetStatus, now);
+    if (targetStatus !== "RESERVED") {
+      reservedUntil = null;
+    }
+
+    await statusHistoryRepo.record({
+      productId: existing.id,
+      productCode: existing.code,
+      fromStatus: existing.status,
+      toStatus: targetStatus,
+      at: now,
+      source: input.source || "web",
+    });
+  }
+
+  // Fotos
+  let photosData = undefined;
+  if (input.photos !== undefined) {
+    photosData = input.photos.map((p, idx) => ({
+      keyThumb: p.keyThumb,
+      keyFull: p.keyFull,
+      position: p.position ?? idx,
+      productColorId: p.productColorId || null,
+    }));
+  }
+
+  const updated = await productRepo.update(id, {
+    rawText,
+    title,
+    priceCents,
+    currency,
+    size,
+    categoryId,
+    status: targetStatus,
+    soldOutAt,
+    reservedUntil,
+    manualFields: Array.from(manualFields),
+    updatedAt: now,
+    colors: colorsData,
+    photos: photosData,
+  });
+
+  return updated;
+}
+
+/**
+ * BR-34: Eliminación manual de una prenda y sus datos asociados.
+ * El código correlativo nunca se reutiliza (BR-01).
+ */
+export async function deleteProduct(
+  id: number,
+  deps: ProductServiceDeps
+): Promise<void> {
+  const { productRepo } = deps;
+  const existing = await productRepo.findById(id);
+  if (!existing) {
+    throw new ProductNotFoundError(id);
+  }
+  await productRepo.delete(id);
+}
+
+/**
+ * BR-29: Acciones en lote - Marcar estado de múltiples prendas.
+ */
+export async function bulkChangeProductStatus(
+  input: { productIds: number[]; newStatus: ProductStatus; source?: StatusSource },
+  deps: ProductServiceDeps
+): Promise<{ updatedCount: number; errors: Array<{ productId: number; error: string }> }> {
+  let updatedCount = 0;
+  const errors: Array<{ productId: number; error: string }> = [];
+
+  for (const id of input.productIds) {
+    try {
+      await changeProductStatus(
+        {
+          productId: id,
+          newStatus: input.newStatus,
+          source: input.source || "web",
+        },
+        deps
+      );
+      updatedCount += 1;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar estado";
+      errors.push({ productId: id, error: msg });
+    }
+  }
+
+  return { updatedCount, errors };
+}
+
+/**
+ * BR-29: Acciones en lote - Mover múltiples prendas a una categoría de destino.
+ */
+export async function bulkMoveProductCategory(
+  input: { productIds: number[]; targetCategoryId: number },
+  deps: ProductServiceDeps
+): Promise<{ updatedCount: number }> {
+  const { productRepo, categoryRepo } = deps;
+
+  const targetCategory = await categoryRepo.findById(input.targetCategoryId);
+  if (!targetCategory) {
+    throw new CategoryNotFoundError(input.targetCategoryId);
+  }
+
+  // BR-15: Solo a categorías hoja
+  const subcategories = await categoryRepo.findSubcategories(targetCategory.id);
+  if (subcategories.length > 0) {
+    throw new Error(
+      `La categoría '${targetCategory.name}' contiene subcategorías. Las prendas solo pueden asignarse a subcategorías o nodos hoja (BR-15).`
+    );
+  }
+
+  await productRepo.bulkUpdateCategory(input.productIds, targetCategory.id, Date.now());
+
+  return { updatedCount: input.productIds.length };
+}
+
+/**
+ * BR-29, BR-34: Acciones en lote - Eliminar múltiples prendas con confirmación.
+ */
+export async function bulkDeleteProducts(
+  input: { productIds: number[] },
+  deps: ProductServiceDeps
+): Promise<{ deletedCount: number }> {
+  const { productRepo } = deps;
+
+  await productRepo.bulkDelete(input.productIds);
+
+  return { deletedCount: input.productIds.length };
+}
+
 // Aliases para compatibilidad con nomenclaturas del roadmap
 export const createGarment = createProduct;
 export const listGarments = listProducts;
 export const changeStatus = changeProductStatus;
+export const updateGarment = updateProduct;
+export const deleteGarment = deleteProduct;
 

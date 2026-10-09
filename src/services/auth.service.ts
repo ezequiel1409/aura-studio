@@ -1,7 +1,7 @@
 import { isAccountLocked } from "../domain/auth/rules";
 import { LoginResult, SafeAdminUser } from "../domain/auth/types";
 import { IAdminUserRepository, ILoginAttemptRepository } from "../domain/ports/repositories.port";
-import { createSessionToken, timingSafeEqualStrings, verifySessionToken, SessionPayload } from "../infra/auth/session";
+import { createSessionToken, timingSafeEqualStrings, verifySessionToken } from "../infra/auth/session";
 import { verifyPasswordHash } from "../lib/crypto/password";
 import { getEnv } from "../lib/env";
 
