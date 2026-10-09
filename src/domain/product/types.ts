@@ -44,6 +44,7 @@ export interface Product {
   size?: string | null;
   categoryId: number;
   status: ProductStatus;
+  isFeatured: boolean;
   soldOutAt: number | null;
   reservedUntil: number | null;
   manualFields: string[];
@@ -86,6 +87,7 @@ export interface CreateProductInput {
   currency?: string;
   size?: string | null;
   categoryId?: number;
+  isFeatured?: boolean;
   colors?: CreateColorInput[];
   photos?: Array<{
     keyThumb: string;
@@ -104,6 +106,7 @@ export interface UpdateProductInput {
   size?: string | null;
   categoryId?: number;
   status?: ProductStatus;
+  isFeatured?: boolean;
   colors?: CreateColorInput[];
   photos?: Array<{
     keyThumb: string;
@@ -121,6 +124,7 @@ export interface ListProductsFilter {
   categoryId?: number;
   search?: string;
   sortBy?: ProductSortOption;
+  isFeatured?: boolean;
   page?: number;
   pageSize?: number;
 }

@@ -33,6 +33,7 @@ export interface CreateProductRepoData {
   size?: string | null;
   categoryId: number;
   status: ProductStatus;
+  isFeatured?: boolean;
   soldOutAt: number | null;
   reservedUntil: number | null;
   manualFields: string[];
