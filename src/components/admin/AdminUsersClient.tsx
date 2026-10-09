@@ -2,20 +2,16 @@
 
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle,
   CheckCircle2,
   Crown,
   KeyRound,
   Loader2,
-  Lock,
   Mail,
-  Plus,
   Shield,
   ShieldAlert,
   ShieldCheck,
   UserCheck,
   UserPlus,
-  Users,
   UserX,
   X,
 } from "lucide-react";
@@ -26,6 +22,7 @@ export function AdminUsersClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Modal de creación
   const [showModal, setShowModal] = useState(false);
@@ -39,32 +36,42 @@ export function AdminUsersClient() {
   // Estado de acción toggle
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/admin/users");
-      if (res.status === 403) {
-        setIsSuperAdmin(false);
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setError(data.error || "No se pudo cargar la lista de administradores.");
-        return;
-      }
-      setUsers(data.users || []);
-    } catch {
-      setError("Error al conectar con el servidor.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    let ignore = false;
+    fetch("/api/admin/users")
+      .then((res) => {
+        if (res.status === 403) {
+          if (!ignore) {
+            setIsSuperAdmin(false);
+            setLoading(false);
+          }
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!data || ignore) return;
+        if (!data.ok) {
+          setError(data.error || "No se pudo cargar la lista de administradores.");
+        } else {
+          setUsers(data.users || []);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setError("Error al conectar con el servidor.");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [reloadKey]);
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +109,7 @@ export function AdminUsersClient() {
       setPassword("");
       setSuccessToast(`Administrador "${data.user.name}" creado exitosamente.`);
       setTimeout(() => setSuccessToast(null), 4000);
-      fetchUsers();
+      setReloadKey((k) => k + 1);
     } catch {
       setModalError("Error al enviar el formulario.");
     } finally {

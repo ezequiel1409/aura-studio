@@ -18,15 +18,13 @@ export function StatusHistoryModal({
   onClose,
 }: StatusHistoryModalProps) {
   const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!productId) return;
 
     let isMounted = true;
-    setLoading(true);
-    setError(null);
 
     fetch(`/api/admin/products/history?productId=${productId}`)
       .then((res) => res.json())

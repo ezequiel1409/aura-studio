@@ -5,11 +5,12 @@ import {
   CheckCircle2,
   Clock,
   DollarSign,
-  HelpCircle,
   Package,
   PlusCircle,
   ShoppingBag,
   Tag,
+  FolderTree,
+  Settings,
 } from "lucide-react";
 import { connection } from "next/server";
 import { getProductServiceDeps } from "../../infra/db/connection";
@@ -147,7 +148,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Accesos Directos Secundarios */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
         <Link
           href="/admin/productos"
           className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group"
@@ -158,10 +159,42 @@ export default async function AdminDashboardPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-zinc-200">Lista de Prendas</p>
-              <p className="text-xs text-zinc-400">Ver todas las prendas, fotos, stock y métricas</p>
+              <p className="text-xs text-zinc-400">Stock, edición y acciones en lote</p>
             </div>
           </div>
           <ArrowRight size={16} className="text-zinc-500 group-hover:text-zinc-200 group-hover:translate-x-1 transition-all" />
+        </Link>
+
+        <Link
+          href="/admin/categorias"
+          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-zinc-800 text-amber-200">
+              <FolderTree size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">Categorías</p>
+              <p className="text-xs text-zinc-400">Árbol, orden y métricas (BR-15)</p>
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />
+        </Link>
+
+        <Link
+          href="/admin/configuracion"
+          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-zinc-800 text-emerald-300">
+              <Settings size={18} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-zinc-200">Configuración</p>
+              <p className="text-xs text-zinc-400">WhatsApp, showroom y reservas (BR-35)</p>
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-zinc-500 group-hover:text-emerald-300 group-hover:translate-x-1 transition-all" />
         </Link>
 
         <a
@@ -176,7 +209,7 @@ export default async function AdminDashboardPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-zinc-200">Catálogo Público</p>
-              <p className="text-xs text-zinc-400">Explorar la tienda tal como la ven tus clientas</p>
+              <p className="text-xs text-zinc-400">Explorar como clienta</p>
             </div>
           </div>
           <ArrowRight size={16} className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />

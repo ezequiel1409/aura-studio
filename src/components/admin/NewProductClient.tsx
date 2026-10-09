@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -53,7 +53,10 @@ export function NewProductClient({ categories }: NewProductClientProps) {
   // Campos propuestos / editables (BR-26)
   const [title, setTitle] = useState("");
   const [pricePesos, setPricePesos] = useState<string>("");
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number>(0);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number>(() => {
+    const uncategorized = categories.find((c) => c.slug === "sin-clasificar");
+    return uncategorized ? uncategorized.id : (categories[0]?.id || 0);
+  });
 
   // Variantes de color y talles (BR-20)
   const [colors, setColors] = useState<ColorState[]>([
@@ -79,23 +82,12 @@ export function NewProductClient({ categories }: NewProductClientProps) {
     title: string | null;
   } | null>(null);
 
-  // Buscar categoría "Sin clasificar" por defecto (BR-19)
-  useEffect(() => {
-    if (selectedCategoryId === 0 && categories.length > 0) {
-      const uncategorized = categories.find((c) => c.slug === "sin-clasificar");
-      if (uncategorized) {
-        setSelectedCategoryId(uncategorized.id);
-      } else {
-        setSelectedCategoryId(categories[0].id);
-      }
-    }
-  }, [categories, selectedCategoryId]);
-
   // Al escribir en el texto libre, correr parser en vivo (BR-05, BR-26)
-  useEffect(() => {
-    if (!rawText.trim()) return;
+  const handleRawTextChange = (text: string) => {
+    setRawText(text);
+    if (!text.trim()) return;
 
-    const parsed = parseProductText(rawText);
+    const parsed = parseProductText(text);
 
     // Sugerir título si la admin no lo editó a mano
     if (!titleManuallyEdited && parsed.title) {
@@ -132,14 +124,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         ]);
       }
     }
-  }, [
-    rawText,
-    titleManuallyEdited,
-    priceManuallyEdited,
-    categoryManuallyEdited,
-    variantsManuallyEdited,
-    categories,
-  ]);
+  };
 
   // Manejo de carga y compresión en cliente de fotos (BR-07)
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -324,6 +309,8 @@ export function NewProductClient({ categories }: NewProductClientProps) {
     setPhotos([]);
     setTitle("");
     setPricePesos("");
+    const uncategorized = categories.find((c) => c.slug === "sin-clasificar");
+    setSelectedCategoryId(uncategorized ? uncategorized.id : (categories[0]?.id || 0));
     setColors([
       {
         id: "default-col",
@@ -356,7 +343,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             Prenda {codeFormatted} publicada
           </h2>
           <p className="text-zinc-400 text-sm mt-2">
-            "{publishedProduct.title}" ya está disponible y visible en el showroom.
+            &ldquo;{publishedProduct.title}&rdquo; ya está disponible y visible en el showroom.
           </p>
         </div>
 
@@ -488,7 +475,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             id="rawText"
             rows={3}
             value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
+            onChange={(e) => handleRawTextChange(e.target.value)}
             placeholder="Pegá la descripción aquí... Ej: Remera Boxy fit de algodón negra y crudo talles S y M $22.500"
             className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 transition-all font-sans leading-relaxed"
             required

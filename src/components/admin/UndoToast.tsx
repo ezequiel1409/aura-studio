@@ -26,12 +26,17 @@ export function UndoToast({
   durationMs = 8000,
 }: UndoToastProps) {
   const [progress, setProgress] = useState(100);
+  const [prevActionId, setPrevActionId] = useState(action?.id);
   const [undoing, setUndoing] = useState(false);
+
+  if (action && action.id !== prevActionId) {
+    setPrevActionId(action.id);
+    setProgress(100);
+  }
 
   useEffect(() => {
     if (!action) return;
 
-    setProgress(100);
     const startTime = Date.now();
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;

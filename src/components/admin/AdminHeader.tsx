@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, LogOut, Package, PlusCircle, LayoutDashboard, Users } from "lucide-react";
+import { ArrowUpRight, LogOut, Package, PlusCircle, LayoutDashboard, Users, FolderTree, Settings } from "lucide-react";
 import { useState } from "react";
 
 export function AdminHeader() {
@@ -37,6 +37,8 @@ export function AdminHeader() {
     { href: "/admin", label: "Resumen", icon: LayoutDashboard },
     { href: "/admin/productos", label: "Prendas", icon: Package },
     { href: "/admin/productos/nuevo", label: "Cargar", icon: PlusCircle },
+    { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
+    { href: "/admin/configuracion", label: "Ajustes", icon: Settings },
     { href: "/admin/usuarios", label: "Equipo", icon: Users },
   ];
 
