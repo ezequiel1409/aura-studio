@@ -7,12 +7,15 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Loader2,
   Minus,
   Plus,
   RotateCcw,
   Sparkles,
+  Star,
   Trash2,
   Upload,
   X,
@@ -74,6 +77,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
   const [variantsManuallyEdited, setVariantsManuallyEdited] = useState(false);
 
   // Estado de publicación
+  const [isFeatured, setIsFeatured] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [publishedProduct, setPublishedProduct] = useState<{
@@ -158,6 +162,29 @@ export function NewProductClient({ categories }: NewProductClientProps) {
 
   const handleRemovePhoto = (id: string) => {
     setPhotos((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  // Marcar una foto como portada (posición 0)
+  const handleSetCoverPhoto = (index: number) => {
+    if (index <= 0 || index >= photos.length) return;
+    setPhotos((prev) => {
+      const copy = [...prev];
+      const [selected] = copy.splice(index, 1);
+      return [selected, ...copy];
+    });
+  };
+
+  // Reordenar fotos en la galería (mover izquierda / derecha)
+  const handleMovePhoto = (index: number, direction: "left" | "right") => {
+    const targetIndex = direction === "left" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= photos.length) return;
+    setPhotos((prev) => {
+      const copy = [...prev];
+      const temp = copy[index];
+      copy[index] = copy[targetIndex];
+      copy[targetIndex] = temp;
+      return copy;
+    });
   };
 
   // Ajustes de Stock táctiles (+ / -) (BR-26)
@@ -265,6 +292,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         priceCents,
         currency: "ARS",
         categoryId: selectedCategoryId,
+        isFeatured,
         colors: colors.map((c, cIdx) => ({
           name: c.name.trim() || "Único",
           position: cIdx,
@@ -322,6 +350,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
     setPriceManuallyEdited(false);
     setCategoryManuallyEdited(false);
     setVariantsManuallyEdited(false);
+    setIsFeatured(false);
     setPublishedProduct(null);
     setErrorMessage(null);
   };
@@ -385,9 +414,10 @@ export function NewProductClient({ categories }: NewProductClientProps) {
       <div className="flex items-center gap-3">
         <Link
           href="/admin"
-          className="p-2 rounded-xl bg-zinc-900 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+          aria-label="Volver al panel principal de administración"
+          className="p-2 rounded-xl bg-zinc-900 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={18} aria-hidden="true" />
         </Link>
         <div>
           <h1 className="font-serif text-2xl font-bold text-zinc-100">
@@ -404,7 +434,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
-              <Camera size={16} className="text-amber-300" />
+              <Camera size={16} className="text-amber-300" aria-hidden="true" />
               <span>Fotos de la prenda (BR-07)</span>
             </label>
             <span className="text-[11px] text-zinc-500">
@@ -417,25 +447,74 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             {photos.map((p, idx) => (
               <div
                 key={p.id}
-                className="relative w-20 h-24 rounded-xl overflow-hidden border border-zinc-700 bg-zinc-950 group"
+                className={`relative w-24 h-32 rounded-xl overflow-hidden border bg-zinc-950 group transition-all ${
+                  idx === 0
+                    ? "border-amber-400 shadow-md shadow-amber-950/40 ring-1 ring-amber-400/50"
+                    : "border-zinc-800 hover:border-zinc-700"
+                }`}
               >
                 <img
                   src={p.keyThumb}
                   alt={`Foto ${idx + 1}`}
                   className="w-full h-full object-cover"
                 />
+
+                {/* Botón Eliminar */}
                 <button
                   type="button"
                   onClick={() => handleRemovePhoto(p.id)}
-                  className="absolute top-1 right-1 p-1 rounded-full bg-zinc-950/80 text-zinc-400 hover:text-red-400 transition-colors"
+                  aria-label={`Eliminar foto ${idx + 1}`}
+                  className="absolute top-1 right-1 p-1 rounded-full bg-zinc-950/80 text-zinc-400 hover:text-red-400 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none z-10"
                   title="Eliminar foto"
                 >
-                  <X size={12} />
+                  <X size={12} aria-hidden="true" />
                 </button>
-                {idx === 0 && (
-                  <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-zinc-900/90 text-amber-200">
-                    Portada
-                  </span>
+
+                {/* Flechas para reordenar */}
+                {photos.length > 1 && (
+                  <div className="absolute top-1 left-1 flex items-center gap-0.5 z-10 opacity-75 group-hover:opacity-100 transition-opacity">
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleMovePhoto(idx, "left")}
+                        aria-label={`Mover foto ${idx + 1} hacia la izquierda`}
+                        title="Mover hacia la izquierda"
+                        className="p-0.5 rounded bg-zinc-950/80 text-zinc-300 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-1 focus-visible:ring-amber-400"
+                      >
+                        <ChevronLeft size={12} aria-hidden="true" />
+                      </button>
+                    )}
+                    {idx < photos.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleMovePhoto(idx, "right")}
+                        aria-label={`Mover foto ${idx + 1} hacia la derecha`}
+                        title="Mover hacia la derecha"
+                        className="p-0.5 rounded bg-zinc-950/80 text-zinc-300 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-1 focus-visible:ring-amber-400"
+                      >
+                        <ChevronRight size={12} aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Badge de Portada o Botón para Hacer Portada */}
+                {idx === 0 ? (
+                  <div className="absolute bottom-1 inset-x-1 flex items-center justify-center gap-1 py-0.5 rounded bg-amber-400 text-zinc-950 font-bold text-[9px] shadow-sm">
+                    <Star size={10} className="fill-zinc-950" aria-hidden="true" />
+                    <span>Portada</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSetCoverPhoto(idx)}
+                    aria-label={`Destacar foto ${idx + 1} como portada principal`}
+                    title="Hacer que esta foto sea la portada de la prenda"
+                    className="absolute bottom-1 inset-x-1 flex items-center justify-center gap-1 py-0.5 rounded bg-zinc-950/90 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 border border-zinc-800 text-[9px] font-semibold transition-all focus-visible:ring-1 focus-visible:ring-amber-400"
+                  >
+                    <Star size={9} aria-hidden="true" />
+                    <span>Destacar</span>
+                  </button>
                 )}
               </div>
             ))}
@@ -555,6 +634,47 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                 ))}
               </select>
             </div>
+
+            {/* Prenda Destacada en el Showroom */}
+            <div className="sm:col-span-2 flex items-center justify-between p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Star
+                    size={15}
+                    className={isFeatured ? "text-amber-400 fill-amber-400" : "text-zinc-500"}
+                    aria-hidden="true"
+                  />
+                  <span className="text-xs font-bold text-zinc-200">
+                    Destacar esta prenda en el catálogo
+                  </span>
+                  {isFeatured && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                      Destacada
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  Aparecerá en los primeros lugares de la tienda y en el filtro de Destacados.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isFeatured}
+                aria-label="Destacar esta prenda en el catálogo"
+                onClick={() => setIsFeatured((prev) => !prev)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                  isFeatured ? "bg-amber-400" : "bg-zinc-800"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
+                    isFeatured ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           {/* Matriz Táctil de Colores, Talles y Stock (BR-20, BR-26) */}
@@ -586,17 +706,19 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                       value={col.name}
                       onChange={(e) => updateColorName(col.id, e.target.value)}
                       placeholder="Nombre del color (ej: Negro)"
-                      className="bg-transparent border-b border-zinc-700 focus:border-amber-400 text-sm font-semibold text-zinc-100 px-1 py-0.5 focus:outline-none"
+                      aria-label="Nombre del color"
+                      className="bg-transparent border-b border-zinc-700 focus:border-amber-400 text-sm font-semibold text-zinc-100 px-1 py-0.5 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
                     />
 
                     {colors.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeColor(col.id)}
-                        className="text-zinc-500 hover:text-red-400 p-1"
+                        className="text-zinc-500 hover:text-red-400 p-1 rounded focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
                         title="Eliminar este color"
+                        aria-label={`Eliminar color ${col.name}`}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -612,7 +734,8 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                           type="text"
                           value={sz.size}
                           onChange={(e) => updateSizeName(col.id, sz.id, e.target.value)}
-                          className="w-12 text-center text-xs font-bold text-amber-200 bg-transparent focus:outline-none"
+                          aria-label={`Nombre de talle para color ${col.name}`}
+                          className="w-12 text-center text-xs font-bold text-amber-200 bg-transparent focus:outline-none focus-visible:ring-1 focus-visible:ring-amber-400"
                         />
 
                         {/* Controles táctiles de stock */}
@@ -620,19 +743,24 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                           <button
                             type="button"
                             onClick={() => updateStock(col.id, sz.id, -1)}
-                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-100 active:bg-zinc-800 transition-colors"
+                            aria-label={`Reducir stock del talle ${sz.size} para color ${col.name}`}
+                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-100 active:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                           >
-                            <Minus size={12} />
+                            <Minus size={12} aria-hidden="true" />
                           </button>
-                          <span className="w-6 text-center text-xs font-mono font-bold text-zinc-100">
+                          <span
+                            className="w-6 text-center text-xs font-mono font-bold text-zinc-100"
+                            aria-label={`${sz.stock} unidades de stock`}
+                          >
                             {sz.stock}
                           </span>
                           <button
                             type="button"
                             onClick={() => updateStock(col.id, sz.id, 1)}
-                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-100 active:bg-zinc-800 transition-colors"
+                            aria-label={`Aumentar stock del talle ${sz.size} para color ${col.name}`}
+                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-100 active:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                           >
-                            <Plus size={12} />
+                            <Plus size={12} aria-hidden="true" />
                           </button>
                         </div>
 
@@ -640,9 +768,10 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                           <button
                             type="button"
                             onClick={() => removeSizeFromColor(col.id, sz.id)}
-                            className="text-zinc-600 hover:text-zinc-400 p-0.5"
+                            aria-label={`Eliminar talle ${sz.size} del color ${col.name}`}
+                            className="text-zinc-600 hover:text-zinc-400 p-0.5 rounded focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
                           >
-                            <X size={12} />
+                            <X size={12} aria-hidden="true" />
                           </button>
                         )}
                       </div>
@@ -652,9 +781,10 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                     <button
                       type="button"
                       onClick={() => addSizeToColor(col.id, "M")}
-                      className="px-2.5 py-1.5 rounded-xl border border-dashed border-zinc-700 text-zinc-400 hover:text-amber-200 text-xs flex items-center gap-1 hover:border-amber-400/50 transition-colors"
+                      aria-label={`Agregar nuevo talle al color ${col.name}`}
+                      className="px-2.5 py-1.5 rounded-xl border border-dashed border-zinc-700 text-zinc-400 hover:text-amber-200 text-xs flex items-center gap-1 hover:border-amber-400/50 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     >
-                      <Plus size={12} />
+                      <Plus size={12} aria-hidden="true" />
                       <span>Talle</span>
                     </button>
                   </div>
@@ -666,7 +796,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
 
         {/* Mensaje de Error */}
         {errorMessage && (
-          <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-800 text-red-200 text-xs">
+          <div role="alert" className="p-3.5 rounded-xl bg-red-950/40 border border-red-800 text-red-200 text-xs">
             {errorMessage}
           </div>
         )}

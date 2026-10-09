@@ -17,6 +17,7 @@ import {
   Trash2,
   CheckSquare,
   Square,
+  Star,
   FolderInput,
   RefreshCw,
   X,
@@ -103,6 +104,7 @@ export function ProductListClient({
 
     return products.filter((p) => {
       // 1. Filtro por pestaña
+      if (activeTab === "destacadas" && !p.isFeatured) return false;
       if (activeTab === "disponibles" && p.status !== "AVAILABLE") return false;
       if (activeTab === "reservadas" && p.status !== "RESERVED") return false;
       if (activeTab === "agotadas" && p.status !== "SOLD_OUT") return false;
@@ -345,8 +347,72 @@ export function ProductListClient({
     }
   };
 
+  // Alternar estado de Destacada en un clic
+  const handleToggleFeatured = async (productId: number) => {
+    try {
+      const res = await fetch("/api/admin/products/featured", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(data.error || "No se pudo actualizar el estado de destacado.");
+        return;
+      }
+
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? data.product : p))
+      );
+    } catch {
+      alert("Error de conexión con el servidor.");
+    }
+  };
+
+  // Marcar / desmarcar destacadas en lote
+  const handleBulkFeatured = async (isFeatured: boolean) => {
+    if (selectedProductIds.length === 0) return;
+    setBulkProcessing(true);
+
+    try {
+      const res = await fetch("/api/admin/products/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "featured",
+          productIds: selectedProductIds,
+          isFeatured,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(data.error || "Error al procesar la acción en lote.");
+        return;
+      }
+
+      setProducts((prev) =>
+        prev.map((p) =>
+          selectedProductIds.includes(p.id) ? { ...p, isFeatured } : p
+        )
+      );
+      clearSelection();
+    } catch {
+      alert("Error de conexión con el servidor.");
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const featuredCount = useMemo(
+    () => products.filter((p) => p.isFeatured).length,
+    [products]
+  );
+
   const tabs = [
     { id: "todas", label: "Todas" },
+    { id: "destacadas", label: `⭐ Destacadas (${featuredCount})` },
     { id: "disponibles", label: "Disponibles" },
     { id: "reservadas", label: "Reservadas" },
     { id: "agotadas", label: "Agotadas" },
@@ -373,16 +439,21 @@ export function ProductListClient({
             <button
               type="button"
               onClick={handleToggleSelectAll}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 font-medium text-xs hover:bg-zinc-800 transition-all"
+              aria-label={
+                allFilteredSelected
+                  ? "Deseleccionar todas las prendas filtradas"
+                  : `Seleccionar todas las ${filteredProducts.length} prendas filtradas`
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 font-medium text-xs hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
               {allFilteredSelected ? (
                 <>
-                  <CheckSquare size={15} className="text-amber-300" />
+                  <CheckSquare size={15} className="text-amber-300" aria-hidden="true" />
                   <span>Deseleccionar todas</span>
                 </>
               ) : (
                 <>
-                  <Square size={15} className="text-zinc-500" />
+                  <Square size={15} className="text-zinc-500" aria-hidden="true" />
                   <span>Seleccionar todas ({filteredProducts.length})</span>
                 </>
               )}
@@ -391,9 +462,9 @@ export function ProductListClient({
 
           <Link
             href="/admin/productos/nuevo"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-200 text-zinc-950 font-semibold text-xs hover:bg-amber-100 transition-all shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-200 text-zinc-950 font-semibold text-xs hover:bg-amber-100 transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
-            <Plus size={16} />
+            <Plus size={16} aria-hidden="true" />
             <span>+ Cargar Prenda</span>
           </Link>
         </div>
@@ -404,27 +475,36 @@ export function ProductListClient({
         {/* Input de Búsqueda */}
         <div className="relative">
           <input
+            id="search-products-input"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por código (#023), título o descripción..."
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 transition-all"
+            aria-label="Buscar prendas por código, título o descripción"
+            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400 transition-all"
           />
           <Search
             size={16}
+            aria-hidden="true"
             className="absolute left-3.5 top-3 text-zinc-500 pointer-events-none"
           />
         </div>
 
         {/* Chips de Filtros (Scroll horizontal en móviles) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none text-xs">
+        <div
+          role="tablist"
+          aria-label="Filtros de estado de prendas"
+          className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none text-xs"
+        >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className={`whitespace-nowrap px-3.5 py-1.5 rounded-full font-medium transition-all ${
+                className={`whitespace-nowrap px-3.5 py-1.5 rounded-full font-medium transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                   isActive
                     ? "bg-amber-200 text-zinc-950 font-bold shadow-sm"
                     : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
@@ -485,14 +565,17 @@ export function ProductListClient({
                   {/* Checkbox de Selección Múltiple (BR-29) */}
                   <button
                     type="button"
+                    role="checkbox"
+                    aria-checked={isSelected}
                     onClick={() => toggleProductSelection(p.id)}
-                    className="pt-1 text-zinc-500 hover:text-amber-200 focus:outline-none transition-colors shrink-0"
+                    className="pt-1 text-zinc-500 hover:text-amber-200 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-md"
                     title={isSelected ? "Deseleccionar prenda" : "Seleccionar para acción en lote"}
+                    aria-label={`${isSelected ? "Deseleccionar" : "Seleccionar"} prenda #${codeFormatted} ${p.title || ""}`}
                   >
                     {isSelected ? (
-                      <CheckSquare size={20} className="text-amber-300" />
+                      <CheckSquare size={20} className="text-amber-300" aria-hidden="true" />
                     ) : (
-                      <Square size={20} className="text-zinc-600 hover:text-zinc-400" />
+                      <Square size={20} className="text-zinc-600 hover:text-zinc-400" aria-hidden="true" />
                     )}
                   </button>
 
@@ -505,7 +588,7 @@ export function ProductListClient({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                      <div className="w-full h-full flex items-center justify-center text-zinc-600" aria-hidden="true">
                         <Package size={20} />
                       </div>
                     )}
@@ -517,38 +600,72 @@ export function ProductListClient({
                   {/* Datos principales */}
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-bold text-zinc-100 truncate">
-                        {p.title || "Prenda sin título"}
-                      </h3>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="text-sm font-bold text-zinc-100 truncate">
+                          {p.title || "Prenda sin título"}
+                        </h3>
+                        {p.isFeatured && (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
+                            <Star size={10} className="fill-amber-300" aria-hidden="true" />
+                            <span>Destacada</span>
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Botón Destacar en un toque */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFeatured(p.id)}
+                          className={`p-1 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
+                            p.isFeatured
+                              ? "text-amber-400 hover:text-amber-300 hover:bg-amber-400/10"
+                              : "text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800"
+                          }`}
+                          title={p.isFeatured ? "Quitar de destacados" : "Destacar en showroom"}
+                          aria-label={
+                            p.isFeatured
+                              ? `Quitar prenda #${codeFormatted} de destacados`
+                              : `Destacar prenda #${codeFormatted} en el catálogo`
+                          }
+                        >
+                          <Star
+                            size={14}
+                            className={p.isFeatured ? "fill-amber-400 text-amber-400" : ""}
+                            aria-hidden="true"
+                          />
+                        </button>
+
                         {/* Botón Editar Ficha Completa (BR-33) */}
                         <Link
                           href={`/admin/productos/${p.code}/editar`}
-                          className="text-zinc-400 hover:text-amber-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors"
+                          className="text-zinc-400 hover:text-amber-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                           title="Editar prenda completa"
+                          aria-label={`Editar ficha de prenda #${codeFormatted} ${p.title || ""}`}
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={14} aria-hidden="true" />
                         </Link>
 
                         {/* Botón Eliminar Manual (BR-34, BR-37) */}
                         <button
                           type="button"
                           onClick={() => handleDeleteProduct(p)}
-                          className="text-zinc-500 hover:text-rose-400 p-1 rounded-lg hover:bg-zinc-800 transition-colors"
+                          className="text-zinc-500 hover:text-rose-400 p-1 rounded-lg hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
                           title="Eliminar prenda"
+                          aria-label={`Eliminar prenda #${codeFormatted} ${p.title || ""}`}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
 
                         <a
                           href={`/p/${String(p.code).padStart(3, "0")}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-zinc-500 hover:text-amber-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors"
+                          className="text-zinc-500 hover:text-amber-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                           title="Ver en la tienda"
+                          aria-label={`Ver prenda #${codeFormatted} en la tienda pública (abre en nueva pestaña)`}
                         >
-                          <ExternalLink size={14} />
+                          <ExternalLink size={14} aria-hidden="true" />
                         </a>
                       </div>
                     </div>
@@ -561,11 +678,11 @@ export function ProductListClient({
 
                     <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] text-zinc-400">
                       <span className="flex items-center gap-1">
-                        <Tag size={11} className="text-zinc-500" />
+                        <Tag size={11} className="text-zinc-500" aria-hidden="true" />
                         <span>{category?.name || "Sin clasificar"}</span>
                       </span>
 
-                      <span>•</span>
+                      <span aria-hidden="true">•</span>
 
                       <span>Stock total: <strong className="text-zinc-200">{totalStock}</strong></span>
                     </div>
@@ -579,16 +696,18 @@ export function ProductListClient({
                     <span
                       className="flex items-center gap-1 hover:text-zinc-200 transition-colors"
                       title="Visitas totales a la ficha de la prenda"
+                      aria-label={`${p.stats?.viewsCount ?? 0} visitas registradas a la prenda`}
                     >
-                      <Eye size={13} className="text-zinc-500" />
+                      <Eye size={13} className="text-zinc-500" aria-hidden="true" />
                       <span>{p.stats?.viewsCount ?? 0} vistas</span>
                     </span>
 
                     <span
                       className="flex items-center gap-1 hover:text-emerald-300 transition-colors"
                       title="Consultas iniciadas por WhatsApp"
+                      aria-label={`${p.stats?.whatsappClicks ?? 0} clics de consulta por WhatsApp`}
                     >
-                      <MessageCircle size={13} className="text-emerald-400/80" />
+                      <MessageCircle size={13} className="text-emerald-400/80" aria-hidden="true" />
                       <span>{p.stats?.whatsappClicks ?? 0} WhatsApp</span>
                     </span>
                   </div>
@@ -603,9 +722,9 @@ export function ProductListClient({
                       }`}
                     >
                       {isExpiringSoon ? (
-                        <AlertTriangle size={12} className="text-rose-400" />
+                        <AlertTriangle size={12} className="text-rose-400" aria-hidden="true" />
                       ) : (
-                        <Clock size={12} />
+                        <Clock size={12} aria-hidden="true" />
                       )}
                       <span>
                         Se purga en {daysUntilPurge} {daysUntilPurge === 1 ? "día" : "días"}
@@ -617,11 +736,17 @@ export function ProductListClient({
                 {/* Acciones de Estado de un Toque & Historial (BR-27, BR-28) */}
                 <div className="flex items-center justify-between gap-2 pt-1">
                   {/* Selector rápido de 3 botones */}
-                  <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs">
+                  <div
+                    role="group"
+                    aria-label={`Cambiar estado de la prenda #${codeFormatted}`}
+                    className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs"
+                  >
                     <button
                       type="button"
+                      aria-pressed={p.status === "AVAILABLE"}
+                      aria-label={`Marcar prenda #${codeFormatted} como Disponible`}
                       onClick={() => handleStatusChange(p.id, "AVAILABLE")}
-                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none ${
                         p.status === "AVAILABLE"
                           ? "bg-emerald-500 text-zinc-950 font-bold"
                           : "text-zinc-400 hover:text-zinc-200"
@@ -632,8 +757,10 @@ export function ProductListClient({
 
                     <button
                       type="button"
+                      aria-pressed={p.status === "RESERVED"}
+                      aria-label={`Marcar prenda #${codeFormatted} como Reservada`}
                       onClick={() => handleStatusChange(p.id, "RESERVED")}
-                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                         p.status === "RESERVED"
                           ? "bg-amber-400 text-zinc-950 font-bold"
                           : "text-zinc-400 hover:text-zinc-200"
@@ -644,8 +771,10 @@ export function ProductListClient({
 
                     <button
                       type="button"
+                      aria-pressed={p.status === "SOLD_OUT"}
+                      aria-label={`Marcar prenda #${codeFormatted} como Agotada`}
                       onClick={() => handleStatusChange(p.id, "SOLD_OUT")}
-                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none ${
                         p.status === "SOLD_OUT"
                           ? "bg-zinc-700 text-zinc-100 font-bold"
                           : "text-zinc-400 hover:text-zinc-200"
@@ -665,10 +794,11 @@ export function ProductListClient({
                         title: p.title,
                       })
                     }
-                    className="flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/80 transition-colors"
+                    className="flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/80 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     title="Ver historial de cambios de estado"
+                    aria-label={`Ver historial de cambios de estado para prenda #${codeFormatted}`}
                   >
-                    <History size={13} />
+                    <History size={13} aria-hidden="true" />
                     <span className="hidden sm:inline">Historial</span>
                   </button>
                 </div>
@@ -681,15 +811,18 @@ export function ProductListClient({
       {/* Barra Flotante de Acciones en Lote (BR-29, AR-10 Zustand) */}
       {selectedProductIds.length > 0 && (
         <aside
-          aria-label="Acciones en lote"
+          aria-label="Barra de acciones en lote para prendas seleccionadas"
           className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-50 bg-zinc-950/95 border border-amber-400/50 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs"
         >
           <div className="flex items-center gap-2">
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-200 text-zinc-950 font-bold text-xs">
+            <span
+              className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-200 text-zinc-950 font-bold text-xs"
+              aria-hidden="true"
+            >
               {selectedProductIds.length}
             </span>
             <span className="font-semibold text-zinc-200">
-              {selectedProductIds.length === 1 ? "prenda seleccionada" : "prendas seleccionadas"}
+              {selectedProductIds.length === 1 ? "1 prenda seleccionada" : `${selectedProductIds.length} prendas seleccionadas`}
             </span>
           </div>
 
@@ -698,37 +831,47 @@ export function ProductListClient({
             <div className="relative">
               <button
                 type="button"
+                aria-haspopup="true"
+                aria-expanded={bulkStatusOpen}
+                aria-label="Cambiar estado de prendas seleccionadas en lote"
                 onClick={() => {
                   setBulkStatusOpen(!bulkStatusOpen);
                   setBulkCategoryOpen(false);
                 }}
                 disabled={isBulkProcessing}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               >
-                <RefreshCw size={13} />
+                <RefreshCw size={13} aria-hidden="true" />
                 <span>Estado</span>
               </button>
 
               {bulkStatusOpen && (
-                <div className="absolute bottom-full mb-2 left-0 w-36 bg-zinc-900 border border-zinc-700 rounded-xl p-1 shadow-xl space-y-1">
+                <div
+                  role="menu"
+                  aria-label="Opciones de estado para lote"
+                  className="absolute bottom-full mb-2 left-0 w-36 bg-zinc-900 border border-zinc-700 rounded-xl p-1 shadow-xl space-y-1"
+                >
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => handleBulkStatus("AVAILABLE")}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-emerald-300 hover:bg-zinc-800 transition-colors text-xs font-semibold"
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-emerald-300 hover:bg-zinc-800 transition-colors text-xs font-semibold focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                   >
                     Disponible
                   </button>
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => handleBulkStatus("RESERVED")}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-amber-300 hover:bg-zinc-800 transition-colors text-xs font-semibold"
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-amber-300 hover:bg-zinc-800 transition-colors text-xs font-semibold focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                   >
                     Reservada
                   </button>
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => handleBulkStatus("SOLD_OUT")}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-zinc-400 hover:bg-zinc-800 transition-colors text-xs font-semibold"
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-zinc-400 hover:bg-zinc-800 transition-colors text-xs font-semibold focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                   >
                     Agotada
                   </button>
@@ -740,19 +883,26 @@ export function ProductListClient({
             <div className="relative">
               <button
                 type="button"
+                aria-haspopup="true"
+                aria-expanded={bulkCategoryOpen}
+                aria-label="Mover prendas seleccionadas a otra categoría en lote"
                 onClick={() => {
                   setBulkCategoryOpen(!bulkCategoryOpen);
                   setBulkStatusOpen(false);
                 }}
                 disabled={isBulkProcessing}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               >
-                <FolderInput size={13} />
+                <FolderInput size={13} aria-hidden="true" />
                 <span>Mover</span>
               </button>
 
               {bulkCategoryOpen && (
-                <div className="absolute bottom-full mb-2 left-0 w-48 max-h-56 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-xl p-1 shadow-xl space-y-1">
+                <div
+                  role="menu"
+                  aria-label="Opciones de categoría para lote"
+                  className="absolute bottom-full mb-2 left-0 w-48 max-h-56 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-xl p-1 shadow-xl space-y-1"
+                >
                   <div className="px-2 py-1 text-[10px] uppercase font-bold text-zinc-500">
                     Mover a:
                   </div>
@@ -760,8 +910,9 @@ export function ProductListClient({
                     <button
                       key={c.id}
                       type="button"
+                      role="menuitem"
                       onClick={() => handleBulkMoveCategory(c.id)}
-                      className="w-full text-left px-2 py-1.5 rounded-lg text-zinc-200 hover:bg-zinc-800 transition-colors text-xs truncate"
+                      className="w-full text-left px-2 py-1.5 rounded-lg text-zinc-200 hover:bg-zinc-800 transition-colors text-xs truncate focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     >
                       {c.name}
                     </button>
@@ -770,14 +921,27 @@ export function ProductListClient({
               )}
             </div>
 
+            {/* Destacar en Lote */}
+            <button
+              type="button"
+              onClick={() => handleBulkFeatured(true)}
+              disabled={isBulkProcessing}
+              aria-label={`Destacar ${selectedProductIds.length} prenda(s) seleccionada(s) en lote`}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+            >
+              <Star size={13} className="fill-amber-300" aria-hidden="true" />
+              <span>Destacar</span>
+            </button>
+
             {/* Eliminar en Lote */}
             <button
               type="button"
               onClick={handleBulkDelete}
               disabled={isBulkProcessing}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-950/70 text-rose-300 border border-rose-800/80 hover:bg-rose-900 transition-colors font-medium"
+              aria-label={`Eliminar ${selectedProductIds.length} prenda(s) seleccionada(s) en lote`}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-950/70 text-rose-300 border border-rose-800/80 hover:bg-rose-900 transition-colors font-medium focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
             >
-              <Trash2 size={13} />
+              <Trash2 size={13} aria-hidden="true" />
               <span>Eliminar</span>
             </button>
 
@@ -785,10 +949,11 @@ export function ProductListClient({
             <button
               type="button"
               onClick={clearSelection}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+              aria-label="Cancelar y deseleccionar todas las prendas"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               title="Cancelar selección"
             >
-              <X size={15} />
+              <X size={15} aria-hidden="true" />
             </button>
           </div>
         </aside>
