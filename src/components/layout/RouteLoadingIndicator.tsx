@@ -20,15 +20,22 @@ export function RouteLoadingIndicator() {
 
   // Al completarse la navegación y cambiar de ruta o parámetros, finalizamos la animación
   useEffect(() => {
-    if (isNavigating) {
+    if (!isNavigating) return;
+
+    let timer: NodeJS.Timeout | undefined;
+    const frame = requestAnimationFrame(() => {
       setProgress(100);
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         setIsNavigating(false);
         setProgress(0);
       }, 250);
-      return () => clearTimeout(timer);
-    }
-  }, [pathname, searchParams]);
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      if (timer) clearTimeout(timer);
+    };
+  }, [pathname, searchParams, isNavigating]);
 
   // Interceptar clics en enlaces locales para activar la transición inmediata
   useEffect(() => {
