@@ -50,6 +50,7 @@ export class DrizzleProductRepository implements IProductRepository {
         size: data.size,
         categoryId: data.categoryId,
         status: data.status,
+        isFeatured: data.isFeatured ? 1 : 0,
         soldOutAt: data.soldOutAt,
         reservedUntil: data.reservedUntil,
         manualFields: JSON.stringify(data.manualFields || []),
@@ -152,6 +153,7 @@ export class DrizzleProductRepository implements IProductRepository {
       size: inserted.size,
       categoryId: inserted.categoryId,
       status: inserted.status as ProductStatus,
+      isFeatured: Boolean(inserted.isFeatured),
       soldOutAt: inserted.soldOutAt,
       reservedUntil: inserted.reservedUntil,
       manualFields: JSON.parse(inserted.manualFields || "[]"),
@@ -221,6 +223,7 @@ export class DrizzleProductRepository implements IProductRepository {
     if (data.size !== undefined) updateValues.size = data.size;
     if (data.categoryId !== undefined) updateValues.categoryId = data.categoryId;
     if (data.status !== undefined) updateValues.status = data.status;
+    if (data.isFeatured !== undefined) updateValues.isFeatured = data.isFeatured ? 1 : 0;
     if (data.soldOutAt !== undefined) updateValues.soldOutAt = data.soldOutAt;
     if (data.reservedUntil !== undefined) updateValues.reservedUntil = data.reservedUntil;
     if (data.manualFields !== undefined)
@@ -297,6 +300,10 @@ export class DrizzleProductRepository implements IProductRepository {
       conditions.push(eq(products.status, filter.status));
     }
 
+    if (filter.isFeatured !== undefined) {
+      conditions.push(eq(products.isFeatured, filter.isFeatured ? 1 : 0));
+    }
+
     if (categoryIdsToInclude && categoryIdsToInclude.length > 0) {
       conditions.push(inArray(products.categoryId, categoryIdsToInclude));
     } else if (filter.categoryId) {
@@ -353,7 +360,10 @@ export class DrizzleProductRepository implements IProductRepository {
       orderByClauses.push(desc(products.priceCents));
       orderByClauses.push(desc(products.createdAt));
     } else {
-      // 'newest' por defecto
+      // 'newest' por defecto: destacados primero entre disponibles
+      orderByClauses.push(
+        sql`CASE WHEN ${products.isFeatured} = 1 THEN 0 ELSE 1 END ASC`
+      );
       orderByClauses.push(desc(products.createdAt));
     }
 
@@ -568,6 +578,7 @@ export class DrizzleProductRepository implements IProductRepository {
       size: sizeDisplay,
       categoryId: row.categoryId,
       status: row.status as ProductStatus,
+      isFeatured: Boolean(row.isFeatured),
       soldOutAt: row.soldOutAt,
       reservedUntil: row.reservedUntil,
       manualFields: JSON.parse(row.manualFields || "[]"),

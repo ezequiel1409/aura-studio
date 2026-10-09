@@ -5,6 +5,7 @@ import {
   bulkChangeProductStatus,
   bulkDeleteProducts,
   bulkMoveProductCategory,
+  bulkSetProductFeatured,
 } from "../../../../../services/product.service";
 
 export async function POST(req: NextRequest) {
@@ -58,6 +59,15 @@ export async function POST(req: NextRequest) {
       case "delete": {
         const deleteResult = await bulkDeleteProducts({ productIds }, deps);
         return NextResponse.json({ ok: true, ...deleteResult });
+      }
+
+      case "featured": {
+        const isFeatured = Boolean(body.isFeatured);
+        const featuredResult = await bulkSetProductFeatured(
+          { productIds, isFeatured },
+          deps
+        );
+        return NextResponse.json({ ok: true, ...featuredResult });
       }
 
       default:

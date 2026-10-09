@@ -144,6 +144,7 @@ export async function createProduct(
     size,
     categoryId,
     status: initialStatus,
+    isFeatured: Boolean(input.isFeatured),
     soldOutAt: initialSoldOutAt,
     reservedUntil: null,
     manualFields,
@@ -414,6 +415,7 @@ export async function updateProduct(
     size,
     categoryId,
     status: targetStatus,
+    isFeatured: input.isFeatured !== undefined ? Boolean(input.isFeatured) : undefined,
     soldOutAt,
     reservedUntil,
     manualFields: Array.from(manualFields),
@@ -510,6 +512,52 @@ export async function bulkDeleteProducts(
   await productRepo.bulkDelete(input.productIds);
 
   return { deletedCount: input.productIds.length };
+}
+
+/**
+ * Alternar el estado de destacado de una prenda (para catálogo y backoffice).
+ */
+export async function toggleProductFeatured(
+  productId: number,
+  deps: ProductServiceDeps
+): Promise<Product> {
+  const { productRepo } = deps;
+  const product = await productRepo.findById(productId);
+  if (!product) {
+    throw new ProductNotFoundError(productId);
+  }
+  return productRepo.update(productId, {
+    isFeatured: !product.isFeatured,
+    updatedAt: Date.now(),
+  });
+}
+
+/**
+ * Acciones en lote - Marcar/desmarcar prendas como destacadas.
+ */
+export async function bulkSetProductFeatured(
+  input: { productIds: number[]; isFeatured: boolean },
+  deps: ProductServiceDeps
+): Promise<{ updatedCount: number; errors: Array<{ productId: number; error: string }> }> {
+  let updatedCount = 0;
+  const errors: Array<{ productId: number; error: string }> = [];
+
+  for (const id of input.productIds) {
+    try {
+      await deps.productRepo.update(id, {
+        isFeatured: input.isFeatured,
+        updatedAt: Date.now(),
+      });
+      updatedCount++;
+    } catch (err: unknown) {
+      errors.push({
+        productId: id,
+        error: err instanceof Error ? err.message : "Error al actualizar",
+      });
+    }
+  }
+
+  return { updatedCount, errors };
 }
 
 // Aliases para compatibilidad con nomenclaturas del roadmap

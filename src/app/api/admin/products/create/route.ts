@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
         currency: body.currency || "ARS",
         size: body.size,
         categoryId: body.categoryId,
+        isFeatured: body.isFeatured !== undefined ? Boolean(body.isFeatured) : false,
         colors: body.colors,
         photos: body.photos,
         source: "web",
