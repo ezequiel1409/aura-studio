@@ -3,7 +3,6 @@ import {
   calculateNextFailedAttempt,
   isAccountLocked,
   LOCKOUT_DURATION_MS,
-  MAX_LOGIN_ATTEMPTS,
 } from "../src/domain/auth/rules";
 import {
   createSessionToken,
