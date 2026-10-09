@@ -1,6 +1,10 @@
 import { SESSION_INACTIVITY_MS } from "../../domain/auth/rules";
+import { AdminRole } from "../../domain/auth/types";
 
 export interface SessionPayload {
+  userId?: number;
+  email?: string;
+  role?: AdminRole;
   iat: number;
   exp: number;
 }
@@ -53,10 +57,31 @@ async function getHmacKey(secret: string): Promise<CryptoKey> {
  */
 export async function createSessionToken(
   secret: string,
-  ttlMs: number = SESSION_INACTIVITY_MS,
-  now: number = Date.now()
+  extraPayloadOrTtl?: { userId?: number; email?: string; role?: AdminRole } | number,
+  ttlMsOrNow?: number,
+  nowArg?: number
 ): Promise<string> {
+  let extraPayload: { userId?: number; email?: string; role?: AdminRole } | undefined;
+  let ttlMs: number = SESSION_INACTIVITY_MS;
+  let now: number = Date.now();
+
+  if (typeof extraPayloadOrTtl === "number") {
+    ttlMs = extraPayloadOrTtl;
+    if (typeof ttlMsOrNow === "number") {
+      now = ttlMsOrNow;
+    }
+  } else {
+    extraPayload = extraPayloadOrTtl;
+    if (typeof ttlMsOrNow === "number") {
+      ttlMs = ttlMsOrNow;
+    }
+    if (typeof nowArg === "number") {
+      now = nowArg;
+    }
+  }
+
   const payload: SessionPayload = {
+    ...extraPayload,
     iat: now,
     exp: now + ttlMs,
   };
@@ -146,4 +171,18 @@ export function timingSafeEqualStrings(a: string, b: string): boolean {
   }
 
   return mismatch === 0;
+}
+
+/**
+ * Extrae y verifica el payload de sesión a partir del valor de la cookie del admin.
+ */
+export async function getAdminSessionFromToken(
+  token: string | undefined | null
+): Promise<SessionPayload | null> {
+  if (!token) return null;
+  const { getEnv } = await import("../../lib/env");
+  const env = getEnv();
+  const result = await verifySessionToken(token, env.SESSION_SECRET);
+  if (!result.valid || !result.payload) return null;
+  return result.payload;
 }
