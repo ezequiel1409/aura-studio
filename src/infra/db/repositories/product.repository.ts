@@ -178,9 +178,11 @@ export class DrizzleProductRepository implements IProductRepository {
 
     if (!row) return null;
 
-    const photos = await this.getPhotosForProduct(row.id);
-    const stats = await this.getStatsForProduct(row.id);
-    const colors = await this.getColorsForProduct(row.id);
+    const [photos, stats, colors] = await Promise.all([
+      this.getPhotosForProduct(row.id),
+      this.getStatsForProduct(row.id),
+      this.getColorsForProduct(row.id),
+    ]);
 
     return this.mapToEntity(row, photos, stats, colors);
   }
@@ -193,9 +195,11 @@ export class DrizzleProductRepository implements IProductRepository {
 
     if (!row) return null;
 
-    const photos = await this.getPhotosForProduct(row.id);
-    const stats = await this.getStatsForProduct(row.id);
-    const colors = await this.getColorsForProduct(row.id);
+    const [photos, stats, colors] = await Promise.all([
+      this.getPhotosForProduct(row.id),
+      this.getStatsForProduct(row.id),
+      this.getColorsForProduct(row.id),
+    ]);
 
     return this.mapToEntity(row, photos, stats, colors);
   }
@@ -375,14 +379,108 @@ export class DrizzleProductRepository implements IProductRepository {
       .limit(pageSize)
       .offset(offset);
 
-    // Mapea productos y obtiene sus fotos, estadísticas y colores/talles
-    const items: Product[] = [];
-    for (const row of rows) {
-      const photos = await this.getPhotosForProduct(row.id);
-      const stats = await this.getStatsForProduct(row.id);
-      const colors = await this.getColorsForProduct(row.id);
-      items.push(this.mapToEntity(row, photos, stats, colors));
+    if (rows.length === 0) {
+      return {
+        items: [],
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      };
     }
+
+    const productIds = rows.map((r) => r.id);
+
+    // 1. Fotos para todos los productos en una sola consulta por lote
+    const allPhotos = await this.db
+      .select()
+      .from(productPhotos)
+      .where(inArray(productPhotos.productId, productIds))
+      .orderBy(asc(productPhotos.position));
+
+    const photosByProductId = new Map<number, ProductPhoto[]>();
+    for (const p of allPhotos) {
+      const list = photosByProductId.get(p.productId) || [];
+      list.push({
+        id: p.id,
+        productId: p.productId,
+        productColorId: p.productColorId,
+        position: p.position,
+        keyThumb: p.keyThumb,
+        keyFull: p.keyFull,
+        createdAt: p.createdAt,
+      });
+      photosByProductId.set(p.productId, list);
+    }
+
+    // 2. Estadísticas para todos los productos en una sola consulta por lote
+    const allStats = await this.db
+      .select()
+      .from(productStats)
+      .where(inArray(productStats.productId, productIds));
+
+    const statsByProductId = new Map<number, ProductStats>();
+    for (const s of allStats) {
+      statsByProductId.set(s.productId, {
+        productId: s.productId,
+        viewsCount: s.viewsCount,
+        whatsappClicks: s.whatsappClicks,
+        lastViewedAt: s.lastViewedAt,
+      });
+    }
+
+    // 3. Colores para todos los productos en una sola consulta por lote
+    const allColors = await this.db
+      .select()
+      .from(productColors)
+      .where(inArray(productColors.productId, productIds))
+      .orderBy(asc(productColors.position));
+
+    // 4. Talles para todos los colores obtenidos
+    const colorIds = allColors.map((c) => c.id);
+    const sizesByColorId = new Map<number, ProductColorSize[]>();
+    if (colorIds.length > 0) {
+      const allSizes = await this.db
+        .select()
+        .from(productColorSizes)
+        .where(inArray(productColorSizes.productColorId, colorIds));
+
+      for (const s of allSizes) {
+        const list = sizesByColorId.get(s.productColorId) || [];
+        list.push({
+          id: s.id,
+          productColorId: s.productColorId,
+          size: s.size,
+          stock: s.stock,
+          reservedStock: s.reservedStock,
+        });
+        sizesByColorId.set(s.productColorId, list);
+      }
+    }
+
+    const colorsByProductId = new Map<number, ProductColor[]>();
+    for (const c of allColors) {
+      const list = colorsByProductId.get(c.productId) || [];
+      list.push({
+        id: c.id,
+        productId: c.productId,
+        name: c.name,
+        hexCode: c.hexCode,
+        position: c.position,
+        sizes: sizesByColorId.get(c.id) || [],
+      });
+      colorsByProductId.set(c.productId, list);
+    }
+
+    // Mapea productos en memoria instantáneamente
+    const items = rows.map((row) =>
+      this.mapToEntity(
+        row,
+        photosByProductId.get(row.id),
+        statsByProductId.get(row.id),
+        colorsByProductId.get(row.id)
+      )
+    );
 
     const totalPages = Math.ceil(total / pageSize);
 
@@ -488,30 +586,36 @@ export class DrizzleProductRepository implements IProductRepository {
       .where(eq(productColors.productId, productId))
       .orderBy(asc(productColors.position));
 
-    const colors: ProductColor[] = [];
-    for (const c of colorRows) {
-      const sizeRows = await this.db
-        .select()
-        .from(productColorSizes)
-        .where(eq(productColorSizes.productColorId, c.id))
-        .orderBy(asc(productColorSizes.id));
+    if (colorRows.length === 0) return [];
 
-      colors.push({
-        id: c.id,
-        productId: c.productId,
-        name: c.name,
-        hexCode: c.hexCode,
-        position: c.position,
-        sizes: sizeRows.map((s) => ({
-          id: s.id,
-          productColorId: s.productColorId,
-          size: s.size,
-          stock: s.stock,
-          reservedStock: s.reservedStock,
-        })),
+    const colorIds = colorRows.map((c) => c.id);
+    const sizeRows = await this.db
+      .select()
+      .from(productColorSizes)
+      .where(inArray(productColorSizes.productColorId, colorIds))
+      .orderBy(asc(productColorSizes.id));
+
+    const sizesByColorId = new Map<number, ProductColorSize[]>();
+    for (const s of sizeRows) {
+      const list = sizesByColorId.get(s.productColorId) || [];
+      list.push({
+        id: s.id,
+        productColorId: s.productColorId,
+        size: s.size,
+        stock: s.stock,
+        reservedStock: s.reservedStock,
       });
+      sizesByColorId.set(s.productColorId, list);
     }
-    return colors;
+
+    return colorRows.map((c) => ({
+      id: c.id,
+      productId: c.productId,
+      name: c.name,
+      hexCode: c.hexCode,
+      position: c.position,
+      sizes: sizesByColorId.get(c.id) || [],
+    }));
   }
 
   private async getPhotosForProduct(productId: number): Promise<ProductPhoto[]> {

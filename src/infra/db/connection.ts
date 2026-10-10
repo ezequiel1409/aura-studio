@@ -56,6 +56,10 @@ export function getDb(): DbClient {
   const dbPath = path.resolve(process.cwd(), "local.sqlite");
   const sqlite = new BetterSqlite(dbPath);
   sqlite.pragma("foreign_keys = ON");
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("synchronous = NORMAL");
+  sqlite.pragma("temp_store = MEMORY");
+  sqlite.pragma("cache_size = -64000");
 
   // Si la tabla settings o categories no existe (ej. build en entorno CI), inicializamos el esquema local
   try {
