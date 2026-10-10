@@ -17,8 +17,6 @@ interface ProductPageProps {
   }>;
 }
 
-export const instant = false;
-
 /**
  * Genera metadatos Open Graph dinámicos para compartir en WhatsApp e Instagram
  */

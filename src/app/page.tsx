@@ -19,8 +19,6 @@ interface HomePageProps {
   }>;
 }
 
-export const instant = false;
-
 async function CatalogContent({
   searchParams,
 }: {

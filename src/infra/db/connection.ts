@@ -24,38 +24,34 @@ let globalDb: DbClient | null = null;
 let globalDeps: GlobalAppDeps | null = null;
 
 export function getDb(): DbClient {
-  if (globalDb) return globalDb;
-
   const isCloudflare =
     typeof (globalThis as unknown as { WebSocketPair?: unknown }).WebSocketPair !== "undefined" ||
     (typeof process !== "undefined" && process.env?.NEXT_RUNTIME === "edge");
 
-  // En entorno Cloudflare (Workers / OpenNext), conectamos con D1
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getCloudflareContext } = require("@opennextjs/cloudflare");
-    const cf = getCloudflareContext();
-    if (cf?.env?.DB) {
-      globalDb = createD1Db(cf.env.DB);
-      return globalDb;
-    }
-    if (isCloudflare) {
+  // En entorno Cloudflare (Workers / OpenNext), conectamos con D1 usando el contexto actual
+  if (isCloudflare) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getCloudflareContext } = require("@opennextjs/cloudflare");
+      const cf = getCloudflareContext();
+      if (cf?.env?.DB) {
+        return createD1Db(cf.env.DB);
+      }
       throw new Error(
         "Cloudflare D1 database binding 'DB' was not found on the worker context. Verify wrangler.jsonc or Cloudflare Dashboard settings."
       );
-    }
-  } catch (err) {
-    if (isCloudflare) {
+    } catch (err) {
       throw err;
     }
-    // Entorno local o fuera de Cloudflare
   }
 
+  if (globalDb) return globalDb;
+
   // En entorno local de Next.js usamos local.sqlite
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const BetterSqlite = require("better-sqlite3");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { drizzle: drizzleSqlite } = require("drizzle-orm/better-sqlite3");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, no-eval
+  const BetterSqlite = eval("require")("better-sqlite3");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, no-eval
+  const { drizzle: drizzleSqlite } = eval("require")("drizzle-orm/better-sqlite3");
 
   const dbPath = path.resolve(process.cwd(), "local.sqlite");
   const sqlite = new BetterSqlite(dbPath);
@@ -83,10 +79,14 @@ export function getDb(): DbClient {
 }
 
 export function getProductServiceDeps(): GlobalAppDeps {
-  if (globalDeps) return globalDeps;
+  const isCloudflare =
+    typeof (globalThis as unknown as { WebSocketPair?: unknown }).WebSocketPair !== "undefined" ||
+    (typeof process !== "undefined" && process.env?.NEXT_RUNTIME === "edge");
+
+  if (!isCloudflare && globalDeps) return globalDeps;
 
   const db = getDb();
-  globalDeps = {
+  const deps: GlobalAppDeps = {
     productRepo: new DrizzleProductRepository(db),
     categoryRepo: new DrizzleCategoryRepository(db),
     statusHistoryRepo: new DrizzleStatusHistoryRepository(db),
@@ -97,6 +97,10 @@ export function getProductServiceDeps(): GlobalAppDeps {
     passwordResetTokenRepo: new DrizzlePasswordResetTokenRepository(db),
   };
 
-  return globalDeps;
+  if (!isCloudflare) {
+    globalDeps = deps;
+  }
+
+  return deps;
 }
 
