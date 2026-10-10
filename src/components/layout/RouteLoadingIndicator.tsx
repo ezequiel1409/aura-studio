@@ -86,6 +86,12 @@ export function RouteLoadingIndicator() {
           return;
         }
 
+        // Si es la misma ruta y solo cambian parámetros de consulta (filtros, orden, destacados en catálogo),
+        // dejamos que la transición local optimista maneje la respuesta sin superponer el spinner global de ruta
+        if (url.pathname === window.location.pathname) {
+          return;
+        }
+
         // Definir texto descriptivo accesible según el destino
         if (url.pathname.startsWith("/p/")) {
           setTargetLabel("Cargando prenda...");

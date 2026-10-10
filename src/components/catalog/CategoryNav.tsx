@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Category, SYSTEM_UNCATEGORIZED_SLUG } from "../../domain/category/types";
@@ -12,6 +12,17 @@ interface CategoryNavProps {
 
 export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
   const searchParams = useSearchParams();
+  const currentSlugFromUrl = searchParams?.get("categoria") || undefined;
+  const initialSlug = activeSlug !== undefined ? activeSlug : currentSlugFromUrl;
+
+  const [optimisticSlug, setOptimisticSlug] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    setOptimisticSlug(undefined);
+  }, [searchParams]);
+
+  const effectiveActiveSlug =
+    optimisticSlug !== undefined ? (optimisticSlug || undefined) : initialSlug;
 
   const createQueryString = (slug?: string) => {
     const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
@@ -50,11 +61,11 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
     return map;
   }, [visibleCategories]);
 
-  // Categoría seleccionada según el slug de la URL
+  // Categoría seleccionada según el slug efectivo
   const activeCategory = useMemo(() => {
-    if (!activeSlug) return null;
-    return visibleCategories.find((cat) => cat.slug === activeSlug) || null;
-  }, [visibleCategories, activeSlug]);
+    if (!effectiveActiveSlug) return null;
+    return visibleCategories.find((cat) => cat.slug === effectiveActiveSlug) || null;
+  }, [visibleCategories, effectiveActiveSlug]);
 
   // Categoría raíz activa (si se eligió una raíz o una de sus subcategorías hijas)
   const activeRootCategory = useMemo(() => {
@@ -87,9 +98,12 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
         {/* Opción Todo */}
         <Link
           href={createQueryString(undefined)}
-          aria-current={!activeSlug ? "page" : undefined}
+          scroll={false}
+          prefetch={true}
+          onClick={() => setOptimisticSlug(null)}
+          aria-current={!effectiveActiveSlug ? "page" : undefined}
           className={`inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full px-5 py-2 text-xs tracking-wider uppercase transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
-            !activeSlug
+            !effectiveActiveSlug
               ? "bg-[#1c1917] font-semibold text-[#faf8f5] shadow-xs"
               : "border border-[#e7e2da] bg-white/70 font-medium text-stone-700 hover:border-stone-400 hover:bg-white hover:text-stone-900"
           }`}
@@ -99,7 +113,7 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
 
         {/* Categorías principales del catálogo */}
         {rootCategories.map((root) => {
-          const isDirectlyActive = activeSlug === root.slug;
+          const isDirectlyActive = effectiveActiveSlug === root.slug;
           const isParentOfActive =
             !isDirectlyActive && activeRootCategory?.id === root.id;
 
@@ -107,6 +121,9 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
             <Link
               key={root.id}
               href={createQueryString(root.slug)}
+              scroll={false}
+              prefetch={true}
+              onClick={() => setOptimisticSlug(root.slug)}
               aria-current={isDirectlyActive ? "page" : isParentOfActive ? "true" : undefined}
               className={`inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full px-5 py-2 text-xs tracking-wider uppercase transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
                 isDirectlyActive
@@ -136,9 +153,12 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
           {/* Opción para ver todo el grupo padre (ej: "Todas las prendas") */}
           <Link
             href={createQueryString(activeRootCategory.slug)}
-            aria-current={activeSlug === activeRootCategory.slug ? "page" : undefined}
+            scroll={false}
+            prefetch={true}
+            onClick={() => setOptimisticSlug(activeRootCategory.slug)}
+            aria-current={effectiveActiveSlug === activeRootCategory.slug ? "page" : undefined}
             className={`inline-flex min-h-[34px] items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
-              activeSlug === activeRootCategory.slug
+              effectiveActiveSlug === activeRootCategory.slug
                 ? "bg-stone-900 font-semibold text-white shadow-2xs"
                 : "border border-[#e7e2da] bg-white/80 font-medium text-stone-600 hover:border-stone-400 hover:bg-white hover:text-stone-900"
             }`}
@@ -148,11 +168,14 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
 
           {/* Subcategorías hijas */}
           {activeSubcategories.map((sub) => {
-            const isSubActive = activeSlug === sub.slug;
+            const isSubActive = effectiveActiveSlug === sub.slug;
             return (
               <Link
                 key={sub.id}
                 href={createQueryString(sub.slug)}
+                scroll={false}
+                prefetch={true}
+                onClick={() => setOptimisticSlug(sub.slug)}
                 aria-current={isSubActive ? "page" : undefined}
                 className={`inline-flex min-h-[34px] items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
                   isSubActive

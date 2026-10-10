@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { SlidersHorizontal, Star } from "lucide-react";
+import { Loader2, SlidersHorizontal, Star } from "lucide-react";
 
 interface SortFilterBarProps {
   total: number;
@@ -17,28 +18,46 @@ export function SortFilterBar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const [optimisticFeatured, setOptimisticFeatured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setOptimisticFeatured(null);
+  }, [searchParams]);
+
+  const activeFeatured = optimisticFeatured !== null ? optimisticFeatured : isFeaturedOnly;
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newSort = e.target.value;
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
     if (newSort === "newest") {
       params.delete("orden");
     } else {
       params.set("orden", newSort);
     }
     params.delete("pagina");
-    router.push(`${pathname}?${params.toString()}`);
+
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   const handleToggleFeatured = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (isFeaturedOnly) {
+    const nextFeatured = !activeFeatured;
+    setOptimisticFeatured(nextFeatured);
+
+    const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+    if (!nextFeatured) {
       params.delete("destacados");
     } else {
       params.set("destacados", "true");
     }
     params.delete("pagina");
-    router.push(`${pathname}?${params.toString()}`);
+
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
   };
 
   return (
@@ -51,7 +70,7 @@ export function SortFilterBar({
         <span className="font-mono text-xs font-semibold text-stone-900">{total}</span>
         <span className="text-stone-500 font-light">
           {total === 1 ? "pieza encontrada" : "piezas en catálogo"}
-          {isFeaturedOnly && " (destacadas)"}
+          {activeFeatured && " (destacadas)"}
         </span>
       </div>
 
@@ -60,23 +79,31 @@ export function SortFilterBar({
         <button
           type="button"
           onClick={handleToggleFeatured}
-          aria-pressed={isFeaturedOnly}
+          aria-pressed={activeFeatured}
           aria-label={
-            isFeaturedOnly
+            activeFeatured
               ? "Mostrar todas las prendas del catálogo"
               : "Filtrar y mostrar solo prendas destacadas"
           }
           className={`min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer ${
-            isFeaturedOnly
+            activeFeatured
               ? "bg-amber-100 border-amber-400 text-amber-950 shadow-xs"
               : "bg-white border-[#d8d2c7] text-stone-700 hover:border-stone-400 hover:bg-stone-50"
-          }`}
+          } ${isPending ? "opacity-80" : ""}`}
         >
-          <Star
-            size={13}
-            className={isFeaturedOnly ? "fill-amber-600 text-amber-600" : "text-stone-400"}
-            aria-hidden="true"
-          />
+          {isPending ? (
+            <Loader2
+              size={13}
+              className="animate-spin text-amber-700 motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+          ) : (
+            <Star
+              size={13}
+              className={activeFeatured ? "fill-amber-600 text-amber-600" : "text-stone-400"}
+              aria-hidden="true"
+            />
+          )}
           <span>Destacados</span>
         </button>
 

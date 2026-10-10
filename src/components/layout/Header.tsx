@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
@@ -13,13 +13,16 @@ interface HeaderProps {
 
 export function Header({ brandName = "Aura Studio", initialSearch = "" }: HeaderProps) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const [query, setQuery] = useState(initialSearch);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = query.trim();
     if (!trimmed) {
-      router.push("/");
+      startTransition(() => {
+        router.push("/", { scroll: false });
+      });
       return;
     }
 
@@ -31,13 +34,17 @@ export function Header({ brandName = "Aura Studio", initialSearch = "" }: Header
       return;
     }
 
-    // Búsqueda por texto en catálogo
-    router.push(`/?q=${encodeURIComponent(trimmed)}`);
+    // Búsqueda por texto en catálogo con transición fluida
+    startTransition(() => {
+      router.push(`/?q=${encodeURIComponent(trimmed)}`, { scroll: false });
+    });
   };
 
   const clearSearch = () => {
     setQuery("");
-    router.push("/");
+    startTransition(() => {
+      router.push("/", { scroll: false });
+    });
   };
 
   return (

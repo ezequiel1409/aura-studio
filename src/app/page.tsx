@@ -8,6 +8,7 @@ import { SortFilterBar } from "../components/catalog/SortFilterBar";
 import { ProductGrid } from "../components/catalog/ProductGrid";
 import { AnalyticsTracker } from "../components/analytics/AnalyticsTracker";
 import { ProductSortOption } from "../domain/product/types";
+import { Category } from "../domain/category/types";
 
 interface HomePageProps {
   searchParams: Promise<{
@@ -21,6 +22,7 @@ interface HomePageProps {
 
 async function CatalogContent({
   searchParams,
+  categories,
 }: {
   searchParams: Promise<{
     categoria?: string;
@@ -29,23 +31,21 @@ async function CatalogContent({
     pagina?: string;
     destacados?: string;
   }>;
+  categories: Category[];
 }) {
   const resolvedParams = await searchParams;
   const deps = getProductServiceDeps();
 
-  // 1. Obtener todas las categorías para la navegación (BR-38)
-  const allCategories = await deps.categoryRepo.listAll();
-
-  // 2. Resolver categoría activa si se especificó en la URL
+  // 1. Resolver categoría activa si se especificó en la URL
   let activeCategoryId: number | undefined = undefined;
   if (resolvedParams.categoria) {
-    const matchedCategory = allCategories.find((c) => c.slug === resolvedParams.categoria);
+    const matchedCategory = categories.find((c) => c.slug === resolvedParams.categoria);
     if (matchedCategory) {
       activeCategoryId = matchedCategory.id;
     }
   }
 
-  // 3. Resolver orden (BR-21)
+  // 2. Resolver orden (BR-21)
   const sortBy: ProductSortOption =
     resolvedParams.orden === "price_asc" || resolvedParams.orden === "price_desc"
       ? resolvedParams.orden
@@ -53,7 +53,7 @@ async function CatalogContent({
 
   const isFeaturedFilter = resolvedParams.destacados === "true";
 
-  // 4. Obtener productos mediante el servicio listProducts (AR-02)
+  // 3. Obtener productos mediante el servicio listProducts (AR-02)
   const productsResult = await listProducts(
     {
       categoryId: activeCategoryId,
@@ -72,14 +72,6 @@ async function CatalogContent({
       {activeCategoryId && (
         <AnalyticsTracker type="category_view" categoryId={activeCategoryId} />
       )}
-
-      {/* Navegación por categorías con scroll horizontal (BR-16, BR-22, BR-38) */}
-      <section aria-label="Categorías" className="mb-4">
-        <CategoryNav
-          categories={allCategories}
-          activeSlug={resolvedParams.categoria}
-        />
-      </section>
 
       {/* Barra de ordenamiento y conteo (BR-21, BR-22) */}
       <section aria-label="Orden y resultados" className="mb-6">
@@ -101,8 +93,7 @@ async function CatalogContent({
 function CatalogSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Cargando catálogo">
-      <div className="h-10 w-80 animate-pulse rounded-full bg-[#f0ece1]" />
-      <div className="h-8 w-full animate-pulse rounded-lg bg-[#f5f2eb]" />
+      <div className="h-10 w-full animate-pulse rounded-lg bg-[#f5f2eb]" />
       <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div
@@ -117,7 +108,11 @@ function CatalogSkeleton() {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const deps = getProductServiceDeps();
-  const brandName = (await deps.settingsRepo?.get("brand_name")) || "Aura Studio";
+  const [brandNameSetting, allCategories] = await Promise.all([
+    deps.settingsRepo?.get("brand_name"),
+    deps.categoryRepo.listAll(),
+  ]);
+  const brandName = brandNameSetting || "Aura Studio";
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-[#1c1917]">
@@ -147,9 +142,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </section>
 
+        {/* Navegación por categorías con scroll horizontal fija y persistente (BR-16, BR-22, BR-38) */}
+        <section aria-label="Categorías" className="mb-4">
+          <CategoryNav categories={allCategories} />
+        </section>
+
         {/* Streaming con Suspense para Partial Prerendering de Next.js 16 */}
         <Suspense fallback={<CatalogSkeleton />}>
-          <CatalogContent searchParams={searchParams} />
+          <CatalogContent searchParams={searchParams} categories={allCategories} />
         </Suspense>
       </main>
 

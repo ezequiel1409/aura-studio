@@ -111,14 +111,15 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     );
   }
 
-  // Resolver categoría del producto
-  const category = await deps.categoryRepo.findById(product.categoryId);
+  // Resolver categoría, WhatsApp y Marca en paralelo (BR-35)
+  const [category, whatsappSetting, brandNameSetting] = await Promise.all([
+    deps.categoryRepo.findById(product.categoryId),
+    deps.settingsRepo?.get("whatsapp_number"),
+    deps.settingsRepo?.get("brand_name"),
+  ]);
 
-  // Configuración de WhatsApp y Marca (BR-35)
-  const whatsappNumber =
-    (await deps.settingsRepo?.get("whatsapp_number")) || "+5491100000000";
-  const brandName =
-    (await deps.settingsRepo?.get("brand_name")) || "Aura Studio";
+  const whatsappNumber = whatsappSetting || "+5491100000000";
+  const brandName = brandNameSetting || "Aura Studio";
 
   const formattedCode = formatProductCode(product.code);
   const sizes = parseSizesList(product.size);
