@@ -147,4 +147,14 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(html).toContain('aria-label="Cerrar historial de estados"');
     });
   });
+
+  describe("AdminLoginPage (Storefront Return Link)", () => {
+    it("incluye enlace accesible para volver a la tienda pública", async () => {
+      const { default: AdminLoginPage } = await import("../src/app/admin/login/page");
+      const html = renderToString(React.createElement(AdminLoginPage));
+
+      expect(html).toContain('href="/"');
+      expect(html).toContain("Volver a la tienda");
+    });
+  });
 });

@@ -6,6 +6,8 @@ import ProductDetailLoading from "../src/app/p/[code]/loading";
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/",
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 describe("Instant Navigation & Accessibility (AR-11, BR-09, BR-24)", () => {
@@ -100,4 +102,38 @@ describe("Instant Navigation & Accessibility (AR-11, BR-09, BR-24)", () => {
       expect(html).toContain('href="/?categoria=prendas"');
     });
   });
+
+  describe("SortFilterBar Component (BR-21, BR-22)", () => {
+    it("renderiza botón pill de Destacados con estado no presionado por defecto", async () => {
+      const { SortFilterBar } = await import("../src/components/catalog/SortFilterBar");
+      const html = renderToString(
+        React.createElement(SortFilterBar, {
+          total: 12,
+          currentSort: "newest",
+          isFeaturedOnly: false,
+        })
+      );
+
+      expect(html).toContain('aria-pressed="false"');
+      expect(html).toContain("Destacados");
+      expect(html).toContain("12");
+      expect(html).toContain("piezas en catálogo");
+    });
+
+    it("renderiza botón pill de Destacados con aria-pressed='true' y estilo resaltado cuando está activo", async () => {
+      const { SortFilterBar } = await import("../src/components/catalog/SortFilterBar");
+      const html = renderToString(
+        React.createElement(SortFilterBar, {
+          total: 4,
+          currentSort: "newest",
+          isFeaturedOnly: true,
+        })
+      );
+
+      expect(html).toContain('aria-pressed="true"');
+      expect(html).toContain("bg-amber-100");
+      expect(html).toContain("(destacadas)");
+    });
+  });
 });
+
