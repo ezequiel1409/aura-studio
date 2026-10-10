@@ -43,6 +43,8 @@ next-env.d.ts
 # local sqlite
 *.sqlite
 *.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 
 # cloudflare & open-next
 /.open-next/
