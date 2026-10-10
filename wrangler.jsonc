@@ -1,13 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "aura-studio",
+  "main": ".open-next/worker.js",
   "compatibility_date": "2026-03-01",
   "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "aura-studio-db",
-      "database_id": "16950865-bcc4-4717-b426-addff6831dc9"
+      "database_id": "a682ab60-11d6-4b45-8f51-c43b7b66e568",
+      "migrations_dir": "drizzle/migrations"
     }
   ]
 }

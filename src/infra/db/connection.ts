@@ -1,8 +1,6 @@
 import path from "node:path";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
-import { DbClient } from "./client";
+import { DbClient, createD1Db } from "./client";
 import {
   DrizzleAdminUserRepository,
   DrizzleCategoryRepository,
@@ -27,13 +25,32 @@ let globalDeps: GlobalAppDeps | null = null;
 export function getDb(): DbClient {
   if (globalDb) return globalDb;
 
+  // En entorno Cloudflare (Workers / OpenNext), conectamos con D1
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getCloudflareContext } = require("@opennextjs/cloudflare");
+    const cf = getCloudflareContext();
+    if (cf?.env?.DB) {
+      globalDb = createD1Db(cf.env.DB);
+      return globalDb;
+    }
+  } catch {
+    // Entorno local o fuera de Cloudflare
+  }
+
   // En entorno local de Next.js usamos local.sqlite
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const BetterSqlite = require("better-sqlite3");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { drizzle: drizzleSqlite } = require("drizzle-orm/better-sqlite3");
+
   const dbPath = path.resolve(process.cwd(), "local.sqlite");
-  const sqlite = new Database(dbPath);
+  const sqlite = new BetterSqlite(dbPath);
   sqlite.pragma("foreign_keys = ON");
 
-  globalDb = drizzle(sqlite, { schema });
-  return globalDb;
+  const client = drizzleSqlite(sqlite, { schema }) as DbClient;
+  globalDb = client;
+  return client;
 }
 
 export function getProductServiceDeps(): GlobalAppDeps {

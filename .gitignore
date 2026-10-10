@@ -43,3 +43,7 @@ next-env.d.ts
 # local sqlite
 *.sqlite
 *.sqlite-journal
+
+# cloudflare & open-next
+/.open-next/
+/.wrangler/

@@ -12,8 +12,11 @@
     "db:generate": "drizzle-kit generate",
     "db:setup-local": "tsx src/infra/db/setup-local.ts",
     "d1:create": "wrangler d1 create aura-studio-db",
-    "d1:migrate": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/migrations/0000_fixed_doctor_spectrum.sql",
-    "d1:seed": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/seed.sql"
+    "d1:migrate": "wrangler d1 migrations apply aura-studio-db --remote",
+    "d1:seed": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/seed.sql",
+    "build:worker": "opennextjs-cloudflare build",
+    "preview:worker": "opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
@@ -25,6 +28,8 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261010.1",
+    "@opennextjs/cloudflare": "^1.20.10",
     "@tailwindcss/turbopack": "^4",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.19.1",
@@ -37,6 +42,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "wrangler": "^4.149.0"
   }
 }
