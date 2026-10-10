@@ -121,6 +121,34 @@ CREATE TABLE IF NOT EXISTS `status_history` (
 	`source` text NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS `admin_users` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`email` text NOT NULL,
+	`name` text NOT NULL,
+	`password_hash` text NOT NULL,
+	`password_salt` text NOT NULL,
+	`role` text DEFAULT 'ADMIN' NOT NULL,
+	`status` text DEFAULT 'ACTIVE' NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS `admin_users_email_unique` ON `admin_users` (`email`);
+CREATE INDEX IF NOT EXISTS `admin_users_email_idx` ON `admin_users` (`email`);
+CREATE INDEX IF NOT EXISTS `admin_users_status_idx` ON `admin_users` (`status`);
+
+CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`user_id` integer NOT NULL,
+	`token_hash` text NOT NULL,
+	`expires_at` integer NOT NULL,
+	`used_at` integer,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `admin_users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE UNIQUE INDEX IF NOT EXISTS `password_reset_tokens_token_hash_unique` ON `password_reset_tokens` (`token_hash`);
+CREATE INDEX IF NOT EXISTS `password_reset_tokens_token_hash_idx` ON `password_reset_tokens` (`token_hash`);
+CREATE INDEX IF NOT EXISTS `password_reset_tokens_user_id_idx` ON `password_reset_tokens` (`user_id`);
+
 -- ===================================================
 -- DATOS INICIALES (SEED)
 -- ===================================================

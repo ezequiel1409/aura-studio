@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import * as schema from "./schema";
 import { DbClient, createD1Db } from "./client";
@@ -47,6 +48,22 @@ export function getDb(): DbClient {
   const dbPath = path.resolve(process.cwd(), "local.sqlite");
   const sqlite = new BetterSqlite(dbPath);
   sqlite.pragma("foreign_keys = ON");
+
+  // Si la tabla settings o categories no existe (ej. build en entorno CI), inicializamos el esquema local
+  try {
+    const tableCheck = sqlite
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='settings'")
+      .get();
+    if (!tableCheck) {
+      const initSqlPath = path.resolve(process.cwd(), "drizzle/init-db.sql");
+      if (fs.existsSync(initSqlPath)) {
+        const initSql = fs.readFileSync(initSqlPath, "utf-8");
+        sqlite.exec(initSql);
+      }
+    }
+  } catch {
+    // Continuamos si ocurre algún error menor en la verificación
+  }
 
   const client = drizzleSqlite(sqlite, { schema }) as DbClient;
   globalDb = client;
