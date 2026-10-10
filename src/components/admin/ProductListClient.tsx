@@ -347,8 +347,16 @@ export function ProductListClient({
     }
   };
 
-  // Alternar estado de Destacada en un clic
+  // Alternar estado de Destacada en un clic con respuesta visual inmediata
   const handleToggleFeatured = async (productId: number) => {
+    const currentProduct = products.find((p) => p.id === productId);
+    if (!currentProduct) return;
+
+    // Actualización optimista inmediata (0ms de retraso para el usuario)
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, isFeatured: !p.isFeatured } : p))
+    );
+
     try {
       const res = await fetch("/api/admin/products/featured", {
         method: "POST",
@@ -358,6 +366,10 @@ export function ProductListClient({
 
       const data = await res.json();
       if (!res.ok || !data.ok) {
+        // Revertir en caso de falla reportada por la API
+        setProducts((prev) =>
+          prev.map((p) => (p.id === productId ? currentProduct : p))
+        );
         alert(data.error || "No se pudo actualizar el estado de destacado.");
         return;
       }
@@ -366,6 +378,10 @@ export function ProductListClient({
         prev.map((p) => (p.id === productId ? data.product : p))
       );
     } catch {
+      // Revertir ante error de red
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? currentProduct : p))
+      );
       alert("Error de conexión con el servidor.");
     }
   };

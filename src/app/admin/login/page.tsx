@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { KeyRound, Lock, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { ArrowLeft, KeyRound, Lock, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -72,6 +72,22 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
+        {/* Retorno rápido a la tienda */}
+        <div className="mb-6 flex items-center justify-between">
+          <Link
+            href="/"
+            prefetch={true}
+            aria-label="Volver a la tienda y catálogo público"
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-amber-200 transition-colors py-1.5 px-3 rounded-lg hover:bg-zinc-900 border border-transparent hover:border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+          >
+            <ArrowLeft size={14} aria-hidden="true" />
+            <span>Volver a la tienda</span>
+          </Link>
+          <span className="text-[10px] uppercase font-mono tracking-widest text-zinc-500">
+            Showroom
+          </span>
+        </div>
+
         {/* Cabecera / Identidad */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 text-amber-200 mb-4 shadow-inner">
@@ -189,6 +205,19 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
+
+          {/* Enlace secundario de regreso al catálogo */}
+          <div className="mt-5 pt-4 border-t border-zinc-800/80 text-center">
+            <Link
+              href="/"
+              prefetch={true}
+              aria-label="Volver al catálogo de la tienda"
+              className="inline-flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-amber-200 transition-colors py-1.5 px-3 rounded-lg hover:bg-zinc-800/50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+            >
+              <ArrowLeft size={13} aria-hidden="true" />
+              <span>Volver a la tienda</span>
+            </Link>
+          </div>
         </div>
 
         {/* Pie de pantalla */}
