@@ -1,10 +1,10 @@
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import { DrizzleD1Database, drizzle as drizzleD1 } from "drizzle-orm/d1";
+import { drizzle as drizzleD1 } from "drizzle-orm/d1";
 import { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { D1Database } from "@cloudflare/workers-types";
 import type Database from "better-sqlite3";
 import * as schema from "./schema";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type DbClient = BaseSQLiteDatabase<any, any, typeof schema>;
 
 /**

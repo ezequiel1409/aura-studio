@@ -16,7 +16,7 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
   describe("AdminLayout (Landmarks & Skip Link)", () => {
     it("incluye enlace de salto al contenido principal para navegación con teclado (Skip Link)", () => {
       const html = renderToString(
-        React.createElement(AdminLayout, { children: React.createElement("div", null, "Contenido") })
+        React.createElement(AdminLayout, null, React.createElement("div", null, "Contenido"))
       );
 
       expect(html).toContain('href="#admin-main"');
@@ -25,7 +25,7 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
 
     it("provee landmark <main> con id='admin-main' y tabIndex={-1} para destino de foco", () => {
       const html = renderToString(
-        React.createElement(AdminLayout, { children: React.createElement("div", null, "Contenido") })
+        React.createElement(AdminLayout, null, React.createElement("div", null, "Contenido"))
       );
 
       expect(html).toContain('<main id="admin-main" tabindex="-1"');

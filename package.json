@@ -14,7 +14,8 @@
     "d1:create": "wrangler d1 create aura-studio-db",
     "d1:migrate": "wrangler d1 migrations apply aura-studio-db --remote",
     "d1:seed": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/seed.sql",
-    "build:worker": "opennextjs-cloudflare build",
+    "postinstall": "node scripts/patch-opennext.mjs",
+    "build:worker": "node scripts/patch-opennext.mjs && opennextjs-cloudflare build",
     "preview:worker": "opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare deploy"
   },

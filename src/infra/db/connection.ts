@@ -26,6 +26,10 @@ let globalDeps: GlobalAppDeps | null = null;
 export function getDb(): DbClient {
   if (globalDb) return globalDb;
 
+  const isCloudflare =
+    typeof (globalThis as unknown as { WebSocketPair?: unknown }).WebSocketPair !== "undefined" ||
+    (typeof process !== "undefined" && process.env?.NEXT_RUNTIME === "edge");
+
   // En entorno Cloudflare (Workers / OpenNext), conectamos con D1
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -35,7 +39,15 @@ export function getDb(): DbClient {
       globalDb = createD1Db(cf.env.DB);
       return globalDb;
     }
-  } catch {
+    if (isCloudflare) {
+      throw new Error(
+        "Cloudflare D1 database binding 'DB' was not found on the worker context. Verify wrangler.jsonc or Cloudflare Dashboard settings."
+      );
+    }
+  } catch (err) {
+    if (isCloudflare) {
+      throw err;
+    }
     // Entorno local o fuera de Cloudflare
   }
 
