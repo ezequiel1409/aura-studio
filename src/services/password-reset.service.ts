@@ -23,6 +23,7 @@ export interface PasswordResetResult {
   success: boolean;
   message?: string;
   error?: string;
+  devResetLink?: string;
 }
 
 const TOKEN_EXPIRATION_MS = 3600_000; // 1 hora de validez (BR-10, BR-37)
@@ -59,16 +60,27 @@ export async function requestPasswordReset(
   await passwordResetTokenRepo.createToken(user.id, tokenHash, expiresAt, now);
 
   const resetLink = `${input.baseUrl.replace(/\/$/, "")}/admin/restablecer?token=${rawToken}`;
+  let devResetLink: string | undefined;
+  let emailError: string | undefined;
 
   if (emailService) {
-    await emailService.sendPasswordResetEmail(user.email, resetLink, user.name);
+    const emailRes = await emailService.sendPasswordResetEmail(user.email, resetLink, user.name);
+    if (!emailRes.success) {
+      emailError = emailRes.error;
+    }
+    if (emailRes.devLink) {
+      devResetLink = emailRes.devLink;
+    }
   } else {
     console.log(`[PasswordReset] Enlace para ${user.email}: ${resetLink}`);
+    devResetLink = resetLink;
   }
 
   return {
     success: true,
     message: genericMessage,
+    devResetLink,
+    error: emailError,
   };
 }
 

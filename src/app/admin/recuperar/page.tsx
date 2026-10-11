@@ -9,6 +9,8 @@ export default function AdminRecoverPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [devResetLink, setDevResetLink] = useState<string | null>(null);
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,6 +19,8 @@ export default function AdminRecoverPasswordPage() {
     setLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
+    setDevResetLink(null);
+    setEmailNotice(null);
 
     try {
       const res = await fetch("/api/admin/password-reset/request", {
@@ -36,6 +40,12 @@ export default function AdminRecoverPasswordPage() {
         data.message ||
           "Si el correo se encuentra registrado, recibirás un enlace de restablecimiento válido por 1 hora."
       );
+      if (data.devResetLink) {
+        setDevResetLink(data.devResetLink);
+      }
+      if (data.emailError) {
+        setEmailNotice(data.emailError);
+      }
     } catch {
       setErrorMessage("No se pudo conectar con el servidor. Revisá tu conexión.");
     } finally {
@@ -44,7 +54,7 @@ export default function AdminRecoverPasswordPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4">
+    <div className="min-h-[calc(100vh-6rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         {/* Cabecera */}
         <div className="text-center mb-8">
@@ -72,6 +82,32 @@ export default function AdminRecoverPasswordPage() {
               <p className="text-xs text-zinc-400 leading-relaxed">
                 {successMessage}
               </p>
+
+              {devResetLink && (
+                <div className="text-left p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/40 space-y-2">
+                  <p className="text-xs font-semibold text-amber-300">
+                    Aviso (Servidor de correo no enlazado):
+                  </p>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">
+                    Aún no se ha configurado la variable de entorno <code className="text-amber-200 font-mono">RESEND_API_KEY</code> para el envío de correos salientes. Podés restablecer tu clave directamente accediendo a este enlace:
+                  </p>
+                  <a
+                    href={devResetLink}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-300 text-zinc-950 font-bold text-xs hover:bg-amber-200 transition-colors w-full"
+                  >
+                    <span>Restablecer contraseña ahora</span>
+                    <ArrowLeft size={13} className="rotate-180" />
+                  </a>
+                </div>
+              )}
+
+              {emailNotice && (
+                <div className="text-left p-3 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-200 text-xs space-y-1">
+                  <p className="font-semibold text-rose-300">Aviso del proveedor de correo:</p>
+                  <p className="text-[11px] text-zinc-300 leading-relaxed">{emailNotice}</p>
+                </div>
+              )}
+
               <div className="pt-2">
                 <Link
                   href="/admin/login"

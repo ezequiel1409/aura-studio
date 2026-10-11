@@ -34,7 +34,12 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    return NextResponse.json({ ok: true, message: result.message });
+    return NextResponse.json({
+      ok: true,
+      message: result.message,
+      devResetLink: result.devResetLink,
+      emailError: result.error,
+    });
   } catch (error) {
     console.error("Error en POST /api/admin/password-reset/request:", error);
     return NextResponse.json(

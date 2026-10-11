@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { AdminHeader } from "../../components/admin/AdminHeader";
 
 export const metadata: Metadata = {
@@ -10,13 +10,22 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#09090b",
+};
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-amber-900 selection:text-amber-100">
+    <div
+      id="admin-layout-root"
+      className="min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-amber-900 selection:text-amber-100"
+    >
       {/* Enlace accesible para saltar directo al contenido con teclado o lector de pantalla */}
       <a
         href="#admin-main"
@@ -28,7 +37,7 @@ export default function AdminLayout({
       <main
         id="admin-main"
         tabIndex={-1}
-        className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 md:py-8 focus:outline-none"
+        className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 md:py-8 focus:outline-none min-w-0"
       >
         {children}
       </main>

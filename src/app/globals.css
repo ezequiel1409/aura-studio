@@ -38,3 +38,12 @@ body {
   outline: 2px solid #1c1917;
   outline-offset: 2px;
 }
+
+/* Fondo oscuro completo en mobile y desktop para el panel de administración */
+html:has(#admin-layout-root),
+body:has(#admin-layout-root),
+html:has(#admin-main),
+body:has(#admin-main) {
+  background-color: #09090b !important;
+  color: #f4f4f5 !important;
+}

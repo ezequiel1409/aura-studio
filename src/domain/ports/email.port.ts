@@ -3,12 +3,14 @@ export interface SendEmailOptions {
   subject: string;
   html: string;
   text?: string;
+  resetLink?: string;
 }
 
 export interface SendEmailResult {
   success: boolean;
   messageId?: string;
   error?: string;
+  devLink?: string;
 }
 
 export interface IEmailService {

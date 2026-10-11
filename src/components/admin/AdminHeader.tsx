@@ -112,10 +112,10 @@ export function AdminHeader() {
         </div>
       </div>
 
-      {/* Navegación Móvil Inferior Táctil (Mobile-First) */}
+      {/* Navegación Móvil Inferior Táctil (Mobile-First sin overflow horizontal) */}
       <nav
         aria-label="Navegación móvil de administración"
-        className="sm:hidden flex items-center justify-around border-t border-zinc-800/80 bg-zinc-950 py-2"
+        className="sm:hidden flex items-center justify-between border-t border-zinc-800/80 bg-zinc-950 py-2 px-1 w-full max-w-full overflow-x-auto no-scrollbar"
       >
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -125,12 +125,12 @@ export function AdminHeader() {
               key={item.href}
               href={item.href}
               aria-current={isActive ? "page" : undefined}
-              className={`flex flex-col items-center gap-1 py-1 px-4 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg ${
-                isActive ? "text-amber-300 font-semibold" : "text-zinc-400"
+              className={`flex-1 min-w-[50px] flex flex-col items-center gap-1 py-1 px-0.5 text-[10px] sm:text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg ${
+                isActive ? "text-amber-300 font-semibold" : "text-zinc-400 hover:text-zinc-200"
               }`}
             >
-              <Icon size={18} aria-hidden="true" />
-              <span>{item.label}</span>
+              <Icon size={16} aria-hidden="true" />
+              <span className="truncate max-w-[54px] text-center">{item.label}</span>
             </Link>
           );
         })}

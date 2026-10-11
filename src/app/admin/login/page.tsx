@@ -70,7 +70,7 @@ export default function AdminLoginPage() {
   const isLocked = remainingLockSeconds > 0;
 
   return (
-    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4">
+    <div className="min-h-[calc(100vh-6rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
         {/* Retorno rápido a la tienda */}
         <div className="mb-6 flex items-center justify-between">

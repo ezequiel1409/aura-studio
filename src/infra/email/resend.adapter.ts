@@ -1,33 +1,74 @@
 import { IEmailService, SendEmailOptions, SendEmailResult } from "../../domain/ports/email.port";
 
+/**
+ * Obtiene variables de entorno tanto en Node.js local como en Cloudflare Workers (OpenNext)
+ */
+function getEnvVar(key: string): string | undefined {
+  if (typeof process !== "undefined" && process.env?.[key]) {
+    return process.env[key];
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { getCloudflareContext } = require("@opennextjs/cloudflare");
+    const cf = getCloudflareContext();
+    if (cf?.env?.[key]) {
+      return String(cf.env[key]);
+    }
+  } catch {
+    // Entorno local o fuera de Cloudflare
+  }
+  return undefined;
+}
+
 export class ResendEmailAdapter implements IEmailService {
-  private apiKey: string | undefined;
-  private fromEmail: string;
+  private explicitApiKey: string | undefined;
+  private explicitFromEmail: string | undefined;
 
   constructor(apiKey?: string, fromEmail?: string) {
-    this.apiKey = apiKey || process.env.RESEND_API_KEY;
-    this.fromEmail = fromEmail || process.env.EMAIL_FROM || "Aura Studio <onboarding@resend.dev>";
+    this.explicitApiKey = apiKey;
+    this.explicitFromEmail = fromEmail;
+  }
+
+  private getApiKey(): string | undefined {
+    return this.explicitApiKey || getEnvVar("RESEND_API_KEY");
+  }
+
+  private getFromEmail(): string {
+    return (
+      this.explicitFromEmail ||
+      getEnvVar("EMAIL_FROM") ||
+      "Aura Studio <onboarding@resend.dev>"
+    );
   }
 
   async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-    if (!this.apiKey) {
-      console.log(`\n======================================================`);
-      console.log(`[Email Service - Dev Mode] Destinatario: ${options.to}`);
-      console.log(`Asunto: ${options.subject}`);
-      console.log(`Contenido:\n${options.text || options.html}`);
-      console.log(`======================================================\n`);
-      return { success: true, messageId: `mock-${Date.now()}` };
+    const apiKey = this.getApiKey();
+    const fromEmail = this.getFromEmail();
+
+    if (!apiKey) {
+      console.warn(
+        `\n[ResendEmailAdapter] AVISO: RESEND_API_KEY no está configurada.\n` +
+          `Para enviar correos reales vía Resend, definí RESEND_API_KEY en tu .env.local o como secret en Cloudflare.\n` +
+          `Destinatario: ${options.to}\n` +
+          `Asunto: ${options.subject}\n` +
+          (options.resetLink ? `Enlace de restablecimiento generado: ${options.resetLink}\n` : "")
+      );
+      return {
+        success: true,
+        messageId: `mock-${Date.now()}`,
+        devLink: options.resetLink,
+      };
     }
 
     try {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: this.fromEmail,
+          from: fromEmail,
           to: [options.to],
           subject: options.subject,
           html: options.html,
@@ -37,9 +78,15 @@ export class ResendEmailAdapter implements IEmailService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMsg = (errorData as { message?: string }).message || response.statusText;
+        const errorMsg =
+          (errorData as { message?: string }).message ||
+          `HTTP ${response.status}: ${response.statusText}`;
         console.error("[ResendEmailAdapter] Error al enviar email:", errorMsg);
-        return { success: false, error: errorMsg };
+        return {
+          success: false,
+          error: errorMsg,
+          devLink: options.resetLink,
+        };
       }
 
       const data = (await response.json()) as { id?: string };
@@ -47,7 +94,11 @@ export class ResendEmailAdapter implements IEmailService {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Error desconocido";
       console.error("[ResendEmailAdapter] Excepción en envío:", errorMsg);
-      return { success: false, error: errorMsg };
+      return {
+        success: false,
+        error: errorMsg,
+        devLink: options.resetLink,
+      };
     }
   }
 
@@ -116,6 +167,7 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
       subject,
       html,
       text,
+      resetLink,
     });
   }
 }
