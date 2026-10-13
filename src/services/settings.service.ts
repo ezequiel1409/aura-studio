@@ -5,6 +5,8 @@ export interface SettingsServiceDeps {
   settingsRepo?: ISettingsRepository;
 }
 
+export type HeroMode = "editorial" | "featured_carousel" | "custom_banner";
+
 export interface ShowroomSettings {
   whatsappNumber: string;
   showroomName: string;
@@ -14,6 +16,12 @@ export interface ShowroomSettings {
   address?: string | null;
   dataFiscalUrl?: string | null;
   reservationHours?: number;
+  heroMode: HeroMode;
+  heroTitle?: string | null;
+  heroSubtitle?: string | null;
+  heroBannerUrl?: string | null;
+  themePalette: string;
+  themePrimaryColor?: string | null;
 }
 
 export interface UpdateShowroomSettingsInput {
@@ -25,11 +33,19 @@ export interface UpdateShowroomSettingsInput {
   address?: string | null;
   dataFiscalUrl?: string | null;
   reservationHours?: number;
+  heroMode?: HeroMode;
+  heroTitle?: string | null;
+  heroSubtitle?: string | null;
+  heroBannerUrl?: string | null;
+  themePalette?: string;
+  themePrimaryColor?: string | null;
 }
 
 const DEFAULT_WHATSAPP_NUMBER = "+5491100000000";
 const DEFAULT_SHOWROOM_NAME = "Aura Studio";
 const DEFAULT_RESERVATION_HOURS = 48;
+const DEFAULT_HERO_MODE: HeroMode = "featured_carousel";
+const DEFAULT_THEME_PALETTE = "lino";
 
 /**
  * Obtiene la configuración del showroom desde la base de datos sin deploy.
@@ -48,6 +64,12 @@ export async function getShowroomSettings(
   let storedTiktok: string | null = null;
   let storedAddress: string | null = null;
   let storedDataFiscal: string | null = null;
+  let storedHeroMode: string | null = null;
+  let storedHeroTitle: string | null = null;
+  let storedHeroSubtitle: string | null = null;
+  let storedHeroBannerUrl: string | null = null;
+  let storedThemePalette: string | null = null;
+  let storedThemePrimaryColor: string | null = null;
 
   if (settingsRepo) {
     [
@@ -59,6 +81,12 @@ export async function getShowroomSettings(
       storedTiktok,
       storedAddress,
       storedDataFiscal,
+      storedHeroMode,
+      storedHeroTitle,
+      storedHeroSubtitle,
+      storedHeroBannerUrl,
+      storedThemePalette,
+      storedThemePrimaryColor,
     ] = await Promise.all([
       settingsRepo.get("whatsapp_number"),
       settingsRepo.get("showroom_name"),
@@ -68,10 +96,22 @@ export async function getShowroomSettings(
       settingsRepo.get("tiktok_handle"),
       settingsRepo.get("address"),
       settingsRepo.get("data_fiscal_url"),
+      settingsRepo.get("hero_mode"),
+      settingsRepo.get("hero_title"),
+      settingsRepo.get("hero_subtitle"),
+      settingsRepo.get("hero_banner_url"),
+      settingsRepo.get("theme_palette"),
+      settingsRepo.get("theme_primary_color"),
     ]);
   }
 
   const parsedHours = storedHours ? parseInt(storedHours, 10) : NaN;
+  const validHeroMode =
+    storedHeroMode === "editorial" ||
+    storedHeroMode === "featured_carousel" ||
+    storedHeroMode === "custom_banner"
+      ? (storedHeroMode as HeroMode)
+      : DEFAULT_HERO_MODE;
 
   return {
     whatsappNumber: storedWhatsapp || process.env.WHATSAPP_NUMBER || DEFAULT_WHATSAPP_NUMBER,
@@ -82,6 +122,12 @@ export async function getShowroomSettings(
     address: storedAddress && storedAddress.trim() ? storedAddress.trim() : null,
     dataFiscalUrl: storedDataFiscal && storedDataFiscal.trim() ? storedDataFiscal.trim() : null,
     reservationHours: !Number.isNaN(parsedHours) && parsedHours > 0 ? parsedHours : DEFAULT_RESERVATION_HOURS,
+    heroMode: validHeroMode,
+    heroTitle: storedHeroTitle && storedHeroTitle.trim() ? storedHeroTitle.trim() : null,
+    heroSubtitle: storedHeroSubtitle && storedHeroSubtitle.trim() ? storedHeroSubtitle.trim() : null,
+    heroBannerUrl: storedHeroBannerUrl && storedHeroBannerUrl.trim() ? storedHeroBannerUrl.trim() : null,
+    themePalette: storedThemePalette && storedThemePalette.trim() ? storedThemePalette.trim() : DEFAULT_THEME_PALETTE,
+    themePrimaryColor: storedThemePrimaryColor && storedThemePrimaryColor.trim() ? storedThemePrimaryColor.trim() : null,
   };
 }
 
@@ -143,6 +189,30 @@ export async function updateShowroomSettings(
       throw new ValidationError("Las horas de reserva deben ser un número entero mayor a 0.");
     }
     await settingsRepo.set("reservation_hours", String(hours));
+  }
+
+  if (input.heroMode !== undefined) {
+    await settingsRepo.set("hero_mode", input.heroMode);
+  }
+
+  if (input.heroTitle !== undefined) {
+    await settingsRepo.set("hero_title", input.heroTitle ? input.heroTitle.trim() : "");
+  }
+
+  if (input.heroSubtitle !== undefined) {
+    await settingsRepo.set("hero_subtitle", input.heroSubtitle ? input.heroSubtitle.trim() : "");
+  }
+
+  if (input.heroBannerUrl !== undefined) {
+    await settingsRepo.set("hero_banner_url", input.heroBannerUrl ? input.heroBannerUrl.trim() : "");
+  }
+
+  if (input.themePalette !== undefined) {
+    await settingsRepo.set("theme_palette", input.themePalette.trim());
+  }
+
+  if (input.themePrimaryColor !== undefined) {
+    await settingsRepo.set("theme_primary_color", input.themePrimaryColor ? input.themePrimaryColor.trim() : "");
   }
 
   return getShowroomSettings(deps);

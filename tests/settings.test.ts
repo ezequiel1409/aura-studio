@@ -36,6 +36,11 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
         address: "Honduras 4800, Palermo Soho, CABA",
         dataFiscalUrl: "https://serviciosweb.afip.gob.ar/clavefiscal/qr/default.aspx",
         reservationHours: 72,
+        heroMode: "featured_carousel",
+        heroTitle: "Colección Exclusiva 2026",
+        heroSubtitle: "Diseño de autor en edición limitada",
+        themePalette: "terracota",
+        themePrimaryColor: "#b45309",
       },
       deps
     );
@@ -48,6 +53,11 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
     expect(updated.address).toBe("Honduras 4800, Palermo Soho, CABA");
     expect(updated.dataFiscalUrl).toBe("https://serviciosweb.afip.gob.ar/clavefiscal/qr/default.aspx");
     expect(updated.reservationHours).toBe(72);
+    expect(updated.heroMode).toBe("featured_carousel");
+    expect(updated.heroTitle).toBe("Colección Exclusiva 2026");
+    expect(updated.heroSubtitle).toBe("Diseño de autor en edición limitada");
+    expect(updated.themePalette).toBe("terracota");
+    expect(updated.themePrimaryColor).toBe("#b45309");
 
     // Verificar que una llamada subsiguiente a getShowroomSettings retorna los nuevos datos
     const fetchedAgain = await getShowroomSettings(deps);
@@ -59,6 +69,11 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
     expect(fetchedAgain.address).toBe("Honduras 4800, Palermo Soho, CABA");
     expect(fetchedAgain.dataFiscalUrl).toBe("https://serviciosweb.afip.gob.ar/clavefiscal/qr/default.aspx");
     expect(fetchedAgain.reservationHours).toBe(72);
+    expect(fetchedAgain.heroMode).toBe("featured_carousel");
+    expect(fetchedAgain.heroTitle).toBe("Colección Exclusiva 2026");
+    expect(fetchedAgain.heroSubtitle).toBe("Diseño de autor en edición limitada");
+    expect(fetchedAgain.themePalette).toBe("terracota");
+    expect(fetchedAgain.themePrimaryColor).toBe("#b45309");
   });
 
   it("valida campos erróneos arrojando ValidationError", async () => {

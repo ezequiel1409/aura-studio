@@ -42,6 +42,12 @@ export async function POST(req: NextRequest) {
         address: body.address,
         dataFiscalUrl: body.dataFiscalUrl,
         reservationHours: body.reservationHours !== undefined ? Number(body.reservationHours) : undefined,
+        heroMode: body.heroMode,
+        heroTitle: body.heroTitle,
+        heroSubtitle: body.heroSubtitle,
+        heroBannerUrl: body.heroBannerUrl,
+        themePalette: body.themePalette,
+        themePrimaryColor: body.themePrimaryColor,
       },
       deps
     );
