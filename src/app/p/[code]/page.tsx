@@ -138,7 +138,33 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         aria-label="Navegación de retorno"
         className="sticky top-0 z-40 border-b border-[#e7e2da] bg-[#faf8f5]/90 backdrop-blur-md"
       >
-        <div className="mx-auto flex max-w-5xl items-center px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+          {/* A la izquierda: Imagen de marca / Logo */}
+          <Link
+            href="/"
+            aria-label={`${brandName} - Inicio del catálogo`}
+            className="group flex items-center focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-stone-900"
+          >
+            {settings.logoUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={settings.logoUrl}
+                alt={brandName}
+                className="h-7 sm:h-8 w-auto max-h-8 max-w-[140px] sm:max-w-[200px] object-contain transition-opacity group-hover:opacity-85"
+              />
+            ) : (
+              <div className="flex flex-col">
+                <span className="font-serif text-lg sm:text-xl tracking-[0.2em] font-normal text-stone-900 uppercase transition-opacity group-hover:opacity-80">
+                  {brandName}
+                </span>
+                <span className="text-[8px] sm:text-[9px] tracking-[0.25em] font-medium text-stone-500 uppercase">
+                  Showroom & Archivo
+                </span>
+              </div>
+            )}
+          </Link>
+
+          {/* A la derecha: Botón Volver al catálogo */}
           <Link
             href="/"
             prefetch={true}
