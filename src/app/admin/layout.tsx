@@ -48,6 +48,9 @@ export default function AdminLayout({
       >
         {children}
       </main>
+      <footer className="w-full py-4 text-center border-t border-[var(--admin-border)] text-[10px] text-[var(--admin-text-muted)]">
+        <span>Creado por <strong className="font-medium text-[var(--admin-text-secondary)]">Altum</strong></span>
+      </footer>
     </div>
   );
 }
