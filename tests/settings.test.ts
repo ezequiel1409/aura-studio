@@ -30,6 +30,11 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
       {
         whatsappNumber: "+5491122334455",
         showroomName: "Aura Studio Buenos Aires",
+        logoUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        instagramHandle: "@aurastudio.ba",
+        tiktokHandle: "@aurastudio",
+        address: "Honduras 4800, Palermo Soho, CABA",
+        dataFiscalUrl: "https://serviciosweb.afip.gob.ar/clavefiscal/qr/default.aspx",
         reservationHours: 72,
       },
       deps
@@ -37,12 +42,22 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
 
     expect(updated.whatsappNumber).toBe("+5491122334455");
     expect(updated.showroomName).toBe("Aura Studio Buenos Aires");
+    expect(updated.logoUrl).toBe("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+    expect(updated.instagramHandle).toBe("@aurastudio.ba");
+    expect(updated.tiktokHandle).toBe("@aurastudio");
+    expect(updated.address).toBe("Honduras 4800, Palermo Soho, CABA");
+    expect(updated.dataFiscalUrl).toBe("https://serviciosweb.afip.gob.ar/clavefiscal/qr/default.aspx");
     expect(updated.reservationHours).toBe(72);
 
     // Verificar que una llamada subsiguiente a getShowroomSettings retorna los nuevos datos
     const fetchedAgain = await getShowroomSettings(deps);
     expect(fetchedAgain.whatsappNumber).toBe("+5491122334455");
     expect(fetchedAgain.showroomName).toBe("Aura Studio Buenos Aires");
+    expect(fetchedAgain.logoUrl).toBe("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+    expect(fetchedAgain.instagramHandle).toBe("@aurastudio.ba");
+    expect(fetchedAgain.tiktokHandle).toBe("@aurastudio");
+    expect(fetchedAgain.address).toBe("Honduras 4800, Palermo Soho, CABA");
+    expect(fetchedAgain.dataFiscalUrl).toBe("https://serviciosweb.afip.gob.ar/clavefiscal/qr/default.aspx");
     expect(fetchedAgain.reservationHours).toBe(72);
   });
 

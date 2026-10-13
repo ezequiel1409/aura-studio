@@ -36,6 +36,11 @@ export async function POST(req: NextRequest) {
       {
         whatsappNumber: body.whatsappNumber,
         showroomName: body.showroomName,
+        logoUrl: body.logoUrl,
+        instagramHandle: body.instagramHandle,
+        tiktokHandle: body.tiktokHandle,
+        address: body.address,
+        dataFiscalUrl: body.dataFiscalUrl,
         reservationHours: body.reservationHours !== undefined ? Number(body.reservationHours) : undefined,
       },
       deps
