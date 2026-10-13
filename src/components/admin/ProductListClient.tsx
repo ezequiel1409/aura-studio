@@ -186,7 +186,7 @@ export function ProductListClient({
         productCode: target.code,
         fromStatus: previousStatus,
         toStatus: newStatus,
-        message: `Prenda #${String(target.code).padStart(3, "0")} marcada como ${statusLabels[newStatus]}`,
+        message: `Producto #${String(target.code).padStart(3, "0")} marcado como ${statusLabels[newStatus]}`,
       });
     } catch {
       alert("Error al conectar con el servidor.");
@@ -215,11 +215,11 @@ export function ProductListClient({
     }
   };
 
-  // Eliminar una prenda individual con confirmación (BR-34, BR-37)
+  // Eliminar un producto individual con confirmación (BR-34, BR-37)
   const handleDeleteProduct = async (product: Product) => {
     const codeFormatted = `#${String(product.code).padStart(3, "0")}`;
     const confirmed = window.confirm(
-      `¿Estás segura de eliminar la prenda ${codeFormatted} (${product.title || "Sin título"})? Esta acción no se puede deshacer y su código correlativo no será reutilizado.`
+      `¿Estás segura de eliminar el producto ${codeFormatted} (${product.title || "Sin título"})? Esta acción no se puede deshacer y su código correlativo no será reutilizado.`
     );
     if (!confirmed) return;
 
@@ -234,10 +234,10 @@ export function ProductListClient({
           toggleProductSelection(product.id);
         }
       } else {
-        alert(data.error || "No se pudo eliminar la prenda.");
+        alert(data.error || "No se pudo eliminar el producto.");
       }
     } catch {
-      alert("Error de conexión al eliminar la prenda.");
+      alert("Error de conexión al eliminar el producto.");
     }
   };
 
@@ -317,7 +317,7 @@ export function ProductListClient({
   const handleBulkDelete = async () => {
     if (selectedProductIds.length === 0) return;
     const confirmed = window.confirm(
-      `¿Estás segura de eliminar permanentemente ${selectedProductIds.length} prenda(s) seleccionada(s)? Esta acción es destructiva e irreversible.`
+      `¿Estás segura de eliminar permanentemente ${selectedProductIds.length} producto(s) seleccionado(s)? Esta acción es destructiva e irreversible.`
     );
     if (!confirmed) return;
 
@@ -338,7 +338,7 @@ export function ProductListClient({
         );
         clearSelection();
       } else {
-        alert(data.error || "Error al eliminar prendas en lote.");
+        alert(data.error || "Error al eliminar productos en lote.");
       }
     } catch {
       alert("Error de conexión con el servidor.");
@@ -398,7 +398,6 @@ export function ProductListClient({
         body: JSON.stringify({
           action: "featured",
           productIds: selectedProductIds,
-          isFeatured,
         }),
       });
 
@@ -443,10 +442,10 @@ export function ProductListClient({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="font-serif text-2xl font-bold text-zinc-100">
-            Lista de Prendas
+            Catálogo de Productos
           </h1>
           <p className="text-xs text-zinc-400">
-            Gestioná stock, estados, edición completa, acciones en lote e historial (BR-27, BR-29, BR-33).
+            Gestioná stock, estados, edición completa, acciones en lote e historial.
           </p>
         </div>
 
@@ -457,20 +456,20 @@ export function ProductListClient({
               onClick={handleToggleSelectAll}
               aria-label={
                 allFilteredSelected
-                  ? "Deseleccionar todas las prendas filtradas"
-                  : `Seleccionar todas las ${filteredProducts.length} prendas filtradas`
+                  ? "Deseleccionar todos los productos filtrados"
+                  : `Seleccionar todos los ${filteredProducts.length} productos filtrados`
               }
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 font-medium text-xs hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
               {allFilteredSelected ? (
                 <>
                   <CheckSquare size={15} className="text-amber-300" aria-hidden="true" />
-                  <span>Deseleccionar todas</span>
+                  <span>Deseleccionar todos</span>
                 </>
               ) : (
                 <>
                   <Square size={15} className="text-zinc-500" aria-hidden="true" />
-                  <span>Seleccionar todas ({filteredProducts.length})</span>
+                  <span>Seleccionar todos ({filteredProducts.length})</span>
                 </>
               )}
             </button>
@@ -481,7 +480,7 @@ export function ProductListClient({
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-200 text-zinc-950 font-semibold text-xs hover:bg-amber-100 transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
             <Plus size={16} aria-hidden="true" />
-            <span>+ Cargar Prenda</span>
+            <span>+ Cargar Producto</span>
           </Link>
         </div>
       </div>
@@ -496,7 +495,7 @@ export function ProductListClient({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por código (#023), título o descripción..."
-            aria-label="Buscar prendas por código, título o descripción"
+            aria-label="Buscar productos por código, título o descripción"
             className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400 transition-all"
           />
           <Search
@@ -509,7 +508,7 @@ export function ProductListClient({
         {/* Chips de Filtros (Scroll horizontal en móviles) */}
         <div
           role="tablist"
-          aria-label="Filtros de estado de prendas"
+          aria-label="Filtros de estado de productos"
           className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none text-xs"
         >
           {tabs.map((tab) => {
@@ -533,12 +532,12 @@ export function ProductListClient({
         </div>
       </div>
 
-      {/* Listado de Prendas */}
+      {/* Listado de Productos */}
       {filteredProducts.length === 0 ? (
         <div className="text-center py-12 px-4 rounded-2xl bg-zinc-900/30 border border-zinc-800/80 space-y-2">
           <Package size={32} className="mx-auto text-zinc-600" />
           <p className="text-sm font-semibold text-zinc-300">
-            No se encontraron prendas con los filtros seleccionados
+            No se encontraron productos con los filtros seleccionados
           </p>
           <p className="text-xs text-zinc-500">
             Probá limpiando el buscador o cambiando de pestaña.
@@ -585,8 +584,8 @@ export function ProductListClient({
                     aria-checked={isSelected}
                     onClick={() => toggleProductSelection(p.id)}
                     className="pt-1 text-zinc-500 hover:text-amber-200 transition-colors shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-md"
-                    title={isSelected ? "Deseleccionar prenda" : "Seleccionar para acción en lote"}
-                    aria-label={`${isSelected ? "Deseleccionar" : "Seleccionar"} prenda #${codeFormatted} ${p.title || ""}`}
+                    title={isSelected ? "Deseleccionar producto" : "Seleccionar para acción en lote"}
+                    aria-label={`${isSelected ? "Deseleccionar" : "Seleccionar"} producto #${codeFormatted} ${p.title || ""}`}
                   >
                     {isSelected ? (
                       <CheckSquare size={20} className="text-amber-300" aria-hidden="true" />
@@ -618,12 +617,12 @@ export function ProductListClient({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <h3 className="text-sm font-bold text-zinc-100 truncate">
-                          {p.title || "Prenda sin título"}
+                          {p.title || "Producto sin título"}
                         </h3>
                         {p.isFeatured && (
                           <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
                             <Star size={10} className="fill-amber-300" aria-hidden="true" />
-                            <span>Destacada</span>
+                            <span>Destacado</span>
                           </span>
                         )}
                       </div>
@@ -641,8 +640,8 @@ export function ProductListClient({
                           title={p.isFeatured ? "Quitar de destacados" : "Destacar en showroom"}
                           aria-label={
                             p.isFeatured
-                              ? `Quitar prenda #${codeFormatted} de destacados`
-                              : `Destacar prenda #${codeFormatted} en el catálogo`
+                              ? `Quitar producto #${codeFormatted} de destacados`
+                              : `Destacar producto #${codeFormatted} en el catálogo`
                           }
                         >
                           <Star
@@ -656,8 +655,8 @@ export function ProductListClient({
                         <Link
                           href={`/admin/productos/${p.code}/editar`}
                           className="text-zinc-400 hover:text-amber-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                          title="Editar prenda completa"
-                          aria-label={`Editar ficha de prenda #${codeFormatted} ${p.title || ""}`}
+                          title="Editar producto completo"
+                          aria-label={`Editar ficha de producto #${codeFormatted} ${p.title || ""}`}
                         >
                           <Edit2 size={14} aria-hidden="true" />
                         </Link>
@@ -667,8 +666,8 @@ export function ProductListClient({
                           type="button"
                           onClick={() => handleDeleteProduct(p)}
                           className="text-zinc-500 hover:text-rose-400 p-1 rounded-lg hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
-                          title="Eliminar prenda"
-                          aria-label={`Eliminar prenda #${codeFormatted} ${p.title || ""}`}
+                          title="Eliminar producto"
+                          aria-label={`Eliminar producto #${codeFormatted} ${p.title || ""}`}
                         >
                           <Trash2 size={14} aria-hidden="true" />
                         </button>
@@ -679,7 +678,7 @@ export function ProductListClient({
                           rel="noreferrer"
                           className="text-zinc-500 hover:text-amber-200 p-1 rounded-lg hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                           title="Ver en la tienda"
-                          aria-label={`Ver prenda #${codeFormatted} en la tienda pública (abre en nueva pestaña)`}
+                          aria-label={`Ver producto #${codeFormatted} en la tienda pública (abre en nueva pestaña)`}
                         >
                           <ExternalLink size={14} aria-hidden="true" />
                         </a>
@@ -711,8 +710,8 @@ export function ProductListClient({
                   <div className="flex items-center gap-3 text-zinc-400 text-[11px]">
                     <span
                       className="flex items-center gap-1 hover:text-zinc-200 transition-colors"
-                      title="Visitas totales a la ficha de la prenda"
-                      aria-label={`${p.stats?.viewsCount ?? 0} visitas registradas a la prenda`}
+                      title="Visitas totales a la ficha del producto"
+                      aria-label={`${p.stats?.viewsCount ?? 0} visitas registradas al producto`}
                     >
                       <Eye size={13} className="text-zinc-500" aria-hidden="true" />
                       <span>{p.stats?.viewsCount ?? 0} vistas</span>
@@ -731,16 +730,16 @@ export function ProductListClient({
                   {/* Alerta de Purga a los 30 días (BR-31) */}
                   {daysUntilPurge !== null && (
                     <div
-                      className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg border ${
+                      className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-lg border ${
                         isExpiringSoon
-                          ? "bg-rose-950/40 text-rose-300 border-rose-800"
-                          : "bg-zinc-800 text-zinc-400 border-zinc-700"
+                          ? "status-badge-expiring"
+                          : "status-badge-soldout"
                       }`}
                     >
                       {isExpiringSoon ? (
-                        <AlertTriangle size={12} className="text-rose-400" aria-hidden="true" />
+                        <AlertTriangle size={12} className="text-rose-500 shrink-0" aria-hidden="true" />
                       ) : (
-                        <Clock size={12} aria-hidden="true" />
+                        <Clock size={12} className="shrink-0" aria-hidden="true" />
                       )}
                       <span>
                         Se purga en {daysUntilPurge} {daysUntilPurge === 1 ? "día" : "días"}
@@ -754,17 +753,17 @@ export function ProductListClient({
                   {/* Selector rápido de 3 botones */}
                   <div
                     role="group"
-                    aria-label={`Cambiar estado de la prenda #${codeFormatted}`}
+                    aria-label={`Cambiar estado del producto #${codeFormatted}`}
                     className="flex items-center gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800 text-xs"
                   >
                     <button
                       type="button"
                       aria-pressed={p.status === "AVAILABLE"}
-                      aria-label={`Marcar prenda #${codeFormatted} como Disponible`}
+                      aria-label={`Marcar producto #${codeFormatted} como Disponible`}
                       onClick={() => handleStatusChange(p.id, "AVAILABLE")}
                       className={`px-2.5 py-1 rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none ${
                         p.status === "AVAILABLE"
-                          ? "bg-emerald-500 text-zinc-950 font-bold"
+                          ? "bg-emerald-600 text-white font-bold shadow-xs"
                           : "text-zinc-400 hover:text-zinc-200"
                       }`}
                     >
@@ -774,11 +773,11 @@ export function ProductListClient({
                     <button
                       type="button"
                       aria-pressed={p.status === "RESERVED"}
-                      aria-label={`Marcar prenda #${codeFormatted} como Reservada`}
+                      aria-label={`Marcar producto #${codeFormatted} como Reservado`}
                       onClick={() => handleStatusChange(p.id, "RESERVED")}
                       className={`px-2.5 py-1 rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                         p.status === "RESERVED"
-                          ? "bg-amber-400 text-zinc-950 font-bold"
+                          ? "bg-amber-500 text-stone-950 font-bold shadow-xs"
                           : "text-zinc-400 hover:text-zinc-200"
                       }`}
                     >
@@ -788,11 +787,11 @@ export function ProductListClient({
                     <button
                       type="button"
                       aria-pressed={p.status === "SOLD_OUT"}
-                      aria-label={`Marcar prenda #${codeFormatted} como Agotada`}
+                      aria-label={`Marcar producto #${codeFormatted} como Agotado`}
                       onClick={() => handleStatusChange(p.id, "SOLD_OUT")}
-                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:outline-none ${
+                      className={`px-2.5 py-1 rounded-lg font-medium transition-colors focus-visible:ring-2 focus-visible:ring-stone-400 focus-visible:outline-none ${
                         p.status === "SOLD_OUT"
-                          ? "bg-zinc-700 text-zinc-100 font-bold"
+                          ? "bg-stone-600 text-white font-bold shadow-xs"
                           : "text-zinc-400 hover:text-zinc-200"
                       }`}
                     >
@@ -812,7 +811,7 @@ export function ProductListClient({
                     }
                     className="flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/80 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     title="Ver historial de cambios de estado"
-                    aria-label={`Ver historial de cambios de estado para prenda #${codeFormatted}`}
+                    aria-label={`Ver historial de cambios de estado para producto #${codeFormatted}`}
                   >
                     <History size={13} aria-hidden="true" />
                     <span className="hidden sm:inline">Historial</span>
@@ -827,7 +826,7 @@ export function ProductListClient({
       {/* Barra Flotante de Acciones en Lote (BR-29, AR-10 Zustand) */}
       {selectedProductIds.length > 0 && (
         <aside
-          aria-label="Barra de acciones en lote para prendas seleccionadas"
+          aria-label="Barra de acciones en lote para productos seleccionados"
           className="fixed bottom-4 left-4 right-4 max-w-2xl mx-auto z-50 bg-zinc-950/95 border border-amber-400/50 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs"
         >
           <div className="flex items-center gap-2">
@@ -838,7 +837,7 @@ export function ProductListClient({
               {selectedProductIds.length}
             </span>
             <span className="font-semibold text-zinc-200">
-              {selectedProductIds.length === 1 ? "1 prenda seleccionada" : `${selectedProductIds.length} prendas seleccionadas`}
+              {selectedProductIds.length === 1 ? "1 producto seleccionado" : `${selectedProductIds.length} productos seleccionados`}
             </span>
           </div>
 
@@ -849,7 +848,7 @@ export function ProductListClient({
                 type="button"
                 aria-haspopup="true"
                 aria-expanded={bulkStatusOpen}
-                aria-label="Cambiar estado de prendas seleccionadas en lote"
+                aria-label="Cambiar estado de productos seleccionados en lote"
                 onClick={() => {
                   setBulkStatusOpen(!bulkStatusOpen);
                   setBulkCategoryOpen(false);
@@ -901,7 +900,7 @@ export function ProductListClient({
                 type="button"
                 aria-haspopup="true"
                 aria-expanded={bulkCategoryOpen}
-                aria-label="Mover prendas seleccionadas a otra categoría en lote"
+                aria-label="Mover productos seleccionados a otra categoría en lote"
                 onClick={() => {
                   setBulkCategoryOpen(!bulkCategoryOpen);
                   setBulkStatusOpen(false);
@@ -942,7 +941,7 @@ export function ProductListClient({
               type="button"
               onClick={() => handleBulkFeatured(true)}
               disabled={isBulkProcessing}
-              aria-label={`Destacar ${selectedProductIds.length} prenda(s) seleccionada(s) en lote`}
+              aria-label={`Destacar ${selectedProductIds.length} producto(s) seleccionado(s) en lote`}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
               <Star size={13} className="fill-amber-300" aria-hidden="true" />
@@ -954,7 +953,7 @@ export function ProductListClient({
               type="button"
               onClick={handleBulkDelete}
               disabled={isBulkProcessing}
-              aria-label={`Eliminar ${selectedProductIds.length} prenda(s) seleccionada(s) en lote`}
+              aria-label={`Eliminar ${selectedProductIds.length} producto(s) seleccionado(s) en lote`}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-950/70 text-rose-300 border border-rose-800/80 hover:bg-rose-900 transition-colors font-medium focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
             >
               <Trash2 size={13} aria-hidden="true" />
@@ -965,7 +964,7 @@ export function ProductListClient({
             <button
               type="button"
               onClick={clearSelection}
-              aria-label="Cancelar y deseleccionar todas las prendas"
+              aria-label="Cancelar y deseleccionar todos los productos"
               className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               title="Cancelar selección"
             >

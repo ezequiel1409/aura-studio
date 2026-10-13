@@ -85,7 +85,7 @@ export function UndoToast({
             type="button"
             onClick={handleUndoClick}
             disabled={undoing}
-            aria-label={`Deshacer cambio de estado en prenda #${String(action.productCode).padStart(3, "0")}`}
+            aria-label={`Deshacer cambio de estado en producto #${String(action.productCode).padStart(3, "0")}`}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-300 text-zinc-950 font-bold text-xs hover:bg-amber-200 active:scale-[0.96] transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none disabled:opacity-50"
           >
             <RotateCcw size={12} className={undoing ? "animate-spin" : ""} aria-hidden="true" />

@@ -319,7 +319,7 @@ export function EditProductClient({
 
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        throw new Error(data.error || "No se pudo actualizar la prenda.");
+        throw new Error(data.error || "No se pudo actualizar el producto.");
       }
 
       setSavedSuccess(true);
@@ -341,10 +341,10 @@ export function EditProductClient({
         <Link
           href="/admin/productos"
           className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 p-1"
-          aria-label="Volver al listado de prendas"
+          aria-label="Volver al catálogo de productos"
         >
           <ArrowLeft size={16} aria-hidden="true" />
-          <span>Volver a prendas</span>
+          <span>Volver al catálogo de productos</span>
         </Link>
 
         <a
@@ -352,7 +352,7 @@ export function EditProductClient({
           target="_blank"
           rel="noreferrer"
           className="inline-flex items-center gap-1 text-xs text-amber-200 hover:text-amber-100 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 p-1"
-          aria-label={`Ver ficha pública de la prenda ${codeFormatted} en una pestaña nueva`}
+          aria-label={`Ver ficha pública del producto ${codeFormatted} en una pestaña nueva`}
         >
           <span>Ver ficha pública</span>
           <ExternalLink size={14} aria-hidden="true" />
@@ -366,11 +366,11 @@ export function EditProductClient({
             {codeFormatted}
           </span>
           <span className="text-xs uppercase font-bold tracking-widest text-zinc-400">
-            Edición Completa (BR-33)
+            Edición Completa
           </span>
         </div>
         <h1 className="font-serif text-2xl md:text-3xl font-bold text-zinc-100 mt-1">
-          {product.title || `Prenda ${codeFormatted}`}
+          {product.title || `Producto ${codeFormatted}`}
         </h1>
         <p className="text-xs text-zinc-400 mt-1">
           Modificá texto crudo, variantes de color, stock y fotos sin perder datos editados a mano.
@@ -393,10 +393,10 @@ export function EditProductClient({
               onClick={handleReParseText}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               title="Volver a extraer datos sugeridos respetando tus correcciones manuales"
-              aria-label="Reinterpretar texto crudo de la prenda"
+              aria-label="Reinterpretar texto crudo del producto"
             >
               <Sparkles size={13} aria-hidden="true" />
-              <span>Reinterpretar texto (BR-33)</span>
+              <span>Reinterpretar texto</span>
             </button>
           </div>
           <textarea
@@ -405,7 +405,7 @@ export function EditProductClient({
             onChange={(e) => setRawText(e.target.value)}
             rows={4}
             className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-zinc-100 font-sans focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
-            placeholder="Pegá o editá la descripción cruda de la prenda..."
+            placeholder="Pegá o editá la descripción cruda del producto..."
           />
           <p className="text-[11px] text-zinc-500">
             Al editar el texto crudo, podés pulsar &quot;Reinterpretar texto&quot; para proponer nuevos datos sin pisar lo que hayas corregido a mano.
@@ -422,7 +422,7 @@ export function EditProductClient({
             {/* Título */}
             <div className="space-y-1.5 sm:col-span-2">
               <label htmlFor="edit-title" className="text-xs text-zinc-400">
-                Título de la Prenda
+                Título del Producto
               </label>
               <input
                 id="edit-title"
@@ -530,11 +530,11 @@ export function EditProductClient({
                     aria-hidden="true"
                   />
                   <span className="text-xs font-bold text-zinc-200">
-                    Destacar esta prenda en el catálogo
+                    Destacar este producto en el catálogo
                   </span>
                   {isFeatured && (
                     <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                      Destacada
+                      Destacado
                     </span>
                   )}
                 </div>
@@ -547,7 +547,7 @@ export function EditProductClient({
                 type="button"
                 role="switch"
                 aria-checked={isFeatured}
-                aria-label="Destacar esta prenda en el catálogo"
+                aria-label="Destacar este producto en el catálogo"
                 onClick={() => setIsFeatured((prev) => !prev)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                   isFeatured ? "bg-amber-400" : "bg-zinc-800"
@@ -567,7 +567,7 @@ export function EditProductClient({
         <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              Colores, Talles y Stock (BR-20)
+              Colores, Talles y Stock
             </h2>
             <button
               type="button"
@@ -704,7 +704,7 @@ export function EditProductClient({
                 accept="image/*"
                 onChange={handleFileChange}
                 disabled={compressing}
-                aria-label="Subir fotos de la prenda"
+                aria-label="Subir fotos del producto"
                 className="hidden"
               />
             </label>
@@ -722,7 +722,7 @@ export function EditProductClient({
               >
                 <img
                   src={p.keyThumb}
-                  alt={`Foto ${idx + 1} de la prenda`}
+                  alt={`Foto ${idx + 1} del producto`}
                   className="w-full h-full object-cover"
                 />
 
@@ -776,7 +776,7 @@ export function EditProductClient({
                     type="button"
                     onClick={() => handleSetCoverPhoto(idx)}
                     aria-label={`Destacar foto ${idx + 1} como portada principal`}
-                    title="Hacer que esta foto sea la portada de la prenda"
+                    title="Hacer que esta foto sea la portada del producto"
                     className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-center gap-1 py-0.5 rounded-lg bg-zinc-950/90 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 border border-zinc-800 text-[10px] font-semibold transition-all focus-visible:ring-1 focus-visible:ring-amber-400 focus-visible:outline-none"
                   >
                     <Star size={10} aria-hidden="true" />
@@ -806,7 +806,7 @@ export function EditProductClient({
             className="flex items-center gap-2 p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs"
           >
             <CheckCircle2 size={16} aria-hidden="true" />
-            <span>Prenda actualizada con éxito.</span>
+            <span>Producto actualizado con éxito.</span>
           </div>
         )}
 

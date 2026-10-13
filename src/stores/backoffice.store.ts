@@ -7,8 +7,14 @@ export type BackofficeModalType =
   | "edit_category"
   | "delete_category"
   | null;
+export type AdminTheme = "light" | "dark";
 
 export interface BackofficeStoreState {
+  // Tema UI accesible (Híbrido: claro editorial / oscuro grafito)
+  theme: AdminTheme;
+  setTheme: (theme: AdminTheme) => void;
+  toggleTheme: () => void;
+
   // Selección múltiple para acciones en lote (BR-29)
   selectedProductIds: number[];
 
@@ -47,7 +53,33 @@ export interface BackofficeStoreState {
   closeModal: () => void;
 }
 
+function applyThemeToDOM(theme: AdminTheme) {
+  if (typeof document !== "undefined") {
+    const root = document.getElementById("admin-layout-root");
+    if (root) {
+      root.setAttribute("data-theme", theme);
+    }
+    document.documentElement.setAttribute("data-admin-theme", theme);
+    try {
+      localStorage.setItem("aura_admin_theme", theme);
+    } catch {}
+  }
+}
+
 export const useBackofficeStore = create<BackofficeStoreState>((set, get) => ({
+  theme: "light",
+  setTheme: (theme: AdminTheme) => {
+    applyThemeToDOM(theme);
+    set({ theme });
+  },
+  toggleTheme: () => {
+    set((state) => {
+      const next: AdminTheme = state.theme === "light" ? "dark" : "light";
+      applyThemeToDOM(next);
+      return { theme: next };
+    });
+  },
+
   selectedProductIds: [],
   isBulkActionOpen: false,
   bulkActionType: null,

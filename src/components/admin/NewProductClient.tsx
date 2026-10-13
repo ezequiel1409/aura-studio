@@ -316,13 +316,13 @@ export function NewProductClient({ categories }: NewProductClientProps) {
 
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        throw new Error(data.error || "Error al publicar la prenda");
+        throw new Error(data.error || "Error al publicar el producto");
       }
 
       setPublishedProduct({
         id: data.product.id,
         code: data.product.code,
-        title: data.product.title || "Prenda sin título",
+        title: data.product.title || "Producto sin título",
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error desconocido al publicar";
@@ -366,10 +366,10 @@ export function NewProductClient({ categories }: NewProductClientProps) {
 
         <div>
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">
-            Publicación Exitosa (BR-26)
+            Publicación Exitosa
           </span>
           <h2 className="font-serif text-3xl font-bold text-zinc-100 mt-1">
-            Prenda {codeFormatted} publicada
+            Producto {codeFormatted} publicado
           </h2>
           <p className="text-zinc-400 text-sm mt-2">
             &ldquo;{publishedProduct.title}&rdquo; ya está disponible y visible en el showroom.
@@ -391,7 +391,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             href="/admin/productos"
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 font-semibold text-sm hover:bg-zinc-800 transition-all"
           >
-            <span>Ver en lista de prendas</span>
+            <span>Ver en catálogo de productos</span>
           </Link>
         </div>
 
@@ -401,7 +401,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-amber-200 transition-colors"
           >
             <RotateCcw size={16} />
-            <span>Cargar otra prenda</span>
+            <span>Cargar otro producto</span>
           </button>
         </div>
       </div>
@@ -421,10 +421,10 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         </Link>
         <div>
           <h1 className="font-serif text-2xl font-bold text-zinc-100">
-            Cargar Nueva Prenda
+            Cargar Nuevo Producto
           </h1>
           <p className="text-xs text-zinc-400">
-            Pegá fotos y texto. El sistema propone los datos y confirmás con un toque (BR-05, BR-26).
+            Pegá fotos y texto. El sistema propone los datos y confirmás con un toque.
           </p>
         </div>
       </div>
@@ -435,7 +435,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2">
               <Camera size={16} className="text-amber-300" aria-hidden="true" />
-              <span>Fotos de la prenda (BR-07)</span>
+              <span>Fotos del producto</span>
             </label>
             <span className="text-[11px] text-zinc-500">
               WebP optimizado sin EXIF
@@ -509,7 +509,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                     type="button"
                     onClick={() => handleSetCoverPhoto(idx)}
                     aria-label={`Destacar foto ${idx + 1} como portada principal`}
-                    title="Hacer que esta foto sea la portada de la prenda"
+                    title="Hacer que esta foto sea la portada del producto"
                     className="absolute bottom-1 inset-x-1 flex items-center justify-center gap-1 py-0.5 rounded bg-zinc-950/90 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 border border-zinc-800 text-[9px] font-semibold transition-all focus-visible:ring-1 focus-visible:ring-amber-400"
                   >
                     <Star size={9} aria-hidden="true" />
@@ -548,7 +548,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2"
           >
             <Sparkles size={16} className="text-amber-300" />
-            <span>Texto libre original (BR-05)</span>
+            <span>Texto libre original</span>
           </label>
           <textarea
             id="rawText"
@@ -568,7 +568,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 space-y-5">
           <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
             <h2 className="text-xs font-bold uppercase tracking-wider text-amber-300">
-              Vista Previa de Publicación (BR-26)
+              Vista Previa de Publicación
             </h2>
             <span className="text-[11px] text-zinc-400">
               Ajustá o confirmá con un toque
@@ -588,7 +588,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                   setTitleManuallyEdited(true);
                   setTitle(e.target.value);
                 }}
-                placeholder="Título de la prenda"
+                placeholder="Título del producto"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
               />
             </div>
@@ -635,7 +635,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
               </select>
             </div>
 
-            {/* Prenda Destacada en el Showroom */}
+            {/* Producto Destacado en el Showroom */}
             <div className="sm:col-span-2 flex items-center justify-between p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 gap-3">
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
@@ -645,11 +645,11 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                     aria-hidden="true"
                   />
                   <span className="text-xs font-bold text-zinc-200">
-                    Destacar esta prenda en el catálogo
+                    Destacar este producto en el catálogo
                   </span>
                   {isFeatured && (
                     <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                      Destacada
+                      Destacado
                     </span>
                   )}
                 </div>
@@ -662,7 +662,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                 type="button"
                 role="switch"
                 aria-checked={isFeatured}
-                aria-label="Destacar esta prenda en el catálogo"
+                aria-label="Destacar este producto en el catálogo"
                 onClick={() => setIsFeatured((prev) => !prev)}
                 className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                   isFeatured ? "bg-amber-400" : "bg-zinc-800"
@@ -811,11 +811,11 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             {submitting ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
-                <span>Publicando prenda...</span>
+                <span>Publicando producto...</span>
               </>
             ) : (
               <>
-                <span>Publicar Prenda</span>
+                <span>Publicar Producto</span>
                 <Check size={18} />
               </>
             )}

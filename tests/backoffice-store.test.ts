@@ -78,4 +78,25 @@ describe("Tienda Global Zustand useBackofficeStore (AR-10, BR-29)", () => {
     expect(useBackofficeStore.getState().searchQuery).toBe("lino");
     expect(useBackofficeStore.getState().activeTab).toBe("disponibles");
   });
+
+  it("gestiona el tema de interfaz (light editorial / dark accesible) de forma reactiva", () => {
+    const store = useBackofficeStore.getState();
+
+    // Tema inicial por defecto es 'light'
+    expect(store.theme).toBe("light");
+
+    // Alternar a modo oscuro
+    store.toggleTheme();
+    expect(useBackofficeStore.getState().theme).toBe("dark");
+
+    // Alternar de regreso a modo claro
+    store.toggleTheme();
+    expect(useBackofficeStore.getState().theme).toBe("light");
+
+    // Asignar explícitamente tema
+    store.setTheme("dark");
+    expect(useBackofficeStore.getState().theme).toBe("dark");
+    store.setTheme("light");
+    expect(useBackofficeStore.getState().theme).toBe("light");
+  });
 });

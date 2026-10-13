@@ -61,6 +61,13 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(html).toContain("focus-visible:ring-2");
       expect(html).toContain("focus-visible:ring-amber-400");
     });
+
+    it("incluye botón accesible de alternancia de tema claro/oscuro (AdminThemeToggle)", () => {
+      const html = renderToString(React.createElement(AdminHeader));
+
+      expect(html).toContain('aria-label="Cambiar a modo oscuro accesible"');
+      expect(html).toContain("Oscuro");
+    });
   });
 
   describe("UndoToast (Live Regions & Friendly Progress Bar)", () => {
@@ -112,7 +119,7 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
         })
       );
 
-      expect(html).toContain('aria-label="Deshacer cambio de estado en prenda #042"');
+      expect(html).toContain('aria-label="Deshacer cambio de estado en producto #042"');
       expect(html).toContain('aria-label="Cerrar notificación de deshacer"');
     });
   });

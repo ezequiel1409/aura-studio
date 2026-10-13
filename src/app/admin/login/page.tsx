@@ -78,36 +78,36 @@ export default function AdminLoginPage() {
             href="/"
             prefetch={true}
             aria-label="Volver a la tienda y catálogo público"
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-amber-200 transition-colors py-1.5 px-3 rounded-lg hover:bg-zinc-900 border border-transparent hover:border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+            className="inline-flex items-center gap-1.5 text-xs text-stone-600 hover:text-stone-900 transition-colors py-1.5 px-3 rounded-lg hover:bg-stone-200/60 border border-stone-200/80 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none bg-white/70 shadow-2xs"
           >
             <ArrowLeft size={14} aria-hidden="true" />
             <span>Volver a la tienda</span>
           </Link>
-          <span className="text-[10px] uppercase font-mono tracking-widest text-zinc-500">
+          <span className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
             Showroom
           </span>
         </div>
 
         {/* Cabecera / Identidad */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 text-amber-200 mb-4 shadow-inner">
-            <Lock size={26} strokeWidth={1.75} />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#f5f0e8] border border-[#e2dcd2] text-[#926a3c] mb-4 shadow-2xs">
+            <Lock size={26} strokeWidth={1.75} aria-hidden="true" />
           </div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight text-zinc-100">
+          <h1 className="font-serif text-3xl font-light tracking-wide text-stone-900">
             Aura Studio
           </h1>
-          <p className="text-xs text-zinc-400 mt-1 uppercase tracking-widest font-semibold">
+          <p className="text-xs text-stone-500 mt-1 uppercase tracking-widest font-semibold">
             Panel de Administración
           </p>
         </div>
 
         {/* Tarjeta de Login */}
-        <div className="bg-zinc-900/90 border border-zinc-800/90 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+        <div className="bg-white border border-[#e7e2da] rounded-2xl p-6 sm:p-7 shadow-xs">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label
                 htmlFor="email"
-                className="block text-xs font-medium text-zinc-300 uppercase tracking-wider mb-2"
+                className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2"
               >
                 Correo electrónico
               </label>
@@ -119,12 +119,13 @@ export default function AdminLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@aurastudio.com"
-                  className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all disabled:opacity-50"
+                  className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
                   required
                 />
                 <Mail
                   size={16}
-                  className="absolute right-3.5 top-3.5 text-zinc-500 pointer-events-none"
+                  className="absolute right-3.5 top-3.5 text-stone-400 pointer-events-none"
+                  aria-hidden="true"
                 />
               </div>
             </div>
@@ -133,13 +134,13 @@ export default function AdminLoginPage() {
               <div className="flex items-center justify-between mb-2">
                 <label
                   htmlFor="password"
-                  className="block text-xs font-medium text-zinc-300 uppercase tracking-wider"
+                  className="block text-xs font-semibold text-stone-700 uppercase tracking-wider"
                 >
                   Contraseña
                 </label>
                 <Link
                   href="/admin/recuperar"
-                  className="text-xs text-amber-300 hover:text-amber-200 hover:underline transition-colors py-1"
+                  className="text-xs text-[#926a3c] hover:text-[#78532c] hover:underline underline-offset-4 transition-colors py-1 font-medium"
                 >
                   ¿Olvidaste tu contraseña?
                 </Link>
@@ -152,13 +153,14 @@ export default function AdminLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Ingresá tu contraseña"
-                  className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all disabled:opacity-50"
+                  className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
                   autoFocus
                   required
                 />
                 <KeyRound
                   size={16}
-                  className="absolute right-3.5 top-3.5 text-zinc-500 pointer-events-none"
+                  className="absolute right-3.5 top-3.5 text-stone-400 pointer-events-none"
+                  aria-hidden="true"
                 />
               </div>
             </div>
@@ -166,17 +168,22 @@ export default function AdminLoginPage() {
             {/* Mensajes de error o bloqueo */}
             {errorMessage && (
               <div
-                className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
+                role="alert"
+                className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
                   isLocked
-                    ? "bg-red-950/40 border-red-800 text-red-200"
-                    : "bg-amber-950/30 border-amber-800/80 text-amber-200"
+                    ? "bg-red-50 border-red-200 text-red-900"
+                    : "bg-amber-50 border-amber-200 text-amber-900"
                 }`}
               >
-                <ShieldAlert size={16} className="shrink-0 mt-0.5" />
+                <ShieldAlert
+                  size={16}
+                  className={`shrink-0 mt-0.5 ${isLocked ? "text-red-600" : "text-amber-700"}`}
+                  aria-hidden="true"
+                />
                 <div>
                   <p className="font-medium">{errorMessage}</p>
                   {isLocked && (
-                    <p className="mt-1 font-mono text-[11px] text-red-300 font-bold">
+                    <p className="mt-1 font-mono text-[11px] text-red-800 font-bold">
                       Desbloqueo en: {remainingLockSeconds}s
                     </p>
                   )}
@@ -188,11 +195,11 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading || isLocked || !password.trim() || !email.trim()}
-              className="w-full py-3.5 px-4 rounded-xl font-medium text-sm text-zinc-950 bg-amber-200 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-md shadow-amber-950/20 mt-2"
+              className="w-full py-3.5 px-4 rounded-xl font-medium text-sm text-white bg-stone-900 hover:bg-stone-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-xs mt-2 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2"
             >
               {loading ? (
                 <>
-                  <Loader2 size={16} className="animate-spin" />
+                  <Loader2 size={16} className="animate-spin" aria-hidden="true" />
                   <span>Verificando credenciales...</span>
                 </>
               ) : isLocked ? (
@@ -200,19 +207,19 @@ export default function AdminLoginPage() {
               ) : (
                 <>
                   <span>Ingresar al Panel</span>
-                  <Sparkles size={14} />
+                  <Sparkles size={14} aria-hidden="true" />
                 </>
               )}
             </button>
           </form>
 
           {/* Enlace secundario de regreso al catálogo */}
-          <div className="mt-5 pt-4 border-t border-zinc-800/80 text-center">
+          <div className="mt-5 pt-4 border-t border-[#f0ece1] text-center">
             <Link
               href="/"
               prefetch={true}
               aria-label="Volver al catálogo de la tienda"
-              className="inline-flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-amber-200 transition-colors py-1.5 px-3 rounded-lg hover:bg-zinc-800/50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+              className="inline-flex items-center gap-2 text-xs font-medium text-stone-600 hover:text-stone-900 transition-colors py-1.5 px-3 rounded-lg hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none"
             >
               <ArrowLeft size={13} aria-hidden="true" />
               <span>Volver a la tienda</span>
@@ -221,7 +228,7 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Pie de pantalla */}
-        <p className="text-center text-xs text-zinc-500 mt-6">
+        <p className="text-center text-xs text-stone-500 mt-6">
           Acceso privado para el equipo de administración de showroom.
         </p>
       </div>

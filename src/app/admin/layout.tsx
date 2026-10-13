@@ -24,8 +24,15 @@ export default function AdminLayout({
   return (
     <div
       id="admin-layout-root"
-      className="min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-amber-900 selection:text-amber-100"
+      data-theme="light"
+      className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col font-sans selection:bg-amber-900 selection:text-amber-100 transition-colors"
     >
+      {/* Hidratación ultra-rápida sin FOUC de la preferencia de tema */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `try{var t=localStorage.getItem("aura_admin_theme")||"light";var el=document.getElementById("admin-layout-root");if(el){el.setAttribute("data-theme",t);}}catch(e){}`,
+        }}
+      />
       {/* Enlace accesible para saltar directo al contenido con teclado o lector de pantalla */}
       <a
         href="#admin-main"

@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpRight, LogOut, Package, PlusCircle, LayoutDashboard, Users, FolderTree, Settings } from "lucide-react";
 import { useState } from "react";
 
+import { AdminThemeToggle } from "./AdminThemeToggle";
+
 export function AdminHeader() {
   const pathname = usePathname();
   const router = useRouter();
@@ -34,27 +36,27 @@ export function AdminHeader() {
   };
 
   const navItems = [
-    { href: "/admin", label: "Resumen", icon: LayoutDashboard },
-    { href: "/admin/productos", label: "Prendas", icon: Package },
-    { href: "/admin/productos/nuevo", label: "Cargar", icon: PlusCircle },
-    { href: "/admin/categorias", label: "Categorías", icon: FolderTree },
-    { href: "/admin/configuracion", label: "Ajustes", icon: Settings },
-    { href: "/admin/usuarios", label: "Equipo", icon: Users },
+    { href: "/admin", label: "Resumen", mobileLabel: "Resumen", icon: LayoutDashboard },
+    { href: "/admin/productos", label: "Catálogo de productos", mobileLabel: "Catálogo", icon: Package },
+    { href: "/admin/productos/nuevo", label: "Cargar", mobileLabel: "Cargar", icon: PlusCircle },
+    { href: "/admin/categorias", label: "Categorías", mobileLabel: "Categorías", icon: FolderTree },
+    { href: "/admin/configuracion", label: "Ajustes", mobileLabel: "Ajustes", icon: Settings },
+    { href: "/admin/usuarios", label: "Equipo", mobileLabel: "Equipo", icon: Users },
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800 text-zinc-100">
+    <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800 text-zinc-100 admin-header">
       <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo & Marca */}
         <div className="flex items-center gap-3">
           <Link
             href="/admin"
             aria-label="Aura Studio, ir al panel de administración"
-            className="font-serif text-xl tracking-wider text-amber-100 font-semibold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg"
+            className="font-serif text-xl tracking-wider text-amber-100 font-semibold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg admin-logo"
           >
             Aura Studio
           </Link>
-          <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+          <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 admin-badge">
             Admin
           </span>
         </div>
@@ -74,8 +76,8 @@ export function AdminHeader() {
                 aria-current={isActive ? "page" : undefined}
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                   isActive
-                    ? "bg-zinc-800 text-amber-200"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900"
+                    ? "bg-zinc-800 text-amber-200 admin-nav-active"
+                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 admin-nav-inactive"
                 }`}
               >
                 <Icon size={16} aria-hidden="true" />
@@ -85,8 +87,11 @@ export function AdminHeader() {
           })}
         </nav>
 
-        {/* Enlaces de Acción */}
+        {/* Enlaces de Acción & Selector de Tema */}
         <div className="flex items-center gap-2">
+          {/* Alternar Tema Claro/Oscuro Accesible */}
+          <AdminThemeToggle />
+
           <a
             href="/"
             target="_blank"
@@ -130,7 +135,7 @@ export function AdminHeader() {
               }`}
             >
               <Icon size={16} aria-hidden="true" />
-              <span className="truncate max-w-[54px] text-center">{item.label}</span>
+              <span className="truncate max-w-[54px] text-center">{item.mobileLabel || item.label}</span>
             </Link>
           );
         })}

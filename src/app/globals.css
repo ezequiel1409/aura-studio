@@ -39,11 +39,245 @@ body {
   outline-offset: 2px;
 }
 
-/* Fondo oscuro completo en mobile y desktop para el panel de administración */
-html:has(#admin-layout-root),
-body:has(#admin-layout-root),
-html:has(#admin-main),
-body:has(#admin-main) {
-  background-color: #09090b !important;
+/* Soporte de temas Claro Editorial y Oscuro Grafito para el Panel de Administración */
+#admin-layout-root,
+#admin-layout-root[data-theme="light"] {
+  background-color: #faf8f5;
+  color: #1c1917;
+}
+
+html:has(#admin-layout-root[data-theme="light"]),
+body:has(#admin-layout-root[data-theme="light"]),
+html:has(#admin-layout-root:not([data-theme="dark"])),
+body:has(#admin-layout-root:not([data-theme="dark"])) {
+  background-color: #faf8f5 !important;
+  color: #1c1917 !important;
+}
+
+#admin-layout-root[data-theme="dark"] {
+  background-color: #121214 !important;
   color: #f4f4f5 !important;
 }
+
+html:has(#admin-layout-root[data-theme="dark"]),
+body:has(#admin-layout-root[data-theme="dark"]) {
+  background-color: #121214 !important;
+  color: #f4f4f5 !important;
+}
+
+/* ==========================================================================
+   TEMA CLARO EDITORIAL (Lino & Piedra cálida)
+   ========================================================================== */
+#admin-layout-root[data-theme="light"] .admin-header {
+  background-color: rgba(250, 248, 245, 0.94) !important;
+  border-bottom-color: #e7e2da !important;
+  color: #1c1917 !important;
+}
+
+#admin-layout-root[data-theme="light"] .admin-logo {
+  color: #1c1917 !important;
+}
+
+#admin-layout-root[data-theme="light"] .admin-badge {
+  background-color: #f5f2eb !important;
+  border-color: #e2ded5 !important;
+  color: #57534e !important;
+}
+
+#admin-layout-root[data-theme="light"] .admin-nav-active {
+  background-color: #eae5dc !important;
+  border-color: #d8d2c7 !important;
+  color: #1c1917 !important;
+}
+
+#admin-layout-root[data-theme="light"] .admin-nav-inactive {
+  color: #57534e !important;
+}
+
+#admin-layout-root[data-theme="light"] .admin-nav-inactive:hover {
+  color: #1c1917 !important;
+  background-color: #f5f2eb !important;
+}
+
+#admin-layout-root[data-theme="light"] .admin-theme-toggle-btn {
+  color: #57534e !important;
+}
+
+#admin-layout-root[data-theme="light"] .admin-theme-toggle-btn:hover {
+  color: #1c1917 !important;
+  background-color: #f5f2eb !important;
+}
+
+#admin-layout-root[data-theme="light"] .bg-zinc-950 {
+  background-color: #f5f2eb !important;
+  color: #1c1917 !important;
+}
+
+#admin-layout-root[data-theme="light"] .bg-zinc-900,
+#admin-layout-root[data-theme="light"] .bg-zinc-900\/90,
+#admin-layout-root[data-theme="light"] .bg-zinc-900\/80,
+#admin-layout-root[data-theme="light"] .bg-zinc-900\/70,
+#admin-layout-root[data-theme="light"] .bg-zinc-900\/60,
+#admin-layout-root[data-theme="light"] .bg-zinc-900\/50,
+#admin-layout-root[data-theme="light"] .bg-zinc-900\/40,
+#admin-layout-root[data-theme="light"] .bg-zinc-900\/30 {
+  background-color: #ffffff !important;
+  color: #1c1917 !important;
+}
+
+#admin-layout-root[data-theme="light"] .border-zinc-800,
+#admin-layout-root[data-theme="light"] .border-zinc-800\/90,
+#admin-layout-root[data-theme="light"] .border-zinc-800\/80,
+#admin-layout-root[data-theme="light"] .border-zinc-800\/60,
+#admin-layout-root[data-theme="light"] .border-zinc-800\/50,
+#admin-layout-root[data-theme="light"] .border-zinc-700,
+#admin-layout-root[data-theme="light"] .border-zinc-700\/80 {
+  border-color: #e2ded5 !important;
+}
+
+#admin-layout-root[data-theme="light"] .text-zinc-100 {
+  color: #1c1917 !important;
+}
+
+#admin-layout-root[data-theme="light"] .text-zinc-200,
+#admin-layout-root[data-theme="light"] .text-zinc-300 {
+  color: #292524 !important;
+}
+
+#admin-layout-root[data-theme="light"] .text-zinc-400 {
+  color: #44403c !important;
+}
+
+#admin-layout-root[data-theme="light"] .text-zinc-500 {
+  color: #57534e !important;
+}
+
+#admin-layout-root[data-theme="light"] .text-zinc-600 {
+  color: #78716c !important;
+}
+
+#admin-layout-root[data-theme="light"] input:not([type="checkbox"]):not([type="radio"]),
+#admin-layout-root[data-theme="light"] select,
+#admin-layout-root[data-theme="light"] textarea {
+  background-color: #ffffff !important;
+  color: #1c1917 !important;
+  border-color: #d8d2c7 !important;
+}
+
+#admin-layout-root[data-theme="light"] input::placeholder,
+#admin-layout-root[data-theme="light"] textarea::placeholder {
+  color: #a8a29e !important;
+}
+
+#admin-layout-root[data-theme="light"] .bg-amber-200 {
+  background-color: #1c1917 !important;
+  color: #ffffff !important;
+}
+
+#admin-layout-root[data-theme="light"] .bg-amber-200:hover {
+  background-color: #292524 !important;
+}
+
+/* ==========================================================================
+   TEMA OSCURO GRAFITO (Pizarra & Alto Contraste WCAG AA/AAA)
+   ========================================================================== */
+#admin-layout-root[data-theme="dark"] .bg-zinc-950 {
+  background-color: #121214 !important;
+}
+
+#admin-layout-root[data-theme="dark"] .bg-zinc-900,
+#admin-layout-root[data-theme="dark"] .bg-zinc-900\/90,
+#admin-layout-root[data-theme="dark"] .bg-zinc-900\/70,
+#admin-layout-root[data-theme="dark"] .bg-zinc-900\/60 {
+  background-color: #1c1c20 !important;
+}
+
+#admin-layout-root[data-theme="dark"] .border-zinc-800,
+#admin-layout-root[data-theme="dark"] .border-zinc-800\/90,
+#admin-layout-root[data-theme="dark"] .border-zinc-800\/80 {
+  border-color: #2e2e36 !important;
+}
+
+#admin-layout-root[data-theme="dark"] .text-zinc-400 {
+  color: #d4d4d8 !important; /* Zinc-300: Contraste WCAG AAA (8.5:1) */
+}
+
+#admin-layout-root[data-theme="dark"] .text-zinc-500 {
+  color: #a1a1aa !important; /* Zinc-400: Contraste WCAG AA (5.2:1) */
+}
+
+/* ==========================================================================
+   PALETA CROMÁTICA ACCESIBLE UNIVERSAL PARA ESTADOS (WCAG 2.1 AA/AAA)
+   ========================================================================== */
+.status-badge-available {
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important;
+  border: 1px solid #a7f3d0 !important;
+  font-weight: 600;
+}
+#admin-layout-root[data-theme="dark"] .status-badge-available {
+  background-color: rgba(6, 78, 59, 0.45) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(4, 120, 87, 0.7) !important;
+}
+
+.status-badge-reserved {
+  background-color: #fffbeb !important;
+  color: #92400e !important;
+  border: 1px solid #fde68a !important;
+  font-weight: 600;
+}
+#admin-layout-root[data-theme="dark"] .status-badge-reserved {
+  background-color: rgba(120, 53, 15, 0.45) !important;
+  color: #fcd34d !important;
+  border-color: rgba(180, 83, 9, 0.7) !important;
+}
+
+.status-badge-soldout {
+  background-color: #f5f5f4 !important;
+  color: #44403c !important;
+  border: 1px solid #d6d3d1 !important;
+  font-weight: 600;
+}
+#admin-layout-root[data-theme="dark"] .status-badge-soldout {
+  background-color: #27272a !important;
+  color: #e4e4e7 !important;
+  border-color: #3f3f46 !important;
+}
+
+.status-badge-expiring {
+  background-color: #fff1f2 !important;
+  color: #9f1239 !important;
+  border: 1px solid #fecdd3 !important;
+  font-weight: 600;
+}
+#admin-layout-root[data-theme="dark"] .status-badge-expiring {
+  background-color: rgba(136, 19, 55, 0.45) !important;
+  color: #fda4af !important;
+  border-color: rgba(190, 18, 60, 0.7) !important;
+}
+
+.status-badge-uncategorized {
+  background-color: #faf5ff !important;
+  color: #6b21a8 !important;
+  border: 1px solid #e9d5ff !important;
+  font-weight: 600;
+}
+#admin-layout-root[data-theme="dark"] .status-badge-uncategorized {
+  background-color: rgba(88, 28, 135, 0.45) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(126, 34, 206, 0.7) !important;
+}
+
+.status-badge-noprice {
+  background-color: #f0f9ff !important;
+  color: #075985 !important;
+  border: 1px solid #bae6fd !important;
+  font-weight: 600;
+}
+#admin-layout-root[data-theme="dark"] .status-badge-noprice {
+  background-color: rgba(12, 74, 110, 0.45) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(3, 105, 161, 0.7) !important;
+}
+

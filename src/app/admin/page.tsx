@@ -25,22 +25,22 @@ export default async function AdminDashboardPage() {
     {
       title: "Disponibles",
       count: summary.available,
-      description: "Prendas con stock listas para la venta",
+      description: "Productos con stock listos para la venta",
       href: "/admin/productos?status=AVAILABLE",
       icon: CheckCircle2,
-      color: "text-emerald-400",
-      bgBadge: "bg-emerald-950/40 border-emerald-800/60 text-emerald-300",
-      accentBorder: "hover:border-emerald-700/50",
+      color: "text-emerald-500",
+      bgBadge: "status-badge-available",
+      accentBorder: "hover:border-emerald-600/50",
     },
     {
       title: "Reservadas",
       count: summary.reserved,
-      description: "Prendas apartadas temporalmente",
+      description: "Productos apartados temporalmente",
       href: "/admin/productos?status=RESERVED",
       icon: Clock,
-      color: "text-amber-400",
-      bgBadge: "bg-amber-950/40 border-amber-800/60 text-amber-300",
-      accentBorder: "hover:border-amber-700/50",
+      color: "text-amber-500",
+      bgBadge: "status-badge-reserved",
+      accentBorder: "hover:border-amber-600/50",
     },
     {
       title: "Agotadas",
@@ -48,9 +48,9 @@ export default async function AdminDashboardPage() {
       description: "Sin stock (purga automática a los 30 días)",
       href: "/admin/productos?status=SOLD_OUT",
       icon: Package,
-      color: "text-zinc-400",
-      bgBadge: "bg-zinc-800 border-zinc-700 text-zinc-300",
-      accentBorder: "hover:border-zinc-600",
+      color: "text-stone-500",
+      bgBadge: "status-badge-soldout",
+      accentBorder: "hover:border-stone-500",
     },
     {
       title: "Por vencer",
@@ -58,9 +58,9 @@ export default async function AdminDashboardPage() {
       description: "Agotadas hace más de 23 días (≤ 7 días para purga)",
       href: "/admin/productos?filter=por_vencer",
       icon: AlertTriangle,
-      color: "text-rose-400",
-      bgBadge: "bg-rose-950/40 border-rose-800/60 text-rose-300",
-      accentBorder: "hover:border-rose-700/50",
+      color: "text-rose-500",
+      bgBadge: "status-badge-expiring",
+      accentBorder: "hover:border-rose-600/50",
     },
     {
       title: "Sin clasificar",
@@ -68,9 +68,9 @@ export default async function AdminDashboardPage() {
       description: "Publicadas en categoría general por defecto",
       href: "/admin/productos?filter=sin_clasificar",
       icon: Tag,
-      color: "text-purple-400",
-      bgBadge: "bg-purple-950/40 border-purple-800/60 text-purple-300",
-      accentBorder: "hover:border-purple-700/50",
+      color: "text-purple-500",
+      bgBadge: "status-badge-uncategorized",
+      accentBorder: "hover:border-purple-600/50",
     },
     {
       title: "Sin precio",
@@ -78,9 +78,9 @@ export default async function AdminDashboardPage() {
       description: "Muestran 'Consultar precio' en el catálogo",
       href: "/admin/productos?filter=sin_precio",
       icon: DollarSign,
-      color: "text-sky-400",
-      bgBadge: "bg-sky-950/40 border-sky-800/60 text-sky-300",
-      accentBorder: "hover:border-sky-700/50",
+      color: "text-sky-500",
+      bgBadge: "status-badge-noprice",
+      accentBorder: "hover:border-sky-600/50",
     },
   ];
 
@@ -90,7 +90,7 @@ export default async function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 md:p-6 backdrop-blur-sm">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300">
-            Resumen General (BR-36)
+            Resumen General
           </span>
           <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-zinc-100 mt-1">
             Panel de Showroom
@@ -103,11 +103,11 @@ export default async function AdminDashboardPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/productos/nuevo"
-            aria-label="Cargar nueva prenda al catálogo"
+            aria-label="Cargar nuevo producto al catálogo"
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-200 text-zinc-950 font-semibold text-sm hover:bg-amber-100 active:scale-[0.98] transition-all shadow-md shadow-amber-950/30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
             <PlusCircle size={18} aria-hidden="true" />
-            <span>+ Cargar Prenda</span>
+            <span>+ Cargar Producto</span>
           </Link>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default async function AdminDashboardPage() {
             <Link
               key={card.title}
               href={card.href}
-              aria-label={`${card.title}: ${card.count} prendas. ${card.description}. Ver listado filtrado.`}
+              aria-label={`${card.title}: ${card.count} productos. ${card.description}. Ver listado filtrado.`}
               className={`flex flex-col justify-between p-4 md:p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 transition-all hover:bg-zinc-800/50 active:scale-[0.99] group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${card.accentBorder}`}
             >
               <div className="flex items-start justify-between">
@@ -154,7 +154,7 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
         <Link
           href="/admin/productos"
-          aria-label="Ir a lista de prendas: gestión de stock, edición y acciones en lote"
+          aria-label="Ir al catálogo de productos: gestión de stock, edición y acciones en lote"
           className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
           <div className="flex items-center gap-3">
@@ -162,7 +162,7 @@ export default async function AdminDashboardPage() {
               <Package size={18} />
             </div>
             <div>
-              <p className="text-sm font-semibold text-zinc-200">Lista de Prendas</p>
+              <p className="text-sm font-semibold text-zinc-200">Catálogo de Productos</p>
               <p className="text-xs text-zinc-400">Stock, edición y acciones en lote</p>
             </div>
           </div>
@@ -180,7 +180,7 @@ export default async function AdminDashboardPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-zinc-200">Categorías</p>
-              <p className="text-xs text-zinc-400">Árbol, orden y métricas (BR-15)</p>
+              <p className="text-xs text-zinc-400">Árbol, orden y visitas acumuladas</p>
             </div>
           </div>
           <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />
@@ -188,7 +188,7 @@ export default async function AdminDashboardPage() {
 
         <Link
           href="/admin/configuracion"
-          aria-label="Ir a configuración del showroom: WhatsApp, marca y reservas"
+          aria-label="Ir a configuración de la tienda: logo, WhatsApp y redes sociales"
           className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
           <div className="flex items-center gap-3">
@@ -197,7 +197,7 @@ export default async function AdminDashboardPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-zinc-200">Configuración</p>
-              <p className="text-xs text-zinc-400">WhatsApp, showroom y reservas (BR-35)</p>
+              <p className="text-xs text-zinc-400">Logo, WhatsApp y contacto</p>
             </div>
           </div>
           <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-emerald-300 group-hover:translate-x-1 transition-all" />

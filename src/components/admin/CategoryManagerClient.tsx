@@ -201,14 +201,14 @@ export function CategoryManagerClient({
   const handleInitiateDelete = (node: CategoryTreeNode) => {
     if (node.isSystem) {
       showNotice(
-        "La categoría del sistema 'Sin clasificar' no puede ser eliminada porque contiene prendas por defecto (BR-19).",
+        "La categoría del sistema 'Sin clasificar' no puede ser eliminada porque contiene productos por defecto.",
         "info"
       );
       return;
     }
     if (node.children.length > 0) {
       showNotice(
-        `La categoría '${node.name}' tiene ${node.children.length} subcategoría(s). Es necesario mover o eliminar las subcategorías primero (BR-18).`,
+        `La categoría '${node.name}' tiene ${node.children.length} subcategoría(s). Es necesario mover o eliminar las subcategorías primero.`,
         "info"
       );
       return;
@@ -226,7 +226,7 @@ export function CategoryManagerClient({
 
     if (deletingNode.productsCount > 0 && !reassignTargetId) {
       setErrorMessage(
-        "Debe seleccionar una categoría de destino para reasignar las prendas (BR-18)."
+        "Debe seleccionar una categoría de destino para reasignar los productos."
       );
       return;
     }
@@ -265,13 +265,13 @@ export function CategoryManagerClient({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 md:p-6 backdrop-blur-sm">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300">
-            Catálogo y Navegación (BR-15, BR-17, BR-18, BR-38)
+            Catálogo y Navegación
           </span>
           <h1 className="font-serif text-2xl md:text-3xl font-bold text-zinc-100 mt-1">
             Gestión de Categorías
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            Organizá la jerarquía de 2 niveles, reordená el menú público y visualizá visitas acumuladas (BR-39).
+            Organizá la jerarquía de 2 niveles, reordená el menú público y visualizá visitas acumuladas.
           </p>
         </div>
 
@@ -352,7 +352,7 @@ export function CategoryManagerClient({
                       {root.isSystem && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
                           <Shield size={10} aria-hidden="true" />
-                          <span>Sistema (BR-19)</span>
+                          <span>Sistema</span>
                         </span>
                       )}
 
@@ -367,7 +367,7 @@ export function CategoryManagerClient({
                     <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono mt-0.5">
                       <span>/{root.slug}</span>
                       <span aria-hidden="true">•</span>
-                      <span className="text-zinc-300">{root.productsCount} prendas</span>
+                      <span className="text-zinc-300">{root.productsCount} productos</span>
                       <span aria-hidden="true">•</span>
                       <span className="text-emerald-400">{root.viewsCount} visitas</span>
                     </div>
@@ -406,7 +406,7 @@ export function CategoryManagerClient({
                       onClick={() => {
                         if (!canAddSubcategory) {
                           showNotice(
-                            `La categoría '${root.name}' tiene ${root.productsCount} prenda(s) asignadas directamente. Debés reasignar esas prendas antes de asignarle subcategorías (BR-18).`,
+                            `La categoría '${root.name}' tiene ${root.productsCount} producto(s) asignados directamente. Debés reasignar esos productos antes de asignarle subcategorías.`,
                             "info"
                           );
                           return;
@@ -482,7 +482,7 @@ export function CategoryManagerClient({
                         <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono">
                           <span>/{sub.slug}</span>
                           <span aria-hidden="true">•</span>
-                          <span>{sub.productsCount} prendas</span>
+                          <span>{sub.productsCount} productos</span>
                           <span aria-hidden="true">•</span>
                           <span className="text-emerald-400">{sub.viewsCount} visitas</span>
                         </div>
@@ -598,7 +598,7 @@ export function CategoryManagerClient({
                   className="rounded border-zinc-700 bg-zinc-950 text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400"
                 />
                 <label htmlFor="newHidden" className="text-xs text-zinc-300 cursor-pointer">
-                  Ocultar del menú público (BR-38)
+                  Ocultar del menú público
                 </label>
               </div>
 
@@ -672,7 +672,7 @@ export function CategoryManagerClient({
 
               <div className="space-y-1.5">
                 <label htmlFor="editCategorySlugInput" className="text-xs text-zinc-400">
-                  Slug permanente (BR-38)
+                  Slug permanente
                 </label>
                 <input
                   id="editCategorySlugInput"
@@ -682,7 +682,7 @@ export function CategoryManagerClient({
                   className="w-full bg-zinc-950/50 border border-zinc-800/80 rounded-xl px-3.5 py-2 text-xs font-mono text-zinc-500 cursor-not-allowed"
                 />
                 <p className="text-[10px] text-zinc-500">
-                  El slug no cambia al renombrar para preservar enlaces estables (BR-38).
+                  El slug no cambia al renombrar para preservar enlaces estables.
                 </p>
               </div>
 
@@ -695,7 +695,7 @@ export function CategoryManagerClient({
                   className="rounded border-zinc-700 bg-zinc-950 text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400"
                 />
                 <label htmlFor="editHidden" className="text-xs text-zinc-300 cursor-pointer">
-                  Ocultar del menú público (BR-38)
+                  Ocultar del menú público
                 </label>
               </div>
 
@@ -760,15 +760,15 @@ export function CategoryManagerClient({
             {deletingNode.productsCount > 0 && (
               <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/60 space-y-2 text-xs">
                 <p className="text-amber-200 font-semibold">
-                  Esta categoría contiene {deletingNode.productsCount} prenda(s).
+                  Esta categoría contiene {deletingNode.productsCount} producto(s).
                 </p>
                 <label htmlFor="reassignTargetSelect" className="block text-zinc-400">
-                  Para eliminarla protegida (BR-18), debés seleccionar a qué categoría mover esas prendas:
+                  Para eliminarla de forma protegida, debés seleccionar a qué categoría mover esos productos:
                 </label>
 
                 <select
                   id="reassignTargetSelect"
-                  aria-label="Seleccionar categoría de destino para reasignar prendas"
+                  aria-label="Seleccionar categoría de destino para reasignar productos"
                   value={reassignTargetId}
                   onChange={(e) => setReassignTargetId(Number(e.target.value))}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"

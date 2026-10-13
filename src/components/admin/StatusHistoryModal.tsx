@@ -109,7 +109,7 @@ export function StatusHistoryModal({
                 Historial de Estados {codeFormatted}
               </h3>
               <p className="text-[11px] text-zinc-400 truncate max-w-xs">
-                {productTitle || "Prenda"}
+                {productTitle || "Producto"}
               </p>
             </div>
           </div>
@@ -147,7 +147,7 @@ export function StatusHistoryModal({
 
           {!loading && !error && history.length === 0 && (
             <p className="text-center text-xs text-zinc-500 py-6">
-              No hay cambios de estado registrados para esta prenda.
+              No hay cambios de estado registrados para este producto.
             </p>
           )}
 
