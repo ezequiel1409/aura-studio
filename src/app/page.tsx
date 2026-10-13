@@ -1,8 +1,9 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { getProductServiceDeps } from "../infra/db/connection";
 import { listProducts } from "../services/product.service";
+import { getShowroomSettings } from "../services/settings.service";
 import { Header } from "../components/layout/Header";
+import { Footer } from "../components/layout/Footer";
 import { CategoryNav } from "../components/catalog/CategoryNav";
 import { SortFilterBar } from "../components/catalog/SortFilterBar";
 import { ProductGrid } from "../components/catalog/ProductGrid";
@@ -83,7 +84,7 @@ async function CatalogContent({
       </section>
 
       {/* Grilla de productos responsiva */}
-      <section aria-label="Listado de prendas">
+      <section aria-label="Catálogo de productos">
         <ProductGrid products={productsResult.items} />
       </section>
     </>
@@ -108,16 +109,16 @@ function CatalogSkeleton() {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const deps = getProductServiceDeps();
-  const [brandNameSetting, allCategories] = await Promise.all([
-    deps.settingsRepo?.get("brand_name"),
+  const [settings, allCategories] = await Promise.all([
+    getShowroomSettings(deps),
     deps.categoryRepo.listAll(),
   ]);
-  const brandName = brandNameSetting || "Aura Studio";
+  const brandName = settings.showroomName || "Aura Studio";
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-[#1c1917]">
       {/* Header fijo con buscador por código (BR-24) */}
-      <Header brandName={brandName} />
+      <Header brandName={brandName} logoUrl={settings.logoUrl} />
 
       {/* Contenido principal del catálogo */}
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
@@ -137,7 +138,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               Piezas únicas con carácter propio
             </h1>
             <p className="mt-3 text-xs leading-relaxed text-stone-600 sm:text-sm">
-              Cada prenda de nuestro showroom es única e irrepetible. Explora el catálogo y reserva tu pieza al instante vía WhatsApp.
+              Cada pieza de nuestro showroom es única e irrepetible. Explorá el catálogo de productos y consultá o reservá tu pieza al instante vía WhatsApp.
             </p>
           </div>
         </section>
@@ -153,30 +154,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </Suspense>
       </main>
 
-      {/* Footer minimalista */}
-      <footer
-        role="contentinfo"
-        className="mt-20 border-t border-[#e7e2da] bg-white py-12 text-center text-xs text-stone-500"
-      >
-        <p className="font-serif text-base tracking-[0.2em] font-medium text-stone-900 uppercase">
-          {brandName}
-        </p>
-        <p className="mt-1 text-[11px] text-stone-500">
-          Showroom & Archivo · Buenos Aires, Argentina
-        </p>
-        <p className="mt-3 text-[10px] text-stone-400">
-          Atención y reservas directas a través de WhatsApp
-        </p>
-        <div className="mt-6 pt-4 border-t border-[#f0ece1]/80 flex justify-center">
-          <Link
-            href="/admin"
-            className="inline-flex items-center gap-1.5 text-[11px] text-stone-400 hover:text-stone-800 transition-colors py-1 px-2.5 rounded-md hover:bg-stone-100"
-          >
-            <span>Acceso Showroom / Admin</span>
-            <span className="text-[9px] font-mono text-stone-400">→</span>
-          </Link>
-        </div>
-      </footer>
+      {/* Footer con información de la tienda, redes y data fiscal */}
+      <Footer
+        brandName={brandName}
+        logoUrl={settings.logoUrl}
+        whatsappNumber={settings.whatsappNumber}
+        instagramHandle={settings.instagramHandle}
+        tiktokHandle={settings.tiktokHandle}
+        address={settings.address}
+        dataFiscalUrl={settings.dataFiscalUrl}
+      />
     </div>
   );
 }

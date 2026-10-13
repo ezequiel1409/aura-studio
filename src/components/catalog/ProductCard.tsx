@@ -25,28 +25,28 @@ export function ProductCard({ product }: ProductCardProps) {
   const titleDisplay = product.title || `Pieza ${formattedCode}`;
 
   const accessibleLabel = `${titleDisplay}, código ${formattedCode}, ${priceDisplay}${
-    product.isFeatured ? ", prenda destacada" : ""
+    product.isFeatured ? ", producto destacado" : ""
   }${product.size ? `, talle ${product.size}` : ""}${
     isReserved ? ", estado reservada" : ""
   }${isSoldOut ? ", estado agotada" : ""}`;
 
   return (
-    <article className="group relative flex flex-col">
+    <article className="group relative flex flex-col h-full w-full min-w-0">
       <Link
         href={href}
         prefetch={true}
         aria-label={accessibleLabel}
-        className="flex flex-col overflow-hidden rounded-xl border border-[#e7e2da] bg-white shadow-2xs transition-all duration-300 hover:border-stone-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-stone-900"
+        className="flex flex-col h-full w-full justify-between overflow-hidden rounded-xl border border-[#e7e2da] bg-white shadow-2xs transition-all duration-300 hover:border-stone-400 hover:shadow-md focus-visible:outline-2 focus-visible:outline-stone-900"
       >
-        {/* Contenedor de Imagen tipo Lookbook */}
-        <div className="relative aspect-[3/4] w-full overflow-hidden bg-[#f5f2eb]">
+        {/* Contenedor de Imagen tipo Lookbook con proporciones fijas y contención estricta */}
+        <div className="relative aspect-[3/4] w-full min-h-[220px] max-h-[380px] sm:min-h-[280px] sm:max-h-[440px] shrink-0 overflow-hidden bg-[#f5f2eb]">
           {mainPhoto ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={mainPhoto}
               alt={`Fotografía de ${titleDisplay}`}
               loading="lazy"
-              className={`h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 ${
+              className={`absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 ${
                 isSoldOut ? "grayscale-30 opacity-70" : ""
               }`}
             />
@@ -83,15 +83,15 @@ export function ProductCard({ product }: ProductCardProps) {
           </span>
         </div>
 
-        {/* Ficha de Detalles */}
-        <div className="flex flex-1 flex-col justify-between p-3.5">
+        {/* Ficha de Detalles con altura uniforme */}
+        <div className="flex flex-1 flex-col justify-between p-3.5 min-h-[96px]">
           <div>
             <h2 className="line-clamp-1 font-serif text-base font-normal tracking-wide text-stone-900 transition-colors group-hover:text-amber-950">
               {titleDisplay}
             </h2>
-            {product.colors && product.colors.length > 1 && (
+            {product.colors && product.colors.length > 1 ? (
               <div
-                className="mt-1 flex items-center gap-1.5"
+                className="mt-1 flex items-center gap-1.5 h-4"
                 title={`Colores disponibles: ${product.colors.map((c) => c.name).join(", ")}`}
               >
                 <div className="flex items-center -space-x-1">
@@ -108,10 +108,12 @@ export function ProductCard({ product }: ProductCardProps) {
                   {product.colors.length} colores
                 </span>
               </div>
+            ) : (
+              <div className="mt-1 h-4" aria-hidden="true" />
             )}
           </div>
 
-          <div className="mt-2.5 flex items-baseline justify-between gap-1.5 border-t border-[#f0ece1] pt-2">
+          <div className="mt-auto flex items-baseline justify-between gap-1.5 border-t border-[#f0ece1] pt-2">
             {/* Precio destacado */}
             <span className="font-serif text-base font-semibold tracking-tight text-stone-900 shrink-0">
               {priceDisplay}

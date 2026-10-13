@@ -94,7 +94,7 @@ export function RouteLoadingIndicator() {
 
         // Definir texto descriptivo accesible según el destino
         if (url.pathname.startsWith("/p/")) {
-          setTargetLabel("Cargando prenda...");
+          setTargetLabel("Cargando producto...");
         } else if (url.pathname === "/") {
           setTargetLabel("Cargando catálogo...");
         } else {

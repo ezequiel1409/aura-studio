@@ -4,12 +4,14 @@ import { ArrowLeft, Sparkles, Star, Tag } from "lucide-react";
 import { getProductServiceDeps } from "../../../infra/db/connection";
 import { parseProductCode, formatProductCode } from "../../../domain/product/rules";
 import { formatPrice } from "../../../lib/format/currency";
-import { parseSizesList } from "../../../lib/parser/product-parser";
+import { parseSizesList, cleanProductDescription } from "../../../lib/parser/product-parser";
 import { ProductGallery } from "../../../components/catalog/ProductGallery";
 import { ProductOrderSection } from "../../../components/catalog/ProductOrderSection";
 import { ProductGrid } from "../../../components/catalog/ProductGrid";
 import { AnalyticsTracker } from "../../../components/analytics/AnalyticsTracker";
 import { listProducts } from "../../../services/product.service";
+import { getShowroomSettings } from "../../../services/settings.service";
+import { Footer } from "../../../components/layout/Footer";
 
 interface ProductPageProps {
   params: Promise<{
@@ -36,7 +38,7 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   }
 
   const formattedCode = formatProductCode(product.code);
-  const title = `${formattedCode} · ${product.title || "Prenda Exclusiva"} | Aura Studio`;
+  const title = `${formattedCode} · ${product.title || "Producto Exclusivo"} | Aura Studio`;
   const description = product.rawText.slice(0, 140);
   const photoUrl = product.photos?.[0]?.keyFull || product.photos?.[0]?.keyThumb;
 
@@ -79,7 +81,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
             Esta pieza ya no se encuentra disponible
           </h1>
           <p className="mx-auto mt-2.5 max-w-md text-xs leading-relaxed text-stone-600 sm:text-sm">
-            Nuestras prendas son piezas únicas y suelen agotarse rápidamente. Te invitamos a descubrir otras opciones disponibles en nuestro showroom:
+            Nuestros productos son piezas únicas y suelen agotarse rápidamente. Te invitamos a descubrir otras opciones disponibles en nuestro showroom:
           </p>
 
           <div className="mt-6 flex justify-center">
@@ -111,15 +113,14 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     );
   }
 
-  // Resolver categoría, WhatsApp y Marca en paralelo (BR-35)
-  const [category, whatsappSetting, brandNameSetting] = await Promise.all([
+  // Resolver categoría y configuración de showroom en paralelo
+  const [category, settings] = await Promise.all([
     deps.categoryRepo.findById(product.categoryId),
-    deps.settingsRepo?.get("whatsapp_number"),
-    deps.settingsRepo?.get("brand_name"),
+    getShowroomSettings(deps),
   ]);
 
-  const whatsappNumber = whatsappSetting || "+5491100000000";
-  const brandName = brandNameSetting || "Aura Studio";
+  const whatsappNumber = settings.whatsappNumber;
+  const brandName = settings.showroomName;
 
   const formattedCode = formatProductCode(product.code);
   const sizes = parseSizesList(product.size);
@@ -137,7 +138,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         aria-label="Navegación de retorno"
         className="sticky top-0 z-40 border-b border-[#e7e2da] bg-[#faf8f5]/90 backdrop-blur-md"
       >
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-5xl items-center px-4 py-3 sm:px-6">
           <Link
             href="/"
             prefetch={true}
@@ -147,10 +148,6 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Volver al catálogo</span>
           </Link>
-
-          <span className="font-mono text-xs font-semibold tracking-wider text-stone-900">
-            {formattedCode}
-          </span>
         </div>
       </header>
 
@@ -170,8 +167,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           <div className="flex flex-col justify-start">
             {/* Cabecera con Código y Estado */}
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="rounded-md border border-[#e7e2da] bg-white px-2.5 py-1 font-mono text-xs font-semibold text-stone-900">
-                {formattedCode}
+              <span className="rounded-md border border-[#e7e2da] bg-white px-2.5 py-1 text-xs font-medium text-stone-500">
+                SKU: <strong className="font-mono font-bold text-stone-900">{formattedCode}</strong>
               </span>
 
               {product.isFeatured && (
@@ -200,9 +197,9 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               )}
             </div>
 
-            {/* Título de la Prenda */}
+            {/* Título del Producto */}
             <h1 className="mt-4 font-serif text-3xl font-light tracking-wide text-stone-900 sm:text-4xl">
-              {product.title || `Prenda ${formattedCode}`}
+              {product.title || `Producto ${formattedCode}`}
             </h1>
 
             {/* Precio destacado */}
@@ -242,12 +239,23 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
                 Descripción & Detalles de la pieza
               </h2>
               <div className="mt-3 whitespace-pre-line text-xs leading-relaxed text-stone-700 sm:text-sm">
-                {product.rawText}
+                {cleanProductDescription(product.rawText, product.title)}
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Footer con información de la tienda, redes y data fiscal */}
+      <Footer
+        brandName={brandName}
+        logoUrl={settings.logoUrl}
+        whatsappNumber={settings.whatsappNumber}
+        instagramHandle={settings.instagramHandle}
+        tiktokHandle={settings.tiktokHandle}
+        address={settings.address}
+        dataFiscalUrl={settings.dataFiscalUrl}
+      />
     </div>
   );
 }

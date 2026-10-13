@@ -8,10 +8,15 @@ import { parseProductCode } from "../../domain/product/rules";
 
 interface HeaderProps {
   brandName?: string;
+  logoUrl?: string | null;
   initialSearch?: string;
 }
 
-export function Header({ brandName = "Aura Studio", initialSearch = "" }: HeaderProps) {
+export function Header({
+  brandName = "Aura Studio",
+  logoUrl,
+  initialSearch = "",
+}: HeaderProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [query, setQuery] = useState(initialSearch);
@@ -57,14 +62,25 @@ export function Header({ brandName = "Aura Studio", initialSearch = "" }: Header
         <Link
           href="/"
           aria-label={`${brandName} - Inicio del catálogo`}
-          className="group flex flex-col focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-stone-900"
+          className="group flex items-center focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-stone-900"
         >
-          <span className="font-serif text-2xl tracking-[0.22em] font-normal text-stone-900 uppercase transition-opacity group-hover:opacity-80">
-            {brandName}
-          </span>
-          <span className="text-[9px] tracking-[0.3em] font-medium text-stone-500 uppercase">
-            Showroom & Archivo
-          </span>
+          {logoUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={logoUrl}
+              alt={brandName}
+              className="h-8 sm:h-9 w-auto max-h-9 max-w-[150px] sm:max-w-[220px] object-contain transition-opacity group-hover:opacity-85"
+            />
+          ) : (
+            <div className="flex flex-col">
+              <span className="font-serif text-2xl tracking-[0.22em] font-normal text-stone-900 uppercase transition-opacity group-hover:opacity-80">
+                {brandName}
+              </span>
+              <span className="text-[9px] tracking-[0.3em] font-medium text-stone-500 uppercase">
+                Showroom & Archivo
+              </span>
+            </div>
+          )}
         </Link>
 
         {/* Buscador por código o texto (BR-24) accesible */}
@@ -74,7 +90,7 @@ export function Header({ brandName = "Aura Studio", initialSearch = "" }: Header
           className="relative w-48 sm:w-80"
         >
           <label htmlFor="catalog-search" className="sr-only">
-            Buscar prendas por nombre o código numérico
+            Buscar productos por nombre o código numérico
           </label>
           <input
             id="catalog-search"

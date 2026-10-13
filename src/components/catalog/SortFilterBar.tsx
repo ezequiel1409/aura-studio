@@ -82,8 +82,8 @@ export function SortFilterBar({
           aria-pressed={activeFeatured}
           aria-label={
             activeFeatured
-              ? "Mostrar todas las prendas del catálogo"
-              : "Filtrar y mostrar solo prendas destacadas"
+              ? "Mostrar todos los productos del catálogo"
+              : "Filtrar y mostrar solo productos destacados"
           }
           className={`min-h-[38px] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer ${
             activeFeatured

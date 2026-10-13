@@ -244,7 +244,7 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
           <div
             className="flex items-center justify-center gap-2 sm:gap-2.5 py-0.5"
             role="tablist"
-            aria-label="Miniaturas de la prenda"
+            aria-label="Miniaturas del producto"
           >
             {photos.map((photo, index) => {
               const isSelected = index === currentIndex;

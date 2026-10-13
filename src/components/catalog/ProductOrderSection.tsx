@@ -110,11 +110,6 @@ export function ProductOrderSection({
             <span className="font-sans text-xs font-semibold tracking-wider text-stone-800 uppercase">
               Color:
             </span>
-            {activeColor && (
-              <span className="text-xs text-stone-600 font-medium">
-                {activeColor.name}
-              </span>
-            )}
           </div>
 
           <div
@@ -160,17 +155,9 @@ export function ProductOrderSection({
             <span className="font-sans text-xs font-semibold tracking-wider text-stone-800 uppercase">
               Talles disponibles:
             </span>
-            {selectedSize && (
-              <span className="text-xs text-stone-500">
-                Seleccionado:{" "}
-                <strong className="font-mono font-bold text-stone-900">
-                  {selectedSize}
-                </strong>
-                {selectedSizeItem && selectedSizeItem.stock > 0 && selectedSizeItem.stock <= 2 && (
-                  <span className="ml-1.5 text-[11px] font-semibold text-amber-700">
-                    (¡Últimas {selectedSizeItem.stock} unidades!)
-                  </span>
-                )}
+            {selectedSizeItem && selectedSizeItem.stock > 0 && selectedSizeItem.stock <= 2 && (
+              <span className="text-[11px] font-semibold text-amber-700">
+                ¡Últimas {selectedSizeItem.stock} unidades!
               </span>
             )}
           </div>

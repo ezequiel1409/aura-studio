@@ -39,8 +39,8 @@ export function ProductGrid({ products }: ProductGridProps) {
   return (
     <div
       role="region"
-      aria-label="Listado de prendas disponibles"
-      className="grid grid-cols-2 gap-3.5 sm:gap-6 md:grid-cols-3 lg:grid-cols-4"
+      aria-label="Catálogo de productos disponibles"
+      className="grid grid-cols-2 gap-3.5 sm:gap-6 md:grid-cols-3 lg:grid-cols-4 items-stretch"
     >
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
