@@ -4,6 +4,7 @@ import {
   extractSize,
   parseSizesList,
   formatSizesForBadge,
+  cleanProductDescription,
   parseProductText,
 } from "../src/lib/parser/product-parser";
 import { sanitizePlainText } from "../src/lib/parser/sanitize";
@@ -107,5 +108,33 @@ Precio: $ 18.500
     expect(parsed.title).toBe("Solo una descripción sin precio ni talle");
     expect(parsed.priceCents).toBeNull();
     expect(parsed.size).toBeNull();
+  });
+});
+
+describe("cleanProductDescription", () => {
+  it("elimina líneas repetidas de título, precio, colores y talles del detalle", () => {
+    const raw = `✨ Remera Tokio Oversize
+Precio: $ 18.500
+Colores: Blanco, Negro, Camel
+Talles: S, M, L
+100% algodón peinado de máxima suavidad.
+Ideal para combinar con prendas de tiro alto.`;
+
+    const cleaned = cleanProductDescription(raw, "Remera Tokio Oversize");
+
+    expect(cleaned).not.toContain("Remera Tokio Oversize");
+    expect(cleaned).not.toContain("Precio: $ 18.500");
+    expect(cleaned).not.toContain("Colores: Blanco, Negro, Camel");
+    expect(cleaned).not.toContain("Talles: S, M, L");
+    expect(cleaned).toContain("100% algodón peinado de máxima suavidad.");
+    expect(cleaned).toContain("Ideal para combinar con prendas de tiro alto.");
+  });
+
+  it("retorna texto por defecto si el rawText solo contenía datos técnicos redundantes", () => {
+    const raw = `Jean Wide Leg
+$ 45.000
+Talle: 38`;
+    const cleaned = cleanProductDescription(raw, "Jean Wide Leg");
+    expect(cleaned).toBe("Pieza exclusiva de showroom confeccionada con materiales seleccionados.");
   });
 });

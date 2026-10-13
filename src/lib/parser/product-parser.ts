@@ -288,3 +288,56 @@ export function parseProductText(rawText: string): ParsedProductData {
     suggestedCategorySlug,
   };
 }
+
+/**
+ * Limpia el texto crudo del producto para el detalle público,
+ * filtrando líneas redundantes que repiten el título, el precio,
+ * los colores o los talles (que ya se muestran en sus propios bloques interactivos).
+ */
+export function cleanProductDescription(
+  rawText: string,
+  title?: string | null
+): string {
+  if (!rawText) return "";
+
+  const lines = rawText.split("\n").map((l) => l.trim());
+  const cleanTitle = title
+    ? title.toLowerCase().replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s•\-–—*#]+/u, "").trim()
+    : null;
+
+  const filteredLines = lines.filter((line) => {
+    if (!line) return false;
+
+    const lower = line.toLowerCase();
+    const strippedEmoji = lower.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s•\-–—*#]+/u, "").trim();
+
+    // 1. Filtrar si coincide con el título del producto
+    if (cleanTitle && (strippedEmoji === cleanTitle || strippedEmoji.startsWith(cleanTitle))) {
+      return false;
+    }
+
+    // 2. Filtrar líneas de Precio (ej: "Precio: $ 18.500", "Precio $42.000", "$ 18.500", "Consultar precio")
+    if (
+      /^(?:precio|valor|costo)\s*:?\s*\$?\s*[\d.,]+/i.test(strippedEmoji) ||
+      /^\$\s*[\d.,]+/i.test(strippedEmoji) ||
+      /^(?:consultar\s+precio|precio\s+por\s+privado)$/i.test(strippedEmoji)
+    ) {
+      return false;
+    }
+
+    // 3. Filtrar menciones de Colores (ej: "Colores disponibles: Blanco...", "Colores: ...", "Color: ...")
+    if (/^(?:colores|color|colores\s+disponibles)\s*:/i.test(strippedEmoji)) {
+      return false;
+    }
+
+    // 4. Filtrar menciones de Talles (ej: "Talle: ÚNICO", "Talles: S, M, L", "Talles disponibles: ...")
+    if (/^(?:talles?|t\.|talles?\s+disponibles)\s*:/i.test(strippedEmoji)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const result = filteredLines.join("\n").trim();
+  return result || "Pieza exclusiva de showroom confeccionada con materiales seleccionados.";
+}
