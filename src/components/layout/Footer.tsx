@@ -177,14 +177,9 @@ export function Footer({
 
         {/* Separador y Acceso a Backoffice */}
         <div className="pt-6 border-t border-[#f0ece1] flex flex-col sm:flex-row items-center justify-between gap-4 text-stone-500">
-          <div className="flex flex-col sm:items-start gap-1 text-center sm:text-left">
-            <p className="text-[11px]">
-              © {new Date().getFullYear()} {brandName}. Piezas únicas de showroom.
-            </p>
-            <p className="text-[10px] text-stone-400 tracking-wide">
-              Creado por <span className="font-medium text-stone-600">Altum</span>
-            </p>
-          </div>
+          <p className="text-[11px] text-center sm:text-left">
+            © {new Date().getFullYear()} {brandName}. Piezas únicas de showroom.
+          </p>
 
           <Link
             href="/admin"
@@ -194,6 +189,13 @@ export function Footer({
             <span>Acceso Showroom / Admin</span>
             <span className="text-xs font-mono text-stone-500" aria-hidden="true">→</span>
           </Link>
+        </div>
+
+        {/* Créditos de Altum - Centrado abajo */}
+        <div className="pt-2 text-center">
+          <p className="text-[10px] text-stone-400 tracking-wider">
+            Creado por <strong className="font-semibold text-stone-600">Altum</strong>
+          </p>
         </div>
       </div>
     </footer>
