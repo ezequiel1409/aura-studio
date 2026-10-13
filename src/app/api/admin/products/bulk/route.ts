@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     if (!body || !Array.isArray(body.productIds) || body.productIds.length === 0) {
       return NextResponse.json(
-        { ok: false, error: "Debe seleccionar al menos una prenda." },
+        { ok: false, error: "Debe seleccionar al menos un producto." },
         { status: 400 }
       );
     }

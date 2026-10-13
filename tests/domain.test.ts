@@ -220,7 +220,7 @@ describe("WhatsApp Adapter with Color and Size (BR-13)", () => {
 
     expect(action.type).toBe("url");
     expect(decodeURIComponent(action.url)).toContain(
-      "¡Hola! Me gustaría consultar por la prenda #001 (Top Florencia Lino) en color Blanco, talle M de Aura Studio. ¿Sigue disponible?"
+      "¡Hola! Me gustaría consultar por el producto #001 (Top Florencia Lino) en color Blanco, talle M de Aura Studio. ¿Sigue disponible?"
     );
   });
 
@@ -241,7 +241,7 @@ describe("WhatsApp Adapter with Color and Size (BR-13)", () => {
     });
 
     expect(decodeURIComponent(action.url)).toContain(
-      "¡Hola! Me gustaría consultar por la prenda #003 (Blazer Milano) en talle único de Aura Studio. ¿Sigue disponible?"
+      "¡Hola! Me gustaría consultar por el producto #003 (Blazer Milano) en talle único de Aura Studio. ¿Sigue disponible?"
     );
   });
 });

@@ -195,7 +195,7 @@ export async function updateCategory(
       const subcategories = await categoryRepo.findSubcategories(category.id);
       if (subcategories.length > 0) {
         throw new CategoryHierarchyError(
-          "Una categoría con subcategorías no puede convertirse en subcategoría (BR-15: máximo 2 niveles)."
+          "Una categoría con subcategorías no puede convertirse en subcategoría (máximo 2 niveles de jerarquía)."
         );
       }
 
@@ -250,7 +250,7 @@ export async function deleteCategory(
   // BR-19: Protección de categoría de sistema
   if (category.isSystem || category.slug === SYSTEM_UNCATEGORIZED_SLUG) {
     throw new ProtectedCategoryError(
-      "La categoría del sistema 'Sin clasificar' no puede ser eliminada (BR-19)."
+      "La categoría del sistema 'Sin clasificar' no puede ser eliminada."
     );
   }
 
@@ -258,7 +258,7 @@ export async function deleteCategory(
   const subcategories = await categoryRepo.findSubcategories(id);
   if (subcategories.length > 0) {
     throw new ProtectedCategoryError(
-      `No se puede eliminar la categoría '${category.name}' porque contiene ${subcategories.length} subcategoría(s). Elimine o mueva las subcategorías primero (BR-18).`
+      `No se puede eliminar la categoría '${category.name}' porque contiene ${subcategories.length} subcategoría(s). Elimine o mueva las subcategorías primero.`
     );
   }
 
@@ -269,12 +269,12 @@ export async function deleteCategory(
   if (productsCount > 0) {
     if (!reassignToCategoryId) {
       throw new ProtectedCategoryError(
-        `No se puede eliminar la categoría '${category.name}' porque contiene ${productsCount} prenda(s). Reasigne las prendas a otra categoría primero (BR-18).`
+        `No se puede eliminar la categoría '${category.name}' porque contiene ${productsCount} producto(s). Reasigne los productos a otra categoría primero.`
       );
     }
 
     if (reassignToCategoryId === id) {
-      throw new ValidationError("No puede reasignar las prendas a la misma categoría que desea eliminar.");
+      throw new ValidationError("No puede reasignar los productos a la misma categoría que desea eliminar.");
     }
 
     const destinationCategory = await categoryRepo.findById(reassignToCategoryId);
@@ -286,7 +286,7 @@ export async function deleteCategory(
     const destSubcategories = await categoryRepo.findSubcategories(destinationCategory.id);
     if (destSubcategories.length > 0) {
       throw new CategoryHierarchyError(
-        `La categoría de destino '${destinationCategory.name}' contiene subcategorías. Las prendas solo pueden asignarse a subcategorías u hojas (BR-15).`
+        `La categoría de destino '${destinationCategory.name}' contiene subcategorías. Los productos solo pueden asignarse a subcategorías o categorías finales.`
       );
     }
 

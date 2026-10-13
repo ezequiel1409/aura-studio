@@ -92,7 +92,7 @@ export async function createProduct(
   if (!categoryId) {
     const uncategorized = await categoryRepo.findBySlug(SYSTEM_UNCATEGORIZED_SLUG);
     if (!uncategorized) {
-      throw new Error("La categoría del sistema 'Sin clasificar' no está inicializada (BR-19).");
+      throw new Error("La categoría del sistema 'Sin clasificar' no está inicializada.");
     }
     categoryId = uncategorized.id;
   }
@@ -329,11 +329,11 @@ export async function updateProduct(
     if (!cat) {
       throw new CategoryNotFoundError(input.categoryId);
     }
-    // BR-15: Las prendas deben pertenecer a un nodo hoja
+    // BR-15: Los productos deben pertenecer a un nodo hoja
     const subcategories = await categoryRepo.findSubcategories(cat.id);
     if (subcategories.length > 0) {
       throw new Error(
-        `La categoría '${cat.name}' contiene subcategorías. Las prendas solo pueden asignarse a subcategorías o nodos hoja (BR-15).`
+        `La categoría '${cat.name}' contiene subcategorías. Los productos solo pueden asignarse a subcategorías o categorías finales.`
       );
     }
     categoryId = cat.id;
@@ -491,7 +491,7 @@ export async function bulkMoveProductCategory(
   const subcategories = await categoryRepo.findSubcategories(targetCategory.id);
   if (subcategories.length > 0) {
     throw new Error(
-      `La categoría '${targetCategory.name}' contiene subcategorías. Las prendas solo pueden asignarse a subcategorías o nodos hoja (BR-15).`
+      `La categoría '${targetCategory.name}' contiene subcategorías. Los productos solo pueden asignarse a subcategorías o categorías finales.`
     );
   }
 

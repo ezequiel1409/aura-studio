@@ -13,7 +13,7 @@ export function validateCategoryDepth(
   // Si el padre ya tiene un parentId, sería un tercer nivel
   if (targetParent.parentId !== null) {
     throw new CategoryHierarchyError(
-      "La jerarquía máxima permitida es de 2 niveles: Categoría → Subcategoría (BR-15)"
+      "La jerarquía máxima permitida es de 2 niveles: Categoría → Subcategoría"
     );
   }
 }
@@ -28,19 +28,19 @@ export function validateCategoryDeletion(
 ): void {
   if (category.isSystem || category.slug === SYSTEM_UNCATEGORIZED_SLUG) {
     throw new ProtectedCategoryError(
-      "La categoría del sistema 'Sin clasificar' no puede ser eliminada (BR-19)"
+      "La categoría del sistema 'Sin clasificar' no puede ser eliminada"
     );
   }
 
   if (productsCount > 0) {
     throw new ProtectedCategoryError(
-      `No se puede eliminar la categoría '${category.name}' porque contiene ${productsCount} prenda(s)/producto(s). Reasigne los productos primero (BR-18).`
+      `No se puede eliminar la categoría '${category.name}' porque contiene ${productsCount} producto(s). Reasigne los productos a otra categoría primero.`
     );
   }
 
   if (subcategoriesCount > 0) {
     throw new ProtectedCategoryError(
-      `No se puede eliminar la categoría '${category.name}' porque contiene ${subcategoriesCount} subcategoría(s). Elimine o mueva las subcategorías primero (BR-18).`
+      `No se puede eliminar la categoría '${category.name}' porque contiene ${subcategoriesCount} subcategoría(s). Elimine o mueva las subcategorías primero.`
     );
   }
 }
@@ -51,7 +51,7 @@ export function validateCategoryDeletion(
 export function validateCategoryRename(category: Category, newName: string): void {
   if (category.isSystem && category.name !== newName) {
     throw new ProtectedCategoryError(
-      "La categoría del sistema 'Sin clasificar' no puede ser renombrada (BR-19)"
+      "La categoría del sistema 'Sin clasificar' no puede ser renombrada"
     );
   }
 }
@@ -65,7 +65,7 @@ export function validateParentCanHaveSubcategories(
 ): void {
   if (parentProductsCount > 0) {
     throw new ProtectedCategoryError(
-      `La categoría '${parentName}' tiene ${parentProductsCount} prenda(s) directa(s). Reasigne esas prendas antes de asignarle subcategorías (BR-18).`
+      `La categoría '${parentName}' tiene ${parentProductsCount} producto(s) asignado(s). Reasigne esos productos antes de asignarle subcategorías.`
     );
   }
 }

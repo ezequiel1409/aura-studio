@@ -48,7 +48,7 @@ export async function undoProductStatusChange(
   const previousStatus = latestEntry.fromStatus;
 
   if (!previousStatus) {
-    throw new Error("No hay un estado previo al cual revertir esta prenda.");
+    throw new Error("No hay un estado previo al cual revertir este producto.");
   }
 
   // Ejecuta la transición de reversión mediante el servicio oficial

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     if (!body || typeof body.rawText !== "string" || !body.rawText.trim()) {
       return NextResponse.json(
-        { ok: false, error: "El texto de la prenda es obligatorio." },
+        { ok: false, error: "El texto del producto es obligatorio." },
         { status: 400 }
       );
     }
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, product });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Error al crear la prenda";
+    const message = error instanceof Error ? error.message : "Error al crear el producto";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }
