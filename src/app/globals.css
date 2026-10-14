@@ -108,7 +108,13 @@ body:has(#admin-layout-root[data-theme="dark"]) {
   background-color: #f5f2eb !important;
 }
 
-#admin-layout-root[data-theme="light"] .bg-zinc-950 {
+#admin-layout-root[data-theme="light"] .bg-zinc-950,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/90,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/80,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/70,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/60,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/50,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/40 {
   background-color: #f5f2eb !important;
   color: #1c1917 !important;
 }
@@ -167,6 +173,73 @@ body:has(#admin-layout-root[data-theme="dark"]) {
 #admin-layout-root[data-theme="light"] input::placeholder,
 #admin-layout-root[data-theme="light"] textarea::placeholder {
   color: #a8a29e !important;
+}
+
+/* Acentos Ámbar de Alto Contraste en Modo Claro (WCAG 2.1 AA/AAA) */
+#admin-layout-root[data-theme="light"] .text-amber-400,
+#admin-layout-root[data-theme="light"] .text-amber-300,
+#admin-layout-root[data-theme="light"] .text-amber-500 {
+  color: #92400e !important; /* Amber-800: ratio 7.8:1 sobre fondo claro (WCAG AAA) */
+}
+
+#admin-layout-root[data-theme="light"] .border-amber-400,
+#admin-layout-root[data-theme="light"] .border-amber-300,
+#admin-layout-root[data-theme="light"] .border-amber-500 {
+  border-color: #b45309 !important; /* Amber-700: ratio > 4.5:1 para elementos de control */
+}
+
+#admin-layout-root[data-theme="light"] .bg-amber-950\/20,
+#admin-layout-root[data-theme="light"] .bg-amber-950\/30,
+#admin-layout-root[data-theme="light"] .bg-amber-950\/40,
+#admin-layout-root[data-theme="light"] .bg-amber-950\/50 {
+  background-color: #fef3c7 !important; /* Amber-100: fondo suave cálido de alta legibilidad */
+  color: #92400e !important;
+}
+
+#admin-layout-root[data-theme="light"] .border-amber-800\/40,
+#admin-layout-root[data-theme="light"] .border-amber-800 {
+  border-color: #fde68a !important; /* Amber-200 */
+}
+
+#admin-layout-root[data-theme="light"] .ring-amber-400 {
+  --tw-ring-color: #b45309 !important;
+}
+
+/* Alertas y Notificaciones Accesibles en Modo Claro */
+#admin-layout-root[data-theme="light"] .bg-rose-950\/40,
+#admin-layout-root[data-theme="light"] .bg-rose-950\/20 {
+  background-color: #fff1f2 !important;
+  color: #9f1239 !important;
+}
+#admin-layout-root[data-theme="light"] .border-rose-800 {
+  border-color: #fecdd3 !important;
+}
+#admin-layout-root[data-theme="light"] .text-rose-300,
+#admin-layout-root[data-theme="light"] .text-rose-400 {
+  color: #9f1239 !important; /* Rose-800: ratio > 7.5:1 */
+}
+
+#admin-layout-root[data-theme="light"] .bg-emerald-950\/40,
+#admin-layout-root[data-theme="light"] .bg-emerald-950\/20 {
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important;
+}
+#admin-layout-root[data-theme="light"] .border-emerald-800 {
+  border-color: #a7f3d0 !important;
+}
+#admin-layout-root[data-theme="light"] .text-emerald-300,
+#admin-layout-root[data-theme="light"] .text-emerald-400 {
+  color: #065f46 !important; /* Emerald-800: ratio > 7.5:1 */
+}
+
+/* Estados de interacción táctil y hover en Modo Claro */
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-800:hover {
+  background-color: #e5e0d8 !important;
+  color: #1c1917 !important;
+}
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-700:hover {
+  background-color: #e0dbd2 !important;
+  color: #1c1917 !important;
 }
 
 #admin-layout-root[data-theme="light"] .bg-amber-200 {

@@ -55,6 +55,13 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
 
   const currentRgb = hexToRgb(themePrimaryColor) || { r: 146, g: 106, b: 60 };
 
+  const previewTextColor = (() => {
+    const rgb = hexToRgb(themePrimaryColor);
+    if (!rgb) return "#ffffff";
+    const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+    return luminance > 0.55 ? "#1c1917" : "#ffffff";
+  })();
+
   const handleRgbChange = (channel: "r" | "g" | "b", val: number) => {
     const updated = { ...currentRgb, [channel]: Math.max(0, Math.min(255, isNaN(val) ? 0 : val)) };
     const hex = rgbToHex(updated.r, updated.g, updated.b);
@@ -677,8 +684,8 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
               <div className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60">
                 <span className="text-[11px] text-zinc-400">Vista previa de acento:</span>
                 <span
-                  className="px-2.5 py-1 rounded-md text-xs font-bold text-white shadow-xs"
-                  style={{ backgroundColor: themePrimaryColor }}
+                  className="px-2.5 py-1 rounded-md text-xs font-bold shadow-xs transition-colors"
+                  style={{ backgroundColor: themePrimaryColor, color: previewTextColor }}
                 >
                   Aura Studio
                 </span>

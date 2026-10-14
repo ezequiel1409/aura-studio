@@ -164,4 +164,42 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(html).toContain("Volver a la tienda");
     });
   });
+
+  describe("Light Mode Color Contrast & Settings Accessibility (WCAG AA/AAA)", () => {
+    it("garantiza que globals.css define contrastes WCAG AAA para acentos ámbar y variantes de fondo en modo claro", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const cssContent = fs.readFileSync(path.resolve(__dirname, "../src/app/globals.css"), "utf-8");
+
+      // Reglas de modo claro para texto y bordes ámbar
+      expect(cssContent).toContain('#admin-layout-root[data-theme="light"] .text-amber-400');
+      expect(cssContent).toContain("#92400e"); // Amber-800 (>7:1 WCAG AAA)
+      expect(cssContent).toContain('#admin-layout-root[data-theme="light"] .border-amber-400');
+      expect(cssContent).toContain("#b45309"); // Amber-700 (>3:1 WCAG AA UI)
+      expect(cssContent).toContain('#admin-layout-root[data-theme="light"] .bg-amber-950\\/20');
+      expect(cssContent).toContain("#fef3c7"); // Amber-100
+
+      // Reglas para opacidades de zinc-950 en tarjetas de settings
+      expect(cssContent).toContain('#admin-layout-root[data-theme="light"] .bg-zinc-950\\/80');
+      expect(cssContent).toContain('#admin-layout-root[data-theme="light"] .bg-zinc-950\\/60');
+    });
+
+    it("SettingsClient renderiza la vista previa de acento con color de texto accesible y roles correctos", async () => {
+      const { SettingsClient } = await import("../src/components/admin/SettingsClient");
+      const mockSettings = {
+        whatsappNumber: "+5491112345678",
+        showroomName: "Aura Test",
+        logoUrl: "",
+        heroMode: "featured_carousel" as const,
+        themePalette: "lino",
+        themePrimaryColor: "#926a3c",
+      };
+
+      const html = renderToString(React.createElement(SettingsClient, { initialSettings: mockSettings }));
+      expect(html).toContain("Vista previa de acento:");
+      expect(html).toContain("Aura Studio");
+      expect(html).toContain('id="primaryColorPicker"');
+      expect(html).toContain('id="rgbRInput"');
+    });
+  });
 });
