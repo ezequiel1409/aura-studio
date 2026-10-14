@@ -1,4 +1,6 @@
 import { describe, expect, it, beforeEach } from "vitest";
+import React from "react";
+import { renderToString } from "react-dom/server";
 import {
   buildCartItemKey,
   clampCartQuantity,
@@ -6,6 +8,8 @@ import {
   calculateCartSubtotalCents,
 } from "../src/domain/cart/rules";
 import { useCartStore } from "../src/stores/cart.store";
+import { CartStepper } from "../src/components/cart/CartStepper";
+import { ProductOrderSection } from "../src/components/catalog/ProductOrderSection";
 
 describe("Cart Domain & Store (BR-40)", () => {
   beforeEach(() => {
@@ -147,4 +151,76 @@ describe("Cart Domain & Store (BR-40)", () => {
       expect(useCartStore.getState().deliveryMethod).toBe("MOTORCYCLE");
     });
   });
+
+  describe("Componente CartStepper (Accesibilidad y Pasos BR-40, AR-12)", () => {
+    it("renderiza navegación de pasos con aria-current='step' en el paso activo", () => {
+      const htmlCart = renderToString(React.createElement(CartStepper, { currentStep: "cart" }));
+      expect(htmlCart).toContain('aria-label="Progreso del pedido"');
+      expect(htmlCart).toContain('aria-current="step"');
+      expect(htmlCart).toContain("Artículos");
+      expect(htmlCart).toContain("Envío y Datos");
+      expect(htmlCart).toContain("Confirmación");
+
+      const htmlShipping = renderToString(React.createElement(CartStepper, { currentStep: "shipping" }));
+      expect(htmlShipping).toContain('aria-current="step"');
+      expect(htmlShipping).toContain("Envío y Datos");
+
+      const htmlPayment = renderToString(React.createElement(CartStepper, { currentStep: "payment" }));
+      expect(htmlPayment).toContain('aria-current="step"');
+      expect(htmlPayment).toContain("Confirmación");
+    });
+
+    it("deshabilita pasos futuros en el stepper para guiar el flujo secuencial", () => {
+      const html = renderToString(React.createElement(CartStepper, { currentStep: "cart" }));
+      expect(html).toContain("disabled");
+      expect(html).toContain("cursor-not-allowed");
+    });
+  });
+
+  describe("Componente ProductOrderSection (BR-40, AR-12)", () => {
+    it("renderiza botón de agregar a la bolsa y selector de cantidad sin botón directo de WhatsApp", () => {
+      const html = renderToString(
+        React.createElement(ProductOrderSection, {
+          productId: 1,
+          code: 101,
+          formattedCode: "101",
+          title: "Vestido Gala",
+          priceCents: 5000000,
+          currency: "ARS",
+          sizes: ["S", "M", "L"],
+          isSoldOut: false,
+          isReserved: false,
+        })
+      );
+
+      // Debe incluir botón principal para agregar a la bolsa
+      expect(html).toContain("Agregar a la bolsa");
+      // Debe incluir selector de cantidad
+      expect(html).toContain("Cantidad:");
+      // NO debe tener el botón de WhatsApp directo en la ficha individual
+      expect(html).not.toContain("Consultar por WhatsApp");
+      expect(html).not.toContain("Comprar por WhatsApp");
+    });
+
+    it("muestra estado deshabilitado si la prenda está agotada", () => {
+      const html = renderToString(
+        React.createElement(ProductOrderSection, {
+          productId: 2,
+          code: 102,
+          formattedCode: "102",
+          title: "Blusa Seda",
+          priceCents: 3500000,
+          currency: "ARS",
+          sizes: ["M"],
+          isSoldOut: true,
+          isReserved: false,
+        })
+      );
+
+      expect(html).toContain("Pieza Agotada");
+      expect(html).toContain("disabled");
+    });
+  });
 });
+
+
