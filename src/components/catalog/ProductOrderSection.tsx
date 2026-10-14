@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ShieldCheck, ShoppingBag, Plus, Minus } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, ShoppingBag, Plus, Minus, CheckCircle2, ArrowRight } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { ProductColor } from "../../domain/product/types";
 
@@ -75,9 +76,11 @@ export function ProductOrderSection({
 
   // Selector de cantidad (no pudiendo superar el stock disponible, BR-40)
   const [quantity, setQuantity] = useState<number>(1);
+  const [justAdded, setJustAdded] = useState<boolean>(false);
 
   // Al cambiar de color, ajustar el talle seleccionado y reiniciar cantidad
   const handleColorChange = (colorId: number) => {
+    setJustAdded(false);
     setSelectedColorId(colorId);
     const newColor = colors.find((c) => c.id === colorId);
     if (newColor && newColor.sizes.length > 0) {
@@ -90,6 +93,7 @@ export function ProductOrderSection({
   };
 
   const handleSizeSelect = (newSize: string, sizeStock: number) => {
+    setJustAdded(false);
     setSelectedSize(newSize);
     if (sizeStock <= 0) {
       setQuantity(0);
@@ -99,10 +103,12 @@ export function ProductOrderSection({
   };
 
   const handleDecreaseQuantity = () => {
+    setJustAdded(false);
     setQuantity((prev) => Math.max(1, prev - 1));
   };
 
   const handleIncreaseQuantity = () => {
+    setJustAdded(false);
     setQuantity((prev) => Math.min(maxStock, prev + 1));
   };
 
@@ -125,6 +131,7 @@ export function ProductOrderSection({
       },
       quantity
     );
+    setJustAdded(true);
   };
 
   const hasMultipleColors = colors.length > 1;
@@ -304,6 +311,28 @@ export function ProductOrderSection({
             : "Agregar a la bolsa"}
         </span>
       </button>
+
+      {/* Mensaje de confirmación interactivo al agregar a la bolsa */}
+      {justAdded && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-3.5 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/90 p-3.5 text-xs text-emerald-950 animate-in fade-in slide-in-from-top-1 duration-200"
+        >
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="font-semibold">¡Agregado a tu bolsa!</span>
+          </div>
+          <Link
+            href="/carrito"
+            prefetch={true}
+            className="inline-flex items-center gap-1 font-bold text-stone-900 underline underline-offset-4 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-stone-900"
+          >
+            <span>Ver mi bolsa</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
 
       <div className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs text-stone-500">
         <ShieldCheck className="h-4 w-4 text-[#926a3c]" />
