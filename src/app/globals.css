@@ -109,17 +109,21 @@ body:has(#admin-layout-root[data-theme="dark"]) {
 }
 
 #admin-layout-root[data-theme="light"] .bg-zinc-950,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/95,
 #admin-layout-root[data-theme="light"] .bg-zinc-950\/90,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/85,
 #admin-layout-root[data-theme="light"] .bg-zinc-950\/80,
 #admin-layout-root[data-theme="light"] .bg-zinc-950\/70,
 #admin-layout-root[data-theme="light"] .bg-zinc-950\/60,
 #admin-layout-root[data-theme="light"] .bg-zinc-950\/50,
-#admin-layout-root[data-theme="light"] .bg-zinc-950\/40 {
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/40,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/30 {
   background-color: #f5f2eb !important;
   color: #1c1917 !important;
 }
 
 #admin-layout-root[data-theme="light"] .bg-zinc-900,
+#admin-layout-root[data-theme="light"] .bg-zinc-900\/95,
 #admin-layout-root[data-theme="light"] .bg-zinc-900\/90,
 #admin-layout-root[data-theme="light"] .bg-zinc-900\/80,
 #admin-layout-root[data-theme="light"] .bg-zinc-900\/70,

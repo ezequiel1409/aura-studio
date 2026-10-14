@@ -202,4 +202,78 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(html).toContain('id="rgbRInput"');
     });
   });
+
+  describe("ProductListClient (Hierarchical & Collapsible Catalog UX)", () => {
+    it("renderiza catálogo jerarquizado por grupos colapsables con roles accesibles aria-expanded", async () => {
+      const { ProductListClient } = await import("../src/components/admin/ProductListClient");
+
+      const mockCategories = [
+        { id: 1, name: "Vestidos", slug: "vestidos", position: 1, parentId: null, isHidden: false, isSystem: false },
+        { id: 2, name: "Remeras", slug: "remeras", position: 2, parentId: null, isHidden: false, isSystem: false },
+      ];
+
+      const mockProducts = [
+        {
+          id: 10,
+          code: 23,
+          title: "Vestido Lino Siena",
+          categoryId: 1,
+          status: "AVAILABLE" as const,
+          priceCents: 1850000,
+          currency: "ARS",
+          rawText: "Vestido lino siena",
+          isFeatured: true,
+          soldOutAt: null,
+          photos: [],
+          colors: [
+            {
+              id: 1,
+              productId: 10,
+              name: "Natural",
+              position: 1,
+              sizes: [{ id: 1, productColorId: 1, size: "M", stock: 3, reservedStock: 0 }],
+            },
+          ],
+        },
+        {
+          id: 11,
+          code: 24,
+          title: "Remera Algodón Pima",
+          categoryId: 2,
+          status: "SOLD_OUT" as const,
+          priceCents: 950000,
+          currency: "ARS",
+          rawText: "Remera algodon",
+          isFeatured: false,
+          soldOutAt: Date.now() - 1000,
+          photos: [],
+          colors: [],
+        },
+      ];
+
+      const html = renderToString(
+        React.createElement(ProductListClient, {
+          initialProducts: mockProducts as any,
+          categories: mockCategories as any,
+        })
+      );
+
+      // Jerarquía por categoría presente
+      expect(html).toContain("Vestidos");
+      expect(html).toContain("Remeras");
+      expect(html).toContain("Agrupar por:");
+      expect(html).toContain("Categorías");
+
+      // Acordeones con aria-expanded
+      expect(html).toContain('aria-expanded="true"');
+      expect(html).toContain("aria-controls");
+
+      // Menú accesible de opciones de producto
+      expect(html).toContain('aria-haspopup="true"');
+
+      // Título completo visible sin ahogarse
+      expect(html).toContain("Vestido Lino Siena");
+      expect(html).toContain("Remera Algodón Pima");
+    });
+  });
 });
