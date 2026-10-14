@@ -35,5 +35,21 @@ src/
   - Las transiciones de ruta del catálogo deben ser SPA fluidas sin refresco completo de página (`next/link` con prefetch habilitado).
   - Toda transición asíncrona de ruta debe brindar retroalimentación visual inmediata mediante skeletons de ruta (`loading.tsx`), barra de progreso superior de navegación y spinner editorial visible.
   - Se debe garantizar accesibilidad WCAG mediante regiones vivas `aria-live="polite"` y `aria-busy="true"`, informando el estado de carga a tecnologías de asistencia y respetando `prefers-reduced-motion`.
+- **AR-12**: Carrito Desacoplado y Control de Stock en Cliente:
+  - El carrito multi-producto reside en el cliente mediante **Zustand** (`src/stores/cart.store.ts`) con sincronización persistente en `localStorage`.
+  - La cantidad por variante está limitada estrictamente por el stock físico disponible en el servidor (`product_color_sizes.stock`). No se permite agregar ni incrementar unidades por encima del inventario existente.
+  - Antes de confirmar el checkout, el estado del carrito se valida para prevenir ventas sobre stock desfasado.
+- **AR-13**: Jerarquía y Motor de Promociones (Cupones Desacoplados):
+  - La lógica de validación y cálculo de cupones reside en el dominio puro (`src/domain/coupon/`):
+    - Ámbito `ALL_STORE`: aplica al subtotal de todos los productos elegibles del catálogo.
+    - Ámbito `CATEGORY`: filtra y aplica el descuento exclusivamente sobre ítems que pertenecen a la categoría o subcategoría objetivo.
+    - Ámbito `SELECTED_PRODUCTS`: aplica únicamente a una lista específica de productos (por `productId` o `code`).
+  - El motor evalúa condiciones puras: monto mínimo de pedido, fechas de vigencia (`validFrom`, `validUntil`), y límite de usos. El descuento se aplica siempre sobre el subtotal de productos antes de calcular la logística de envío.
+- **AR-14**: Agregado de Orden de Compra y Adaptadores de Checkout:
+  - `Order` es la raíz del agregado de compra y consolida: cliente, ítems (con foto, código, título, variante de color y talle, precio unitario y cantidad), desglose financiero (subtotal, cupón de descuento aplicado, costo de envío y total), y método de logística seleccionado.
+  - El checkout delega la ejecución a adaptadores desacoplados (`WhatsAppOrderAdapter`, `MercadoPagoOrderAdapter`), cumpliendo AR-03 sin acoplar el dominio a terceros.
+- **AR-15**: Anuncios y Popups Condicionales con Control de Frecuencia:
+  - Los anuncios (banners) y popups se configuran desde la administración y se persisten en base de datos.
+  - La frecuencia de visualización se gestiona en cliente (`localStorage`) para asegurar que una ventana o anuncio cerrado no vuelva a interrumpir la navegación del usuario en la misma sesión, optimizando Core Web Vitals (evitando CLS) y respetando accesibilidad.
 
 

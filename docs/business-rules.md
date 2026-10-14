@@ -79,6 +79,49 @@ Los IDs **no se renumeran**: si una regla deja de aplicar se marca como *derogad
   - **Exclusión de admin**: La actividad de la administradora autenticada nunca suma a los contadores de visitas ni clics.
   - **Privacidad**: Las estadísticas son internas y privadas. Solo se visualizan en el Backoffice; no se exponen en el catálogo público ni en APIs abiertas.
 
+## 8. Carrito, Logística y Órdenes de Compra (Fase 5)
+
+- **BR-40 · Carrito multi-producto y control estricto de inventario.**
+  - En la vista detallada de la prenda (`/p/[code]`) se suprime el botón individual directo de WhatsApp.
+  - Se incorpora un selector numérico de cantidad interactivo (`+` / `-`) y el botón principal "Agregar a la bolsa / carrito".
+  - La cantidad seleccionable tiene como tope superior estricto el stock físico disponible de la combinación de color y talle (`product_color_sizes.stock`). En ningún caso el cliente puede agregar o incrementar cantidades que superen el inventario cargado.
+  - Si un producto o talle se encuentra agotado (stock = 0), el botón se deshabilita con la indicación "Agotado" o "Talle sin stock".
+  - El carrito multi-producto permite al comprador ver sus artículos con foto, título, color, talle, cantidad y subtotal; ajustar cantidades (respetando stock máximo); eliminar artículos individuales o vaciar la bolsa por completo.
+
+- **BR-41 · Métodos de entrega y logística.**
+  - El proceso de checkout ofrece 3 modalidades de entrega con requerimientos específicos:
+    1. *Envío a domicilio* (Correo / Encomienda): requiere Nombre completo, Teléfono/WhatsApp, Calle, Altura, Piso/Depto (opcional), Código Postal, Localidad y Provincia.
+    2. *Motomensajería* (Express local): requiere Nombre completo, Teléfono, Dirección de entrega exacta y Franja horaria / notas para el cadete.
+    3. *Entrega a convenir / Retiro en Showroom*: opción gratuita donde el cliente retira su pedido por la dirección oficial del showroom (configurada en `settings.address`).
+  - Cada modalidad recalcula el total de la orden en tiempo real.
+
+- **BR-42 · Orden de compra y Checkout consolidado por WhatsApp.**
+  - Al completar los datos y confirmar la compra en el carrito, se genera una orden con código correlativo único atómico (`#ORD-001`, `#ORD-002`...) y estado inicial `PENDING`.
+  - La orden consolida el detalle de ítems, precios unitarios, subtotal, cupón de descuento aplicado (si hubiese), costo logístico, total final y datos del comprador.
+  - El checkout genera un mensaje estructurado y codificado para WhatsApp que envía a la administradora el desglose completo del pedido para coordinar el pago y el despacho de inmediato.
+
+## 9. Marketing, Anuncios y Cupones de Descuento (Fase 6)
+
+- **BR-43 · Jerarquía y validación de Cupones de descuento.**
+  - Cada cupón posee un código alfanumérico único en mayúsculas (ej: `AURA10`, `BIENVENIDA20`).
+  - **Jerarquía y ámbito de aplicación (`scope`)**:
+    - `ALL_STORE`: aplica sobre todos los productos disponibles del catálogo.
+    - `CATEGORY`: aplica únicamente sobre productos pertenecientes a una categoría o subcategoría específica.
+    - `SELECTED_PRODUCTS`: aplica únicamente sobre una lista curada de productos específicos (por SKU / ID).
+  - **Tipo de beneficio (`discount_type`)**:
+    - Porcentaje (`PERCENTAGE`, ej: 10%, 15%, 20%).
+    - Monto fijo en pesos (`FIXED_AMOUNT`, ej: $5.000 ARS).
+  - **Condiciones y restricciones**:
+    - Monto mínimo de pedido requerido (`min_order_amount_cents`).
+    - Límite máximo de usos totales (`max_uses`) y contador de usos actuales (`current_uses`).
+    - Período de validez temporal (`valid_from` y `valid_until`).
+    - Estado activo/inactivo conmutable desde el Backoffice.
+  - El descuento se deduce exclusivamente del subtotal de productos elegibles antes del costo de envío.
+
+- **BR-44 · Anuncios destacados y Popups promocionales.**
+  - **Banners superiores (*Announcement Bar*)**: Cintillo fijado o rotativo en la cabecera del catálogo para comunicar promociones, envíos gratis a partir de cierto monto o avisos importantes.
+  - **Popups promocionales / bienvenida**: Ventanas emergentes accesibles configurables desde el Backoffice con título, texto, botón de acción opcional y control estricto de frecuencia en cliente (`localStorage`) para evitar mostrarse repetidamente a quien ya lo desestimó.
+
 ---
 
 ## Decisiones pendientes

@@ -107,6 +107,82 @@ Nota: Prendas/indumentaria ("Garment"), calzado, accesorios, etc. son ramas/cate
 | whatsapp_clicks | integer default 0 | Clics en "Consultar / Reservar por WhatsApp" |
 | last_viewed_at | integer null | Timestamp unix de la última visita |
 
+## orders (Órdenes de Compra - Fase 5)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | Identificador interno |
+| code | integer unique | Correlativo atómico numérico (se muestra `#ORD-001`) |
+| customer_name | text not null | Nombre y apellido del comprador |
+| customer_phone | text not null | Teléfono / WhatsApp de contacto |
+| customer_email | text null | Correo electrónico opcional |
+| delivery_method | text not null | `'HOME_DELIVERY'`, `'MOTORCYCLE'`, `'PICKUP'` (BR-41) |
+| delivery_address | text null | Dirección completa (calle, altura, depto, CP, localidad) |
+| delivery_notes | text null | Indicaciones para el cadete o despacho |
+| subtotal_cents | integer not null | Suma de subtotales de productos en centavos |
+| discount_cents | integer not null default 0 | Descuento aplicado por cupón |
+| shipping_cents | integer not null default 0 | Costo de envío según logística |
+| total_cents | integer not null | Total a pagar en centavos (BR-42) |
+| currency | text not null default 'ARS' | Moneda |
+| coupon_code | text null | Código del cupón aplicado |
+| status | text not null default 'PENDING' | `'PENDING'`, `'CONFIRMED'`, `'PAID'`, `'CANCELLED'` |
+| notes | text null | Notas adicionales |
+| created_at / updated_at | integer not null | Timestamp unix |
+
+Índices: `(code)`, `(status, created_at)`.
+
+## order_items (Ítems de la Orden - Fase 5)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| order_id | integer not null FK | Referencia a `orders(id)` (cascade) |
+| product_id | integer null FK | Referencia al producto |
+| product_code | integer not null | Snapshot del código del producto (`code`) |
+| product_title | text not null | Snapshot del título al momento de comprar |
+| color_name | text not null | Color elegido |
+| size | text not null | Talle elegido |
+| quantity | integer not null | Unidades (>= 1, no supera stock BR-40) |
+| unit_price_cents | integer not null | Precio unitario congelado al comprar |
+| subtotal_cents | integer not null | `quantity * unit_price_cents` |
+| photo_url | text null | Foto de referencia para el checkout |
+
+Índices: `(order_id)`.
+
+## coupons (Cupones de Descuento - Fase 6)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| code | text not null unique | Código en mayúsculas (ej: `AURA10`) (BR-43) |
+| description | text null | Breve descripción para uso interno |
+| discount_type | text not null | `'PERCENTAGE'` (ej: 15%) o `'FIXED'` (ej: $5.000) |
+| discount_value | integer not null | % (entero 1-100) o monto en centavos |
+| scope | text not null default 'ALL_STORE' | `'ALL_STORE'`, `'CATEGORY'`, `'SELECTED_PRODUCTS'` |
+| target_ids | text null (JSON) | Array de IDs de categorías o IDs de productos permitidos |
+| min_order_amount_cents | integer null | Monto mínimo de compra requerido |
+| max_uses | integer null | Tope máximo de redenciones permitidas |
+| current_uses | integer not null default 0 | Contador de usos aplicados |
+| valid_from | integer null | Timestamp de inicio de vigencia |
+| valid_until | integer null | Timestamp de expiración |
+| is_active | integer not null default 1 | `1` activo, `0` pausado |
+| created_at | integer not null | |
+
+Índices: `(code)`.
+
+## announcements (Anuncios y Popups - Fase 6)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| type | text not null | `'BANNER'` (announcement bar) o `'POPUP'` (modal) |
+| title | text not null | Título del anuncio o mensaje |
+| text | text null | Contenido detallado |
+| link_url | text null | Enlace de redirección opcional |
+| link_text | text null | Texto del botón (ej: "Ver Colección") |
+| bg_color | text null | Color de fondo hexadecimal (ej: `#1c1917`) |
+| text_color | text null | Color del texto hexadecimal |
+| is_active | integer not null default 1 | `1` visible, `0` oculto |
+| priority | integer not null default 0 | Orden de prelación si hay múltiples |
+| start_at / end_at | integer null | Fechas programadas de visibilidad |
+| created_at | integer not null | |
+
 ## Notas
 - **Jerarquía de Stock**: Un producto tiene 1 o más colores (`product_colors`), y cada color tiene 1 o más talles con stock numérico (`product_color_sizes`).
 - Si un producto es de talle y color único, se modela con un color `"Único"` y un talle `"ÚNICO"`.
