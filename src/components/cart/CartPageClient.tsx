@@ -159,7 +159,7 @@ export function CartPageClient({
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+    <div className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-6">
       {/* Barra de progreso de compra por pasos (Stepper) */}
       <CartStepper
         currentStep={currentStep}
@@ -275,13 +275,13 @@ export function CartPageClient({
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <span className="text-[11px] font-mono font-medium text-stone-400">
-                                SKU: #{item.formattedCode}
+                                SKU: {item.formattedCode}
                               </span>
                               <Link
                                 href={`/p/${item.code.toString().padStart(3, "0")}`}
-                                className="block font-serif text-base sm:text-lg font-medium text-stone-900 hover:underline"
+                                className="block font-serif text-base sm:text-lg font-semibold text-stone-900 hover:text-stone-700 hover:underline"
                               >
-                                {item.title || `Producto #${item.formattedCode}`}
+                                {item.title || `Producto ${item.formattedCode}`}
                               </Link>
                             </div>
 
@@ -347,7 +347,7 @@ export function CartPageClient({
                             <span className="text-[11px] text-stone-500 block">
                               Unitario: {formatPrice(item.unitPriceCents, item.currency)}
                             </span>
-                            <span className="font-serif text-base sm:text-lg font-semibold text-stone-900">
+                            <span className="font-serif text-lg sm:text-xl font-bold text-stone-900">
                               {formatPrice(
                                 item.unitPriceCents ? item.unitPriceCents * item.quantity : null,
                                 item.currency
@@ -388,8 +388,8 @@ export function CartPageClient({
                   </div>
 
                   <div className="border-t border-[#e7e2da] pt-3.5 flex justify-between items-baseline">
-                    <span className="font-medium text-stone-800 text-sm">Total del pedido:</span>
-                    <span className="font-serif text-2xl font-semibold text-stone-900">
+                    <span className="font-semibold text-stone-800 text-sm">Total del pedido:</span>
+                    <span className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 tracking-tight">
                       {formatPrice(subtotalCents, "ARS")}
                     </span>
                   </div>
@@ -715,3 +715,4 @@ export function CartPageClient({
     </div>
   );
 }
+

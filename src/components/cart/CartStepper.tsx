@@ -19,14 +19,14 @@ export function CartStepper({ currentStep, onStepClick }: CartStepperProps) {
   const currentIndex = STEPS.findIndex((s) => s.id === currentStep);
 
   return (
-    <nav aria-label="Progreso del pedido" className="w-full max-w-2xl mx-auto mb-8 sm:mb-12">
+    <nav aria-label="Progreso del pedido" className="w-full max-w-md mx-auto mb-5 sm:mb-6">
       <div className="relative flex items-center justify-between">
         {/* Barra de progreso de fondo */}
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 w-full bg-[#e7e2da] z-0" />
+        <div className="absolute left-0 top-3 sm:top-3.5 h-[1.5px] w-full bg-[#e7e2da] z-0" />
 
         {/* Barra de progreso activa */}
         <div
-          className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-stone-900 transition-all duration-300 z-0"
+          className="absolute left-0 top-3 sm:top-3.5 h-[1.5px] bg-stone-900 transition-all duration-300 z-0"
           style={{
             width: `${(currentIndex / (STEPS.length - 1)) * 100}%`,
           }}
@@ -44,28 +44,28 @@ export function CartStepper({ currentStep, onStepClick }: CartStepperProps) {
                 disabled={idx > currentIndex && !isCompleted}
                 onClick={() => onStepClick && onStepClick(step.id)}
                 aria-current={isActive ? "step" : undefined}
-                className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border-2 transition-all ${
+                className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full border transition-all ${
                   isActive
-                    ? "border-stone-900 bg-stone-900 text-white shadow-md ring-4 ring-stone-900/10 scale-105"
+                    ? "border-stone-900 bg-stone-900 text-white shadow-xs scale-105"
                     : isCompleted
                     ? "border-stone-900 bg-white text-stone-900 hover:bg-stone-50 cursor-pointer"
-                    : "border-[#e7e2da] bg-white text-stone-400 cursor-not-allowed"
+                    : "border-[#e7e2da] bg-white text-stone-300 cursor-not-allowed"
                 } focus-visible:outline-2 focus-visible:outline-stone-900`}
               >
                 {isCompleted ? (
-                  <CheckCircle2 className="h-5 w-5 text-stone-900" aria-hidden="true" />
+                  <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-stone-900" aria-hidden="true" />
                 ) : (
-                  <StepIcon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+                  <StepIcon className="h-3 w-3 sm:h-3 sm:w-3" aria-hidden="true" />
                 )}
                 <span className="sr-only">Paso {step.number}: {step.label}</span>
               </button>
 
               <span
-                className={`mt-2 font-sans text-[11px] sm:text-xs font-medium tracking-wider uppercase transition-colors ${
+                className={`mt-1 font-sans text-[10px] sm:text-[11px] transition-colors ${
                   isActive
                     ? "font-bold text-stone-900"
                     : isCompleted
-                    ? "text-stone-700"
+                    ? "font-medium text-stone-700"
                     : "text-stone-400"
                 }`}
               >
@@ -78,3 +78,4 @@ export function CartStepper({ currentStep, onStepClick }: CartStepperProps) {
     </nav>
   );
 }
+

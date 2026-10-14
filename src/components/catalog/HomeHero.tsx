@@ -122,9 +122,6 @@ export function HomeHero({
               <Sparkles className="h-3 w-3 fill-amber-500 text-amber-500" aria-hidden="true" />
               <span>Pieza Destacada</span>
             </div>
-            <div className="absolute bottom-3 left-3 rounded-md bg-stone-900/80 backdrop-blur-xs px-2.5 py-0.5 text-xs font-mono font-semibold text-white">
-              {formattedCode}
-            </div>
           </div>
 
           {/* Información y Acción Editorial */}

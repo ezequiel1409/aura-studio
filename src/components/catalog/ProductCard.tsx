@@ -53,7 +53,6 @@ export function ProductCard({ product }: ProductCardProps) {
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center text-stone-400">
               <span className="font-serif text-3xl font-light text-stone-300">AURA</span>
-              <span className="mt-1 font-mono text-xs tracking-wider">{formattedCode}</span>
             </div>
           )}
 
@@ -76,11 +75,6 @@ export function ProductCard({ product }: ProductCardProps) {
               </span>
             )}
           </div>
-
-          {/* Badge de Código #001 (BR-01) */}
-          <span className="absolute bottom-2.5 right-2.5 rounded-md bg-stone-950/75 px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wide text-white backdrop-blur-xs">
-            {formattedCode}
-          </span>
         </div>
 
         {/* Ficha de Detalles con altura uniforme */}
