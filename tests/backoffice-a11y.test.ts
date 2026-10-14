@@ -170,13 +170,36 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
     });
   });
 
-  describe("AdminLoginPage (Storefront Return Link)", () => {
+  describe("AdminLoginPage (Storefront Return Link & Branding)", () => {
     it("incluye enlace accesible para volver a la tienda pública", async () => {
       const { default: AdminLoginPage } = await import("../src/app/admin/login/page");
       const html = renderToString(React.createElement(AdminLoginPage));
 
       expect(html).toContain('href="/"');
       expect(html).toContain("Volver a la tienda");
+    });
+
+    it("renderiza nombre de tienda, tipo de tienda dinámicos y único enlace sin flecha de retroceso", async () => {
+      const { default: AdminLoginPage } = await import("../src/app/admin/login/page");
+      const html = renderToString(
+        React.createElement(
+          AdminLoginPage as React.ComponentType<{
+            initialBrandName?: string;
+            initialStoreType?: string;
+          }>,
+          {
+            initialBrandName: "Boutique Elegance",
+            initialStoreType: "Boutique",
+          }
+        )
+      );
+
+      expect(html).toContain("Boutique Elegance");
+      expect(html).toContain("Boutique");
+      expect(html).toContain("Panel de Administración");
+      // Se quitó el enlace superior, debe haber solo 1 ocurrencia de "Volver a la tienda"
+      const matches = html.match(/Volver a la tienda/g);
+      expect(matches?.length).toBe(1);
     });
   });
 
