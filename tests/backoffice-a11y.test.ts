@@ -68,6 +68,21 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(html).toContain('aria-label="Cambiar a modo oscuro accesible"');
       expect(html).toContain("Oscuro");
     });
+
+    it("cuenta con menú de navegación colapsable/desplegable para móviles con aria-controls y aria-expanded", () => {
+      const html = renderToString(React.createElement(AdminHeader));
+
+      expect(html).toContain('aria-controls="admin-collapsible-nav"');
+      expect(html).toContain('aria-label="Abrir menú de navegación"');
+      expect(html).toContain('id="admin-collapsible-nav"');
+    });
+
+    it("incluye botón de cuenta de usuario estilo Google con avatar y aria-haspopup='dialog'", () => {
+      const html = renderToString(React.createElement(AdminHeader));
+
+      expect(html).toContain('id="admin-user-menu-button"');
+      expect(html).toContain('aria-haspopup="dialog"');
+    });
   });
 
   describe("UndoToast (Live Regions & Friendly Progress Bar)", () => {
