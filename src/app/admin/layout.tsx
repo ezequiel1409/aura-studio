@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AdminHeader } from "../../components/admin/AdminHeader";
+import { AdminSessionMonitor } from "../../components/admin/AdminSessionMonitor";
 
 export const metadata: Metadata = {
   title: "Aura Studio · Panel de Control",
@@ -51,6 +52,8 @@ export default function AdminLayout({
       <footer className="w-full py-4 text-center border-t border-[var(--admin-border)] text-[10px] text-[var(--admin-text-muted)]">
         <span>Creado por <strong className="font-medium text-[var(--admin-text-secondary)]">Altum</strong></span>
       </footer>
+      {/* Monitor de expiración de sesión y renovación en 1 clic (BR-10, BR-37) */}
+      <AdminSessionMonitor />
     </div>
   );
 }

@@ -102,6 +102,19 @@ export async function createSessionToken(
   return `${payloadB64}.${signatureB64}`;
 }
 
+export type SessionVerificationFailureReason =
+  | "missing_token"
+  | "invalid_format"
+  | "invalid_signature"
+  | "token_expired"
+  | "parse_error";
+
+export interface SessionVerificationResult {
+  valid: boolean;
+  payload?: SessionPayload;
+  reason?: SessionVerificationFailureReason;
+}
+
 /**
  * Verifica la firma y la fecha de expiración de un token de sesión (BR-37).
  */
@@ -109,14 +122,14 @@ export async function verifySessionToken(
   token: string,
   secret: string,
   now: number = Date.now()
-): Promise<{ valid: boolean; payload?: SessionPayload }> {
+): Promise<SessionVerificationResult> {
   if (!token || typeof token !== "string") {
-    return { valid: false };
+    return { valid: false, reason: "missing_token" };
   }
 
   const parts = token.split(".");
   if (parts.length !== 2) {
-    return { valid: false };
+    return { valid: false, reason: "invalid_format" };
   }
 
   const [payloadB64, signatureB64] = parts;
@@ -134,7 +147,7 @@ export async function verifySessionToken(
     );
 
     if (!isSignatureValid) {
-      return { valid: false };
+      return { valid: false, reason: "invalid_signature" };
     }
 
     const payloadBytes = base64UrlToBuffer(payloadB64);
@@ -143,12 +156,12 @@ export async function verifySessionToken(
     const payload: SessionPayload = JSON.parse(payloadJson);
 
     if (typeof payload.exp !== "number" || payload.exp <= now) {
-      return { valid: false }; // Expirado por inactividad
+      return { valid: false, payload, reason: "token_expired" }; // Expirado por inactividad
     }
 
     return { valid: true, payload };
   } catch {
-    return { valid: false };
+    return { valid: false, reason: "parse_error" };
   }
 }
 
