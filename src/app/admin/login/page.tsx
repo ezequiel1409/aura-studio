@@ -3,15 +3,36 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, KeyRound, Lock, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { KeyRound, Lock, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 
-export default function AdminLoginPage() {
+export default function AdminLoginPage({
+  initialBrandName = "Aura Studio",
+  initialStoreType = "Showroom",
+}: {
+  initialBrandName?: string;
+  initialStoreType?: string;
+} = {}) {
   const router = useRouter();
+  const [storeName, setStoreName] = useState(initialBrandName);
+  const [storeType, setStoreType] = useState(initialStoreType);
   const [email, setEmail] = useState("admin@aurastudio.com");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [remainingLockSeconds, setRemainingLockSeconds] = useState<number>(0);
+
+  // Obtener nombre y tipo de tienda configurados
+  useEffect(() => {
+    fetch("/api/admin/login")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok) {
+          if (data.storeName) setStoreName(data.storeName);
+          if (data.storeType) setStoreType(data.storeType);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Cuenta regresiva del bloqueo de fuerza bruta (BR-11)
   useEffect(() => {
@@ -72,29 +93,20 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-[calc(100vh-6rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
-        {/* Retorno rápido a la tienda */}
-        <div className="mb-6 flex items-center justify-between">
-          <Link
-            href="/"
-            prefetch={true}
-            aria-label="Volver a la tienda y catálogo público"
-            className="inline-flex items-center gap-1.5 text-xs text-stone-600 hover:text-stone-900 transition-colors py-1.5 px-3 rounded-lg hover:bg-stone-200/60 border border-stone-200/80 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none bg-white/70 shadow-2xs"
-          >
-            <ArrowLeft size={14} aria-hidden="true" />
-            <span>Volver a la tienda</span>
-          </Link>
-          <span className="text-[10px] uppercase font-mono tracking-widest text-stone-500">
-            Showroom
-          </span>
-        </div>
-
         {/* Cabecera / Identidad */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#f5f0e8] border border-[#e2dcd2] text-[#926a3c] mb-4 shadow-2xs">
-            <Lock size={26} strokeWidth={1.75} aria-hidden="true" />
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white/80 px-3 py-1 shadow-2xs">
+            <span className="text-[10px] uppercase font-mono tracking-widest text-stone-600 font-medium">
+              {storeType}
+            </span>
+          </div>
+          <div>
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#f5f0e8] border border-[#e2dcd2] text-[#926a3c] mb-4 shadow-2xs">
+              <Lock size={26} strokeWidth={1.75} aria-hidden="true" />
+            </div>
           </div>
           <h1 className="font-serif text-3xl font-light tracking-wide text-stone-900">
-            Aura Studio
+            {storeName}
           </h1>
           <p className="text-xs text-stone-500 mt-1 uppercase tracking-widest font-semibold">
             Panel de Administración
@@ -213,15 +225,13 @@ export default function AdminLoginPage() {
             </button>
           </form>
 
-          {/* Enlace secundario de regreso al catálogo */}
+          {/* Enlace de regreso a la tienda */}
           <div className="mt-5 pt-4 border-t border-[#f0ece1] text-center">
             <Link
               href="/"
               prefetch={true}
-              aria-label="Volver al catálogo de la tienda"
-              className="inline-flex items-center gap-2 text-xs font-medium text-stone-600 hover:text-stone-900 transition-colors py-1.5 px-3 rounded-lg hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none"
+              className="inline-flex items-center text-xs font-medium text-stone-600 hover:text-stone-900 transition-colors py-1.5 px-3 rounded-lg hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none"
             >
-              <ArrowLeft size={13} aria-hidden="true" />
               <span>Volver a la tienda</span>
             </Link>
           </div>
@@ -229,7 +239,7 @@ export default function AdminLoginPage() {
 
         {/* Pie de pantalla */}
         <p className="text-center text-xs text-stone-500 mt-6">
-          Acceso privado para el equipo de administración de showroom.
+          Acceso privado para el equipo de administración de {storeName}.
         </p>
       </div>
     </div>

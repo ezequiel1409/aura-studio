@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
 import { loginAdmin } from "../../../../services/auth.service";
+import { getShowroomSettings } from "../../../../services/settings.service";
+
+export async function GET() {
+  try {
+    const deps = getProductServiceDeps();
+    const settings = await getShowroomSettings(deps);
+    return NextResponse.json({
+      ok: true,
+      storeName: settings.showroomName,
+      storeType: settings.storeType || "Showroom",
+    });
+  } catch {
+    return NextResponse.json({
+      ok: true,
+      storeName: "Aura Studio",
+      storeType: "Showroom",
+    });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {

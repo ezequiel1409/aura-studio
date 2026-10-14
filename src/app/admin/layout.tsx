@@ -3,8 +3,8 @@ import { AdminHeader } from "../../components/admin/AdminHeader";
 import { AdminSessionMonitor } from "../../components/admin/AdminSessionMonitor";
 
 export const metadata: Metadata = {
-  title: "Aura Studio · Panel de Control",
-  description: "Panel privado de administración de Aura Studio",
+  title: "Panel de Control",
+  description: "Panel privado de administración de la tienda",
   robots: {
     index: false,
     follow: false,

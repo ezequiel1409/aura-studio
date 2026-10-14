@@ -15,11 +15,16 @@ import {
 import { connection } from "next/server";
 import { getProductServiceDeps } from "../../infra/db/connection";
 import { getBackofficeSummary } from "../../services/backoffice.service";
+import { getShowroomSettings } from "../../services/settings.service";
 
 export default async function AdminDashboardPage() {
   await connection();
   const deps = getProductServiceDeps();
-  const summary = await getBackofficeSummary(deps);
+  const [summary, settings] = await Promise.all([
+    getBackofficeSummary(deps),
+    getShowroomSettings(deps),
+  ]);
+  const storeType = settings.storeType || "Showroom";
 
   const statCards = [
     {
@@ -93,7 +98,7 @@ export default async function AdminDashboardPage() {
             Resumen General
           </span>
           <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-zinc-100 mt-1">
-            Panel de Showroom
+            Panel de {storeType}
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
             Visualizá contadores en tiempo real, alertas de stock y métricas de catálogo.

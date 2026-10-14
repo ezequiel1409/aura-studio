@@ -29,6 +29,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
   const router = useRouter();
 
   const [showroomName, setShowroomName] = useState(initialSettings.showroomName);
+  const [storeType, setStoreType] = useState(initialSettings.storeType || "Showroom");
   const [whatsappNumber, setWhatsappNumber] = useState(initialSettings.whatsappNumber);
   const [logoUrl, setLogoUrl] = useState<string>(initialSettings.logoUrl || "");
   const [instagramHandle, setInstagramHandle] = useState<string>(initialSettings.instagramHandle || "");
@@ -119,6 +120,7 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
         body: JSON.stringify({
           whatsappNumber: whatsappNumber.trim(),
           showroomName: showroomName.trim(),
+          storeType: storeType.trim(),
           logoUrl: logoUrl.trim(),
           instagramHandle: instagramHandle.trim(),
           tiktokHandle: tiktokHandle.trim(),
@@ -291,6 +293,28 @@ export function SettingsClient({ initialSettings }: SettingsClientProps) {
             />
             <p className="text-[11px] text-zinc-500">
               Nombre visible en los títulos, mensajes y pie de página de la tienda.
+            </p>
+          </div>
+
+          {/* Tipo de Tienda / Modelo */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Store size={15} className="text-amber-300" aria-hidden="true" />
+              <label htmlFor="storeTypeInput" className="text-xs font-medium text-zinc-300">
+                Tipo de Tienda / Negocio
+              </label>
+            </div>
+            <input
+              id="storeTypeInput"
+              type="text"
+              required
+              value={storeType}
+              onChange={(e) => setStoreType(e.target.value)}
+              placeholder="Showroom (o Tienda de Ropa, Boutique, etc.)"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"
+            />
+            <p className="text-[11px] text-zinc-500">
+              Tipo de tienda que se muestra en los paneles de administración y accesos.
             </p>
           </div>
 

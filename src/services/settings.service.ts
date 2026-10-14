@@ -10,6 +10,7 @@ export type HeroMode = "editorial" | "featured_carousel" | "custom_banner";
 export interface ShowroomSettings {
   whatsappNumber: string;
   showroomName: string;
+  storeType?: string;
   logoUrl?: string | null;
   instagramHandle?: string | null;
   tiktokHandle?: string | null;
@@ -27,6 +28,7 @@ export interface ShowroomSettings {
 export interface UpdateShowroomSettingsInput {
   whatsappNumber?: string;
   showroomName?: string;
+  storeType?: string;
   logoUrl?: string | null;
   instagramHandle?: string | null;
   tiktokHandle?: string | null;
@@ -43,6 +45,7 @@ export interface UpdateShowroomSettingsInput {
 
 const DEFAULT_WHATSAPP_NUMBER = "+5491100000000";
 const DEFAULT_SHOWROOM_NAME = "Aura Studio";
+const DEFAULT_STORE_TYPE = "Showroom";
 const DEFAULT_RESERVATION_HOURS = 48;
 const DEFAULT_HERO_MODE: HeroMode = "featured_carousel";
 const DEFAULT_THEME_PALETTE = "lino";
@@ -58,6 +61,7 @@ export async function getShowroomSettings(
 
   let storedWhatsapp: string | null = null;
   let storedName: string | null = null;
+  let storedStoreType: string | null = null;
   let storedHours: string | null = null;
   let storedLogo: string | null = null;
   let storedInstagram: string | null = null;
@@ -75,6 +79,7 @@ export async function getShowroomSettings(
     [
       storedWhatsapp,
       storedName,
+      storedStoreType,
       storedHours,
       storedLogo,
       storedInstagram,
@@ -90,6 +95,7 @@ export async function getShowroomSettings(
     ] = await Promise.all([
       settingsRepo.get("whatsapp_number"),
       settingsRepo.get("showroom_name"),
+      settingsRepo.get("store_type"),
       settingsRepo.get("reservation_hours"),
       settingsRepo.get("logo_url"),
       settingsRepo.get("instagram_handle"),
@@ -116,6 +122,7 @@ export async function getShowroomSettings(
   return {
     whatsappNumber: storedWhatsapp || process.env.WHATSAPP_NUMBER || DEFAULT_WHATSAPP_NUMBER,
     showroomName: storedName || DEFAULT_SHOWROOM_NAME,
+    storeType: storedStoreType && storedStoreType.trim() ? storedStoreType.trim() : DEFAULT_STORE_TYPE,
     logoUrl: storedLogo && storedLogo.trim() ? storedLogo.trim() : null,
     instagramHandle: storedInstagram && storedInstagram.trim() ? storedInstagram.trim() : null,
     tiktokHandle: storedTiktok && storedTiktok.trim() ? storedTiktok.trim() : null,
@@ -161,6 +168,10 @@ export async function updateShowroomSettings(
       throw new ValidationError("El nombre del showroom no puede estar vacío.");
     }
     await settingsRepo.set("showroom_name", trimmedName);
+  }
+
+  if (input.storeType !== undefined) {
+    await settingsRepo.set("store_type", input.storeType.trim() || DEFAULT_STORE_TYPE);
   }
 
   if (input.logoUrl !== undefined) {

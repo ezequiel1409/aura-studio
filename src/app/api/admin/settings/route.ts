@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       {
         whatsappNumber: body.whatsappNumber,
         showroomName: body.showroomName,
+        storeType: body.storeType,
         logoUrl: body.logoUrl,
         instagramHandle: body.instagramHandle,
         tiktokHandle: body.tiktokHandle,

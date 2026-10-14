@@ -28,10 +28,20 @@ interface SessionUser {
   role?: string;
 }
 
-export function AdminHeader() {
+interface AdminHeaderProps {
+  brandName?: string;
+  storeType?: string;
+}
+
+export function AdminHeader({
+  brandName: initialBrandName,
+  storeType: initialStoreType,
+}: AdminHeaderProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const [brandName, setBrandName] = useState(initialBrandName || "Aura Studio");
+  const [storeType, setStoreType] = useState(initialStoreType || "Showroom");
   const [loggingOut, setLoggingOut] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -67,6 +77,20 @@ export function AdminHeader() {
     }
     fetchSession();
   }, [pathname, fetchSession]);
+
+  useEffect(() => {
+    if (!initialBrandName || !initialStoreType) {
+      fetch("/api/admin/login")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok) {
+            if (data.storeName && !initialBrandName) setBrandName(data.storeName);
+            if (data.storeType && !initialStoreType) setStoreType(data.storeType);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialBrandName, initialStoreType]);
 
   // Cerrar menú al cambiar de ruta
   useEffect(() => {
@@ -155,10 +179,10 @@ export function AdminHeader() {
 
           <Link
             href="/admin"
-            aria-label="Aura Studio, ir al panel de administración"
+            aria-label={`${brandName}, ir al panel de administración`}
             className="font-serif text-xl tracking-wider text-amber-100 font-semibold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg admin-logo"
           >
-            Aura Studio
+            {brandName}
           </Link>
           <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 admin-badge hidden xs:inline-block">
             Admin
@@ -233,7 +257,7 @@ export function AdminHeader() {
               aria-label={
                 user?.email
                   ? `Cuenta de ${user.email} (${userRoleDisplay}). Administrar cuenta y sesión.`
-                  : "Cuenta de administración de Aura Studio"
+                  : `Cuenta de administración de ${brandName}`
               }
               title={user?.email ? `${user.email} (${userRoleDisplay})` : "Cuenta de Administradora"}
               className="flex items-center gap-1.5 p-1 rounded-full hover:ring-2 hover:ring-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-all group"
