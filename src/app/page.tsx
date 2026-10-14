@@ -7,6 +7,8 @@ import { Footer } from "../components/layout/Footer";
 import { CategoryNav } from "../components/catalog/CategoryNav";
 import { SortFilterBar } from "../components/catalog/SortFilterBar";
 import { ProductGrid } from "../components/catalog/ProductGrid";
+import { HomeHero } from "../components/catalog/HomeHero";
+import { StoreThemeStyles } from "../components/theme/StoreThemeStyles";
 import { AnalyticsTracker } from "../components/analytics/AnalyticsTracker";
 import { ProductSortOption } from "../domain/product/types";
 import { Category } from "../domain/category/types";
@@ -109,41 +111,37 @@ function CatalogSkeleton() {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const deps = getProductServiceDeps();
-  const [settings, allCategories] = await Promise.all([
+  const [settings, allCategories, featuredResult] = await Promise.all([
     getShowroomSettings(deps),
     deps.categoryRepo.listAll(),
+    listProducts({ isFeatured: true, pageSize: 6 }, deps),
   ]);
   const brandName = settings.showroomName || "Aura Studio";
 
   return (
     <div className="min-h-screen bg-[#faf8f5] text-[#1c1917]">
+      {/* Inyección de paleta de colores configurada en Backoffice */}
+      <StoreThemeStyles
+        paletteId={settings.themePalette}
+        primaryColor={settings.themePrimaryColor}
+      />
+
       {/* Header fijo con buscador por código (BR-24) */}
       <Header brandName={brandName} logoUrl={settings.logoUrl} />
 
       {/* Contenido principal del catálogo */}
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        {/* Banner editorial de bienvenida */}
-        <section
-          aria-labelledby="hero-title"
-          className="relative mb-8 overflow-hidden rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-10 shadow-xs"
-        >
-          <div className="max-w-2xl">
-            <span className="font-mono text-[10px] font-semibold tracking-[0.25em] text-[#926a3c] uppercase">
-              Colección Seleccionada
-            </span>
-            <h1
-              id="hero-title"
-              className="mt-2 font-serif text-3xl font-light tracking-wide text-stone-900 sm:text-4xl"
-            >
-              Piezas únicas con carácter propio
-            </h1>
-            <p className="mt-3 text-xs leading-relaxed text-stone-600 sm:text-sm">
-              Cada pieza de nuestro showroom es única e irrepetible. Explorá el catálogo de productos y consultá o reservá tu pieza al instante vía WhatsApp.
-            </p>
-          </div>
-        </section>
+        {/* Portada / Hero configurable desde el Backoffice (Carrusel, Banner o Editorial) */}
+        <HomeHero
+          heroMode={settings.heroMode}
+          heroTitle={settings.heroTitle}
+          heroSubtitle={settings.heroSubtitle}
+          heroBannerUrl={settings.heroBannerUrl}
+          featuredProducts={featuredResult.items}
+          brandName={brandName}
+        />
 
-        {/* Navegación por categorías con scroll horizontal fija y persistente (BR-16, BR-22, BR-38) */}
+        {/* Navegación por categorías desplegable y jerárquica (BR-16, BR-22, BR-38) */}
         <section aria-label="Categorías" className="mb-4">
           <CategoryNav categories={allCategories} />
         </section>
