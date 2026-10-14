@@ -6,3 +6,4 @@ export * from "./admin-users.service";
 export * from "./password-reset.service";
 export * from "./category.service";
 export * from "./settings.service";
+export * from "./order.service";

@@ -11,6 +11,7 @@ import {
   DrizzleProductRepository,
   DrizzleSettingsRepository,
   DrizzleStatusHistoryRepository,
+  DrizzleOrderRepository,
 } from "./index";
 import { ProductServiceDeps } from "../../services/product.service";
 
@@ -18,6 +19,7 @@ export interface GlobalAppDeps extends ProductServiceDeps {
   loginAttemptRepo: DrizzleLoginAttemptRepository;
   adminUserRepo: DrizzleAdminUserRepository;
   passwordResetTokenRepo: DrizzlePasswordResetTokenRepository;
+  orderRepo: DrizzleOrderRepository;
 }
 
 let globalDb: DbClient | null = null;
@@ -99,6 +101,7 @@ export function getProductServiceDeps(): GlobalAppDeps {
     loginAttemptRepo: new DrizzleLoginAttemptRepository(db),
     adminUserRepo: new DrizzleAdminUserRepository(db),
     passwordResetTokenRepo: new DrizzlePasswordResetTokenRepository(db),
+    orderRepo: new DrizzleOrderRepository(db),
   };
 
   if (!isCloudflare) {
