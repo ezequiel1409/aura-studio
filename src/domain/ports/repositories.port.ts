@@ -147,5 +147,19 @@ export interface IPasswordResetTokenRepository {
   markAsUsed(id: number, usedAt: number): Promise<void>;
 }
 
+import { Order, OrderItem, OrderStatus } from "../order/types";
+
+export interface CreateOrderRepoData extends Omit<Order, "id" | "items"> {
+  items: Array<Omit<OrderItem, "id" | "orderId" | "subtotalCents">>;
+}
+
+export interface IOrderRepository {
+  create(data: CreateOrderRepoData): Promise<Order>;
+  findById(id: number): Promise<Order | null>;
+  findByCode(code: number): Promise<Order | null>;
+  list(options?: { status?: OrderStatus; limit?: number; offset?: number }): Promise<Order[]>;
+  updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order>;
+}
+
 export * from "./email.port";
 

@@ -41,3 +41,9 @@ export class ValidationError extends DomainError {
   }
 }
 
+export class OrderNotFoundError extends DomainError {
+  constructor(identifier: string | number) {
+    super(`Orden no encontrada: ${identifier}`);
+  }
+}
+
