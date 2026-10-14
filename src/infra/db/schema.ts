@@ -234,3 +234,65 @@ export const passwordResetTokens = sqliteTable(
   ]
 );
 
+/**
+ * Órdenes de Compra (Fase 5 - BR-41, BR-42)
+ */
+export const orders = sqliteTable(
+  "orders",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    code: integer("code").notNull().unique(),
+    customerName: text("customer_name").notNull(),
+    customerPhone: text("customer_phone").notNull(),
+    customerEmail: text("customer_email"),
+    deliveryMethod: text("delivery_method", {
+      enum: ["HOME_DELIVERY", "MOTORCYCLE", "PICKUP"],
+    }).notNull(),
+    deliveryAddress: text("delivery_address"),
+    deliveryNotes: text("delivery_notes"),
+    subtotalCents: integer("subtotal_cents").notNull(),
+    discountCents: integer("discount_cents").notNull().default(0),
+    shippingCents: integer("shipping_cents").notNull().default(0),
+    totalCents: integer("total_cents").notNull(),
+    currency: text("currency").notNull().default("ARS"),
+    couponCode: text("coupon_code"),
+    status: text("status", {
+      enum: ["PENDING", "CONFIRMED", "PAID", "CANCELLED"],
+    })
+      .notNull()
+      .default("PENDING"),
+    notes: text("notes"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("orders_code_idx").on(table.code),
+    index("orders_status_created_at_idx").on(table.status, table.createdAt),
+  ]
+);
+
+/**
+ * Ítems asociados a una orden de compra (BR-40, BR-42)
+ */
+export const orderItems = sqliteTable(
+  "order_items",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    productId: integer("product_id").references(() => products.id, {
+      onDelete: "set null",
+    }),
+    productCode: integer("product_code").notNull(),
+    productTitle: text("product_title").notNull(),
+    colorName: text("color_name").notNull(),
+    size: text("size").notNull(),
+    quantity: integer("quantity").notNull(),
+    unitPriceCents: integer("unit_price_cents").notNull(),
+    subtotalCents: integer("subtotal_cents").notNull(),
+    photoUrl: text("photo_url"),
+  },
+  (table) => [index("order_items_order_id_idx").on(table.orderId)]
+);
+
