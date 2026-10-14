@@ -87,6 +87,10 @@ Los IDs **no se renumeran**: si una regla deja de aplicar se marca como *derogad
   - La cantidad seleccionable tiene como tope superior estricto el stock físico disponible de la combinación de color y talle (`product_color_sizes.stock`). En ningún caso el cliente puede agregar o incrementar cantidades que superen el inventario cargado.
   - Si un producto o talle se encuentra agotado (stock = 0), el botón se deshabilita con la indicación "Agotado" o "Talle sin stock".
   - El carrito multi-producto permite al comprador ver sus artículos con foto, título, color, talle, cantidad y subtotal; ajustar cantidades (respetando stock máximo); eliminar artículos individuales o vaciar la bolsa por completo.
+  - **Página aislada `/carrito` y Checkout por Pasos (*Stepper*)**: El carrito cuenta con su propia ruta web dedicada (`/carrito`) accesible desde el catálogo y la ficha mediante el botón de la cabecera con contador dinámico. La experiencia se guía mediante una barra de progreso en 3 pasos:
+    1. *Paso 1 · Artículos y Resumen*: Lista de prendas seleccionadas, cantidades ajustables, subtotales, total cargado y botón destacado de *"Continuar al proceso de pago"*.
+    2. *Paso 2 · Logística y Datos*: Selección de método de entrega (Domicilio, Moto, Showroom) y datos de contacto/envío del cliente.
+    3. *Paso 3 · Confirmación y Pago*: Revisión final y confirmación que genera la orden (`#ORD-xxx`) y dispara el mensaje estructurado de WhatsApp.
 
 - **BR-41 · Métodos de entrega y logística.**
   - El proceso de checkout ofrece 3 modalidades de entrega con requerimientos específicos:

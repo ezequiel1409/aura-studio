@@ -37,6 +37,7 @@ src/
   - Se debe garantizar accesibilidad WCAG mediante regiones vivas `aria-live="polite"` y `aria-busy="true"`, informando el estado de carga a tecnologías de asistencia y respetando `prefers-reduced-motion`.
 - **AR-12**: Carrito Desacoplado y Control de Stock en Cliente:
   - El carrito multi-producto reside en el cliente mediante **Zustand** (`src/stores/cart.store.ts`) con sincronización persistente en `localStorage`.
+  - Dispone de su propia página aislada dedicada (`/carrito`) estructurada en un flujo de pasos (*stepper*) desacoplado: Paso 1 (Revisión de artículos, cantidades y total cargado), Paso 2 (Logística) y Paso 3 (Confirmación y pago).
   - La cantidad por variante está limitada estrictamente por el stock físico disponible en el servidor (`product_color_sizes.stock`). No se permite agregar ni incrementar unidades por encima del inventario existente.
   - Antes de confirmar el checkout, el estado del carrito se valida para prevenir ventas sobre stock desfasado.
 - **AR-13**: Jerarquía y Motor de Promociones (Cupones Desacoplados):
