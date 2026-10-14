@@ -13,6 +13,7 @@ import {
   DrizzleProductRepository,
   DrizzleSettingsRepository,
   DrizzleStatusHistoryRepository,
+  DrizzleOrderRepository,
 } from "../src/infra/db";
 import { GlobalAppDeps } from "../src/infra/db/connection";
 
@@ -43,6 +44,7 @@ export function createTestEnvironment() {
   const loginAttemptRepo = new DrizzleLoginAttemptRepository(db);
   const adminUserRepo = new DrizzleAdminUserRepository(db);
   const passwordResetTokenRepo = new DrizzlePasswordResetTokenRepository(db);
+  const orderRepo = new DrizzleOrderRepository(db);
 
   const deps: GlobalAppDeps = {
     productRepo,
@@ -53,6 +55,7 @@ export function createTestEnvironment() {
     loginAttemptRepo,
     adminUserRepo,
     passwordResetTokenRepo,
+    orderRepo,
   };
 
   return {
