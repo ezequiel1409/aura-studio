@@ -9,6 +9,8 @@ import { ProductGallery } from "../../../components/catalog/ProductGallery";
 import { ProductOrderSection } from "../../../components/catalog/ProductOrderSection";
 import { ProductGrid } from "../../../components/catalog/ProductGrid";
 import { AnalyticsTracker } from "../../../components/analytics/AnalyticsTracker";
+import { CartHeaderButton } from "../../../components/cart/CartHeaderButton";
+import { CartDrawer } from "../../../components/cart/CartDrawer";
 import { listProducts } from "../../../services/product.service";
 import { getShowroomSettings } from "../../../services/settings.service";
 import { Footer } from "../../../components/layout/Footer";
@@ -164,16 +166,19 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
             )}
           </Link>
 
-          {/* A la derecha: Botón Volver al catálogo */}
-          <Link
-            href="/"
-            prefetch={true}
-            aria-label="Volver al catálogo principal"
-            className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-[#e7e2da] bg-white px-4 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Volver al catálogo</span>
-          </Link>
+          {/* A la derecha: Bolsa de compras y Botón Volver al catálogo */}
+          <div className="flex items-center gap-2.5">
+            <CartHeaderButton />
+            <Link
+              href="/"
+              prefetch={true}
+              aria-label="Volver al catálogo principal"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-[#e7e2da] bg-white px-4 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Volver al catálogo</span>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -243,7 +248,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Selector interactivo de colores, talles y conversión directa a WhatsApp (BR-13, BR-14, BR-20) */}
+            {/* Selector interactivo de colores, talles, cantidad y adicion a la bolsa (BR-40) */}
             <ProductOrderSection
               productId={product.id}
               code={product.code}
@@ -253,10 +258,9 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               currency={product.currency}
               colors={product.colors}
               sizes={sizes}
-              whatsappNumber={whatsappNumber}
-              brandName={brandName}
               isSoldOut={isSoldOut}
               isReserved={isReserved}
+              photoUrl={product.photos?.[0]?.keyThumb || product.photos?.[0]?.keyFull || null}
             />
 
             {/* Descripción y Texto Original (BR-05, BR-06) */}
@@ -281,6 +285,13 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         tiktokHandle={settings.tiktokHandle}
         address={settings.address}
         dataFiscalUrl={settings.dataFiscalUrl}
+      />
+
+      {/* Drawer accesible de bolsa de compras / carrito (BR-40, BR-41) */}
+      <CartDrawer
+        showroomAddress={settings.address}
+        brandName={brandName}
+        whatsappNumber={settings.whatsappNumber}
       />
     </div>
   );

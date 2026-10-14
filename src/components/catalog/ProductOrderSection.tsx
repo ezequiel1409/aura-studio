@@ -1,10 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ShieldCheck } from "lucide-react";
-import { WhatsAppPaymentAdapter } from "../../infra/payments/whatsapp.adapter";
-import { WhatsAppButton } from "./WhatsAppButton";
-
+import { ShieldCheck, ShoppingBag, Plus, Minus } from "lucide-react";
+import { useCartStore } from "../../stores/cart.store";
 import { ProductColor } from "../../domain/product/types";
 
 interface ProductOrderSectionProps {
@@ -16,10 +14,11 @@ interface ProductOrderSectionProps {
   currency: string;
   sizes?: string[];
   colors?: ProductColor[];
-  whatsappNumber: string;
-  brandName: string;
+  whatsappNumber?: string;
+  brandName?: string;
   isSoldOut: boolean;
   isReserved: boolean;
+  photoUrl?: string | null;
 }
 
 export function ProductOrderSection({
@@ -31,10 +30,11 @@ export function ProductOrderSection({
   currency,
   sizes = [],
   colors = [],
-  whatsappNumber,
-  brandName,
   isSoldOut,
+  photoUrl,
 }: ProductOrderSectionProps) {
+  const { addItem } = useCartStore();
+
   // Inicialización de color: primer color disponible o el primero
   const [selectedColorId, setSelectedColorId] = useState<number | null>(() => {
     if (colors.length > 0) {
@@ -69,37 +69,69 @@ export function ProductOrderSection({
     return firstInStock ? firstInStock.size : currentSizes[0]?.size || null;
   });
 
-  // Al cambiar de color, ajustar el talle seleccionado si ya no es válido o está sin stock
+  const selectedSizeItem = currentSizes.find((s) => s.size === selectedSize);
+  const maxStock = selectedSizeItem ? selectedSizeItem.stock : 0;
+  const isSelectedOutOfStock = maxStock <= 0;
+
+  // Selector de cantidad (no pudiendo superar el stock disponible, BR-40)
+  const [quantity, setQuantity] = useState<number>(1);
+
+  // Al cambiar de color, ajustar el talle seleccionado y reiniciar cantidad
   const handleColorChange = (colorId: number) => {
     setSelectedColorId(colorId);
     const newColor = colors.find((c) => c.id === colorId);
     if (newColor && newColor.sizes.length > 0) {
       const inStock = newColor.sizes.find((s) => s.stock > 0);
-      setSelectedSize(inStock ? inStock.size : newColor.sizes[0].size);
+      const chosenSize = inStock ? inStock.size : newColor.sizes[0].size;
+      setSelectedSize(chosenSize);
+      const chosenStock = inStock ? inStock.stock : newColor.sizes[0].stock;
+      setQuantity(chosenStock > 0 ? 1 : 0);
     }
   };
 
-  const paymentAdapter = useMemo(
-    () => new WhatsAppPaymentAdapter({ whatsappNumber, brandName }),
-    [whatsappNumber, brandName]
-  );
+  const handleSizeSelect = (newSize: string, sizeStock: number) => {
+    setSelectedSize(newSize);
+    if (sizeStock <= 0) {
+      setQuantity(0);
+    } else {
+      setQuantity((prev) => Math.max(1, Math.min(prev, sizeStock)));
+    }
+  };
 
-  const selectedSizeItem = currentSizes.find((s) => s.size === selectedSize);
-  const isSelectedOutOfStock = selectedSizeItem ? selectedSizeItem.stock <= 0 : false;
+  const handleDecreaseQuantity = () => {
+    setQuantity((prev) => Math.max(1, prev - 1));
+  };
 
-  const paymentAction = paymentAdapter.createPaymentAction({
-    code,
-    formattedCode,
-    title,
-    priceCents,
-    currency,
-    selectedColor: activeColor ? activeColor.name : null,
-    selectedSize,
-  });
+  const handleIncreaseQuantity = () => {
+    setQuantity((prev) => Math.min(maxStock, prev + 1));
+  };
+
+  const handleAddToCart = () => {
+    if (isSoldOut || isSelectedOutOfStock || quantity <= 0) return;
+
+    addItem(
+      {
+        productId,
+        code,
+        formattedCode,
+        title,
+        colorName: activeColor?.name || "Único",
+        hexCode: activeColor?.hexCode,
+        size: selectedSize || "ÚNICO",
+        maxStock,
+        unitPriceCents: priceCents,
+        currency,
+        photoUrl: photoUrl || null,
+      },
+      quantity
+    );
+  };
 
   const hasMultipleColors = colors.length > 1;
   const hasMultipleSizes = currentSizes.length > 1;
   const hasSingleSize = currentSizes.length === 1;
+
+  const isActionDisabled = isSoldOut || isSelectedOutOfStock || maxStock <= 0;
 
   return (
     <div className="mt-6 rounded-2xl border border-[#e7e2da] bg-white p-5 sm:p-6 shadow-2xs">
@@ -177,7 +209,7 @@ export function ProductOrderSection({
                   role="radio"
                   aria-checked={isChosen}
                   disabled={isOutOfStock}
-                  onClick={() => setSelectedSize(s.size)}
+                  onClick={() => handleSizeSelect(s.size, s.stock)}
                   className={`flex min-h-[44px] min-w-[50px] items-center justify-center rounded-xl px-4 py-2 text-xs font-bold transition-all ${
                     isOutOfStock
                       ? "border border-stone-200 bg-stone-100 text-stone-400 line-through cursor-not-allowed"
@@ -191,9 +223,6 @@ export function ProductOrderSection({
               );
             })}
           </div>
-          <p className="mt-2 text-[11px] text-stone-500">
-            Al tocar el talle se incluirá automáticamente en tu mensaje de WhatsApp.
-          </p>
         </div>
       )}
 
@@ -216,25 +245,70 @@ export function ProductOrderSection({
         </div>
       )}
 
-      {/* Botón de WhatsApp con el logo oficial y mensaje enriquecido */}
-      <WhatsAppButton
-        productId={productId}
-        url={paymentAction.url}
-        label={
-          isSoldOut
+      {/* Selector de Cantidad con tope de inventario (BR-40) */}
+      {!isActionDisabled && (
+        <div className="mb-6 flex items-center justify-between border-t border-[#e7e2da] pt-4">
+          <div>
+            <span className="block font-sans text-xs font-semibold tracking-wider text-stone-800 uppercase">
+              Cantidad:
+            </span>
+            <span className="text-[11px] text-stone-500">
+              {maxStock > 1 ? `${maxStock} unidades disponibles` : "Última unidad disponible"}
+            </span>
+          </div>
+
+          <div className="flex items-center rounded-xl border border-[#d8d2c7] bg-[#faf8f5]">
+            <button
+              type="button"
+              disabled={quantity <= 1}
+              onClick={handleDecreaseQuantity}
+              aria-label="Disminuir cantidad"
+              className="p-2 text-stone-600 hover:text-stone-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+            <span className="w-10 text-center font-mono text-sm font-bold text-stone-900">
+              {quantity}
+            </span>
+            <button
+              type="button"
+              disabled={quantity >= maxStock}
+              onClick={handleIncreaseQuantity}
+              aria-label="Aumentar cantidad"
+              className="p-2 text-stone-600 hover:text-stone-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Botón principal: Agregar al Carrito / Bolsa (BR-40) */}
+      <button
+        type="button"
+        disabled={isActionDisabled}
+        onClick={handleAddToCart}
+        aria-label="Agregar a la bolsa de compras"
+        className={`w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl px-6 py-3 text-xs font-bold tracking-wider uppercase transition-all shadow-sm focus-visible:outline-2 focus-visible:outline-stone-900 ${
+          isActionDisabled
+            ? "border border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed"
+            : "bg-stone-900 text-white hover:bg-stone-800 cursor-pointer scale-100 active:scale-98"
+        }`}
+      >
+        <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+        <span>
+          {isSoldOut
             ? "Pieza Agotada"
             : isSelectedOutOfStock
             ? "Talle sin stock"
-            : paymentAction.label
-        }
-        disabled={isSoldOut || isSelectedOutOfStock}
-      />
+            : "Agregar a la bolsa"}
+        </span>
+      </button>
 
       <div className="mt-3.5 flex items-center justify-center gap-1.5 text-center text-xs text-stone-500">
         <ShieldCheck className="h-4 w-4 text-[#926a3c]" />
-        <span>Atención personalizada · Reserva directa desde el showroom</span>
+        <span>Atención personalizada · Reserva y coordinación de envío directa</span>
       </div>
     </div>
   );
 }
-

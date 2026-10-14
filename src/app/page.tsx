@@ -10,6 +10,7 @@ import { ProductGrid } from "../components/catalog/ProductGrid";
 import { HomeHero } from "../components/catalog/HomeHero";
 import { StoreThemeStyles } from "../components/theme/StoreThemeStyles";
 import { AnalyticsTracker } from "../components/analytics/AnalyticsTracker";
+import { CartDrawer } from "../components/cart/CartDrawer";
 import { ProductSortOption } from "../domain/product/types";
 import { Category } from "../domain/category/types";
 
@@ -161,6 +162,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         tiktokHandle={settings.tiktokHandle}
         address={settings.address}
         dataFiscalUrl={settings.dataFiscalUrl}
+      />
+
+      {/* Drawer accesible de bolsa de compras / carrito (BR-40, BR-41) */}
+      <CartDrawer
+        showroomAddress={settings.address}
+        brandName={brandName}
+        whatsappNumber={settings.whatsappNumber}
       />
     </div>
   );

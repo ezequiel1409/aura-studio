@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { parseProductCode } from "../../domain/product/rules";
+import { CartHeaderButton } from "../cart/CartHeaderButton";
 
 interface HeaderProps {
   brandName?: string;
@@ -83,40 +84,45 @@ export function Header({
           )}
         </Link>
 
-        {/* Buscador por código o texto (BR-24) accesible */}
-        <form
-          role="search"
-          onSubmit={handleSearch}
-          className="relative w-48 sm:w-80"
-        >
-          <label htmlFor="catalog-search" className="sr-only">
-            Buscar productos por nombre o código numérico
-          </label>
-          <input
-            id="catalog-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar o #código..."
-            autoComplete="off"
-            aria-label="Buscar en el catálogo"
-            className="w-full rounded-full border border-[#d8d2c7] bg-white/80 py-2 pl-9 pr-8 text-xs text-stone-900 placeholder:text-stone-400 shadow-xs transition-all focus:border-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-900 sm:text-sm"
-          />
-          <Search
-            aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={clearSearch}
-              aria-label="Borrar búsqueda"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-stone-400 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-stone-900"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </form>
+        {/* Acciones de cabecera: Buscador (BR-24) y Carrito (BR-40) */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <form
+            role="search"
+            onSubmit={handleSearch}
+            className="relative w-40 sm:w-72"
+          >
+            <label htmlFor="catalog-search" className="sr-only">
+              Buscar productos por nombre o código numérico
+            </label>
+            <input
+              id="catalog-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar o #código..."
+              autoComplete="off"
+              aria-label="Buscar en el catálogo"
+              className="w-full rounded-full border border-[#d8d2c7] bg-white/80 py-2 pl-9 pr-8 text-xs text-stone-900 placeholder:text-stone-400 shadow-xs transition-all focus:border-stone-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-stone-900 sm:text-sm"
+            />
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-500"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                aria-label="Borrar búsqueda"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-stone-400 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-stone-900"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </form>
+
+          {/* Botón flotante accesible de bolsa de compras con badge */}
+          <CartHeaderButton />
+        </div>
       </div>
     </header>
   );
