@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ShieldCheck, ShoppingBag, Plus, Minus, CheckCircle2, ArrowRight } from "lucide-react";
+import { ShieldCheck, ShoppingBag, Plus, Minus, CheckCircle2, ArrowRight, MessageCircle } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { ProductColor } from "../../domain/product/types";
 
@@ -31,6 +31,8 @@ export function ProductOrderSection({
   currency,
   sizes = [],
   colors = [],
+  whatsappNumber,
+  brandName,
   isSoldOut,
   photoUrl,
 }: ProductOrderSectionProps) {
@@ -113,7 +115,7 @@ export function ProductOrderSection({
   };
 
   const handleAddToCart = () => {
-    if (isSoldOut || isSelectedOutOfStock || quantity <= 0) return;
+    if (isSoldOut || isSelectedOutOfStock || isNoPrice || quantity <= 0) return;
 
     addItem(
       {
@@ -138,7 +140,8 @@ export function ProductOrderSection({
   const hasMultipleSizes = currentSizes.length > 1;
   const hasSingleSize = currentSizes.length === 1;
 
-  const isActionDisabled = isSoldOut || isSelectedOutOfStock || maxStock <= 0;
+  const isNoPrice = priceCents === null;
+  const isActionDisabled = isSoldOut || isSelectedOutOfStock || maxStock <= 0 || isNoPrice;
 
   return (
     <div className="mt-6 rounded-2xl border border-[#e7e2da] bg-white p-5 sm:p-6 shadow-2xs">
@@ -306,11 +309,28 @@ export function ProductOrderSection({
         <span>
           {isSoldOut
             ? "Pieza Agotada"
+            : isNoPrice
+            ? "Precio a consultar"
             : isSelectedOutOfStock
             ? "Talle sin stock"
             : "Agregar a la bolsa"}
         </span>
       </button>
+
+      {/* Botón de consulta directa por WhatsApp si no tiene precio cargado (BR-23) */}
+      {isNoPrice && (
+        <a
+          href={`https://wa.me/${(whatsappNumber || "").replace(/\D/g, "")}?text=${encodeURIComponent(
+            `¡Hola! Me gustaría consultar el precio del producto #${formattedCode} (${title || "Prenda"}) de ${brandName || "Aura Studio"}. ¿Cuál es su valor?`
+          )}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2.5 w-full flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-stone-800 bg-white px-4 py-2.5 text-xs font-semibold text-stone-900 hover:bg-stone-50 transition-colors shadow-2xs"
+        >
+          <MessageCircle className="h-4 w-4 text-[#25D366]" aria-hidden="true" />
+          <span>Consultar precio por WhatsApp</span>
+        </a>
+      )}
 
       {/* Mensaje de confirmación interactivo al agregar a la bolsa */}
       {justAdded && (

@@ -10,7 +10,7 @@ import { ProductOrderSection } from "../../../components/catalog/ProductOrderSec
 import { ProductGrid } from "../../../components/catalog/ProductGrid";
 import { AnalyticsTracker } from "../../../components/analytics/AnalyticsTracker";
 import { CartHeaderButton } from "../../../components/cart/CartHeaderButton";
-import { CartDrawer } from "../../../components/cart/CartDrawer";
+import { CartToast } from "../../../components/cart/CartToast";
 import { listProducts } from "../../../services/product.service";
 import { getShowroomSettings } from "../../../services/settings.service";
 import { Footer } from "../../../components/layout/Footer";
@@ -33,14 +33,19 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   }
 
   const deps = getProductServiceDeps();
-  const product = await deps.productRepo.findByCode(codeNum);
+  const [product, settings] = await Promise.all([
+    deps.productRepo.findByCode(codeNum),
+    getShowroomSettings(deps),
+  ]);
+
+  const brandName = settings.showroomName || "Aura Studio";
 
   if (!product) {
-    return { title: "Pieza ya no disponible | Aura Studio" };
+    return { title: `Pieza ya no disponible | ${brandName}` };
   }
 
   const formattedCode = formatProductCode(product.code);
-  const title = `${formattedCode} · ${product.title || "Producto Exclusivo"} | Aura Studio`;
+  const title = `${formattedCode} · ${product.title || "Producto Exclusivo"} | ${brandName}`;
   const description = product.rawText.slice(0, 140);
   const photoUrl = product.photos?.[0]?.keyFull || product.photos?.[0]?.keyThumb;
 
@@ -258,6 +263,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               currency={product.currency}
               colors={product.colors}
               sizes={sizes}
+              whatsappNumber={settings.whatsappNumber}
+              brandName={brandName}
               isSoldOut={isSoldOut}
               isReserved={isReserved}
               photoUrl={product.photos?.[0]?.keyThumb || product.photos?.[0]?.keyFull || null}
@@ -287,12 +294,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         dataFiscalUrl={settings.dataFiscalUrl}
       />
 
-      {/* Drawer accesible de bolsa de compras / carrito (BR-40, BR-41) */}
-      <CartDrawer
-        showroomAddress={settings.address}
-        brandName={brandName}
-        whatsappNumber={settings.whatsappNumber}
-      />
+      {/* Toast accesible de confirmación de bolsa de compras (BR-40) */}
+      <CartToast />
     </div>
   );
 }

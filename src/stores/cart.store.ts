@@ -18,16 +18,28 @@ export interface AddItemInput {
   photoUrl?: string | null;
 }
 
+export interface CartToastState {
+  id: number;
+  title: string | null;
+  formattedCode: string;
+  colorName: string;
+  size: string;
+  quantity: number;
+  photoUrl?: string | null;
+}
+
 export interface CartStoreState {
   items: CartItem[];
   isOpen: boolean;
   deliveryMethod: DeliveryMethod;
+  toast: CartToastState | null;
 
   // Acciones de UI
   openCart: () => void;
   closeCart: () => void;
   toggleCart: () => void;
   setDeliveryMethod: (method: DeliveryMethod) => void;
+  dismissToast: () => void;
 
   // Acciones de Carrito (BR-40)
   addItem: (item: AddItemInput, quantity?: number) => void;
@@ -46,23 +58,35 @@ export const useCartStore = create<CartStoreState>()(
       items: [],
       isOpen: false,
       deliveryMethod: "PICKUP",
+      toast: null,
 
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       setDeliveryMethod: (deliveryMethod: DeliveryMethod) => set({ deliveryMethod }),
+      dismissToast: () => set({ toast: null }),
 
       addItem: (itemInput: AddItemInput, quantity = 1) => {
         set((state) => {
           const key = buildCartItemKey(itemInput.code, itemInput.colorName, itemInput.size);
           const existingIndex = state.items.findIndex((i) => i.key === key);
 
+          const toastData: CartToastState = {
+            id: Date.now(),
+            title: itemInput.title,
+            formattedCode: itemInput.formattedCode,
+            colorName: itemInput.colorName,
+            size: itemInput.size,
+            quantity,
+            photoUrl: itemInput.photoUrl,
+          };
+
           if (existingIndex >= 0) {
             const existing = state.items[existingIndex];
             const newQty = clampCartQuantity(existing.quantity + quantity, existing.maxStock);
             const updated = [...state.items];
             updated[existingIndex] = { ...existing, quantity: newQty };
-            return { items: updated, isOpen: true };
+            return { items: updated, toast: toastData };
           }
 
           const clampedQty = clampCartQuantity(quantity, itemInput.maxStock);
@@ -86,7 +110,7 @@ export const useCartStore = create<CartStoreState>()(
             photoUrl: itemInput.photoUrl,
           };
 
-          return { items: [...state.items, newItem], isOpen: true };
+          return { items: [...state.items, newItem], toast: toastData };
         });
       },
 

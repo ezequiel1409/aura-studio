@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { Product } from "../../domain/product/types";
-import { formatProductCode } from "../../domain/product/rules";
+import { formatProductCode, getAvailableSizesWithStock } from "../../domain/product/rules";
 import { formatPrice } from "../../lib/format/currency";
 import { parseSizesList, formatSizesForBadge } from "../../lib/parser/product-parser";
 
@@ -113,9 +113,12 @@ export function ProductCard({ product }: ProductCardProps) {
               {priceDisplay}
             </span>
 
-            {/* Talles disponibles si aplica */}
+            {/* Talles disponibles si aplica (BR-02, BR-20) */}
             {(() => {
-              const sizes = parseSizesList(product.size);
+              const sizes =
+                product.colors && product.colors.length > 0
+                  ? getAvailableSizesWithStock(product.colors)
+                  : parseSizesList(product.size);
               if (sizes.length === 0) return null;
               const badgeText = formatSizesForBadge(sizes);
               return (

@@ -10,7 +10,7 @@ import { ProductGrid } from "../components/catalog/ProductGrid";
 import { HomeHero } from "../components/catalog/HomeHero";
 import { StoreThemeStyles } from "../components/theme/StoreThemeStyles";
 import { AnalyticsTracker } from "../components/analytics/AnalyticsTracker";
-import { CartDrawer } from "../components/cart/CartDrawer";
+import { CartToast } from "../components/cart/CartToast";
 import { ProductSortOption } from "../domain/product/types";
 import { Category } from "../domain/category/types";
 
@@ -164,12 +164,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         dataFiscalUrl={settings.dataFiscalUrl}
       />
 
-      {/* Drawer accesible de bolsa de compras / carrito (BR-40, BR-41) */}
-      <CartDrawer
-        showroomAddress={settings.address}
-        brandName={brandName}
-        whatsappNumber={settings.whatsappNumber}
-      />
+      {/* Toast accesible de confirmación de bolsa de compras (BR-40) */}
+      <CartToast />
     </div>
   );
 }
