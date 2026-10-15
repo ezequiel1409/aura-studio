@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, KeyRound, Loader2, Lock, ShieldAlert, Sparkles } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Loader2, Lock, ShieldAlert, Sparkles } from "lucide-react";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -12,6 +12,8 @@ function ResetPasswordForm() {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -116,23 +118,32 @@ function ResetPasswordForm() {
           >
             Nueva contraseña
           </label>
-          <div className="relative">
+          <div className="relative flex items-center">
             <input
               id="newPassword"
-              type="password"
+              type={showNewPassword ? "text" : "password"}
               disabled={loading}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Al menos 8 caracteres"
-              className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
+              className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl pl-4 pr-11 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
               autoFocus
               required
             />
-            <Lock
-              size={16}
-              className="absolute right-3.5 top-3.5 text-stone-400 pointer-events-none"
-              aria-hidden="true"
-            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              disabled={loading}
+              aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Ver nueva contraseña"}
+              title={showNewPassword ? "Ocultar nueva contraseña" : "Ver nueva contraseña"}
+              className="absolute right-2.5 p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {showNewPassword ? (
+                <EyeOff size={18} aria-hidden="true" />
+              ) : (
+                <Eye size={18} aria-hidden="true" />
+              )}
+            </button>
           </div>
         </div>
 
@@ -143,22 +154,31 @@ function ResetPasswordForm() {
           >
             Confirmar contraseña
           </label>
-          <div className="relative">
+          <div className="relative flex items-center">
             <input
               id="confirmPassword"
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               disabled={loading}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Repetí la nueva contraseña"
-              className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
+              className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl pl-4 pr-11 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
               required
             />
-            <KeyRound
-              size={16}
-              className="absolute right-3.5 top-3.5 text-stone-400 pointer-events-none"
-              aria-hidden="true"
-            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              disabled={loading}
+              aria-label={showConfirmPassword ? "Ocultar confirmación de contraseña" : "Ver confirmación de contraseña"}
+              title={showConfirmPassword ? "Ocultar confirmación de contraseña" : "Ver confirmación de contraseña"}
+              className="absolute right-2.5 p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {showConfirmPassword ? (
+                <EyeOff size={18} aria-hidden="true" />
+              ) : (
+                <Eye size={18} aria-hidden="true" />
+              )}
+            </button>
           </div>
         </div>
 

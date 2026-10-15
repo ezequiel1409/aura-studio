@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Settings,
   Shield,
+  ShoppingBag,
   User,
   Users,
   X,
@@ -148,7 +149,8 @@ export function AdminHeader({
 
   const navItems = [
     { href: "/admin", label: "Resumen", mobileLabel: "Resumen", icon: LayoutDashboard },
-    { href: "/admin/productos", label: "Catálogo de productos", mobileLabel: "Catálogo", icon: Package },
+    { href: "/admin/ordenes", label: "Pedidos", mobileLabel: "Pedidos", icon: ShoppingBag },
+    { href: "/admin/productos", label: "Catálogo", mobileLabel: "Catálogo", icon: Package },
     { href: "/admin/productos/nuevo", label: "Cargar", mobileLabel: "Cargar", icon: PlusCircle },
     { href: "/admin/categorias", label: "Categorías", mobileLabel: "Categorías", icon: FolderTree },
     { href: "/admin/configuracion", label: "Ajustes", mobileLabel: "Ajustes", icon: Settings },

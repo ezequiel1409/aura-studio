@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { KeyRound, Lock, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 
 export default function AdminLoginPage({
   initialBrandName = "Aura Studio",
@@ -17,6 +17,7 @@ export default function AdminLoginPage({
   const [storeType, setStoreType] = useState(initialStoreType);
   const [email, setEmail] = useState("admin@aurastudio.com");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [remainingLockSeconds, setRemainingLockSeconds] = useState<number>(0);
@@ -157,23 +158,32 @@ export default function AdminLoginPage({
                   ¿Olvidaste tu contraseña?
                 </Link>
               </div>
-              <div className="relative">
+              <div className="relative flex items-center">
                 <input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   disabled={loading || isLocked}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Ingresá tu contraseña"
-                  className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
+                  className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl pl-4 pr-11 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
                   autoFocus
                   required
                 />
-                <KeyRound
-                  size={16}
-                  className="absolute right-3.5 top-3.5 text-stone-400 pointer-events-none"
-                  aria-hidden="true"
-                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading || isLocked}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                  title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                  className="absolute right-2.5 p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} aria-hidden="true" />
+                  ) : (
+                    <Eye size={18} aria-hidden="true" />
+                  )}
+                </button>
               </div>
             </div>
 

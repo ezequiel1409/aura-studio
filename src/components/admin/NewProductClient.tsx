@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
+  AlertTriangle,
   ArrowLeft,
   Camera,
   Check,
@@ -45,6 +47,14 @@ interface PhotoPreview {
   keyFull: string;
 }
 
+export interface FormErrorState {
+  type: "BUSINESS" | "TECHNICAL";
+  code: string;
+  message: string;
+  missingFields?: string[];
+  details?: string;
+}
+
 export function NewProductClient({ categories }: NewProductClientProps) {
   // Estado del texto crudo (BR-05)
   const [rawText, setRawText] = useState("");
@@ -76,14 +86,20 @@ export function NewProductClient({ categories }: NewProductClientProps) {
   const [categoryManuallyEdited, setCategoryManuallyEdited] = useState(false);
   const [variantsManuallyEdited, setVariantsManuallyEdited] = useState(false);
 
-  // Estado de publicación
+  // Estado de publicación y doble-submit lock
   const [isFeatured, setIsFeatured] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const submittingRef = useRef(false);
+  const [formError, setFormError] = useState<FormErrorState | null>(null);
+  const [clientSubmissionId, setClientSubmissionId] = useState<string>(
+    () => `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  );
   const [publishedProduct, setPublishedProduct] = useState<{
     id: number;
     code: number;
     title: string | null;
+    duplicatePrevented?: boolean;
+    notice?: string;
   } | null>(null);
 
   // Al escribir en el texto libre, correr parser en vivo (BR-05, BR-26)
@@ -136,7 +152,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
     if (!files || files.length === 0) return;
 
     setCompressing(true);
-    setErrorMessage(null);
+    setFormError(null);
 
     try {
       const newPhotos: PhotoPreview[] = [];
@@ -152,8 +168,13 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         });
       }
       setPhotos((prev) => [...prev, ...newPhotos]);
-    } catch {
-      setErrorMessage("Hubo un error al optimizar una o más fotos.");
+    } catch (err: unknown) {
+      setFormError({
+        type: "TECHNICAL",
+        code: "ERR_TECH_IMAGE_COMPRESSION",
+        message: "Hubo un error al optimizar una o más fotos en el navegador.",
+        details: err instanceof Error ? err.message : "Comprueba que los archivos sean imágenes válidas JPG, PNG o WebP.",
+      });
     } finally {
       setCompressing(false);
       e.target.value = "";
@@ -273,13 +294,26 @@ export function NewProductClient({ categories }: NewProductClientProps) {
     );
   };
 
-  // Envío de publicación (BR-05, BR-26)
+  // Envío de publicación con protección anti-doble clic e idempotencia (BR-05, BR-26)
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rawText.trim() || submitting) return;
+    if (submitting || submittingRef.current) return;
 
+    if (!rawText.trim()) {
+      setFormError({
+        type: "BUSINESS",
+        code: "ERR_BUSINESS_MISSING_RAW_TEXT",
+        message: "El texto descriptivo de la prenda es obligatorio.",
+        missingFields: ["Texto o descripción de la prenda"],
+        details:
+          "Escribe al menos una descripción con los datos de la prenda (ej: 'Vestido lino $45.000 talles S M').",
+      });
+      return;
+    }
+
+    submittingRef.current = true;
     setSubmitting(true);
-    setErrorMessage(null);
+    setFormError(null);
 
     try {
       const priceCents = pricePesos.trim()
@@ -287,6 +321,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         : null;
 
       const payload = {
+        clientSubmissionId,
         rawText,
         title: title.trim() || null,
         priceCents,
@@ -298,7 +333,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
           position: cIdx,
           sizes: c.sizes.map((s) => ({
             size: s.size.trim() || "ÚNICO",
-            stock: s.stock,
+            stock: Number.isNaN(Number(s.stock)) ? 0 : Math.max(0, Number(s.stock)),
           })),
         })),
         photos: photos.map((p, idx) => ({
@@ -314,20 +349,48 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "Error al publicar el producto");
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        if (data?.errorType) {
+          setFormError({
+            type: data.errorType,
+            code:
+              data.errorCode ||
+              (data.errorType === "BUSINESS" ? "ERR_BUSINESS_UNKNOWN" : "ERR_TECH_SERVER_500"),
+            message: data.error || "Ocurrió un error al procesar el producto.",
+            missingFields: data.missingFields || [],
+            details: data.details,
+          });
+        } else {
+          setFormError({
+            type: res.status >= 500 ? "TECHNICAL" : "BUSINESS",
+            code: res.status >= 500 ? `ERR_TECH_${res.status}` : `ERR_BUSINESS_${res.status}`,
+            message: data?.error || `Error del servidor (${res.status})`,
+            missingFields: [],
+            details: "No se pudo completar la creación del producto en el servidor.",
+          });
+        }
+        return;
       }
 
       setPublishedProduct({
         id: data.product.id,
         code: data.product.code,
         title: data.product.title || "Producto sin título",
+        duplicatePrevented: Boolean(data.duplicatePrevented),
+        notice: data.notice,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error desconocido al publicar";
-      setErrorMessage(msg);
+      setFormError({
+        type: "TECHNICAL",
+        code: "ERR_TECH_NETWORK",
+        message: "Falla de red o conexión interrumpida.",
+        details:
+          err instanceof Error ? err.message : "No se pudo establecer comunicación con el servidor.",
+      });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -352,7 +415,9 @@ export function NewProductClient({ categories }: NewProductClientProps) {
     setVariantsManuallyEdited(false);
     setIsFeatured(false);
     setPublishedProduct(null);
-    setErrorMessage(null);
+    setFormError(null);
+    setClientSubmissionId(`sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+    submittingRef.current = false;
   };
 
   // Pantalla de confirmación de publicación (BR-26, backoffice.md)
@@ -366,14 +431,23 @@ export function NewProductClient({ categories }: NewProductClientProps) {
 
         <div>
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">
-            Publicación Exitosa
+            {publishedProduct.duplicatePrevented ? "Prenda Ya Registrada" : "Publicación Exitosa"}
           </span>
           <h2 className="font-serif text-3xl font-bold text-zinc-100 mt-1">
-            Producto {codeFormatted} publicado
+            Producto {codeFormatted} {publishedProduct.duplicatePrevented ? "Confirmado" : "Publicado"}
           </h2>
           <p className="text-zinc-400 text-sm mt-2">
             &ldquo;{publishedProduct.title}&rdquo; ya está disponible y visible en el showroom.
           </p>
+          {publishedProduct.duplicatePrevented && (
+            <div className="mt-3 p-3 rounded-xl bg-amber-950/50 border border-amber-800/80 text-amber-200 text-xs text-left space-y-1">
+              <p className="font-bold">Aviso anti-duplicados:</p>
+              <p className="text-zinc-300 leading-relaxed">
+                {publishedProduct.notice ||
+                  "Se evitó crear un producto duplicado. Este artículo ya había sido guardado con este código."}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-4">
@@ -388,17 +462,25 @@ export function NewProductClient({ categories }: NewProductClientProps) {
           </a>
 
           <Link
+            href={`/admin/productos/${String(publishedProduct.code).padStart(3, "0")}/editar`}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 font-semibold text-sm hover:bg-zinc-800 transition-all"
+          >
+            <span>Editar prenda</span>
+          </Link>
+
+          <Link
             href="/admin/productos"
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 font-semibold text-sm hover:bg-zinc-800 transition-all"
           >
-            <span>Ver en catálogo de productos</span>
+            <span>Ver catálogo</span>
           </Link>
         </div>
 
         <div className="pt-6 border-t border-zinc-800">
           <button
+            type="button"
             onClick={handleResetForm}
-            className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-amber-200 transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200 font-semibold transition-colors cursor-pointer"
           >
             <RotateCcw size={16} />
             <span>Cargar otro producto</span>
@@ -428,6 +510,28 @@ export function NewProductClient({ categories }: NewProductClientProps) {
           </p>
         </div>
       </div>
+
+      {/* Aviso destacado de isLoading (BR-26) */}
+      {submitting && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="sticky top-20 z-30 flex items-center justify-between gap-3 rounded-2xl border border-amber-500/50 bg-zinc-900/98 p-4 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2"
+        >
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-amber-400 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-zinc-100">Guardando y publicando producto...</p>
+              <p className="text-[11px] text-zinc-400">
+                Procesando variantes, fotos y asignando código correlativo único. Por favor no cierres la página.
+              </p>
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full bg-amber-400/20 border border-amber-400/40 px-2.5 py-1 font-mono text-[10px] font-bold text-amber-300 uppercase tracking-wider animate-pulse">
+            Guardando...
+          </span>
+        </div>
+      )}
 
       <form onSubmit={handlePublish} className="space-y-6">
         {/* Paso 1: Subir Fotos en el Navegador (BR-07) */}
@@ -794,10 +898,95 @@ export function NewProductClient({ categories }: NewProductClientProps) {
           </div>
         </div>
 
-        {/* Mensaje de Error */}
-        {errorMessage && (
-          <div role="alert" className="p-3.5 rounded-xl bg-red-950/40 border border-red-800 text-red-200 text-xs">
-            {errorMessage}
+        {/* Panel de Error Estructurado (Negocio vs Técnico) */}
+        {formError && (
+          <div
+            role="alert"
+            aria-live="assertive"
+            className={`p-4 sm:p-5 rounded-2xl border text-xs space-y-3 transition-all ${
+              formError.type === "BUSINESS"
+                ? "bg-amber-950/40 border-amber-800/80 text-amber-200"
+                : "bg-red-950/50 border-red-800 text-red-200"
+            }`}
+          >
+            {/* Header con Badge de Tipo y Código de Respuesta */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                {formError.type === "BUSINESS" ? (
+                  <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+                )}
+                <span
+                  className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+                    formError.type === "BUSINESS"
+                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                      : "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                  }`}
+                >
+                  {formError.type === "BUSINESS"
+                    ? "Regla de Negocio / Validación"
+                    : "Falla Técnica del Servidor"}
+                </span>
+              </div>
+              <span className="font-mono text-[11px] font-bold text-zinc-300 bg-zinc-900/80 px-2 py-0.5 rounded-md border border-zinc-700/60">
+                Código: {formError.code}
+              </span>
+            </div>
+
+            {/* Mensaje principal */}
+            <div>
+              <h4 className="font-bold text-sm text-zinc-100">
+                {formError.type === "BUSINESS"
+                  ? "No se pudo crear el producto: Datos requeridos faltantes"
+                  : "Ocurrió un error técnico al procesar la solicitud"}
+              </h4>
+              <p className="mt-1 text-zinc-300 leading-relaxed">{formError.message}</p>
+            </div>
+
+            {/* Si es de negocio: Lista detallada de qué está faltando */}
+            {formError.type === "BUSINESS" &&
+              formError.missingFields &&
+              formError.missingFields.length > 0 && (
+                <div className="p-3 rounded-xl bg-zinc-950/60 border border-amber-500/20 space-y-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                    ¿Qué está faltando completar o corregir?
+                  </p>
+                  <ul className="space-y-1 text-zinc-200">
+                    {formError.missingFields.map((field, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <span className="text-amber-400 font-bold">•</span>
+                        <span>{field}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+            {/* Detalle o recomendación */}
+            {formError.details && (
+              <p className="text-[11px] text-zinc-400 italic leading-relaxed">
+                {formError.details}
+              </p>
+            )}
+
+            {/* Si es técnico: advertencia anti-duplicados y botón de verificación en catálogo */}
+            {formError.type === "TECHNICAL" && (
+              <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-2">
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  <strong>Recomendación anti-duplicados:</strong> Si el servidor tardó en responder, es posible que la prenda se haya guardado. Te sugerimos revisar el catálogo en otra pestaña antes de volver a presionar Publicar.
+                </p>
+                <a
+                  href="/admin/productos"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>Verificar en Catálogo de Productos</span>
+                </a>
+              </div>
+            )}
           </div>
         )}
 
@@ -805,13 +994,13 @@ export function NewProductClient({ categories }: NewProductClientProps) {
         <div className="sticky bottom-4 z-20 pt-2">
           <button
             type="submit"
-            disabled={submitting || !rawText.trim()}
-            className="w-full py-3.5 px-6 rounded-2xl bg-amber-200 hover:bg-amber-100 active:scale-[0.98] text-zinc-950 font-bold text-base transition-all shadow-xl shadow-amber-950/40 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+            disabled={submitting || compressing || !rawText.trim()}
+            className="w-full py-3.5 px-6 rounded-2xl bg-amber-200 hover:bg-amber-100 active:scale-[0.98] text-zinc-950 font-bold text-base transition-all shadow-xl shadow-amber-950/40 flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
           >
             {submitting ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
-                <span>Publicando producto...</span>
+                <span>Guardando y publicando producto...</span>
               </>
             ) : (
               <>

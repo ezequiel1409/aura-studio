@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   Crown,
+  Eye,
+  EyeOff,
   KeyRound,
   Loader2,
   Mail,
@@ -29,6 +31,7 @@ export function AdminUsersClient() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [creating, setCreating] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -428,18 +431,27 @@ export function AdminUsersClient() {
                 <label htmlFor="adminPasswordInput" className="block text-xs font-medium text-zinc-300 uppercase tracking-wider mb-1.5">
                   Contraseña Inicial (mínimo 8 caracteres)
                 </label>
-                <div className="relative">
+                <div className="relative flex items-center">
                   <input
                     id="adminPasswordInput"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Mínimo 8 caracteres"
                     disabled={creating}
-                    className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400"
+                    className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400"
                     required
                   />
-                  <KeyRound size={14} className="absolute right-3.5 top-3 text-zinc-500 pointer-events-none" aria-hidden="true" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={creating}
+                    aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                    title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                    className="absolute right-2.5 p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+                  </button>
                 </div>
                 <p className="text-[10px] text-zinc-500 mt-1">
                   Se almacenará hasheada con PBKDF2-HMAC-SHA512 (100.000 iteraciones y salt único).
