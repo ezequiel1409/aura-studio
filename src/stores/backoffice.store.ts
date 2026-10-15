@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 
 export type BulkActionType = "status" | "category" | "delete" | null;
 export type BackofficeModalType =
@@ -66,7 +67,9 @@ function applyThemeToDOM(theme: AdminTheme) {
   }
 }
 
-export const useBackofficeStore = create<BackofficeStoreState>((set, get) => ({
+export const useBackofficeStore = create<BackofficeStoreState>()(
+  devtools(
+    (set, get) => ({
   theme: "light",
   setTheme: (theme: AdminTheme) => {
     applyThemeToDOM(theme);
@@ -177,4 +180,11 @@ export const useBackofficeStore = create<BackofficeStoreState>((set, get) => ({
       modalPayload: null,
     });
   },
-}));
+}),
+    { name: "AuraBackofficeStore", enabled: true }
+  )
+);
+
+if (typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).useBackofficeStore = useBackofficeStore;
+}

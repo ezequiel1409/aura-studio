@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
 import { CartItem } from "../domain/cart/types";
 import { buildCartItemKey, clampCartQuantity, countCartItems, calculateCartSubtotalCents } from "../domain/cart/rules";
 import { DeliveryMethod } from "../domain/order/types";
@@ -53,8 +53,9 @@ export interface CartStoreState {
 }
 
 export const useCartStore = create<CartStoreState>()(
-  persist(
-    (set, get) => ({
+  devtools(
+    persist(
+      (set, get) => ({
       items: [],
       isOpen: false,
       deliveryMethod: "PICKUP",
@@ -163,6 +164,11 @@ export const useCartStore = create<CartStoreState>()(
         items: state.items,
         deliveryMethod: state.deliveryMethod,
       }),
-    }
+    }),
+    { name: "AuraCartStore", enabled: true }
   )
 );
+
+if (typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).useCartStore = useCartStore;
+}
