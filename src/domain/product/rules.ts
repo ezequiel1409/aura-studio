@@ -117,4 +117,23 @@ export function getDistinctSizes(colors?: Array<{ sizes?: Array<{ size: string }
   return Array.from(set);
 }
 
+/**
+ * BR-02, BR-20: Obtiene la lista de talles únicos que disponen de stock físico real (> 0).
+ */
+export function getAvailableSizesWithStock(
+  colors?: Array<{ sizes?: Array<{ size: string; stock: number }> }>
+): string[] {
+  if (!colors || colors.length === 0) return [];
+  const set = new Set<string>();
+  for (const color of colors) {
+    for (const size of color.sizes || []) {
+      if (size.size && size.stock > 0) {
+        set.add(size.size.trim().toUpperCase());
+      }
+    }
+  }
+  return Array.from(set);
+}
+
+
 

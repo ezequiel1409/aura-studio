@@ -72,6 +72,20 @@ export interface IProductRepository {
   bulkUpdateStatus(ids: number[], newStatus: ProductStatus, soldOutAt: number | null, reservedUntil: number | null, now: number): Promise<void>;
   bulkUpdateCategory(ids: number[], categoryId: number, now: number): Promise<void>;
   bulkDelete(ids: number[]): Promise<void>;
+  decrementStock(
+    productId: number,
+    colorName: string,
+    size: string,
+    quantity: number,
+    now?: number
+  ): Promise<{ remainingStock: number; totalProductStock: number; newProductStatus: ProductStatus }>;
+  restoreStock(
+    productId: number,
+    colorName: string,
+    size: string,
+    quantity: number,
+    now?: number
+  ): Promise<{ newStock: number; totalProductStock: number; newProductStatus: ProductStatus }>;
 }
 
 export interface ICategoryRepository {
