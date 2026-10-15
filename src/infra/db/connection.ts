@@ -20,6 +20,7 @@ export interface GlobalAppDeps extends ProductServiceDeps {
   adminUserRepo: DrizzleAdminUserRepository;
   passwordResetTokenRepo: DrizzlePasswordResetTokenRepository;
   orderRepo: DrizzleOrderRepository;
+  db?: DbClient;
 }
 
 let globalDb: DbClient | null = null;
@@ -102,6 +103,7 @@ export function getProductServiceDeps(): GlobalAppDeps {
     adminUserRepo: new DrizzleAdminUserRepository(db),
     passwordResetTokenRepo: new DrizzlePasswordResetTokenRepository(db),
     orderRepo: new DrizzleOrderRepository(db),
+    db,
   };
 
   if (!isCloudflare) {

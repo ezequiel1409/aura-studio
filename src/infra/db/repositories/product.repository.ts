@@ -9,7 +9,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { parseProductCode } from "../../../domain/product/rules";
+import { calculateTotalStock, parseProductCode } from "../../../domain/product/rules";
 import {
   ListProductsFilter,
   PaginatedResult,
@@ -33,6 +33,7 @@ import {
   productPhotos,
   productStats,
   products,
+  statusHistory,
 } from "../schema";
 
 export class DrizzleProductRepository implements IProductRepository {
@@ -577,6 +578,132 @@ export class DrizzleProductRepository implements IProductRepository {
       uncategorized: Number(row?.uncategorized ?? 0),
       noPrice: Number(row?.noPrice ?? 0),
     };
+  }
+
+  /**
+   * BR-02, BR-40: Descuenta el stock físico de una variante de color y talle al confirmarse una orden.
+   * Si el stock total de la prenda llega a 0, transiciona automáticamente a SOLD_OUT.
+   */
+  async decrementStock(
+    productId: number,
+    colorName: string,
+    size: string,
+    quantity: number,
+    now: number = Date.now()
+  ): Promise<{ remainingStock: number; totalProductStock: number; newProductStatus: ProductStatus }> {
+    const colors = await this.getColorsForProduct(productId);
+    const matchingColor = colors.find(
+      (c) => c.name.trim().toLowerCase() === colorName.trim().toLowerCase()
+    );
+
+    let remainingStock = 0;
+    if (matchingColor) {
+      const matchingSize = matchingColor.sizes.find(
+        (s) => s.size.trim().toUpperCase() === size.trim().toUpperCase()
+      );
+      if (matchingSize) {
+        remainingStock = Math.max(0, matchingSize.stock - quantity);
+        await this.db
+          .update(productColorSizes)
+          .set({ stock: remainingStock })
+          .where(eq(productColorSizes.id, matchingSize.id));
+      }
+    }
+
+    const updatedColors = await this.getColorsForProduct(productId);
+    const totalProductStock = calculateTotalStock(updatedColors);
+
+    const [prodRow] = await this.db.select().from(products).where(eq(products.id, productId));
+    const currentStatus = (prodRow?.status || "AVAILABLE") as ProductStatus;
+    let newProductStatus = currentStatus;
+
+    if (totalProductStock <= 0 && currentStatus !== "SOLD_OUT") {
+      newProductStatus = "SOLD_OUT";
+      await this.db
+        .update(products)
+        .set({
+          status: "SOLD_OUT",
+          soldOutAt: now,
+          updatedAt: now,
+        })
+        .where(eq(products.id, productId));
+
+      if (prodRow) {
+        await this.db.insert(statusHistory).values({
+          productId: prodRow.id,
+          productCode: prodRow.code,
+          fromStatus: currentStatus,
+          toStatus: "SOLD_OUT",
+          at: now,
+          source: "system",
+        });
+      }
+    }
+
+    return { remainingStock, totalProductStock, newProductStatus };
+  }
+
+  /**
+   * BR-02: Restaura el stock físico de una variante de color y talle (ej. por cancelación de orden).
+   * Si la prenda estaba en SOLD_OUT y ahora tiene stock > 0, se reactiva a AVAILABLE.
+   */
+  async restoreStock(
+    productId: number,
+    colorName: string,
+    size: string,
+    quantity: number,
+    now: number = Date.now()
+  ): Promise<{ newStock: number; totalProductStock: number; newProductStatus: ProductStatus }> {
+    const colors = await this.getColorsForProduct(productId);
+    const matchingColor = colors.find(
+      (c) => c.name.trim().toLowerCase() === colorName.trim().toLowerCase()
+    );
+
+    let newStock = 0;
+    if (matchingColor) {
+      const matchingSize = matchingColor.sizes.find(
+        (s) => s.size.trim().toUpperCase() === size.trim().toUpperCase()
+      );
+      if (matchingSize) {
+        newStock = matchingSize.stock + quantity;
+        await this.db
+          .update(productColorSizes)
+          .set({ stock: newStock })
+          .where(eq(productColorSizes.id, matchingSize.id));
+      }
+    }
+
+    const updatedColors = await this.getColorsForProduct(productId);
+    const totalProductStock = calculateTotalStock(updatedColors);
+
+    const [prodRow] = await this.db.select().from(products).where(eq(products.id, productId));
+    const currentStatus = (prodRow?.status || "AVAILABLE") as ProductStatus;
+    let newProductStatus = currentStatus;
+
+    if (currentStatus === "SOLD_OUT" && totalProductStock > 0) {
+      newProductStatus = "AVAILABLE";
+      await this.db
+        .update(products)
+        .set({
+          status: "AVAILABLE",
+          soldOutAt: null,
+          updatedAt: now,
+        })
+        .where(eq(products.id, productId));
+
+      if (prodRow) {
+        await this.db.insert(statusHistory).values({
+          productId: prodRow.id,
+          productCode: prodRow.code,
+          fromStatus: "SOLD_OUT",
+          toStatus: "AVAILABLE",
+          at: now,
+          source: "system",
+        });
+      }
+    }
+
+    return { newStock, totalProductStock, newProductStatus };
   }
 
   private async getColorsForProduct(productId: number): Promise<ProductColor[]> {
