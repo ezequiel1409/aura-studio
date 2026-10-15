@@ -56,6 +56,7 @@ export function createTestEnvironment() {
     adminUserRepo,
     passwordResetTokenRepo,
     orderRepo,
+    db,
   };
 
   return {

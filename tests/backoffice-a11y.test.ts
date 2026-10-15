@@ -5,6 +5,7 @@ import AdminLayout from "../src/app/admin/layout";
 import { AdminHeader } from "../src/components/admin/AdminHeader";
 import { UndoToast } from "../src/components/admin/UndoToast";
 import { StatusHistoryModal } from "../src/components/admin/StatusHistoryModal";
+import AdminLoginPage from "../src/app/admin/login/page";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/admin",
@@ -312,6 +313,20 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       // Título completo visible sin ahogarse
       expect(html).toContain("Vestido Lino Siena");
       expect(html).toContain("Remera Algodón Pima");
+    });
+  });
+
+  describe("AdminLoginPage (Password Visibility Toggle & Accessibility)", () => {
+    it("provee botón accesible para ver/ocultar la contraseña con aria-label", () => {
+      const html = renderToString(React.createElement(AdminLoginPage));
+
+      // El campo de contraseña existe
+      expect(html).toContain('id="password"');
+      expect(html).toContain('type="password"');
+
+      // Botón accesible de visibilidad presente
+      expect(html).toContain('aria-label="Ver contraseña"');
+      expect(html).toContain('title="Ver contraseña"');
     });
   });
 });

@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { NextRequest } from "next/server";
 import {
   getBackofficeSummary,
   getProductStatusHistory,
   undoProductStatusChange,
 } from "../src/services/backoffice.service";
 import { changeProductStatus, createProduct } from "../src/services/product.service";
+import { POST as createProductHandler } from "../src/app/api/admin/products/create/route";
+import { createSessionToken } from "../src/infra/auth/session";
+import { getEnv } from "../src/lib/env";
 import { createTestEnvironment } from "./setup-db";
 
 describe("Servicios de Backoffice: Resumen y Contadores (BR-36, BR-31)", () => {
@@ -169,3 +173,126 @@ describe("Servicios de Backoffice: Cambio de Estado con Deshacer e Historial (BR
     expect(reverted.soldOutAt).toBeNull();
   });
 });
+
+describe("Creación de Productos en Backoffice: API, Validación de Negocio y Anti-duplicados (BR-01, BR-26)", () => {
+  let env: ReturnType<typeof createTestEnvironment>;
+  let validToken: string;
+
+  beforeEach(async () => {
+    env = createTestEnvironment();
+    await env.seed();
+    validToken = await createSessionToken(
+      getEnv().SESSION_SECRET,
+      { email: "admin@aurastudio.com", role: "SUPER_ADMIN" },
+      7200 * 1000
+    );
+  });
+
+  it("rechaza si el texto crudo está vacío con código de negocio y detalle de campos faltantes", async () => {
+    const req = new NextRequest("http://localhost:3000/api/admin/products/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rawText: "   " }),
+    });
+    req.cookies.set("aura_admin_token", validToken);
+
+    const res = await createProductHandler(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.ok).toBe(false);
+    expect(data.errorType).toBe("BUSINESS");
+    expect(data.errorCode).toBe("ERR_BUSINESS_MISSING_RAW_TEXT");
+    expect(data.missingFields).toContain("Texto o descripción de la prenda");
+    expect(data.details).toBeDefined();
+  });
+
+  it("rechaza si el precio numérico no es válido con código de negocio", async () => {
+    const req = new NextRequest("http://localhost:3000/api/admin/products/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rawText: "Top Seda",
+        priceCents: -5000,
+      }),
+    });
+    req.cookies.set("aura_admin_token", validToken);
+
+    const res = await createProductHandler(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.ok).toBe(false);
+    expect(data.errorType).toBe("BUSINESS");
+    expect(data.errorCode).toBe("ERR_BUSINESS_INVALID_PRICE");
+    expect(data.missingFields).toContain("Precio numérico en pesos");
+  });
+
+  it("rechaza si un talle tiene stock negativo con código de negocio", async () => {
+    const req = new NextRequest("http://localhost:3000/api/admin/products/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rawText: "Camisa Lino",
+        colors: [
+          {
+            name: "Blanco",
+            sizes: [{ size: "M", stock: -2 }],
+          },
+        ],
+      }),
+    });
+    req.cookies.set("aura_admin_token", validToken);
+
+    const res = await createProductHandler(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(data.ok).toBe(false);
+    expect(data.errorType).toBe("BUSINESS");
+    expect(data.errorCode).toBe("ERR_BUSINESS_INVALID_STOCK");
+    expect(data.missingFields.length).toBeGreaterThan(0);
+  });
+
+  it("previene crear un producto duplicado si se reenvía el mismo clientSubmissionId", async () => {
+    const submissionId = "sub_test_idempotency_123";
+    const payload = {
+      clientSubmissionId: submissionId,
+      rawText: "Vestido Sirena $50.000 talle M",
+      title: "Vestido Sirena",
+      priceCents: 5000000,
+    };
+
+    // Primer intento: crea el producto
+    const req1 = new NextRequest("http://localhost:3000/api/admin/products/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    req1.cookies.set("aura_admin_token", validToken);
+
+    const res1 = await createProductHandler(req1);
+    const data1 = await res1.json();
+
+    expect(res1.status).toBe(200);
+    expect(data1.ok).toBe(true);
+    const initialCode = data1.product.code;
+
+    // Segundo intento con el MISMO clientSubmissionId (simulando doble clic o reintento)
+    const req2 = new NextRequest("http://localhost:3000/api/admin/products/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    req2.cookies.set("aura_admin_token", validToken);
+
+    const res2 = await createProductHandler(req2);
+    const data2 = await res2.json();
+
+    expect(res2.status).toBe(200);
+    expect(data2.ok).toBe(true);
+    expect(data2.duplicatePrevented).toBe(true);
+    expect(data2.product.code).toBe(initialCode); // Mismo producto, no se duplicó
+  });
+});
+

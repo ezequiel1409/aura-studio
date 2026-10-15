@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createTestEnvironment } from "./setup-db";
 import { createProduct } from "../src/services/product.service";
-import { createOrder, getOrderByCode } from "../src/services/order.service";
+import { createOrder, getOrderByCode, updateOrderStatus, listOrders } from "../src/services/order.service";
 import { WhatsAppPaymentAdapter } from "../src/infra/payments/whatsapp.adapter";
 import { validateCreateOrderInput, formatOrderCode } from "../src/domain/order/rules";
 import { ValidationError } from "../src/domain/errors";
@@ -194,6 +194,150 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
           env.deps
         )
       ).rejects.toThrow(/solo dispone de 2 unidad/);
+    });
+
+    it("descuenta el stock físico de la prenda al crear la orden y pasa a SOLD_OUT si se agota", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Vestido Lino $45.000",
+          colors: [
+            {
+              name: "Natural",
+              position: 0,
+              sizes: [{ size: "M", stock: 3 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Crear orden comprando 2 unidades
+      await createOrder(
+        {
+          customerName: "Valeria Gómez",
+          customerPhone: "11 5555-8888",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title || "Vestido Lino",
+              colorName: "Natural",
+              size: "M",
+              quantity: 2,
+              unitPriceCents: 4500000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Verificar que el stock remanente sea 1
+      const updatedProduct = await env.deps.productRepo.findById(product.id);
+      const remainingStock = updatedProduct?.colors?.reduce(
+        (sum, c) => sum + c.sizes.reduce((sSum, s) => sSum + s.stock, 0),
+        0
+      );
+      expect(remainingStock).toBe(1);
+      const colorSize = updatedProduct?.colors?.find((c) => c.name === "Natural")?.sizes?.find((s) => s.size === "M");
+      expect(colorSize?.stock).toBe(1);
+      expect(updatedProduct?.status).toBe("AVAILABLE");
+
+      // Comprar la última unidad restante
+      const secondOrder = await createOrder(
+        {
+          customerName: "Camila Díaz",
+          customerPhone: "11 4444-1111",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title || "Vestido Lino",
+              colorName: "Natural",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 4500000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Debe quedar en 0 y pasar automáticamente a SOLD_OUT
+      const soldOutProduct = await env.deps.productRepo.findById(product.id);
+      const soldOutTotalStock = soldOutProduct?.colors?.reduce(
+        (sum, c) => sum + c.sizes.reduce((sSum, s) => sSum + s.stock, 0),
+        0
+      );
+      expect(soldOutTotalStock).toBe(0);
+      expect(soldOutProduct?.status).toBe("SOLD_OUT");
+
+      // Si la segunda orden es cancelada, se debe restaurar el stock y volver a AVAILABLE
+      await updateOrderStatus(secondOrder.order.id, "CANCELLED", env.deps);
+      const restoredProduct = await env.deps.productRepo.findById(product.id);
+      const restoredTotalStock = restoredProduct?.colors?.reduce(
+        (sum, c) => sum + c.sizes.reduce((sSum, s) => sSum + s.stock, 0),
+        0
+      );
+      expect(restoredTotalStock).toBe(1);
+      expect(restoredProduct?.status).toBe("AVAILABLE");
+    });
+
+    it("permite listar pedidos con sus ítems completos y cambiar de estado", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Top Seda $20.000",
+          colors: [
+            {
+              name: "Negro",
+              position: 0,
+              sizes: [{ size: "S", stock: 5 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      const { order } = await createOrder(
+        {
+          customerName: "Marina Torres",
+          customerPhone: "11 8888-9999",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: "Top Seda",
+              colorName: "Negro",
+              size: "S",
+              quantity: 1,
+              unitPriceCents: 2000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Listar órdenes
+      const orders = await listOrders({}, env.deps);
+      expect(orders.length).toBeGreaterThanOrEqual(1);
+      const found = orders.find((o) => o.id === order.id);
+      expect(found).toBeDefined();
+      expect(found?.items?.length).toBe(1);
+      expect(found?.items?.[0].productTitle).toBe("Top Seda");
+      expect(found?.status).toBe("PENDING");
+
+      // Actualizar estado a CONFIRMED
+      const updated = await updateOrderStatus(order.id, "CONFIRMED", env.deps);
+      expect(updated.status).toBe("CONFIRMED");
+
+      // Filtrar por estado
+      const confirmedOrders = await listOrders({ status: "CONFIRMED" }, env.deps);
+      expect(confirmedOrders.some((o) => o.id === order.id)).toBe(true);
+
+      const cancelledOrders = await listOrders({ status: "CANCELLED" }, env.deps);
+      expect(cancelledOrders.some((o) => o.id === order.id)).toBe(false);
     });
   });
 

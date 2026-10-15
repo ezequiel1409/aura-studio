@@ -92,7 +92,9 @@ describe("Cart Domain & Store (BR-40)", () => {
 
       expect(useCartStore.getState().items.length).toBe(1);
       expect(useCartStore.getState().items[0].quantity).toBe(2);
-      expect(useCartStore.getState().isOpen).toBe(true);
+      expect(useCartStore.getState().isOpen).toBe(false);
+      expect(useCartStore.getState().toast).not.toBeNull();
+      expect(useCartStore.getState().toast?.title).toBe("Vestido Seda");
 
       // Intentar agregar 5 más: debe toparse en maxStock = 3
       store.addItem(
@@ -111,6 +113,25 @@ describe("Cart Domain & Store (BR-40)", () => {
       );
 
       expect(useCartStore.getState().items[0].quantity).toBe(3);
+    });
+
+    it("permite descartar el toast de confirmación del carrito", () => {
+      const store = useCartStore.getState();
+      store.addItem({
+        productId: 10,
+        code: 10,
+        formattedCode: "#010",
+        title: "Vestido Seda",
+        colorName: "Negro",
+        size: "M",
+        maxStock: 3,
+        unitPriceCents: 4500000,
+        currency: "ARS",
+      });
+
+      expect(useCartStore.getState().toast).not.toBeNull();
+      useCartStore.getState().dismissToast();
+      expect(useCartStore.getState().toast).toBeNull();
     });
 
     it("permite actualizar cantidades y eliminar ítems", () => {
@@ -218,6 +239,26 @@ describe("Cart Domain & Store (BR-40)", () => {
       );
 
       expect(html).toContain("Pieza Agotada");
+      expect(html).toContain("disabled");
+    });
+
+    it("ofrece consultar por WhatsApp si el producto no tiene precio asignado (priceCents === null)", () => {
+      const html = renderToString(
+        React.createElement(ProductOrderSection, {
+          productId: 3,
+          code: 103,
+          formattedCode: "103",
+          title: "Prenda Exclusiva",
+          priceCents: null,
+          currency: "ARS",
+          sizes: ["Único"],
+          isSoldOut: false,
+          isReserved: false,
+        })
+      );
+
+      expect(html).toContain("Precio a consultar");
+      expect(html).toContain("Consultar precio por WhatsApp");
       expect(html).toContain("disabled");
     });
   });
