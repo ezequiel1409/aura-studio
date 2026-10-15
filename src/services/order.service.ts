@@ -9,6 +9,7 @@ import { GlobalAppDeps } from "../infra/db/connection";
 import { ProductNotFoundError, OrderNotFoundError, ValidationError } from "../domain/errors";
 import { WhatsAppPaymentAdapter } from "../infra/payments/whatsapp.adapter";
 import { getShowroomSettings } from "./settings.service";
+import { trackAnalyticsEvent } from "./analytics.service";
 
 /**
  * Caso de uso: Crear Orden de Compra y generar enlace WhatsApp consolidado (BR-40, BR-41, BR-42)
@@ -85,7 +86,33 @@ export async function createOrder(
     })),
   });
 
-  // 5. Generar enlace de WhatsApp estructurado con los datos del showroom (BR-42)
+  // 5. Descontar stock físico atómico en base de datos (BR-02, BR-40) y registrar telemetría (BR-39)
+  for (const item of input.items) {
+    if (item.productId) {
+      await deps.productRepo.decrementStock(
+        item.productId,
+        item.colorName,
+        item.size,
+        item.quantity,
+        now * 1000
+      );
+
+      // BR-39: Registrar intención de compra consolidada en métricas
+      try {
+        await trackAnalyticsEvent(
+          {
+            type: "whatsapp_click",
+            productId: item.productId,
+          },
+          deps.db
+        );
+      } catch {
+        // Telemetría no bloqueante
+      }
+    }
+  }
+
+  // 6. Generar enlace de WhatsApp estructurado con los datos del showroom (BR-42)
   const settings = await getShowroomSettings(deps);
   const adapter = new WhatsAppPaymentAdapter({
     whatsappNumber: settings.whatsappNumber,
@@ -131,6 +158,27 @@ export async function updateOrderStatus(
   status: OrderStatus,
   deps: GlobalAppDeps
 ): Promise<Order> {
+  const existing = await deps.orderRepo.findById(id);
+  if (!existing) {
+    throw new OrderNotFoundError(id);
+  }
+
   const now = Math.floor(Date.now() / 1000);
+
+  // Si pasa a CANCELLED y no estaba cancelada antes, restaurar stock de las prendas
+  if (status === "CANCELLED" && existing.status !== "CANCELLED") {
+    for (const item of existing.items || []) {
+      if (item.productId) {
+        await deps.productRepo.restoreStock(
+          item.productId,
+          item.colorName,
+          item.size,
+          item.quantity,
+          now * 1000
+        );
+      }
+    }
+  }
+
   return deps.orderRepo.updateStatus(id, status, now);
 }
