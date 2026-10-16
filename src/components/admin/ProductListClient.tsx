@@ -34,6 +34,7 @@ import { Product, ProductStatus } from "../../domain/product/types";
 import { formatPriceARS } from "../../lib/format/currency";
 import { UndoAction, UndoToast } from "./UndoToast";
 import { StatusHistoryModal } from "./StatusHistoryModal";
+import { ConfirmDeleteProductModal } from "./ConfirmDeleteProductModal";
 import { useBackofficeStore } from "../../stores/backoffice.store";
 
 export type GroupByMode = "category" | "status" | "none";
@@ -90,6 +91,9 @@ export function ProductListClient({
     code: number;
     title: string | null;
   } | null>(null);
+
+  // Estado para Modal con Step de Confirmación de Borrado de Producto
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   // Estados de control para acciones en lote flotantes
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
@@ -367,30 +371,9 @@ export function ProductListClient({
     }
   };
 
-  // Eliminar un producto individual con confirmación (BR-34, BR-37)
-  const handleDeleteProduct = async (product: Product) => {
-    const codeFormatted = `#${String(product.code).padStart(3, "0")}`;
-    const confirmed = window.confirm(
-      `¿Estás segura de eliminar el producto ${codeFormatted} (${product.title || "Sin título"})? Esta acción no se puede deshacer y su código correlativo no será reutilizado.`
-    );
-    if (!confirmed) return;
-
-    try {
-      const res = await fetch(`/api/admin/products/${product.id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        setProducts((prev) => prev.filter((p) => p.id !== product.id));
-        if (isProductSelected(product.id)) {
-          toggleProductSelection(product.id);
-        }
-      } else {
-        alert(data.error || "No se pudo eliminar el producto.");
-      }
-    } catch {
-      alert("Error de conexión al eliminar el producto.");
-    }
+  // Eliminar un producto individual con step de confirmación (BR-34, BR-37)
+  const handleDeleteProduct = (product: Product) => {
+    setProductToDelete(product);
   };
 
   // Alternar Destacada con optimismo
@@ -1048,6 +1031,17 @@ export function ProductListClient({
                               />
                             </button>
 
+                            {/* Botón Borrado Rápido con Step de Confirmación */}
+                            <button
+                              type="button"
+                              onClick={() => setProductToDelete(p)}
+                              aria-label={`Borrar producto #${codeFormatted}`}
+                              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors focus-visible:ring-2 focus-visible:ring-rose-400 shrink-0"
+                              title="Borrar producto..."
+                            >
+                              <Trash2 size={16} aria-hidden="true" />
+                            </button>
+
                             {/* Menú de Acciones Unificado `···` */}
                             <div className="relative shrink-0">
                               <button
@@ -1148,7 +1142,7 @@ export function ProductListClient({
                                       className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs text-rose-300 hover:bg-rose-950/60 hover:text-rose-200 transition-colors text-left font-semibold"
                                     >
                                       <Trash2 size={13} className="text-rose-400" aria-hidden="true" />
-                                      <span>Eliminar prenda</span>
+                                      <span>Eliminar producto...</span>
                                     </button>
                                   </div>
                                 </>
@@ -1415,6 +1409,20 @@ export function ProductListClient({
           productCode={historyTarget.code}
           productTitle={historyTarget.title}
           onClose={() => setHistoryTarget(null)}
+        />
+      )}
+
+      {/* Modal con Step de Confirmación de Borrado de Producto */}
+      {productToDelete && (
+        <ConfirmDeleteProductModal
+          product={productToDelete}
+          onClose={() => setProductToDelete(null)}
+          onDeleted={(deletedId) => {
+            setProducts((prev) => prev.filter((p) => p.id !== deletedId));
+            if (isProductSelected(deletedId)) {
+              toggleProductSelection(deletedId);
+            }
+          }}
         />
       )}
     </div>

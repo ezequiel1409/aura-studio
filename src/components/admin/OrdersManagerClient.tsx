@@ -282,9 +282,13 @@ export function OrdersManagerClient({
                 {/* Cabecera de la Tarjeta de Pedido */}
                 <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/60 bg-zinc-900/90">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="font-mono text-sm font-bold text-amber-200">
-                      {formattedCode}
-                    </span>
+                    <Link
+                      href={`/admin/ordenes/${order.id}`}
+                      className="font-mono text-sm font-bold text-amber-300 hover:text-amber-100 hover:underline transition-colors flex items-center gap-1"
+                      title={`Ingresar a la ficha del pedido ${formattedCode}`}
+                    >
+                      <span>{formattedCode}</span>
+                    </Link>
                     <span className="text-zinc-600">•</span>
                     <span className="text-xs text-zinc-400 font-sans">{dateStr}</span>
                     <span className="text-zinc-600">•</span>
@@ -319,7 +323,7 @@ export function OrdersManagerClient({
                   </div>
 
                   {/* Total y botón desplegable */}
-                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                  <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
                     <div className="text-right">
                       <span className="block text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">
                         Total
@@ -329,11 +333,20 @@ export function OrdersManagerClient({
                       </span>
                     </div>
 
+                    <Link
+                      href={`/admin/ordenes/${order.id}`}
+                      className="inline-flex items-center gap-1 rounded-xl bg-amber-400 hover:bg-amber-300 px-3 py-1.5 text-xs font-bold text-zinc-950 transition-colors shadow-xs"
+                      title={`Ingresar a la ficha del pedido ${formattedCode}`}
+                    >
+                      <span>Abrir</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+
                     <button
                       type="button"
                       onClick={() => toggleExpand(order.id)}
                       aria-expanded={isExpanded}
-                      aria-label={`${isExpanded ? "Ocultar" : "Ver"} detalle de ${formattedCode}`}
+                      aria-label={`${isExpanded ? "Ocultar" : "Ver"} detalle rápido de ${formattedCode}`}
                       className="inline-flex items-center gap-1 rounded-xl bg-zinc-800 hover:bg-zinc-750 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:text-zinc-100 transition-colors cursor-pointer"
                     >
                       <span>{isExpanded ? "Ocultar" : "Detalles"}</span>
@@ -487,6 +500,16 @@ export function OrdersManagerClient({
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" />
                         )}
                       </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-zinc-800/30 text-xs">
+                      <Link
+                        href={`/admin/ordenes/${order.id}`}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-300 hover:text-amber-200 transition-colors"
+                      >
+                        <span>Ver ficha técnica completa e impresión</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
                     </div>
                   </div>
                 )}

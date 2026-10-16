@@ -16,15 +16,18 @@ import { connection } from "next/server";
 import { getProductServiceDeps } from "../../infra/db/connection";
 import { getBackofficeSummary } from "../../services/backoffice.service";
 import { getShowroomSettings } from "../../services/settings.service";
+import { listOrders } from "../../services/order.service";
 
 export default async function AdminDashboardPage() {
   await connection();
   const deps = getProductServiceDeps();
-  const [summary, settings] = await Promise.all([
+  const [summary, settings, orders] = await Promise.all([
     getBackofficeSummary(deps),
     getShowroomSettings(deps),
+    listOrders({ limit: 100 }, deps).catch(() => []),
   ]);
   const storeType = settings.storeType || "Showroom";
+  const pendingOrdersCount = orders.filter((o) => o.status === "PENDING").length;
 
   const statCards = [
     {
@@ -156,7 +159,33 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Accesos Directos Secundarios */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+        <Link
+          href="/admin/ordenes"
+          aria-label={`Ir a gestión de pedidos: ${orders.length} órdenes, ${pendingOrdersCount} pendientes`}
+          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-amber-400/60 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-amber-950/60 border border-amber-800/80 text-amber-300" aria-hidden="true">
+              <ShoppingBag size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm font-semibold text-zinc-200">Pedidos</p>
+                {pendingOrdersCount > 0 && (
+                  <span className="rounded-full bg-amber-400 text-zinc-950 px-1.5 py-0.2 text-[10px] font-bold">
+                    {pendingOrdersCount}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-zinc-400">
+                {orders.length} {orders.length === 1 ? "orden" : "órdenes"}
+              </p>
+            </div>
+          </div>
+          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-amber-300 group-hover:translate-x-1 transition-all" />
+        </Link>
+
         <Link
           href="/admin/productos"
           aria-label="Ir al catálogo de productos: gestión de stock, edición y acciones en lote"
