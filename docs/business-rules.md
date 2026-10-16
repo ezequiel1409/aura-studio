@@ -126,6 +126,15 @@ Los IDs **no se renumeran**: si una regla deja de aplicar se marca como *derogad
   - **Banners superiores (*Announcement Bar*)**: Cintillo fijado o rotativo en la cabecera del catálogo para comunicar promociones, envíos gratis a partir de cierto monto o avisos importantes.
   - **Popups promocionales / bienvenida**: Ventanas emergentes accesibles configurables desde el Backoffice con título, texto, botón de acción opcional y control estricto de frecuencia en cliente (`localStorage`) para evitar mostrarse repetidamente a quien ya lo desestimó.
 
+## 10. Comercio, Clientes y Autogestión de Compras
+
+- **BR-45 · Vinculación de Órdenes con Comercio y Cliente (Autenticación y Portal `/cuenta`).**
+  - Toda orden de compra (`Order`) registra la referencia explícita al **Comercio** vendedor (`commerce_id` → comercio por defecto `aura-studio`) y, cuando el comprador inicia sesión o se registra, al **Cliente** (`customer_id`).
+  - **Registro e Inicio de Sesión de Clientes**: Los compradores pueden crear una cuenta e iniciar sesión con email y contraseña (hash PBKDF2-HMAC-SHA512 y cookie firmada independiente `aura_customer_session` de 30 días), sin interferir con la sesión administrativa (`aura_admin_session`).
+  - **Reclamación automática de pedidos previos**: Al registrarse o autenticarse, el sistema vincula automáticamente las órdenes históricas previas que coincidan por correo electrónico o teléfono normalizado y que aún no posean `customer_id`.
+  - **Portal del Cliente (`/cuenta`)**: Permite al cliente consultar su historial de pedidos con desglose de ítems y estados, gestionar su libreta de direcciones habituales (`customer_addresses`, con soporte de dirección predeterminada) y editar sus datos de contacto.
+  - **Checkout Híbrido (Invitado o Autenticado)**: En `/carrito`, si el cliente tiene sesión activa, se autocompletan sus datos personales y puede elegir con un clic cualquiera de sus direcciones guardadas o guardar la dirección ingresada para futuras compras.
+
 ---
 
 ## Decisiones pendientes

@@ -107,11 +107,55 @@ Nota: Prendas/indumentaria ("Garment"), calzado, accesorios, etc. son ramas/cate
 | whatsapp_clicks | integer default 0 | Clics en "Consultar / Reservar por WhatsApp" |
 | last_viewed_at | integer null | Timestamp unix de la última visita |
 
-## orders (Órdenes de Compra - Fase 5)
+## commerces (Comercio Vendedor)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| slug | text not null unique | Slug canónico (por defecto `'aura-studio'`) |
+| name | text not null | Nombre comercial |
+| store_type | text not null | Rubro o tipo de tienda |
+| whatsapp_number | text not null | Número de WhatsApp comercial |
+| address | text null | Dirección física / Showroom |
+| email | text null | Email de contacto |
+| is_active | integer not null default 1 | `1` activo, `0` inactivo |
+| created_at / updated_at | integer not null | Timestamp unix |
+
+## customers (Clientes Registrados - BR-45)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| email | text not null unique | Email normalizado en minúsculas |
+| name | text not null | Nombre y apellido del cliente |
+| phone | text not null | Teléfono / WhatsApp de contacto |
+| password_hash | text not null | Hash PBKDF2-HMAC-SHA512 (100.000 iteraciones) |
+| password_salt | text not null | Salt aleatorio de 16 bytes (hex) |
+| status | text not null default 'ACTIVE' | `'ACTIVE'` o `'SUSPENDED'` |
+| created_at / updated_at | integer not null | Timestamp unix |
+
+## customer_addresses (Direcciones del Cliente - BR-45)
+| Campo | Tipo | Notas |
+|---|---|---|
+| id | integer PK autoincrement | |
+| customer_id | integer not null FK | Referencia a `customers(id)` (cascade) |
+| label | text not null default 'Casa' | Etiqueta (Casa, Trabajo, etc.) |
+| recipient_name | text not null | Nombre de quien recibe |
+| phone | text not null | Teléfono de contacto |
+| street | text not null | Calle y altura |
+| apartment | text null | Piso / Departamento |
+| city | text not null | Localidad / Ciudad |
+| province | text not null | Provincia |
+| postal_code | text null | Código postal |
+| delivery_notes | text null | Indicaciones para la entrega |
+| is_default | integer not null default 0 | `1` dirección predeterminada |
+| created_at / updated_at | integer not null | Timestamp unix |
+
+## orders (Órdenes de Compra - Fase 5 / BR-45)
 | Campo | Tipo | Notas |
 |---|---|---|
 | id | integer PK autoincrement | Identificador interno |
 | code | integer unique | Correlativo atómico numérico (se muestra `#ORD-001`) |
+| commerce_id | integer not null default 1 FK | Referencia a `commerces(id)` (BR-45) |
+| customer_id | integer null FK | Referencia a `customers(id)` (set null) (BR-45) |
 | customer_name | text not null | Nombre y apellido del comprador |
 | customer_phone | text not null | Teléfono / WhatsApp de contacto |
 | customer_email | text null | Correo electrónico opcional |
@@ -128,7 +172,7 @@ Nota: Prendas/indumentaria ("Garment"), calzado, accesorios, etc. son ramas/cate
 | notes | text null | Notas adicionales |
 | created_at / updated_at | integer not null | Timestamp unix |
 
-Índices: `(code)`, `(status, created_at)`.
+Índices: `(code)`, `(status, created_at)`, `(commerce_id, created_at)`, `(customer_id, created_at)`.
 
 ## order_items (Ítems de la Orden - Fase 5)
 | Campo | Tipo | Notas |

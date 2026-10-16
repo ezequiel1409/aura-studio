@@ -46,8 +46,8 @@ src/
     - Ámbito `CATEGORY`: filtra y aplica el descuento exclusivamente sobre ítems que pertenecen a la categoría o subcategoría objetivo.
     - Ámbito `SELECTED_PRODUCTS`: aplica únicamente a una lista específica de productos (por `productId` o `code`).
   - El motor evalúa condiciones puras: monto mínimo de pedido, fechas de vigencia (`validFrom`, `validUntil`), y límite de usos. El descuento se aplica siempre sobre el subtotal de productos antes de calcular la logística de envío.
-- **AR-14**: Agregado de Orden de Compra y Adaptadores de Checkout:
-  - `Order` es la raíz del agregado de compra y consolida: cliente, ítems (con foto, código, título, variante de color y talle, precio unitario y cantidad), desglose financiero (subtotal, cupón de descuento aplicado, costo de envío y total), y método de logística seleccionado.
+- **AR-14**: Agregado de Orden de Compra, Comercio y Cliente:
+  - `Order` es la raíz del agregado de compra y consolida: comercio vendedor (`commerceId`), cliente (`customerId` opcional junto a su snapshot de contacto), ítems (con foto, código, título, variante de color y talle, precio unitario y cantidad), desglose financiero (subtotal, cupón de descuento aplicado, costo de envío y total), y método de logística seleccionado.
   - El checkout delega la ejecución a adaptadores desacoplados (`WhatsAppOrderAdapter`, `MercadoPagoOrderAdapter`), cumpliendo AR-03 sin acoplar el dominio a terceros.
 - **AR-15**: Anuncios y Popups Condicionales con Control de Frecuencia:
   - Los anuncios (banners) y popups se configuran desde la administración y se persisten en base de datos.
