@@ -31,6 +31,8 @@ export interface Order {
   currency: string;
   couponCode?: string | null;
   status: OrderStatus;
+  customerId?: number | null;
+  commerceId?: number | null;
   notes?: string | null;
   createdAt: number;
   updatedAt: number;
@@ -58,6 +60,8 @@ export interface CreateOrderInput {
   shippingCents?: number;
   discountCents?: number;
   couponCode?: string | null;
+  customerId?: number | null;
+  commerceId?: number | null;
   notes?: string | null;
   items: CreateOrderItemInput[];
 }

@@ -9,6 +9,18 @@ export function formatOrderCode(code: number): string {
 }
 
 /**
+ * Parsea un código de orden textual o numérico: ej "#ORD-001", "ORD-001", "001", "1" -> 1
+ */
+export function parseOrderCode(input: string): number | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  const match = trimmed.match(/^#?(?:ORD-?)?(\d+)$/i);
+  if (!match) return null;
+  const num = parseInt(match[1], 10);
+  return Number.isNaN(num) || num <= 0 ? null : num;
+}
+
+/**
  * Normaliza y valida una orden de compra antes de ser persistida (BR-40, BR-41, BR-42)
  */
 export function validateCreateOrderInput(input: CreateOrderInput): {
@@ -23,6 +35,8 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   shippingCents: number;
   totalCents: number;
   couponCode: string | null;
+  customerId: number | null;
+  commerceId: number | null;
   notes: string | null;
 } {
   const customerName = input.customerName?.trim();
@@ -77,6 +91,8 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
     shippingCents,
     totalCents,
     couponCode: input.couponCode?.trim().toUpperCase() || null,
+    customerId: input.customerId ?? null,
+    commerceId: input.commerceId ?? null,
     notes: input.notes?.trim() || null,
   };
 }

@@ -162,6 +162,8 @@ export interface IPasswordResetTokenRepository {
 }
 
 import { Order, OrderItem, OrderStatus } from "../order/types";
+import { Customer, CustomerAddress, CustomerStatus } from "../customer/types";
+import { Commerce } from "../commerce/types";
 
 export interface CreateOrderRepoData extends Omit<Order, "id" | "items"> {
   items: Array<Omit<OrderItem, "id" | "orderId" | "subtotalCents">>;
@@ -172,7 +174,35 @@ export interface IOrderRepository {
   findById(id: number): Promise<Order | null>;
   findByCode(code: number): Promise<Order | null>;
   list(options?: { status?: OrderStatus; limit?: number; offset?: number }): Promise<Order[]>;
+  listByCustomer(customerId: number): Promise<Order[]>;
   updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order>;
+}
+
+export interface ICustomerRepository {
+  create(data: Omit<Customer, "id"> | (Omit<Customer, "id" | "createdAt" | "updatedAt"> & { createdAt?: number; updatedAt?: number })): Promise<Customer>;
+  findById(id: number): Promise<Customer | null>;
+  findByEmail(email: string): Promise<Customer | null>;
+  updateProfile(id: number, data: { name?: string; phone?: string | null; updatedAt: number }): Promise<Customer>;
+  updatePassword(id: number, passwordHash: string, passwordSalt: string, updatedAt: number): Promise<void>;
+  updateStatus(id: number, status: CustomerStatus, updatedAt: number): Promise<Customer>;
+  count(): Promise<number>;
+}
+
+export interface ICustomerAddressRepository {
+  create(data: Omit<CustomerAddress, "id"> | (Omit<CustomerAddress, "id" | "createdAt" | "updatedAt"> & { createdAt?: number; updatedAt?: number })): Promise<CustomerAddress>;
+  findById(id: number): Promise<CustomerAddress | null>;
+  listByCustomer(customerId: number): Promise<CustomerAddress[]>;
+  setDefault(customerId: number, addressId: number, updatedAt?: number): Promise<void>;
+  delete(id: number): Promise<void>;
+}
+
+export interface ICommerceRepository {
+  create(data: Omit<Commerce, "id"> | (Omit<Commerce, "id" | "createdAt" | "updatedAt"> & { createdAt?: number; updatedAt?: number })): Promise<Commerce>;
+  findById(id: number): Promise<Commerce | null>;
+  findBySlug(slug: string): Promise<Commerce | null>;
+  getDefault(): Promise<Commerce | null>;
+  findDefault(): Promise<Commerce | null>;
+  list(): Promise<Commerce[]>;
 }
 
 export * from "./email.port";
