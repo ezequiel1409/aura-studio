@@ -28,6 +28,8 @@ export class DrizzleOrderRepository implements IOrderRepository {
         currency: data.currency,
         couponCode: data.couponCode,
         status: data.status,
+        customerId: data.customerId ?? null,
+        commerceId: data.commerceId ?? null,
         notes: data.notes,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
@@ -96,6 +98,34 @@ export class DrizzleOrderRepository implements IOrderRepository {
       query = query.offset(options.offset);
     }
     const rows = await query;
+    if (rows.length === 0) return [];
+
+    const orderIds = rows.map((r) => r.id);
+    const allItems = await this.db
+      .select()
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, orderIds));
+
+    const itemsByOrderId = new Map<number, OrderItem[]>();
+    for (const item of allItems) {
+      const list = itemsByOrderId.get(item.orderId) || [];
+      list.push(item as OrderItem);
+      itemsByOrderId.set(item.orderId, list);
+    }
+
+    return rows.map((r) => ({
+      ...(r as Order),
+      items: itemsByOrderId.get(r.id) || [],
+    }));
+  }
+
+  async listByCustomer(customerId: number): Promise<Order[]> {
+    const rows = await this.db
+      .select()
+      .from(orders)
+      .where(eq(orders.customerId, customerId))
+      .orderBy(desc(orders.createdAt));
+
     if (rows.length === 0) return [];
 
     const orderIds = rows.map((r) => r.id);

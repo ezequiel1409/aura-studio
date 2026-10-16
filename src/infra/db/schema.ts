@@ -1,5 +1,5 @@
 import {
-  AnySQLiteColumn,
+  type AnySQLiteColumn,
   index,
   integer,
   sqliteTable,
@@ -261,6 +261,12 @@ export const orders = sqliteTable(
     })
       .notNull()
       .default("PENDING"),
+    customerId: integer("customer_id").references(() => customers.id, {
+      onDelete: "set null",
+    }),
+    commerceId: integer("commerce_id").references(() => commerces.id, {
+      onDelete: "set null",
+    }),
     notes: text("notes"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
@@ -268,6 +274,83 @@ export const orders = sqliteTable(
   (table) => [
     index("orders_code_idx").on(table.code),
     index("orders_status_created_at_idx").on(table.status, table.createdAt),
+    index("orders_customer_id_idx").on(table.customerId),
+    index("orders_commerce_id_idx").on(table.commerceId),
+  ]
+);
+
+/**
+ * Comercios / Tiendas (Entidad de comercio vinculada al Administrador)
+ */
+export const commerces = sqliteTable(
+  "commerces",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    whatsappNumber: text("whatsapp_number"),
+    address: text("address"),
+    adminUserId: integer("admin_user_id").references(() => adminUsers.id, {
+      onDelete: "set null",
+    }),
+    isActive: integer("is_active").notNull().default(1),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("commerces_slug_idx").on(table.slug),
+    index("commerces_admin_user_id_idx").on(table.adminUserId),
+  ]
+);
+
+/**
+ * Clientes / Compradores registrados en la tienda
+ */
+export const customers = sqliteTable(
+  "customers",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    email: text("email").notNull().unique(),
+    name: text("name").notNull(),
+    phone: text("phone"),
+    passwordHash: text("password_hash").notNull(),
+    passwordSalt: text("password_salt").notNull(),
+    status: text("status", { enum: ["ACTIVE", "SUSPENDED"] })
+      .notNull()
+      .default("ACTIVE"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("customers_email_idx").on(table.email),
+    index("customers_phone_idx").on(table.phone),
+    index("customers_status_idx").on(table.status),
+  ]
+);
+
+/**
+ * Direcciones guardadas de entrega de un Cliente
+ */
+export const customerAddresses = sqliteTable(
+  "customer_addresses",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    customerId: integer("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    label: text("label").notNull().default("Principal"),
+    recipientName: text("recipient_name"),
+    recipientPhone: text("recipient_phone"),
+    address: text("address").notNull(),
+    city: text("city"),
+    postalCode: text("postal_code"),
+    notes: text("notes"),
+    isDefault: integer("is_default").notNull().default(1),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("customer_addresses_customer_id_idx").on(table.customerId),
   ]
 );
 

@@ -10,4 +10,7 @@ export * from "./repositories/login-attempt.repository";
 export * from "./repositories/admin-user.repository";
 export * from "./repositories/password-reset-token.repository";
 export * from "./repositories/order.repository";
+export * from "./repositories/customer.repository";
+export * from "./repositories/customer-address.repository";
+export * from "./repositories/commerce.repository";
 

@@ -8,6 +8,7 @@ import {
   categoryStats,
   counters,
   settings,
+  commerces,
 } from "./schema";
 
 export interface SeedOptions {
@@ -185,6 +186,24 @@ export async function seedDatabase(db: DbClient, options: SeedOptions = {}): Pro
       passwordSalt: salt,
       role: "SUPER_ADMIN",
       status: "ACTIVE",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  // 7. Comercio principal por defecto (Aura Studio)
+  const existingCommerce = await db
+    .select()
+    .from(commerces)
+    .where(eq(commerces.slug, "aura-studio"))
+    .limit(1);
+
+  if (existingCommerce.length === 0) {
+    await db.insert(commerces).values({
+      slug: "aura-studio",
+      name: brandName,
+      whatsappNumber: whatsappNumber,
+      isActive: 1,
       createdAt: now,
       updatedAt: now,
     });

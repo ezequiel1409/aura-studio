@@ -12,6 +12,9 @@ import {
   DrizzleSettingsRepository,
   DrizzleStatusHistoryRepository,
   DrizzleOrderRepository,
+  DrizzleCustomerRepository,
+  DrizzleCustomerAddressRepository,
+  DrizzleCommerceRepository,
 } from "./index";
 import { ProductServiceDeps } from "../../services/product.service";
 
@@ -20,6 +23,9 @@ export interface GlobalAppDeps extends ProductServiceDeps {
   adminUserRepo: DrizzleAdminUserRepository;
   passwordResetTokenRepo: DrizzlePasswordResetTokenRepository;
   orderRepo: DrizzleOrderRepository;
+  customerRepo: DrizzleCustomerRepository;
+  customerAddressRepo: DrizzleCustomerAddressRepository;
+  commerceRepo: DrizzleCommerceRepository;
   db?: DbClient;
 }
 
@@ -76,6 +82,56 @@ export function getDb(): DbClient {
         sqlite.exec(initSql);
       }
     }
+
+    // Verificar y auto-migrar tablas incrementales si faltan (ej. orders, customers, commerces)
+    const customersTableCheck = sqlite
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='customers'")
+      .get();
+    if (!customersTableCheck) {
+      const migrationsDir = path.resolve(process.cwd(), "drizzle/migrations");
+      if (fs.existsSync(migrationsDir)) {
+        const migrationFiles = fs
+          .readdirSync(migrationsDir)
+          .filter((f) => f.endsWith(".sql"))
+          .sort();
+        for (const file of migrationFiles) {
+          const migrationSql = fs.readFileSync(path.join(migrationsDir, file), "utf-8");
+          const statements = migrationSql
+            .split("--> statement-breakpoint")
+            .map((s) => s.trim())
+            .filter(Boolean);
+          for (const statement of statements) {
+            try {
+              sqlite.exec(statement);
+            } catch {
+              // Ignorar si el índice o tabla ya existe
+            }
+          }
+        }
+      }
+    }
+
+    // Sembrar comercio principal por defecto si no existe ninguno
+    try {
+      const commercesTable = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='commerces'")
+        .get();
+      if (commercesTable) {
+        const commerceCount = sqlite
+          .prepare("SELECT count(*) as count FROM commerces")
+          .get() as { count: number };
+        if (commerceCount && commerceCount.count === 0) {
+          const now = Date.now();
+          sqlite
+            .prepare(
+              "INSERT OR IGNORE INTO commerces (slug, name, whatsapp_number, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+            )
+            .run("aura-studio", "Aura Studio", "+5491100000000", 1, now, now);
+        }
+      }
+    } catch {
+      // Ignorar fallas no críticas
+    }
   } catch {
     // Continuamos si ocurre algún error menor en la verificación
   }
@@ -103,6 +159,9 @@ export function getProductServiceDeps(): GlobalAppDeps {
     adminUserRepo: new DrizzleAdminUserRepository(db),
     passwordResetTokenRepo: new DrizzlePasswordResetTokenRepository(db),
     orderRepo: new DrizzleOrderRepository(db),
+    customerRepo: new DrizzleCustomerRepository(db),
+    customerAddressRepo: new DrizzleCustomerAddressRepository(db),
+    commerceRepo: new DrizzleCommerceRepository(db),
     db,
   };
 
