@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createTestEnvironment } from "./setup-db";
 import { createProduct } from "../src/services/product.service";
-import { createOrder, getOrderByCode, updateOrderStatus, listOrders } from "../src/services/order.service";
+import { createOrder, getOrderByCode, getOrderById, updateOrderStatus, listOrders } from "../src/services/order.service";
 import { WhatsAppPaymentAdapter } from "../src/infra/payments/whatsapp.adapter";
-import { validateCreateOrderInput, formatOrderCode } from "../src/domain/order/rules";
+import { validateCreateOrderInput, formatOrderCode, parseOrderCode } from "../src/domain/order/rules";
 import { ValidationError } from "../src/domain/errors";
 
 describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
@@ -393,6 +393,58 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       expect(decoded).toContain("Subtotal: $75.000");
       expect(decoded).toContain("Romina Paez");
       expect(decoded).toContain("Timbre 2A después de las 16hs");
+    });
+  });
+
+  describe("Código y Navegación de Órdenes (parseOrderCode)", () => {
+    it("parsea correctamente códigos de orden con y sin prefijo", () => {
+      expect(parseOrderCode("#ORD-001")).toBe(1);
+      expect(parseOrderCode("ORD-001")).toBe(1);
+      expect(parseOrderCode("ORD-25")).toBe(25);
+      expect(parseOrderCode("#123")).toBe(123);
+      expect(parseOrderCode("005")).toBe(5);
+      expect(parseOrderCode("42")).toBe(42);
+      expect(parseOrderCode("")).toBe(null);
+      expect(parseOrderCode("ORD-")).toBe(null);
+      expect(parseOrderCode("invalido")).toBe(null);
+    });
+
+    it("permite consultar órdenes tanto por id interno como por código correlativo", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Vestido Lino\nPrecio: $ 30.000",
+          categoryId: 1,
+        },
+        env.deps
+      );
+
+      const { order } = await createOrder(
+        {
+          customerName: "Florencia Peña",
+          customerPhone: "1122334455",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: "Vestido Lino",
+              colorName: "Único",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 3000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      const byId = await getOrderById(order.id, env.deps);
+      expect(byId.id).toBe(order.id);
+      expect(byId.customerName).toBe("Florencia Peña");
+
+      const byCode = await getOrderByCode(order.code, env.deps);
+      expect(byCode.id).toBe(order.id);
+      expect(byCode.code).toBe(order.code);
     });
   });
 });
