@@ -551,12 +551,12 @@ export function EditProductClient({
                 aria-checked={isFeatured}
                 aria-label="Destacar este producto en el catálogo"
                 onClick={() => setIsFeatured((prev) => !prev)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                className={`admin-switch-track relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                   isFeatured ? "bg-amber-400" : "bg-zinc-800"
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
+                  className={`admin-switch-thumb pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
                     isFeatured ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
@@ -602,7 +602,7 @@ export function EditProductClient({
                     <button
                       type="button"
                       onClick={() => handleRemoveColor(c.id)}
-                      className="text-zinc-500 hover:text-rose-400 p-1 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                      className="text-zinc-500 hover:text-rose-400 p-1.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                       title="Eliminar este color"
                       aria-label={`Eliminar color ${c.name}`}
                     >
@@ -618,7 +618,7 @@ export function EditProductClient({
                     <button
                       type="button"
                       onClick={() => handleAddSize(c.id)}
-                      className="text-amber-200 hover:text-amber-100 font-medium inline-flex items-center gap-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                      className="text-amber-200 hover:text-amber-100 font-semibold inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                       aria-label={`Agregar talle al color ${c.name}`}
                     >
                       <Plus size={12} aria-hidden="true" />
@@ -675,7 +675,7 @@ export function EditProductClient({
                           <button
                             type="button"
                             onClick={() => handleRemoveSize(c.id, s.id)}
-                            className="text-zinc-600 hover:text-rose-400 p-1 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                            className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                             aria-label={`Eliminar talle ${s.size} del color ${c.name}`}
                           >
                             <Trash2 size={13} aria-hidden="true" />
@@ -697,17 +697,21 @@ export function EditProductClient({
               Fotos ({photos.length})
             </h2>
 
-            <label className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 text-xs font-semibold cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-amber-400">
+            <label
+              htmlFor="edit-product-photos-input"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 text-xs font-semibold cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-amber-400"
+            >
               <Upload size={14} aria-hidden="true" />
               <span>{compressing ? "Comprimiendo..." : "+ Subir fotos"}</span>
               <input
+                id="edit-product-photos-input"
                 type="file"
                 multiple
                 accept="image/*"
                 onChange={handleFileChange}
                 disabled={compressing}
                 aria-label="Subir fotos del producto"
-                className="hidden"
+                className="sr-only"
               />
             </label>
           </div>
@@ -732,7 +736,7 @@ export function EditProductClient({
                 <button
                   type="button"
                   onClick={() => handleRemovePhoto(p.id)}
-                  className="absolute top-1.5 right-1.5 p-1 rounded-full bg-zinc-950/80 text-zinc-400 hover:text-rose-400 opacity-80 group-hover:opacity-100 transition-all focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 z-10"
+                  className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-zinc-950/90 text-zinc-300 hover:text-rose-400 opacity-85 group-hover:opacity-100 transition-all focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 z-10"
                   title="Eliminar foto"
                   aria-label={`Eliminar foto ${idx + 1}`}
                 >
@@ -741,14 +745,14 @@ export function EditProductClient({
 
                 {/* Flechas para reordenar */}
                 {photos.length > 1 && (
-                  <div className="absolute top-1.5 left-1.5 flex items-center gap-0.5 z-10 opacity-75 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1.5 left-1.5 flex items-center gap-0.5 z-10 opacity-85 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                     {idx > 0 && (
                       <button
                         type="button"
                         onClick={() => handleMovePhoto(idx, "left")}
                         aria-label={`Mover foto ${idx + 1} hacia la izquierda`}
                         title="Mover hacia la izquierda"
-                        className="p-1 rounded bg-zinc-950/80 text-zinc-300 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-1 focus-visible:ring-amber-400 focus-visible:outline-none"
+                        className="p-1 rounded bg-zinc-950/90 text-zinc-200 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       >
                         <ChevronLeft size={12} aria-hidden="true" />
                       </button>
@@ -759,7 +763,7 @@ export function EditProductClient({
                         onClick={() => handleMovePhoto(idx, "right")}
                         aria-label={`Mover foto ${idx + 1} hacia la derecha`}
                         title="Mover hacia la derecha"
-                        className="p-1 rounded bg-zinc-950/80 text-zinc-300 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-1 focus-visible:ring-amber-400 focus-visible:outline-none"
+                        className="p-1 rounded bg-zinc-950/90 text-zinc-200 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       >
                         <ChevronRight size={12} aria-hidden="true" />
                       </button>
@@ -779,7 +783,7 @@ export function EditProductClient({
                     onClick={() => handleSetCoverPhoto(idx)}
                     aria-label={`Destacar foto ${idx + 1} como portada principal`}
                     title="Hacer que esta foto sea la portada del producto"
-                    className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-center gap-1 py-0.5 rounded-lg bg-zinc-950/90 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 border border-zinc-800 text-[10px] font-semibold transition-all focus-visible:ring-1 focus-visible:ring-amber-400 focus-visible:outline-none"
+                    className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-center gap-1 py-0.5 rounded-lg bg-zinc-950/90 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 border border-zinc-800 text-[10px] font-semibold transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                   >
                     <Star size={10} aria-hidden="true" />
                     <span>Destacar</span>

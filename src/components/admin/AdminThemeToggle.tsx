@@ -25,22 +25,22 @@ export function AdminThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
+      aria-pressed={isDark}
       aria-label={isDark ? "Cambiar a modo claro editorial" : "Cambiar a modo oscuro accesible"}
       title={isDark ? "Cambiar a modo claro editorial" : "Cambiar a modo oscuro accesible"}
-      className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none admin-theme-toggle-btn"
+      className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-zinc-100 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none admin-theme-toggle-btn cursor-pointer"
     >
       {isDark ? (
         <>
-          <Sun size={14} className="text-amber-300" aria-hidden="true" />
+          <Sun size={15} className="text-amber-300 shrink-0" aria-hidden="true" />
           <span className="hidden md:inline">Claro</span>
         </>
       ) : (
         <>
-          <Moon size={14} className="text-stone-600" aria-hidden="true" />
+          <Moon size={15} className="text-amber-300 shrink-0" aria-hidden="true" />
           <span className="hidden md:inline">Oscuro</span>
         </>
       )}
     </button>
   );
 }
-

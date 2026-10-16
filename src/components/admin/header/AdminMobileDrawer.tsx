@@ -35,33 +35,33 @@ export function AdminMobileDrawer({
     <div
       id="admin-collapsible-nav"
       className={`sm:hidden border-t border-zinc-800 transition-all duration-300 overflow-hidden ${
-        isOpen ? "max-h-[580px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+        isOpen ? "max-h-[620px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
       }`}
     >
       <nav
         aria-label="Navegación móvil de administración"
-        className="p-4 bg-zinc-950/98 space-y-2 backdrop-blur-xl"
+        className="p-4 bg-zinc-950/98 space-y-3 backdrop-blur-xl"
       >
         {/* Tarjeta de usuario en el menú desplegable */}
-        <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-zinc-900 border border-zinc-800">
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-zinc-900 border border-zinc-800">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 text-zinc-950 font-bold text-xs flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-full bg-amber-300 text-zinc-950 font-bold text-xs flex items-center justify-center shrink-0">
               {userInitial}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-zinc-100 truncate">
                 {userEmail || "Administradora"}
               </p>
-              <p className="text-[10px] text-amber-300 font-medium">{userRoleDisplay}</p>
+              <p className="text-[11px] text-amber-300 font-semibold">{userRoleDisplay}</p>
             </div>
           </div>
 
           <Link
             href={ADMIN_QUICK_CREATE_ITEM.href}
             onClick={onClose}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-200 text-zinc-950 text-[11px] font-bold shrink-0"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-200 text-zinc-950 text-xs font-bold shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
-            <QuickIcon size={13} />
+            <QuickIcon size={14} aria-hidden="true" />
             <span>Cargar</span>
           </Link>
         </div>
@@ -72,15 +72,15 @@ export function AdminMobileDrawer({
             const Icon = item.icon;
             const isActive = isAdminNavItemActive(pathname, item);
             return (
-              <div key={item.id} className="space-y-1">
+              <div key={item.id} className="space-y-1.5">
                 <Link
                   href={item.href}
                   onClick={onClose}
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                     isActive
-                      ? "bg-amber-200 text-zinc-950 font-bold shadow-sm"
-                      : "text-zinc-300 hover:text-white hover:bg-zinc-900"
+                      ? "bg-amber-200 text-zinc-950 font-bold shadow-xs admin-nav-active"
+                      : "text-zinc-200 hover:text-zinc-100 hover:bg-zinc-900 admin-nav-inactive"
                   }`}
                 >
                   <Icon size={16} aria-hidden="true" />
@@ -96,9 +96,9 @@ export function AdminMobileDrawer({
                           key={sub.href}
                           href={sub.href}
                           onClick={onClose}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-900/90 border border-zinc-800 text-[11px] text-zinc-300 hover:text-amber-200"
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-200 hover:text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                         >
-                          <SubIcon size={12} className="text-amber-300 shrink-0" />
+                          <SubIcon size={13} className="text-amber-300 shrink-0" aria-hidden="true" />
                           <span className="truncate">{sub.label}</span>
                         </Link>
                       );
@@ -110,24 +110,24 @@ export function AdminMobileDrawer({
           })}
         </div>
 
-        <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2 px-1">
+        <div className="pt-2 border-t border-zinc-800 flex items-center justify-between gap-2 px-1">
           <a
             href="/"
             target="_blank"
             rel="noreferrer"
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-900 text-zinc-300 text-xs font-semibold hover:bg-zinc-800"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs font-semibold hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
             <span>Ver tienda</span>
-            <ArrowUpRight size={13} />
+            <ArrowUpRight size={14} aria-hidden="true" />
           </a>
 
           <button
             type="button"
             onClick={onLogout}
             disabled={loggingOut}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-rose-950/40 text-rose-300 border border-rose-800/60 text-xs font-semibold hover:bg-rose-900/60"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-rose-950/40 text-rose-300 border border-rose-800 text-xs font-semibold hover:bg-rose-900/60 focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none cursor-pointer"
           >
-            <LogOut size={13} />
+            <LogOut size={14} aria-hidden="true" />
             <span>{loggingOut ? "Saliendo..." : "Salir"}</span>
           </button>
         </div>

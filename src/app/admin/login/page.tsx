@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { AdminThemeToggle } from "../../../components/admin/AdminThemeToggle";
 
 export default function AdminLoginPage({
   initialBrandName = "Aura Studio",
@@ -92,35 +93,40 @@ export default function AdminLoginPage({
   const isLocked = remainingLockSeconds > 0;
 
   return (
-    <div className="min-h-[calc(100vh-6rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
+    <div className="min-h-[calc(100vh-8rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
+        {/* Selector de tema accesible en esquina superior de tarjeta */}
+        <div className="flex justify-end mb-3">
+          <AdminThemeToggle />
+        </div>
+
         {/* Cabecera / Identidad */}
-        <div className="text-center mb-8">
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white/80 px-3 py-1 shadow-2xs">
-            <span className="text-[10px] uppercase font-mono tracking-widest text-stone-600 font-medium">
+        <div className="text-center mb-7">
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 shadow-2xs">
+            <span className="text-[11px] uppercase font-mono tracking-widest text-zinc-400 font-semibold">
               {storeType}
             </span>
           </div>
           <div>
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#f5f0e8] border border-[#e2dcd2] text-[#926a3c] mb-4 shadow-2xs">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-950/30 border border-amber-800/60 text-amber-300 mb-4 shadow-2xs">
               <Lock size={26} strokeWidth={1.75} aria-hidden="true" />
             </div>
           </div>
-          <h1 className="font-serif text-3xl font-light tracking-wide text-stone-900">
+          <h1 className="font-serif text-3xl font-bold tracking-wide text-zinc-100">
             {storeName}
           </h1>
-          <p className="text-xs text-stone-500 mt-1 uppercase tracking-widest font-semibold">
+          <p className="text-xs text-zinc-400 mt-1.5 uppercase tracking-widest font-semibold">
             Panel de Administración
           </p>
         </div>
 
         {/* Tarjeta de Login */}
-        <div className="bg-white border border-[#e7e2da] rounded-2xl p-6 sm:p-7 shadow-xs">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-7 shadow-lg">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label
                 htmlFor="email"
-                className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-2"
+                className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2"
               >
                 Correo electrónico
               </label>
@@ -132,12 +138,12 @@ export default function AdminLoginPage({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@aurastudio.com"
-                  className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl px-4 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all disabled:opacity-50"
                   required
                 />
                 <Mail
                   size={16}
-                  className="absolute right-3.5 top-3.5 text-stone-400 pointer-events-none"
+                  className="absolute right-3.5 top-3.5 text-zinc-500 pointer-events-none"
                   aria-hidden="true"
                 />
               </div>
@@ -147,13 +153,13 @@ export default function AdminLoginPage({
               <div className="flex items-center justify-between mb-2">
                 <label
                   htmlFor="password"
-                  className="block text-xs font-semibold text-stone-700 uppercase tracking-wider"
+                  className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider"
                 >
                   Contraseña
                 </label>
                 <Link
                   href="/admin/recuperar"
-                  className="text-xs text-[#926a3c] hover:text-[#78532c] hover:underline underline-offset-4 transition-colors py-1 font-medium"
+                  className="text-xs text-amber-300 hover:text-amber-200 hover:underline underline-offset-4 transition-colors py-1 font-semibold rounded focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                 >
                   ¿Olvidaste tu contraseña?
                 </Link>
@@ -166,7 +172,7 @@ export default function AdminLoginPage({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Ingresá tu contraseña"
-                  className="w-full bg-[#fcfbf9] border border-[#d8d2c7] rounded-xl pl-4 pr-11 py-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:bg-white focus:border-stone-900 focus:ring-1 focus:ring-stone-900 transition-all disabled:opacity-50"
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-xl pl-4 pr-11 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all disabled:opacity-50"
                   autoFocus
                   required
                 />
@@ -176,7 +182,7 @@ export default function AdminLoginPage({
                   disabled={loading || isLocked}
                   aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
                   title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
-                  className="absolute right-2.5 p-1.5 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-200/60 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none transition-colors cursor-pointer disabled:opacity-50"
+                  className="absolute right-2 p-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {showPassword ? (
                     <EyeOff size={18} aria-hidden="true" />
@@ -191,21 +197,22 @@ export default function AdminLoginPage({
             {errorMessage && (
               <div
                 role="alert"
+                aria-live="assertive"
                 className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
                   isLocked
-                    ? "bg-red-50 border-red-200 text-red-900"
-                    : "bg-amber-50 border-amber-200 text-amber-900"
+                    ? "bg-rose-950/40 border-rose-800 text-rose-300"
+                    : "bg-amber-950/40 border-amber-800 text-amber-300"
                 }`}
               >
                 <ShieldAlert
                   size={16}
-                  className={`shrink-0 mt-0.5 ${isLocked ? "text-red-600" : "text-amber-700"}`}
+                  className={`shrink-0 mt-0.5 ${isLocked ? "text-rose-400" : "text-amber-400"}`}
                   aria-hidden="true"
                 />
                 <div>
-                  <p className="font-medium">{errorMessage}</p>
+                  <p className="font-semibold">{errorMessage}</p>
                   {isLocked && (
-                    <p className="mt-1 font-mono text-[11px] text-red-800 font-bold">
+                    <p className="mt-1 font-mono text-xs text-rose-300 font-bold">
                       Desbloqueo en: {remainingLockSeconds}s
                     </p>
                   )}
@@ -217,7 +224,7 @@ export default function AdminLoginPage({
             <button
               type="submit"
               disabled={loading || isLocked || !password.trim() || !email.trim()}
-              className="w-full py-3.5 px-4 rounded-xl font-medium text-sm text-white bg-stone-900 hover:bg-stone-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-xs mt-2 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2"
+              className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-sm mt-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
             >
               {loading ? (
                 <>
@@ -229,18 +236,18 @@ export default function AdminLoginPage({
               ) : (
                 <>
                   <span>Ingresar al Panel</span>
-                  <Sparkles size={14} aria-hidden="true" />
+                  <Sparkles size={15} aria-hidden="true" />
                 </>
               )}
             </button>
           </form>
 
           {/* Enlace de regreso a la tienda */}
-          <div className="mt-5 pt-4 border-t border-[#f0ece1] text-center">
+          <div className="mt-5 pt-4 border-t border-zinc-800 text-center">
             <Link
               href="/"
               prefetch={true}
-              className="inline-flex items-center text-xs font-medium text-stone-600 hover:text-stone-900 transition-colors py-1.5 px-3 rounded-lg hover:bg-stone-100 focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:outline-none"
+              className="inline-flex items-center text-xs font-semibold text-zinc-400 hover:text-zinc-100 transition-colors py-2 px-3 rounded-lg hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
               <span>Volver a la tienda</span>
             </Link>
@@ -248,7 +255,7 @@ export default function AdminLoginPage({
         </div>
 
         {/* Pie de pantalla */}
-        <p className="text-center text-xs text-stone-500 mt-6">
+        <p className="text-center text-xs text-zinc-400 mt-6">
           Acceso privado para el equipo de administración de {storeName}.
         </p>
       </div>

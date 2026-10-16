@@ -95,6 +95,9 @@ export function ProductListClient({
   // Estado para Modal con Step de Confirmación de Borrado de Producto
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
+  // Estado accesible para notificaciones de error inline (reemplaza alert() bloqueante)
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
   // Estados de control para acciones en lote flotantes
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
@@ -301,6 +304,7 @@ export function ProductListClient({
 
     const previousStatus = target.status;
     const previousProducts = [...products];
+    setFeedbackError(null);
 
     // Actualización optimista inmediata
     setProducts((prev) =>
@@ -324,7 +328,7 @@ export function ProductListClient({
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setProducts(previousProducts);
-        alert(data.error || "No se pudo actualizar el estado.");
+        setFeedbackError(data.error || "No se pudo actualizar el estado.");
         return;
       }
 
@@ -344,13 +348,14 @@ export function ProductListClient({
       });
     } catch {
       setProducts(previousProducts);
-      alert("Error de conexión al actualizar el estado.");
+      setFeedbackError("Error de conexión al actualizar el estado.");
     }
   };
 
   // Deshacer cambio de estado (BR-28)
   const handleUndo = async (action: UndoAction) => {
     setUndoAction(null);
+    setFeedbackError(null);
     try {
       const res = await fetch("/api/admin/products/undo", {
         method: "POST",
@@ -364,10 +369,10 @@ export function ProductListClient({
           prev.map((p) => (p.id === action.productId ? data.product : p))
         );
       } else {
-        alert(data.error || "No se pudo revertir el estado.");
+        setFeedbackError(data.error || "No se pudo revertir el estado.");
       }
     } catch {
-      alert("Error al revertir el estado.");
+      setFeedbackError("Error al revertir el estado.");
     }
   };
 
@@ -381,6 +386,7 @@ export function ProductListClient({
     const currentProduct = products.find((p) => p.id === productId);
     if (!currentProduct) return;
 
+    setFeedbackError(null);
     setProducts((prev) =>
       prev.map((p) => (p.id === productId ? { ...p, isFeatured: !p.isFeatured } : p))
     );
@@ -397,7 +403,7 @@ export function ProductListClient({
         setProducts((prev) =>
           prev.map((p) => (p.id === productId ? currentProduct : p))
         );
-        alert(data.error || "No se pudo actualizar el estado de destacado.");
+        setFeedbackError(data.error || "No se pudo actualizar el estado de destacado.");
         return;
       }
 
@@ -408,7 +414,7 @@ export function ProductListClient({
       setProducts((prev) =>
         prev.map((p) => (p.id === productId ? currentProduct : p))
       );
-      alert("Error de conexión con el servidor.");
+      setFeedbackError("Error de conexión con el servidor.");
     }
   };
 
@@ -416,6 +422,7 @@ export function ProductListClient({
   const handleBulkStatus = async (newStatus: ProductStatus) => {
     if (selectedProductIds.length === 0) return;
     setBulkProcessing(true);
+    setFeedbackError(null);
     try {
       const res = await fetch("/api/admin/products/bulk", {
         method: "POST",
@@ -442,10 +449,10 @@ export function ProductListClient({
         clearSelection();
         setBulkStatusOpen(false);
       } else {
-        alert(data.error || "Error al aplicar estado en lote.");
+        setFeedbackError(data.error || "Error al aplicar estado en lote.");
       }
     } catch {
-      alert("Error de conexión con el servidor.");
+      setFeedbackError("Error de conexión con el servidor.");
     } finally {
       setBulkProcessing(false);
     }
@@ -454,6 +461,7 @@ export function ProductListClient({
   const handleBulkMoveCategory = async (targetCategoryId: number) => {
     if (selectedProductIds.length === 0) return;
     setBulkProcessing(true);
+    setFeedbackError(null);
     try {
       const res = await fetch("/api/admin/products/bulk", {
         method: "POST",
@@ -476,10 +484,10 @@ export function ProductListClient({
         clearSelection();
         setBulkCategoryOpen(false);
       } else {
-        alert(data.error || "Error al mover categorías en lote.");
+        setFeedbackError(data.error || "Error al mover categorías en lote.");
       }
     } catch {
-      alert("Error de conexión con el servidor.");
+      setFeedbackError("Error de conexión con el servidor.");
     } finally {
       setBulkProcessing(false);
     }
@@ -493,6 +501,7 @@ export function ProductListClient({
     if (!confirmed) return;
 
     setBulkProcessing(true);
+    setFeedbackError(null);
     try {
       const res = await fetch("/api/admin/products/bulk", {
         method: "POST",
@@ -509,10 +518,10 @@ export function ProductListClient({
         );
         clearSelection();
       } else {
-        alert(data.error || "Error al eliminar productos en lote.");
+        setFeedbackError(data.error || "Error al eliminar productos en lote.");
       }
     } catch {
-      alert("Error de conexión con el servidor.");
+      setFeedbackError("Error de conexión con el servidor.");
     } finally {
       setBulkProcessing(false);
     }
@@ -521,6 +530,7 @@ export function ProductListClient({
   const handleBulkFeatured = async (isFeatured: boolean) => {
     if (selectedProductIds.length === 0) return;
     setBulkProcessing(true);
+    setFeedbackError(null);
 
     try {
       const res = await fetch("/api/admin/products/bulk", {
@@ -534,7 +544,7 @@ export function ProductListClient({
 
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        alert(data.error || "Error al procesar la acción en lote.");
+        setFeedbackError(data.error || "Error al procesar la acción en lote.");
         return;
       }
 
@@ -545,7 +555,7 @@ export function ProductListClient({
       );
       clearSelection();
     } catch {
-      alert("Error de conexión con el servidor.");
+      setFeedbackError("Error de conexión con el servidor.");
     } finally {
       setBulkProcessing(false);
     }
@@ -590,7 +600,7 @@ export function ProductListClient({
                   ? "Deseleccionar todos los productos filtrados"
                   : `Seleccionar todos los ${filteredProducts.length} productos filtrados`
               }
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 font-medium text-xs hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 font-semibold text-xs hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
               {allFilteredSelected ? (
                 <>
@@ -615,6 +625,28 @@ export function ProductListClient({
           </Link>
         </div>
       </div>
+
+      {/* Banner de Error Accesible Inline (Reemplaza alert() bloqueante) */}
+      {feedbackError && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-rose-950/60 border border-rose-700/80 text-rose-200 text-xs font-medium shadow-sm"
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-rose-400 shrink-0" aria-hidden="true" />
+            <span>{feedbackError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedbackError(null)}
+            aria-label="Cerrar aviso de error"
+            className="p-1 rounded-lg text-rose-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {/* Buscador y Pestañas de Estado */}
       <div className="space-y-3">
@@ -650,7 +682,7 @@ export function ProductListClient({
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
-                className={`whitespace-nowrap px-3.5 py-1.5 rounded-full font-medium transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
+                className={`whitespace-nowrap px-3.5 py-2 rounded-full font-medium transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                   isActive
                     ? "bg-amber-200 text-zinc-950 font-bold shadow-sm"
                     : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
@@ -673,7 +705,7 @@ export function ProductListClient({
               type="button"
               onClick={() => setGroupBy("category")}
               aria-pressed={groupBy === "category"}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                 groupBy === "category"
                   ? "bg-amber-200 text-zinc-950 shadow-xs"
                   : "text-zinc-400 hover:text-zinc-200"
@@ -686,7 +718,7 @@ export function ProductListClient({
               type="button"
               onClick={() => setGroupBy("status")}
               aria-pressed={groupBy === "status"}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                 groupBy === "status"
                   ? "bg-amber-200 text-zinc-950 shadow-xs"
                   : "text-zinc-400 hover:text-zinc-200"
@@ -699,7 +731,7 @@ export function ProductListClient({
               type="button"
               onClick={() => setGroupBy("none")}
               aria-pressed={groupBy === "none"}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                 groupBy === "none"
                   ? "bg-amber-200 text-zinc-950 shadow-xs"
                   : "text-zinc-400 hover:text-zinc-200"
@@ -718,7 +750,7 @@ export function ProductListClient({
               <button
                 type="button"
                 onClick={collapseAllGroups}
-                className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded hover:bg-zinc-800 transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
                 title="Colapsar todos los grupos"
               >
                 <Minimize2 size={12} aria-hidden="true" />
@@ -727,7 +759,7 @@ export function ProductListClient({
               <button
                 type="button"
                 onClick={expandAllGroups}
-                className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded hover:bg-zinc-800 transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
                 title="Expandir todos los grupos"
               >
                 <Maximize2 size={12} aria-hidden="true" />
@@ -740,7 +772,7 @@ export function ProductListClient({
             <button
               type="button"
               onClick={expandAllProductDetails}
-              className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded hover:bg-zinc-800 transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
               title="Expandir detalles de todas las prendas"
             >
               <span>+ Ver detalles</span>
@@ -748,7 +780,7 @@ export function ProductListClient({
             <button
               type="button"
               onClick={collapseAllProductDetails}
-              className="inline-flex items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded hover:bg-zinc-800 transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
               title="Comprimir a vista compacta"
             >
               <span>- Vista compacta</span>
@@ -760,11 +792,11 @@ export function ProductListClient({
       {/* Listado Jerarquizado de Grupos y Productos */}
       {filteredProducts.length === 0 ? (
         <div className="text-center py-12 px-4 rounded-2xl bg-zinc-900/30 border border-zinc-800/80 space-y-2">
-          <Package size={32} className="mx-auto text-zinc-600" />
+          <Package size={32} className="mx-auto text-zinc-500" />
           <p className="text-sm font-semibold text-zinc-300">
             No se encontraron productos con los filtros seleccionados
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-zinc-400">
             Probá limpiando el buscador o cambiando de pestaña.
           </p>
         </div>
@@ -783,72 +815,62 @@ export function ProductListClient({
                 aria-labelledby={`heading-${group.id}`}
                 className="border border-zinc-800/80 rounded-2xl overflow-hidden bg-zinc-900/40 backdrop-blur-sm transition-all"
               >
-                {/* Encabezado Colapsable del Grupo */}
+                {/* Encabezado Colapsable del Grupo (Controles hermanos desanidados para WCAG 4.1.2) */}
                 {groupBy !== "none" && (
-                  <div
-                    id={`heading-${group.id}`}
-                    role="button"
-                    tabIndex={0}
-                    aria-expanded={!isGroupCollapsed}
-                    aria-controls={`group-content-${group.id}`}
-                    onClick={() => toggleGroupCollapse(group.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleGroupCollapse(group.id);
-                      }
-                    }}
-                    className="w-full flex items-center justify-between p-3.5 sm:p-4 bg-zinc-900/90 border-b border-zinc-800/70 hover:bg-zinc-800/50 transition-colors cursor-pointer select-none"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="p-1 rounded-md bg-zinc-800 text-amber-300 shrink-0">
-                        {isGroupCollapsed ? (
-                          <ChevronRight size={15} aria-hidden="true" />
-                        ) : (
-                          <ChevronDown size={15} aria-hidden="true" />
-                        )}
-                      </span>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <h2 className="text-xs sm:text-sm font-bold text-zinc-100 truncate">
-                          {group.title}
-                        </h2>
-                        <span className="text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-semibold shrink-0">
-                          {group.products.length} {group.products.length === 1 ? "prenda" : "prendas"}
+                  <div className="w-full flex items-center justify-between gap-2 p-2.5 sm:p-3 bg-zinc-900/90 border-b border-zinc-800/70">
+                    <button
+                      type="button"
+                      id={`heading-${group.id}`}
+                      aria-expanded={!isGroupCollapsed}
+                      aria-controls={`group-content-${group.id}`}
+                      onClick={() => toggleGroupCollapse(group.id)}
+                      className="flex-1 flex items-center justify-between gap-2.5 min-w-0 text-left px-2 py-1.5 rounded-xl hover:bg-zinc-800/60 transition-colors cursor-pointer select-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="p-1 rounded-md bg-zinc-800 text-amber-300 shrink-0">
+                          {isGroupCollapsed ? (
+                            <ChevronRight size={15} aria-hidden="true" />
+                          ) : (
+                            <ChevronDown size={15} aria-hidden="true" />
+                          )}
                         </span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs sm:text-sm font-bold text-zinc-100 truncate">
+                            {group.title}
+                          </span>
+                          <span className="text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-semibold shrink-0">
+                            {group.products.length} {group.products.length === 1 ? "prenda" : "prendas"}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono">
+                      <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono shrink-0">
                         {group.availableCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-300 border border-emerald-800/60 font-semibold">
+                          <span className="px-2 py-0.5 rounded-md border status-badge-available font-semibold">
                             {group.availableCount} disp.
                           </span>
                         )}
                         {group.reservedCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-md bg-amber-950/60 text-amber-300 border border-amber-800/60 font-semibold">
+                          <span className="px-2 py-0.5 rounded-md border status-badge-reserved font-semibold">
                             {group.reservedCount} res.
                           </span>
                         )}
                         {group.soldOutCount > 0 && (
-                          <span className="px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-400 border border-zinc-700 font-semibold">
+                          <span className="px-2 py-0.5 rounded-md border status-badge-soldout font-semibold">
                             {group.soldOutCount} agot.
                           </span>
                         )}
                       </div>
+                    </button>
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleSelectGroup(groupProductIds);
-                        }}
-                        aria-label={`Seleccionar todas las prendas de ${group.title}`}
-                        className="text-[11px] text-zinc-400 hover:text-amber-200 px-2 py-1 rounded-lg hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
-                      >
-                        {isGroupAllSelected ? "Deseleccionar grupo" : "Seleccionar grupo"}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSelectGroup(groupProductIds)}
+                      aria-label={`Seleccionar todas las prendas de ${group.title}`}
+                      className="shrink-0 text-[11px] font-medium text-zinc-400 hover:text-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                    >
+                      {isGroupAllSelected ? "Deseleccionar grupo" : "Seleccionar grupo"}
+                    </button>
                   </div>
                 )}
 
@@ -895,13 +917,13 @@ export function ProductListClient({
                               role="checkbox"
                               aria-checked={isSelected}
                               onClick={() => toggleProductSelection(p.id)}
-                              className="text-zinc-500 hover:text-amber-200 p-1 shrink-0 rounded-md focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                              className="text-zinc-500 hover:text-amber-200 p-1.5 shrink-0 rounded-md focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                               aria-label={`${isSelected ? "Deseleccionar" : "Seleccionar"} producto #${codeFormatted}`}
                             >
                               {isSelected ? (
                                 <CheckSquare size={18} className="text-amber-300" aria-hidden="true" />
                               ) : (
-                                <Square size={18} className="text-zinc-600 hover:text-zinc-400" aria-hidden="true" />
+                                <Square size={18} className="text-zinc-500 hover:text-zinc-300" aria-hidden="true" />
                               )}
                             </button>
 
@@ -914,11 +936,11 @@ export function ProductListClient({
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                <div className="w-full h-full flex items-center justify-center text-zinc-500">
                                   <Package size={18} />
                                 </div>
                               )}
-                              <span className="absolute bottom-0.5 left-0.5 right-0.5 text-center text-[8px] sm:text-[9px] font-mono font-bold bg-zinc-950/85 text-amber-200 rounded">
+                              <span className="absolute bottom-0.5 left-0.5 right-0.5 text-center text-[9px] font-mono font-bold bg-zinc-950/90 text-amber-200 rounded">
                                 {codeFormatted}
                               </span>
                             </div>
@@ -971,7 +993,7 @@ export function ProductListClient({
                                   aria-pressed={p.status === "AVAILABLE"}
                                   aria-label={`Marcar disponible #${codeFormatted}`}
                                   onClick={() => handleStatusChange(p.id, "AVAILABLE")}
-                                  className={`px-2 py-1 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                                  className={`px-2.5 py-1.5 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400 ${
                                     p.status === "AVAILABLE"
                                       ? "bg-emerald-600 text-white shadow-xs"
                                       : "text-zinc-400 hover:text-zinc-200"
@@ -984,7 +1006,7 @@ export function ProductListClient({
                                   aria-pressed={p.status === "RESERVED"}
                                   aria-label={`Marcar reservada #${codeFormatted}`}
                                   onClick={() => handleStatusChange(p.id, "RESERVED")}
-                                  className={`px-2 py-1 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                                  className={`px-2.5 py-1.5 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 ${
                                     p.status === "RESERVED"
                                       ? "bg-amber-500 text-stone-950 shadow-xs"
                                       : "text-zinc-400 hover:text-zinc-200"
@@ -997,7 +1019,7 @@ export function ProductListClient({
                                   aria-pressed={p.status === "SOLD_OUT"}
                                   aria-label={`Marcar agotada #${codeFormatted}`}
                                   onClick={() => handleStatusChange(p.id, "SOLD_OUT")}
-                                  className={`px-2 py-1 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-stone-400 ${
+                                  className={`px-2.5 py-1.5 rounded-lg font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-stone-400 ${
                                     p.status === "SOLD_OUT"
                                       ? "bg-stone-600 text-white shadow-xs"
                                       : "text-zinc-400 hover:text-zinc-200"
@@ -1019,7 +1041,7 @@ export function ProductListClient({
                                   ? `Ocultar detalles de #${codeFormatted}`
                                   : `Ver detalles y stock de #${codeFormatted}`
                               }
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-amber-200 hover:bg-zinc-800 transition-colors shrink-0"
+                              className="p-2 rounded-lg text-zinc-400 hover:text-amber-200 hover:bg-zinc-800 transition-colors shrink-0"
                               title={isDetailsExpanded ? "Ocultar detalles" : "Ver detalles y stock"}
                             >
                               <ChevronDown
@@ -1036,7 +1058,7 @@ export function ProductListClient({
                               type="button"
                               onClick={() => setProductToDelete(p)}
                               aria-label={`Borrar producto #${codeFormatted}`}
-                              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors focus-visible:ring-2 focus-visible:ring-rose-400 shrink-0"
+                              className="p-2 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors focus-visible:ring-2 focus-visible:ring-rose-400 shrink-0"
                               title="Borrar producto..."
                             >
                               <Trash2 size={16} aria-hidden="true" />
@@ -1052,7 +1074,7 @@ export function ProductListClient({
                                 aria-haspopup="true"
                                 aria-expanded={openMenuProductId === p.id}
                                 aria-label={`Más opciones para #${codeFormatted}`}
-                                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
+                                className="p-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
                               >
                                 <MoreVertical size={16} aria-hidden="true" />
                               </button>

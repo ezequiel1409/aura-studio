@@ -160,7 +160,7 @@ export function AdminHeader({
             aria-expanded={isNavOpen}
             aria-controls="admin-collapsible-nav"
             aria-label={isNavOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
-            className="sm:hidden p-2 rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors"
+            className="sm:hidden p-2.5 rounded-xl text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors cursor-pointer"
           >
             {isNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
           </button>
@@ -168,11 +168,11 @@ export function AdminHeader({
           <Link
             href="/admin"
             aria-label={`${brandName}, ir al panel de administración`}
-            className="font-serif text-xl tracking-wider text-amber-100 font-semibold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg admin-logo"
+            className="font-serif text-xl tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5 admin-logo"
           >
             {brandName}
           </Link>
-          <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 admin-badge hidden xs:inline-block">
+          <span className="text-[10px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-200 border border-zinc-700 admin-badge hidden xs:inline-block">
             Admin
           </span>
         </div>
@@ -189,11 +189,11 @@ export function AdminHeader({
             target="_blank"
             rel="noreferrer"
             aria-label="Abrir catálogo público de la tienda en una pestaña nueva"
-            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+            className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-zinc-100 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             title="Ver catálogo público en una nueva pestaña"
           >
             <span className="hidden md:inline">Ver tienda</span>
-            <ArrowUpRight size={14} aria-hidden="true" />
+            <ArrowUpRight size={15} aria-hidden="true" />
           </a>
 
           <button
@@ -201,10 +201,10 @@ export function AdminHeader({
             onClick={handleLogout}
             disabled={loggingOut}
             aria-label={loggingOut ? "Cerrando sesión..." : "Cerrar sesión de administración"}
-            className="hidden md:flex items-center gap-1.5 text-xs text-zinc-400 hover:text-red-400 px-2.5 py-1.5 rounded-lg hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none disabled:opacity-50"
+            className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-rose-300 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-rose-950/40 hover:border-rose-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none disabled:opacity-50 cursor-pointer"
             title="Cerrar sesión"
           >
-            <LogOut size={14} aria-hidden="true" />
+            <LogOut size={15} aria-hidden="true" />
             <span>{loggingOut ? "Saliendo..." : "Salir"}</span>
           </button>
 

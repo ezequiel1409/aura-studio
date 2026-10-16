@@ -19,9 +19,13 @@ export function AdminSubNavBar({ pathname }: AdminSubNavBarProps) {
   const currentSeccion = searchParams.get("seccion") || "top";
 
   return (
-    <div className="border-t border-zinc-800/80 bg-zinc-900/75 backdrop-blur-md">
-      <div className="max-w-5xl mx-auto px-4 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mr-2 shrink-0 hidden md:inline">
+    <div className="border-t border-zinc-800 bg-zinc-900/90 backdrop-blur-md">
+      <div
+        role="navigation"
+        aria-label={`Sub-secciones de ${activeGroup.label}`}
+        className="max-w-5xl mx-auto px-4 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar"
+      >
+        <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 mr-1.5 shrink-0 hidden md:inline">
           {activeGroup.label}:
         </span>
 
@@ -43,13 +47,13 @@ export function AdminSubNavBar({ pathname }: AdminSubNavBarProps) {
               key={sub.href}
               href={sub.href}
               aria-current={isSubActive ? "page" : undefined}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                 isSubActive
-                  ? "bg-zinc-800 text-amber-300 border border-amber-500/40 font-semibold shadow-2xs"
-                  : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 border border-transparent"
+                  ? "bg-amber-200 text-zinc-950 font-bold shadow-xs admin-nav-active"
+                  : "text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 border border-transparent admin-nav-inactive"
               }`}
             >
-              <SubIcon size={13} aria-hidden="true" />
+              <SubIcon size={14} aria-hidden="true" />
               <span>{sub.label}</span>
             </Link>
           );
@@ -58,4 +62,3 @@ export function AdminSubNavBar({ pathname }: AdminSubNavBarProps) {
     </div>
   );
 }
-

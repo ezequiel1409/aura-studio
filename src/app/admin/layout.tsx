@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#09090b",
+  themeColor: "#faf8f5",
 };
 
 export default function AdminLayout({
@@ -26,7 +26,7 @@ export default function AdminLayout({
     <div
       id="admin-layout-root"
       data-theme="light"
-      className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col font-sans selection:bg-amber-900 selection:text-amber-100 transition-colors"
+      className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col font-sans selection:bg-amber-800 selection:text-amber-50 transition-colors"
     >
       {/* Hidratación ultra-rápida sin FOUC de la preferencia de tema */}
       <script
@@ -37,7 +37,7 @@ export default function AdminLayout({
       {/* Enlace accesible para saltar directo al contenido con teclado o lector de pantalla */}
       <a
         href="#admin-main"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2.5 focus:bg-amber-300 focus:text-zinc-950 focus:font-bold focus:text-xs focus:rounded-xl focus:shadow-2xl focus:ring-2 focus:ring-zinc-950 focus:outline-none transition-all"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2.5 focus:bg-amber-300 focus:text-zinc-950 focus:font-bold focus:text-xs focus:rounded-xl focus:shadow-2xl focus:ring-2 focus:ring-amber-500 focus:outline-none transition-all"
       >
         Saltar al contenido principal
       </a>
@@ -49,8 +49,10 @@ export default function AdminLayout({
       >
         {children}
       </main>
-      <footer className="w-full py-4 text-center border-t border-[var(--admin-border)] text-[10px] text-[var(--admin-text-muted)]">
-        <span>Creado por <strong className="font-medium text-[var(--admin-text-secondary)]">Altum</strong></span>
+      <footer className="w-full py-4 text-center border-t border-zinc-800 text-xs text-zinc-500">
+        <span>
+          Creado por <strong className="font-semibold text-zinc-300">Altum</strong>
+        </span>
       </footer>
       {/* Monitor de expiración de sesión y renovación en 1 clic (BR-10, BR-37) */}
       <AdminSessionMonitor />

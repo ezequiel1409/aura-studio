@@ -576,14 +576,14 @@ export function NewProductClient({ categories }: NewProductClientProps) {
 
                 {/* Flechas para reordenar */}
                 {photos.length > 1 && (
-                  <div className="absolute top-1 left-1 flex items-center gap-0.5 z-10 opacity-75 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-1 left-1 flex items-center gap-0.5 z-10 opacity-85 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                     {idx > 0 && (
                       <button
                         type="button"
                         onClick={() => handleMovePhoto(idx, "left")}
                         aria-label={`Mover foto ${idx + 1} hacia la izquierda`}
                         title="Mover hacia la izquierda"
-                        className="p-0.5 rounded bg-zinc-950/80 text-zinc-300 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-1 focus-visible:ring-amber-400"
+                        className="p-1 rounded bg-zinc-950/90 text-zinc-200 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       >
                         <ChevronLeft size={12} aria-hidden="true" />
                       </button>
@@ -594,7 +594,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                         onClick={() => handleMovePhoto(idx, "right")}
                         aria-label={`Mover foto ${idx + 1} hacia la derecha`}
                         title="Mover hacia la derecha"
-                        className="p-0.5 rounded bg-zinc-950/80 text-zinc-300 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-1 focus-visible:ring-amber-400"
+                        className="p-1 rounded bg-zinc-950/90 text-zinc-200 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       >
                         <ChevronRight size={12} aria-hidden="true" />
                       </button>
@@ -614,7 +614,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                     onClick={() => handleSetCoverPhoto(idx)}
                     aria-label={`Destacar foto ${idx + 1} como portada principal`}
                     title="Hacer que esta foto sea la portada del producto"
-                    className="absolute bottom-1 inset-x-1 flex items-center justify-center gap-1 py-0.5 rounded bg-zinc-950/90 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 border border-zinc-800 text-[9px] font-semibold transition-all focus-visible:ring-1 focus-visible:ring-amber-400"
+                    className="absolute bottom-1 inset-x-1 flex items-center justify-center gap-1 py-0.5 rounded bg-zinc-950/90 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 border border-zinc-800 text-[9px] font-semibold transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                   >
                     <Star size={9} aria-hidden="true" />
                     <span>Destacar</span>
@@ -623,22 +623,27 @@ export function NewProductClient({ categories }: NewProductClientProps) {
               </div>
             ))}
 
-            {/* Botón de Agregar Fotos */}
-            <label className="w-20 h-24 rounded-xl border-2 border-dashed border-zinc-700 hover:border-amber-400/70 bg-zinc-950/50 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors text-zinc-400 hover:text-amber-200">
+            {/* Botón de Agregar Fotos (accesible por teclado con sr-only + focus-within) */}
+            <label
+              htmlFor="new-product-photos-input"
+              className="w-24 h-32 rounded-xl border-2 border-dashed border-zinc-700 hover:border-amber-400/70 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-400 bg-zinc-950/50 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-colors text-zinc-400 hover:text-amber-200"
+            >
               <input
+                id="new-product-photos-input"
                 type="file"
                 multiple
                 accept="image/*"
                 onChange={handlePhotoUpload}
                 disabled={compressing}
-                className="hidden"
+                aria-label="Subir fotos del producto"
+                className="sr-only"
               />
               {compressing ? (
-                <Loader2 size={18} className="animate-spin text-amber-300" />
+                <Loader2 size={18} className="animate-spin text-amber-300" aria-hidden="true" />
               ) : (
                 <>
-                  <Upload size={18} />
-                  <span className="text-[10px] font-medium">+ Fotos</span>
+                  <Upload size={18} aria-hidden="true" />
+                  <span className="text-[11px] font-semibold">+ Fotos</span>
                 </>
               )}
             </label>
@@ -651,7 +656,7 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             htmlFor="rawText"
             className="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2"
           >
-            <Sparkles size={16} className="text-amber-300" />
+            <Sparkles size={16} className="text-amber-300" aria-hidden="true" />
             <span>Texto libre original</span>
           </label>
           <textarea
@@ -660,10 +665,10 @@ export function NewProductClient({ categories }: NewProductClientProps) {
             value={rawText}
             onChange={(e) => handleRawTextChange(e.target.value)}
             placeholder="Pegá la descripción aquí... Ej: Remera Boxy fit de algodón negra y crudo talles S y M $22.500"
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 transition-all font-sans leading-relaxed"
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all font-sans leading-relaxed"
             required
           />
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-zinc-400">
             Se guarda siempre el texto crudo. El parser interpreta automáticamente título, precio, categoría y variantes.
           </p>
         </div>
@@ -682,10 +687,14 @@ export function NewProductClient({ categories }: NewProductClientProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Título */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+              <label
+                htmlFor="proposed-title"
+                className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5"
+              >
                 Título propuesto
               </label>
               <input
+                id="proposed-title"
                 type="text"
                 value={title}
                 onChange={(e) => {
@@ -693,18 +702,22 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                   setTitle(e.target.value);
                 }}
                 placeholder="Título del producto"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               />
             </div>
 
             {/* Precio en Pesos */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+              <label
+                htmlFor="proposed-price"
+                className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5"
+              >
                 Precio (ARS)
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-zinc-500 text-sm">$</span>
+                <span className="absolute left-3.5 top-2.5 text-zinc-500 text-sm" aria-hidden="true">$</span>
                 <input
+                  id="proposed-price"
                   type="number"
                   step="any"
                   value={pricePesos}
@@ -713,23 +726,27 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                     setPricePesos(e.target.value);
                   }}
                   placeholder="Vacío = 'Consultar precio'"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
                 />
               </div>
             </div>
 
             {/* Categoría */}
             <div className="sm:col-span-2">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+              <label
+                htmlFor="proposed-category"
+                className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5"
+              >
                 Categoría
               </label>
               <select
+                id="proposed-category"
                 value={selectedCategoryId}
                 onChange={(e) => {
                   setCategoryManuallyEdited(true);
                   setSelectedCategoryId(Number(e.target.value));
                 }}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
               >
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -768,12 +785,12 @@ export function NewProductClient({ categories }: NewProductClientProps) {
                 aria-checked={isFeatured}
                 aria-label="Destacar este producto en el catálogo"
                 onClick={() => setIsFeatured((prev) => !prev)}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                className={`admin-switch-track relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                   isFeatured ? "bg-amber-400" : "bg-zinc-800"
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
+                  className={`admin-switch-thumb pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
                     isFeatured ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
