@@ -17,18 +17,18 @@ export default async function AdminProductsPage({
   const params = await searchParams;
   const deps = getProductServiceDeps();
 
-  // Obtener categorías para nombres y filtros
-  const categories = await deps.categoryRepo.listAll();
-
-  // Obtener productos de la tienda (hasta 100 por página)
-  const result = await listProducts(
-    {
-      page: 1,
-      pageSize: 100,
-      sortBy: "newest",
-    },
-    deps
-  );
+  // Obtener categorías y productos en paralelo para minimizar latencia
+  const [categories, result] = await Promise.all([
+    deps.categoryRepo.listAll(),
+    listProducts(
+      {
+        page: 1,
+        pageSize: 100,
+        sortBy: "newest",
+      },
+      deps
+    ),
+  ]);
 
   return (
     <ProductListClient

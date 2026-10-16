@@ -1,261 +1,30 @@
-import Link from "next/link";
-import {
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
-  Clock,
-  DollarSign,
-  Package,
-  PlusCircle,
-  ShoppingBag,
-  Tag,
-  FolderTree,
-  Settings,
-} from "lucide-react";
 import { connection } from "next/server";
 import { getProductServiceDeps } from "../../infra/db/connection";
 import { getBackofficeSummary } from "../../services/backoffice.service";
 import { getShowroomSettings } from "../../services/settings.service";
-import { listOrders } from "../../services/order.service";
+import { getOrdersSummaryCounts } from "../../services/order.service";
+import { DashboardWelcomeHeader } from "../../components/admin/dashboard/DashboardWelcomeHeader";
+import { DashboardStatGrid } from "../../components/admin/dashboard/DashboardStatGrid";
+import { DashboardQuickLinks } from "../../components/admin/dashboard/DashboardQuickLinks";
 
 export default async function AdminDashboardPage() {
   await connection();
   const deps = getProductServiceDeps();
-  const [summary, settings, orders] = await Promise.all([
+  const [summary, settings, orderCounts] = await Promise.all([
     getBackofficeSummary(deps),
     getShowroomSettings(deps),
-    listOrders({ limit: 100 }, deps).catch(() => []),
+    getOrdersSummaryCounts(deps).catch(() => ({ total: 0, pending: 0 })),
   ]);
   const storeType = settings.storeType || "Showroom";
-  const pendingOrdersCount = orders.filter((o) => o.status === "PENDING").length;
-
-  const statCards = [
-    {
-      title: "Disponibles",
-      count: summary.available,
-      description: "Productos con stock listos para la venta",
-      href: "/admin/productos?status=AVAILABLE",
-      icon: CheckCircle2,
-      color: "text-emerald-500",
-      bgBadge: "status-badge-available",
-      accentBorder: "hover:border-emerald-600/50",
-    },
-    {
-      title: "Reservadas",
-      count: summary.reserved,
-      description: "Productos apartados temporalmente",
-      href: "/admin/productos?status=RESERVED",
-      icon: Clock,
-      color: "text-amber-500",
-      bgBadge: "status-badge-reserved",
-      accentBorder: "hover:border-amber-600/50",
-    },
-    {
-      title: "Agotadas",
-      count: summary.soldOut,
-      description: "Sin stock (purga automática a los 30 días)",
-      href: "/admin/productos?status=SOLD_OUT",
-      icon: Package,
-      color: "text-stone-500",
-      bgBadge: "status-badge-soldout",
-      accentBorder: "hover:border-stone-500",
-    },
-    {
-      title: "Por vencer",
-      count: summary.expiringSoon,
-      description: "Agotadas hace más de 23 días (≤ 7 días para purga)",
-      href: "/admin/productos?filter=por_vencer",
-      icon: AlertTriangle,
-      color: "text-rose-500",
-      bgBadge: "status-badge-expiring",
-      accentBorder: "hover:border-rose-600/50",
-    },
-    {
-      title: "Sin clasificar",
-      count: summary.uncategorized,
-      description: "Publicadas en categoría general por defecto",
-      href: "/admin/productos?filter=sin_clasificar",
-      icon: Tag,
-      color: "text-purple-500",
-      bgBadge: "status-badge-uncategorized",
-      accentBorder: "hover:border-purple-600/50",
-    },
-    {
-      title: "Sin precio",
-      count: summary.noPrice,
-      description: "Muestran 'Consultar precio' en el catálogo",
-      href: "/admin/productos?filter=sin_precio",
-      icon: DollarSign,
-      color: "text-sky-500",
-      bgBadge: "status-badge-noprice",
-      accentBorder: "hover:border-sky-600/50",
-    },
-  ];
 
   return (
     <div className="space-y-6 md:space-y-8">
-      {/* Bienvenida y Acciones de Cabecera */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-5 md:p-6 backdrop-blur-sm">
-        <div>
-          <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300">
-            Resumen General
-          </span>
-          <h1 className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-zinc-100 mt-1">
-            Panel de {storeType}
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Visualizá contadores en tiempo real, alertas de stock y métricas de catálogo.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/productos/nuevo"
-            aria-label="Cargar nuevo producto al catálogo"
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-200 text-zinc-950 font-semibold text-sm hover:bg-amber-100 active:scale-[0.98] transition-all shadow-md shadow-amber-950/30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-          >
-            <PlusCircle size={18} aria-hidden="true" />
-            <span>+ Cargar Producto</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Grid de Contadores Táctiles (BR-36) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-        {statCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Link
-              key={card.title}
-              href={card.href}
-              aria-label={`${card.title}: ${card.count} productos. ${card.description}. Ver listado filtrado.`}
-              className={`flex flex-col justify-between p-4 md:p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 transition-all hover:bg-zinc-800/50 active:scale-[0.99] group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${card.accentBorder}`}
-            >
-              <div className="flex items-start justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-                  {card.title}
-                </span>
-                <span
-                  className={`p-2 rounded-xl border ${card.bgBadge}`}
-                  aria-hidden="true"
-                >
-                  <Icon size={16} />
-                </span>
-              </div>
-
-              <div className="my-3">
-                <span className="text-3xl md:text-4xl font-mono font-bold tracking-tight text-zinc-100">
-                  {card.count}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-zinc-500 group-hover:text-zinc-400 transition-colors pt-2 border-t border-zinc-800/60">
-                <span className="line-clamp-1">{card.description}</span>
-                <ArrowRight size={12} aria-hidden="true" className="shrink-0 ml-1 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* Accesos Directos Secundarios */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
-        <Link
-          href="/admin/ordenes"
-          aria-label={`Ir a gestión de pedidos: ${orders.length} órdenes, ${pendingOrdersCount} pendientes`}
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-amber-400/60 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-amber-950/60 border border-amber-800/80 text-amber-300" aria-hidden="true">
-              <ShoppingBag size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <p className="text-sm font-semibold text-zinc-200">Pedidos</p>
-                {pendingOrdersCount > 0 && (
-                  <span className="rounded-full bg-amber-400 text-zinc-950 px-1.5 py-0.2 text-[10px] font-bold">
-                    {pendingOrdersCount}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-zinc-400">
-                {orders.length} {orders.length === 1 ? "orden" : "órdenes"}
-              </p>
-            </div>
-          </div>
-          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-amber-300 group-hover:translate-x-1 transition-all" />
-        </Link>
-
-        <Link
-          href="/admin/productos"
-          aria-label="Ir al catálogo de productos: gestión de stock, edición y acciones en lote"
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-zinc-800 text-zinc-200" aria-hidden="true">
-              <Package size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-zinc-200">Catálogo de Productos</p>
-              <p className="text-xs text-zinc-400">Stock, edición y acciones en lote</p>
-            </div>
-          </div>
-          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-zinc-200 group-hover:translate-x-1 transition-all" />
-        </Link>
-
-        <Link
-          href="/admin/categorias"
-          aria-label="Ir a categorías: árbol, orden y métricas de visitas"
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-zinc-800 text-amber-200" aria-hidden="true">
-              <FolderTree size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-zinc-200">Categorías</p>
-              <p className="text-xs text-zinc-400">Árbol, orden y visitas acumuladas</p>
-            </div>
-          </div>
-          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />
-        </Link>
-
-        <Link
-          href="/admin/configuracion"
-          aria-label="Ir a configuración de la tienda: logo, WhatsApp y redes sociales"
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-zinc-800 text-emerald-300" aria-hidden="true">
-              <Settings size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-zinc-200">Configuración</p>
-              <p className="text-xs text-zinc-400">Logo, WhatsApp y contacto</p>
-            </div>
-          </div>
-          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-emerald-300 group-hover:translate-x-1 transition-all" />
-        </Link>
-
-        <a
-          href="/"
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Abrir catálogo público de la tienda como clienta (en nueva pestaña)"
-          className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 transition-all group focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-zinc-800 text-amber-200" aria-hidden="true">
-              <ShoppingBag size={18} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-zinc-200">Catálogo Público</p>
-              <p className="text-xs text-zinc-400">Explorar como clienta</p>
-            </div>
-          </div>
-          <ArrowRight size={16} aria-hidden="true" className="text-zinc-500 group-hover:text-amber-200 group-hover:translate-x-1 transition-all" />
-        </a>
-      </div>
+      <DashboardWelcomeHeader storeType={storeType} />
+      <DashboardStatGrid summary={summary} />
+      <DashboardQuickLinks
+        totalOrdersCount={orderCounts.total}
+        pendingOrdersCount={orderCounts.pending}
+      />
     </div>
   );
 }

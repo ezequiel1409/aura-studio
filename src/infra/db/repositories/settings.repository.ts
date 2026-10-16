@@ -15,6 +15,18 @@ export class DrizzleSettingsRepository implements ISettingsRepository {
     return row ? row.value : null;
   }
 
+  async getAll(): Promise<Record<string, string>> {
+    const rows = await this.db
+      .select({ key: settings.key, value: settings.value })
+      .from(settings);
+
+    const map: Record<string, string> = {};
+    for (const row of rows) {
+      map[row.key] = row.value;
+    }
+    return map;
+  }
+
   async set(key: string, value: string): Promise<void> {
     await this.db.run(
       sql`INSERT INTO ${settings} (key, value)

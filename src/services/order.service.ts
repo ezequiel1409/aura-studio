@@ -155,6 +155,19 @@ export async function listOrders(
   return deps.orderRepo.list(options);
 }
 
+export async function getOrdersSummaryCounts(
+  deps: GlobalAppDeps
+): Promise<{ total: number; pending: number }> {
+  if (typeof deps.orderRepo.getSummaryCounts === "function") {
+    return deps.orderRepo.getSummaryCounts();
+  }
+  const orders = await deps.orderRepo.list({ limit: 100 });
+  return {
+    total: orders.length,
+    pending: orders.filter((o) => o.status === "PENDING").length,
+  };
+}
+
 export async function updateOrderStatus(
   id: number,
   status: OrderStatus,

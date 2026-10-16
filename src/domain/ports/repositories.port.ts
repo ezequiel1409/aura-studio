@@ -110,6 +110,7 @@ export interface ICounterRepository {
 
 export interface ISettingsRepository {
   get(key: string): Promise<string | null>;
+  getAll?(): Promise<Record<string, string>>;
   set(key: string, value: string): Promise<void>;
 }
 
@@ -169,6 +170,11 @@ export interface CreateOrderRepoData extends Omit<Order, "id" | "items"> {
   items: Array<Omit<OrderItem, "id" | "orderId" | "subtotalCents">>;
 }
 
+export interface OrderSummaryCounts {
+  total: number;
+  pending: number;
+}
+
 export interface IOrderRepository {
   create(data: CreateOrderRepoData): Promise<Order>;
   findById(id: number): Promise<Order | null>;
@@ -176,6 +182,7 @@ export interface IOrderRepository {
   list(options?: { status?: OrderStatus; limit?: number; offset?: number }): Promise<Order[]>;
   listByCustomer(customerId: number): Promise<Order[]>;
   updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order>;
+  getSummaryCounts?(): Promise<OrderSummaryCounts>;
 }
 
 export interface ICustomerRepository {

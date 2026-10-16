@@ -1,7 +1,8 @@
-import { desc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import {
   CreateOrderRepoData,
   IOrderRepository,
+  OrderSummaryCounts,
 } from "../../../domain/ports/repositories.port";
 import { Order, OrderItem, OrderStatus } from "../../../domain/order/types";
 import { DbClient } from "../client";
@@ -9,6 +10,20 @@ import { orderItems, orders } from "../schema";
 
 export class DrizzleOrderRepository implements IOrderRepository {
   constructor(private readonly db: DbClient) {}
+
+  async getSummaryCounts(): Promise<OrderSummaryCounts> {
+    const [row] = await this.db
+      .select({
+        total: sql<number>`COUNT(*)`,
+        pending: sql<number>`COALESCE(SUM(CASE WHEN ${orders.status} = 'PENDING' THEN 1 ELSE 0 END), 0)`,
+      })
+      .from(orders);
+
+    return {
+      total: Number(row?.total ?? 0),
+      pending: Number(row?.pending ?? 0),
+    };
+  }
 
   async create(data: CreateOrderRepoData): Promise<Order> {
     const [inserted] = await this.db

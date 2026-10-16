@@ -2,26 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  ArrowUpRight,
-  CheckCircle2,
-  Clock,
-  FolderTree,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  Package,
-  PlusCircle,
-  RefreshCw,
-  Settings,
-  Shield,
-  ShoppingBag,
-  User,
-  Users,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { AdminThemeToggle } from "./AdminThemeToggle";
+import { AdminDesktopNav } from "./header/AdminDesktopNav";
+import { AdminSubNavBar } from "./header/AdminSubNavBar";
+import { AdminMobileDrawer } from "./header/AdminMobileDrawer";
+import { AdminUserMenuPopover } from "./header/AdminUserMenuPopover";
 
 interface SessionUser {
   userId?: number;
@@ -42,7 +29,7 @@ export function AdminHeader({
   const router = useRouter();
 
   const [brandName, setBrandName] = useState(initialBrandName || "Aura Studio");
-  const [storeType, setStoreType] = useState(initialStoreType || "Showroom");
+  const [, setStoreType] = useState(initialStoreType || "Showroom");
   const [loggingOut, setLoggingOut] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -50,7 +37,8 @@ export function AdminHeader({
   const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(null);
   const [renewingSession, setRenewingSession] = useState(false);
 
-  const userMenuRef = useRef<HTMLDivElement>(null);
+  const hasLoadedSessionRef = useRef(false);
+  const hasLoadedBrandRef = useRef(Boolean(initialBrandName));
 
   // Consulta de datos de sesión del usuario logueado (BR-10, BR-37)
   const fetchSession = useCallback(async () => {
@@ -61,6 +49,7 @@ export function AdminHeader({
         if (data.authenticated && data.user) {
           setUser(data.user);
           setExpiresInSeconds(data.expiresInSeconds);
+          hasLoadedSessionRef.current = true;
         }
       }
     } catch {
@@ -68,19 +57,27 @@ export function AdminHeader({
     }
   }, []);
 
+  // Cargar sesión solo 1 vez al montar (o tras login), evitando fetches repetidos en cada cambio de pestaña
   useEffect(() => {
-    if (
+    const isAuthRoute =
       pathname === "/admin/login" ||
       pathname === "/admin/recuperar" ||
-      pathname.startsWith("/admin/restablecer")
-    ) {
+      pathname.startsWith("/admin/restablecer");
+
+    if (isAuthRoute) {
+      hasLoadedSessionRef.current = false;
       return;
     }
-    fetchSession();
+
+    if (!hasLoadedSessionRef.current) {
+      fetchSession();
+    }
   }, [pathname, fetchSession]);
 
+  // Cargar nombre de tienda solo 1 vez si no vino por props
   useEffect(() => {
-    if (!initialBrandName || !initialStoreType) {
+    if (!hasLoadedBrandRef.current) {
+      hasLoadedBrandRef.current = true;
       fetch("/api/admin/login")
         .then((res) => res.json())
         .then((data) => {
@@ -93,13 +90,13 @@ export function AdminHeader({
     }
   }, [initialBrandName, initialStoreType]);
 
-  // Cerrar menú al cambiar de ruta
+  // Cerrar menús al cambiar de ruta
   useEffect(() => {
     setIsNavOpen(false);
     setIsUserMenuOpen(false);
   }, [pathname]);
 
-  // Cerrar popover con tecla Escape o clic afuera
+  // Cerrar popover con tecla Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -125,6 +122,7 @@ export function AdminHeader({
     setLoggingOut(true);
     try {
       await fetch("/api/admin/logout", { method: "POST" });
+      hasLoadedSessionRef.current = false;
       router.push("/admin/login");
       router.refresh();
     } catch {
@@ -147,17 +145,6 @@ export function AdminHeader({
     }
   };
 
-  const navItems = [
-    { href: "/admin", label: "Resumen", mobileLabel: "Resumen", icon: LayoutDashboard },
-    { href: "/admin/ordenes", label: "Pedidos", mobileLabel: "Pedidos", icon: ShoppingBag },
-    { href: "/admin/productos", label: "Catálogo", mobileLabel: "Catálogo", icon: Package },
-    { href: "/admin/productos/nuevo", label: "Cargar", mobileLabel: "Cargar", icon: PlusCircle },
-    { href: "/admin/categorias", label: "Categorías", mobileLabel: "Categorías", icon: FolderTree },
-    { href: "/admin/configuracion", label: "Ajustes", mobileLabel: "Ajustes", icon: Settings },
-    { href: "/admin/usuarios", label: "Equipo", mobileLabel: "Equipo", icon: Users },
-  ];
-
-  // Letra inicial para el Avatar estilo Google (Google Account Circle)
   const userInitial = user?.email ? user.email.charAt(0).toUpperCase() : "A";
   const userRoleDisplay =
     user?.role === "SUPER_ADMIN" ? "Super Administradora" : "Administradora";
@@ -167,7 +154,6 @@ export function AdminHeader({
       <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
         {/* Lado Izquierdo: Botón Hamburguesa Móvil & Logo de Marca */}
         <div className="flex items-center gap-2.5">
-          {/* Botón Desplegable / Colapsable para Móvil */}
           <button
             type="button"
             onClick={() => setIsNavOpen(!isNavOpen)}
@@ -192,37 +178,12 @@ export function AdminHeader({
         </div>
 
         {/* Navegación Desktop / Tablet Principal */}
-        <nav
-          aria-label="Navegación principal de administración"
-          className="hidden sm:flex items-center gap-1"
-        >
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={isActive ? "page" : undefined}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
-                  isActive
-                    ? "bg-zinc-800 text-amber-200 admin-nav-active"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 admin-nav-inactive"
-                }`}
-              >
-                <Icon size={16} aria-hidden="true" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <AdminDesktopNav pathname={pathname} />
 
-        {/* Enlaces de Acción, Selector de Tema & Avatar de Usuario (Estilo Google) */}
+        {/* Enlaces de Acción, Selector de Tema & Avatar de Usuario */}
         <div className="flex items-center gap-2">
-          {/* Alternar Tema Claro/Oscuro Accesible */}
           <AdminThemeToggle />
 
-          {/* Enlace al Catálogo Público */}
           <a
             href="/"
             target="_blank"
@@ -235,7 +196,6 @@ export function AdminHeader({
             <ArrowUpRight size={14} aria-hidden="true" />
           </a>
 
-          {/* Botón de Cerrar Sesión Rápido Accesible */}
           <button
             type="button"
             onClick={handleLogout}
@@ -248,191 +208,37 @@ export function AdminHeader({
             <span>{loggingOut ? "Saliendo..." : "Salir"}</span>
           </button>
 
-          {/* AVATAR DE USUARIO ESTILO GOOGLE (Google Account Switcher & Popover) */}
-          <div className="relative" ref={userMenuRef}>
-            <button
-              type="button"
-              id="admin-user-menu-button"
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              aria-haspopup="dialog"
-              aria-expanded={isUserMenuOpen}
-              aria-label={
-                user?.email
-                  ? `Cuenta de ${user.email} (${userRoleDisplay}). Administrar cuenta y sesión.`
-                  : `Cuenta de administración de ${brandName}`
-              }
-              title={user?.email ? `${user.email} (${userRoleDisplay})` : "Cuenta de Administradora"}
-              className="flex items-center gap-1.5 p-1 rounded-full hover:ring-2 hover:ring-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-all group"
-            >
-              {/* Círculo Avatar con Inicial */}
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 text-zinc-950 font-bold text-xs flex items-center justify-center shadow-xs border border-amber-300/40 select-none">
-                {userInitial}
-              </div>
-            </button>
-
-            {/* Popover / Tarjeta de Perfil Estilo Google */}
-            {isUserMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsUserMenuOpen(false)}
-                  aria-hidden="true"
-                />
-                <div
-                  role="dialog"
-                  aria-labelledby="user-dialog-title"
-                  aria-modal="true"
-                  className="absolute right-0 top-full mt-2 w-72 sm:w-80 z-50 rounded-2xl bg-zinc-900 border border-zinc-700/80 p-4 shadow-2xl backdrop-blur-xl text-zinc-100 animate-in fade-in slide-in-from-top-2 space-y-4"
-                >
-                  {/* Encabezado: Avatar grande, email y rol */}
-                  <div className="flex flex-col items-center text-center space-y-1.5 pb-3 border-b border-zinc-800">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 text-zinc-950 font-extrabold text-xl flex items-center justify-center shadow-md border-2 border-amber-300/60 select-none">
-                      {userInitial}
-                    </div>
-                    <div className="space-y-0.5">
-                      <h3 id="user-dialog-title" className="text-sm font-bold text-zinc-100 truncate max-w-[240px]">
-                        {user?.email || "Administradora Aura"}
-                      </h3>
-                      <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-[10px] uppercase font-bold tracking-wider text-amber-300">
-                        <Shield size={10} aria-hidden="true" />
-                        <span>{userRoleDisplay}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Estado de la Sesión */}
-                  <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span>Sesión Activa</span>
-                      </div>
-                      {expiresInSeconds !== null && (
-                        <div className="flex items-center gap-1 text-[11px] text-zinc-400 font-mono">
-                          <Clock size={11} aria-hidden="true" />
-                          <span>~{Math.max(1, Math.floor(expiresInSeconds / 60))} min</span>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Autenticación segura por 2 horas de inactividad (BR-37).
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleRenewSession}
-                      disabled={renewingSession}
-                      className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 text-xs font-semibold transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400"
-                    >
-                      <RefreshCw size={12} className={renewingSession ? "animate-spin" : ""} aria-hidden="true" />
-                      <span>{renewingSession ? "Renovando..." : "Renovar 2 horas más"}</span>
-                    </button>
-                  </div>
-
-                  {/* Enlace a gestión de equipo y perfil */}
-                  <div className="space-y-1">
-                    <Link
-                      href="/admin/usuarios"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
-                    >
-                      <span className="flex items-center gap-2">
-                        <User size={14} className="text-zinc-400" />
-                        <span>Gestionar equipo y accesos</span>
-                      </span>
-                      <ArrowUpRight size={13} className="text-zinc-500" />
-                    </Link>
-                  </div>
-
-                  {/* Botón de Cerrar Sesión */}
-                  <div className="pt-2 border-t border-zinc-800">
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      disabled={loggingOut}
-                      aria-label={loggingOut ? "Cerrando sesión..." : "Cerrar sesión de administración"}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-zinc-800/80 hover:bg-rose-950/70 border border-zinc-700/80 hover:border-rose-700 text-zinc-300 hover:text-rose-200 font-semibold text-xs transition-colors focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none disabled:opacity-50"
-                    >
-                      <LogOut size={14} aria-hidden="true" />
-                      <span>{loggingOut ? "Cerrando sesión..." : "Cerrar sesión"}</span>
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          <AdminUserMenuPopover
+            isOpen={isUserMenuOpen}
+            brandName={brandName}
+            userEmail={user?.email}
+            userInitial={userInitial}
+            userRoleDisplay={userRoleDisplay}
+            expiresInSeconds={expiresInSeconds}
+            renewingSession={renewingSession}
+            loggingOut={loggingOut}
+            onToggle={() => setIsUserMenuOpen(!isUserMenuOpen)}
+            onClose={() => setIsUserMenuOpen(false)}
+            onRenewSession={handleRenewSession}
+            onLogout={handleLogout}
+          />
         </div>
       </div>
 
-      {/* MENÚ MÓVIL DESPLEGABLE / COLAPSABLE (Colapsible Navigation Drawer) */}
-      <div
-        id="admin-collapsible-nav"
-        className={`sm:hidden border-t border-zinc-800 transition-all duration-300 overflow-hidden ${
-          isNavOpen ? "max-h-[450px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
-        }`}
-      >
-        <nav
-          aria-label="Navegación móvil de administración"
-          className="p-4 bg-zinc-950/98 space-y-1 backdrop-blur-xl"
-        >
-          {/* Tarjeta de usuario en el menú desplegable */}
-          <div className="flex items-center gap-3 p-3 mb-2 rounded-xl bg-zinc-900 border border-zinc-800">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-300 text-zinc-950 font-bold text-sm flex items-center justify-center shrink-0">
-              {userInitial}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-zinc-100 truncate">{user?.email || "Administradora"}</p>
-              <p className="text-[10px] text-amber-300 font-medium">{userRoleDisplay}</p>
-            </div>
-          </div>
+      {/* Barra Secundaria Contextual (Sub-secciones de Catálogo o Tienda y Ajustes) */}
+      <AdminSubNavBar pathname={pathname} />
 
-          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 px-3 pt-1">
-            Secciones de Administración
-          </div>
-
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsNavOpen(false)}
-                aria-current={isActive ? "page" : undefined}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 ${
-                  isActive
-                    ? "bg-amber-200 text-zinc-950 font-bold shadow-sm"
-                    : "text-zinc-300 hover:text-white hover:bg-zinc-900"
-                }`}
-              >
-                <Icon size={16} aria-hidden="true" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-
-          <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between gap-2 px-1">
-            <a
-              href="/"
-              target="_blank"
-              rel="noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-900 text-zinc-300 text-xs font-semibold hover:bg-zinc-800"
-            >
-              <span>Ver tienda</span>
-              <ArrowUpRight size={13} />
-            </a>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-rose-950/40 text-rose-300 border border-rose-800/60 text-xs font-semibold hover:bg-rose-900/60"
-            >
-              <LogOut size={13} />
-              <span>{loggingOut ? "Saliendo..." : "Salir"}</span>
-            </button>
-          </div>
-        </nav>
-      </div>
+      {/* Menú Móvil Desplegable */}
+      <AdminMobileDrawer
+        isOpen={isNavOpen}
+        pathname={pathname}
+        userEmail={user?.email}
+        userInitial={userInitial}
+        userRoleDisplay={userRoleDisplay}
+        loggingOut={loggingOut}
+        onClose={() => setIsNavOpen(false)}
+        onLogout={handleLogout}
+      />
     </header>
   );
 }

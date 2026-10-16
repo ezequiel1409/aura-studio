@@ -36,13 +36,14 @@ export function AdminSessionMonitor() {
     }
   }, []);
 
-  // Verificar sesión en montaje y cada 60 segundos
+  const isAuthPage =
+    pathname === "/admin/login" ||
+    pathname === "/admin/recuperar" ||
+    pathname.startsWith("/admin/restablecer");
+
+  // Verificar sesión en montaje y cada 60 segundos (sin disparar fetch adicional en cada clic de menú)
   useEffect(() => {
-    if (
-      pathname === "/admin/login" ||
-      pathname === "/admin/recuperar" ||
-      pathname.startsWith("/admin/restablecer")
-    ) {
+    if (isAuthPage) {
       return;
     }
 
@@ -60,7 +61,7 @@ export function AdminSessionMonitor() {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [pathname, checkSession]);
+  }, [isAuthPage, checkSession]);
 
   // Temporizador local por segundo para conteo fluido
   useEffect(() => {

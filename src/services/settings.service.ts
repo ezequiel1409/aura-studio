@@ -76,39 +76,58 @@ export async function getShowroomSettings(
   let storedThemePrimaryColor: string | null = null;
 
   if (settingsRepo) {
-    [
-      storedWhatsapp,
-      storedName,
-      storedStoreType,
-      storedHours,
-      storedLogo,
-      storedInstagram,
-      storedTiktok,
-      storedAddress,
-      storedDataFiscal,
-      storedHeroMode,
-      storedHeroTitle,
-      storedHeroSubtitle,
-      storedHeroBannerUrl,
-      storedThemePalette,
-      storedThemePrimaryColor,
-    ] = await Promise.all([
-      settingsRepo.get("whatsapp_number"),
-      settingsRepo.get("showroom_name"),
-      settingsRepo.get("store_type"),
-      settingsRepo.get("reservation_hours"),
-      settingsRepo.get("logo_url"),
-      settingsRepo.get("instagram_handle"),
-      settingsRepo.get("tiktok_handle"),
-      settingsRepo.get("address"),
-      settingsRepo.get("data_fiscal_url"),
-      settingsRepo.get("hero_mode"),
-      settingsRepo.get("hero_title"),
-      settingsRepo.get("hero_subtitle"),
-      settingsRepo.get("hero_banner_url"),
-      settingsRepo.get("theme_palette"),
-      settingsRepo.get("theme_primary_color"),
-    ]);
+    if (typeof settingsRepo.getAll === "function") {
+      const all = await settingsRepo.getAll();
+      storedWhatsapp = all["whatsapp_number"] ?? null;
+      storedName = all["showroom_name"] ?? null;
+      storedStoreType = all["store_type"] ?? null;
+      storedHours = all["reservation_hours"] ?? null;
+      storedLogo = all["logo_url"] ?? null;
+      storedInstagram = all["instagram_handle"] ?? null;
+      storedTiktok = all["tiktok_handle"] ?? null;
+      storedAddress = all["address"] ?? null;
+      storedDataFiscal = all["data_fiscal_url"] ?? null;
+      storedHeroMode = all["hero_mode"] ?? null;
+      storedHeroTitle = all["hero_title"] ?? null;
+      storedHeroSubtitle = all["hero_subtitle"] ?? null;
+      storedHeroBannerUrl = all["hero_banner_url"] ?? null;
+      storedThemePalette = all["theme_palette"] ?? null;
+      storedThemePrimaryColor = all["theme_primary_color"] ?? null;
+    } else {
+      [
+        storedWhatsapp,
+        storedName,
+        storedStoreType,
+        storedHours,
+        storedLogo,
+        storedInstagram,
+        storedTiktok,
+        storedAddress,
+        storedDataFiscal,
+        storedHeroMode,
+        storedHeroTitle,
+        storedHeroSubtitle,
+        storedHeroBannerUrl,
+        storedThemePalette,
+        storedThemePrimaryColor,
+      ] = await Promise.all([
+        settingsRepo.get("whatsapp_number"),
+        settingsRepo.get("showroom_name"),
+        settingsRepo.get("store_type"),
+        settingsRepo.get("reservation_hours"),
+        settingsRepo.get("logo_url"),
+        settingsRepo.get("instagram_handle"),
+        settingsRepo.get("tiktok_handle"),
+        settingsRepo.get("address"),
+        settingsRepo.get("data_fiscal_url"),
+        settingsRepo.get("hero_mode"),
+        settingsRepo.get("hero_title"),
+        settingsRepo.get("hero_subtitle"),
+        settingsRepo.get("hero_banner_url"),
+        settingsRepo.get("theme_palette"),
+        settingsRepo.get("theme_primary_color"),
+      ]);
+    }
   }
 
   const parsedHours = storedHours ? parseInt(storedHours, 10) : NaN;
