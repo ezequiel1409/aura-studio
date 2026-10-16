@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  User,
+  MapPin,
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { formatPrice } from "../../lib/format/currency";
@@ -52,6 +54,10 @@ export function CartPageClient({
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
 
+  // Sesión de cliente autenticado y direcciones guardadas
+  const [customer, setCustomer] = useState<{ id: number; name: string; email: string; phone?: string | null } | null>(null);
+  const [savedAddresses, setSavedAddresses] = useState<Array<{ id: number; label: string; address: string; city?: string | null; isDefault: boolean }>>([]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [orderSuccess, setOrderSuccess] = useState<{
@@ -61,6 +67,34 @@ export function CartPageClient({
 
   useEffect(() => {
     setMounted(true);
+
+    // Intentar autocompletar si el cliente tiene sesión activa
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.ok && data.customer) {
+          setCustomer(data.customer);
+          setCustomerName((prev) => (prev ? prev : data.customer.name));
+          if (data.customer.phone) {
+            setCustomerPhone((prev) => (prev ? prev : data.customer.phone));
+          }
+
+          // Cargar direcciones guardadas del cliente
+          fetch("/api/customer/addresses")
+            .then((r) => (r.ok ? r.json() : null))
+            .then((addrData) => {
+              if (addrData?.ok && Array.isArray(addrData.addresses)) {
+                setSavedAddresses(addrData.addresses);
+                const defaultAddr = addrData.addresses.find((a: { isDefault: boolean }) => a.isDefault);
+                if (defaultAddr) {
+                  setDeliveryAddress((prev) => (prev ? prev : defaultAddr.address));
+                }
+              }
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
   }, []);
 
   if (!mounted) {
@@ -119,6 +153,8 @@ export function CartPageClient({
         body: JSON.stringify({
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
+          customerEmail: customer?.email || null,
+          customerId: customer?.id || null,
           deliveryMethod,
           deliveryAddress: deliveryAddress.trim() || null,
           deliveryNotes: deliveryNotes.trim() || null,
@@ -507,9 +543,42 @@ export function CartPageClient({
 
                 {/* Datos del comprador */}
                 <div className="space-y-4 border-t border-[#e7e2da] pt-5">
-                  <h2 className="font-sans text-xs font-semibold tracking-wider text-stone-800 uppercase">
-                    Datos del Comprador
-                  </h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-sans text-xs font-semibold tracking-wider text-stone-800 uppercase">
+                      Datos del Comprador
+                    </h2>
+                    {customer && (
+                      <span className="text-[11px] text-stone-500">
+                        Conectado como <strong className="text-stone-800">{customer.name}</strong>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Banner de estado de cuenta */}
+                  {customer ? (
+                    <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/80 p-3 text-xs text-stone-700">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-stone-500 shrink-0" />
+                        <span>Tus datos de cuenta y pedidos quedarán vinculados automáticamente.</span>
+                      </div>
+                      <Link
+                        href="/cuenta"
+                        className="text-xs font-semibold text-stone-900 hover:text-stone-700 underline underline-offset-2 ml-2 shrink-0"
+                      >
+                        Mi cuenta
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3 text-xs text-stone-600">
+                      <span>¿Ya tenés una cuenta en {brandName}?</span>
+                      <Link
+                        href="/cuenta/ingresar?redirect=/carrito"
+                        className="font-semibold text-stone-900 hover:text-stone-700 underline underline-offset-2"
+                      >
+                        Iniciá sesión para autocompletar tus datos
+                      </Link>
+                    </div>
+                  )}
 
                   <div>
                     <label htmlFor="checkout-name" className="block text-xs font-medium text-stone-700 mb-1">
@@ -543,6 +612,31 @@ export function CartPageClient({
 
                   {(deliveryMethod === "HOME_DELIVERY" || deliveryMethod === "MOTORCYCLE") && (
                     <div>
+                      {savedAddresses.length > 0 && (
+                        <div className="mb-3">
+                          <label className="block text-[11px] font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                            Usar una de tus direcciones guardadas:
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {savedAddresses.map((addr) => (
+                              <button
+                                key={addr.id}
+                                type="button"
+                                onClick={() => setDeliveryAddress(addr.address)}
+                                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs text-left transition-colors cursor-pointer ${
+                                  deliveryAddress === addr.address
+                                    ? "border-stone-900 bg-stone-900 text-white font-medium shadow-2xs"
+                                    : "border-stone-200 bg-stone-50 text-stone-700 hover:border-stone-400"
+                                }`}
+                              >
+                                <MapPin className="h-3.5 w-3.5" />
+                                <span>{addr.label}: {addr.address}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <label htmlFor="checkout-address" className="block text-xs font-medium text-stone-700 mb-1">
                         Dirección completa de entrega *
                       </label>

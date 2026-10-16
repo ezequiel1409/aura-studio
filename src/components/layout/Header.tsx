@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { Search, X, User } from "lucide-react";
 import { parseProductCode } from "../../domain/product/rules";
 import { CartHeaderButton } from "../cart/CartHeaderButton";
 
@@ -119,6 +119,16 @@ export function Header({
               </button>
             )}
           </form>
+
+          {/* Enlace accesible a Mi Cuenta / Pedidos */}
+          <Link
+            href="/cuenta"
+            aria-label="Mi Cuenta y Pedidos"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d8d2c7] bg-white/80 text-stone-700 shadow-xs transition-colors hover:border-stone-900 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
+            title="Mi Cuenta"
+          >
+            <User className="h-4 w-4" />
+          </Link>
 
           {/* Botón flotante accesible de bolsa de compras con badge */}
           <CartHeaderButton />

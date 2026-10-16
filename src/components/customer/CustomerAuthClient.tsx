@@ -1,0 +1,359 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ArrowRight, Loader2, Lock, Mail, Phone, User, CheckCircle2, AlertCircle } from "lucide-react";
+
+interface CustomerAuthClientProps {
+  brandName?: string;
+}
+
+export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/cuenta";
+
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Campos de login
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Campos de registro
+  const [regName, setRegName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPhone, setRegPhone] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "No se pudo iniciar sesión.");
+      }
+
+      setSuccessMsg("¡Bienvenido nuevamente! Redirigiendo...");
+      setTimeout(() => {
+        router.push(redirectUrl);
+        router.refresh();
+      }, 500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al iniciar sesión.");
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: regName,
+          email: regEmail,
+          phone: regPhone || null,
+          password: regPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "No se pudo registrar la cuenta.");
+      }
+
+      setSuccessMsg("¡Cuenta creada exitosamente! Redirigiendo a tu espacio...");
+      setTimeout(() => {
+        router.push(redirectUrl);
+        router.refresh();
+      }, 500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al crear la cuenta.");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-md px-4 py-8 sm:py-14">
+      {/* Encabezado */}
+      <div className="text-center mb-8">
+        <span className="text-[10px] tracking-[0.25em] font-semibold uppercase text-stone-500">
+          Club & Clientes {brandName}
+        </span>
+        <h1 className="mt-2 font-serif text-3xl sm:text-4xl font-light text-stone-900 tracking-tight">
+          {mode === "login" ? "Accedé a tu Cuenta" : "Creá tu Cuenta"}
+        </h1>
+        <p className="mt-2 text-xs sm:text-sm text-stone-600">
+          {mode === "login"
+            ? "Gestioná tus pedidos, direcciones de entrega y seguimiento exclusivo."
+            : "Completá tus datos para disfrutar de checkout ágil y consultar tu historial."}
+        </p>
+      </div>
+
+      {/* Selector de Pestañas */}
+      <div className="grid grid-cols-2 rounded-2xl bg-[#f0eae1] p-1 mb-6 border border-[#e2dacf]">
+        <button
+          type="button"
+          onClick={() => {
+            setMode("login");
+            setError(null);
+          }}
+          className={`rounded-xl py-2.5 text-xs font-medium transition-all ${
+            mode === "login"
+              ? "bg-white text-stone-900 shadow-xs font-semibold"
+              : "text-stone-600 hover:text-stone-900"
+          }`}
+        >
+          Iniciar Sesión
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode("register");
+            setError(null);
+          }}
+          className={`rounded-xl py-2.5 text-xs font-medium transition-all ${
+            mode === "register"
+              ? "bg-white text-stone-900 shadow-xs font-semibold"
+              : "text-stone-600 hover:text-stone-900"
+          }`}
+        >
+          Registrarme
+        </button>
+      </div>
+
+      {/* Contenedor del Formulario */}
+      <div className="rounded-3xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-xs">
+        {error && (
+          <div
+            role="alert"
+            className="mb-5 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs text-rose-800"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+            <span className="leading-relaxed">{error}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div
+            role="status"
+            className="mb-5 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 text-xs text-emerald-800"
+          >
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span className="leading-relaxed font-medium">{successMsg}</span>
+          </div>
+        )}
+
+        {mode === "login" ? (
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label
+                htmlFor="login-email"
+                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+              >
+                Correo Electrónico
+              </label>
+              <div className="relative">
+                <input
+                  id="login-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="ejemplo@correo.com"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                />
+                <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="login-password"
+                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+              >
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  id="login-password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                />
+                <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 w-full inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-colors"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Verificando...</span>
+                </>
+              ) : (
+                <>
+                  <span>Ingresar a mi cuenta</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label
+                htmlFor="reg-name"
+                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+              >
+                Nombre y Apellido
+              </label>
+              <div className="relative">
+                <input
+                  id="reg-name"
+                  type="text"
+                  required
+                  autoComplete="name"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  placeholder="Tu nombre completo"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                />
+                <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="reg-email"
+                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+              >
+                Correo Electrónico
+              </label>
+              <div className="relative">
+                <input
+                  id="reg-email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="ejemplo@correo.com"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                />
+                <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="reg-phone"
+                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+              >
+                Teléfono / WhatsApp (opcional)
+              </label>
+              <div className="relative">
+                <input
+                  id="reg-phone"
+                  type="tel"
+                  autoComplete="tel"
+                  value={regPhone}
+                  onChange={(e) => setRegPhone(e.target.value)}
+                  placeholder="11 2345-6789"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                />
+                <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              </div>
+              <p className="mt-1 text-[11px] text-stone-500">
+                Nos sirve para coordinar la entrega de tus pedidos de forma directa.
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="reg-password"
+                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+              >
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  id="reg-password"
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                />
+                <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 w-full inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-colors"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Creando cuenta...</span>
+                </>
+              ) : (
+                <>
+                  <span>Registrarme</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* Enlace para continuar como invitado en checkout */}
+      {redirectUrl.includes("carrito") && (
+        <div className="mt-6 text-center">
+          <Link
+            href="/carrito"
+            className="text-xs text-stone-500 hover:text-stone-800 underline underline-offset-4 transition-colors"
+          >
+            Continuar compra como invitado sin registrarme
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
