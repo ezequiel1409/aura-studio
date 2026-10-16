@@ -369,7 +369,7 @@ describe("Customer Authentication & Account Management", () => {
             {
               productId: product.id,
               productCode: product.code,
-              productTitle: product.title,
+              productTitle: product.title ?? "Blazer Lino Crudo",
               colorName: "Único",
               size: "U",
               quantity: 1,
