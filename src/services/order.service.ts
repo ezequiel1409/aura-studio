@@ -58,6 +58,8 @@ export async function createOrder(
   // 4. Persistir orden y sus ítems en la base de datos
   const order = await deps.orderRepo.create({
     code: nextCode,
+    customerId: validated.customerId,
+    commerceId: validated.commerceId,
     customerName: validated.customerName,
     customerPhone: validated.customerPhone,
     customerEmail: validated.customerEmail,
