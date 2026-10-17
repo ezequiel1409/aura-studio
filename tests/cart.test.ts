@@ -178,17 +178,17 @@ describe("Cart Domain & Store (BR-40)", () => {
       const htmlCart = renderToString(React.createElement(CartStepper, { currentStep: "cart" }));
       expect(htmlCart).toContain('aria-label="Progreso del pedido"');
       expect(htmlCart).toContain('aria-current="step"');
-      expect(htmlCart).toContain("Artículos");
-      expect(htmlCart).toContain("Envío y Datos");
-      expect(htmlCart).toContain("Confirmación");
+      expect(htmlCart).toContain("Tu bolsa");
+      expect(htmlCart).toContain("Entrega y Datos");
+      expect(htmlCart).toContain("Revisión");
 
       const htmlShipping = renderToString(React.createElement(CartStepper, { currentStep: "shipping" }));
       expect(htmlShipping).toContain('aria-current="step"');
-      expect(htmlShipping).toContain("Envío y Datos");
+      expect(htmlShipping).toContain("Entrega y Datos");
 
       const htmlPayment = renderToString(React.createElement(CartStepper, { currentStep: "payment" }));
       expect(htmlPayment).toContain('aria-current="step"');
-      expect(htmlPayment).toContain("Confirmación");
+      expect(htmlPayment).toContain("Revisión");
     });
 
     it("deshabilita pasos futuros en el stepper para guiar el flujo secuencial", () => {

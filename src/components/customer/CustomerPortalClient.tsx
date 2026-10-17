@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -21,31 +21,120 @@ import {
   Phone,
   Mail,
   Calendar,
+  LayoutDashboard,
+  Heart,
+  SlidersHorizontal,
+  Truck,
+  Check,
+  Eye,
+  EyeOff,
+  Sparkles,
+  ArrowRight,
+  Sun,
+  Moon,
+  Laptop,
 } from "lucide-react";
 import { SafeCustomer, CustomerAddress } from "../../domain/customer/types";
 import { Order, OrderStatus } from "../../domain/order/types";
+import { Product } from "../../domain/product/types";
 import { formatOrderCode } from "../../domain/order/rules";
+import { formatProductCode } from "../../domain/product/rules";
 import { formatPrice } from "../../lib/format/currency";
+import { useCartStore } from "../../stores/cart.store";
 
 interface CustomerPortalClientProps {
   customer: SafeCustomer;
   initialOrders: Order[];
   initialAddresses: CustomerAddress[];
+  allProducts?: Product[];
   whatsappNumber?: string;
   brandName?: string;
 }
 
+type TabType = "overview" | "orders" | "saved" | "addresses" | "profile" | "preferences";
+
 export function CustomerPortalClient({
-  customer,
+  customer: initialCustomer,
   initialOrders,
   initialAddresses,
+  allProducts = [],
   whatsappNumber = "+5491100000000",
   brandName = "Aura Studio",
 }: CustomerPortalClientProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"orders" | "addresses" | "profile">("orders");
+  const [customer, setCustomer] = useState<SafeCustomer>(initialCustomer);
+  const [activeTab, setActiveTab] = useState<TabType>("overview");
   const [orders] = useState<Order[]>(initialOrders);
   const [addresses, setAddresses] = useState<CustomerAddress[]>(initialAddresses);
+
+  // Carrito store
+  const { addItem, openCart } = useCartStore();
+
+  // Piezas guardadas (Favoritos) desde localStorage
+  const [savedIds, setSavedIds] = useState<number[]>([]);
+  const [savedProducts, setSavedProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    const loadSaved = () => {
+      try {
+        const stored = localStorage.getItem("aura_saved_pieces");
+        if (stored) {
+          const ids: number[] = JSON.parse(stored);
+          if (Array.isArray(ids)) {
+            setSavedIds(ids);
+            const matched = allProducts.filter((p) => ids.includes(p.id));
+            setSavedProducts(matched);
+          }
+        } else {
+          setSavedIds([]);
+          setSavedProducts([]);
+        }
+      } catch {
+        setSavedIds([]);
+        setSavedProducts([]);
+      }
+    };
+
+    loadSaved();
+    const handleUpdate = () => loadSaved();
+    window.addEventListener("aura_saved_updated", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    return () => {
+      window.removeEventListener("aura_saved_updated", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
+  }, [allProducts]);
+
+  const handleRemoveSaved = (productId: number) => {
+    try {
+      const updated = savedIds.filter((id) => id !== productId);
+      setSavedIds(updated);
+      setSavedProducts((prev) => prev.filter((p) => p.id !== productId));
+      localStorage.setItem("aura_saved_pieces", JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent("aura_saved_updated", { detail: { savedIds: updated } }));
+    } catch {}
+  };
+
+  const handleAddSavedToCart = (product: Product) => {
+    const firstColor = product.colors?.[0];
+    const firstSize = firstColor?.sizes?.[0];
+    const photoUrl = product.photos?.[0]?.keyThumb || product.photos?.[0]?.keyFull || null;
+
+    addItem({
+      productId: product.id,
+      code: product.code,
+      formattedCode: formatProductCode(product.code),
+      title: product.title,
+      colorName: firstColor?.name || "Único",
+      hexCode: firstColor?.hexCode || null,
+      size: firstSize?.size || product.size || "U",
+      maxStock: firstSize?.stock ?? 1,
+      unitPriceCents: product.priceCents,
+      currency: product.currency,
+      photoUrl,
+    });
+    openCart();
+  };
 
   // Estados de modal y acciones de dirección
   const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -62,6 +151,78 @@ export function CustomerPortalClient({
   const [notes, setNotes] = useState("");
   const [isDefault, setIsDefault] = useState(addresses.length === 0);
 
+  // Formulario de edición de perfil
+  const [profileName, setProfileName] = useState(customer.name || "");
+  const [profilePhone, setProfilePhone] = useState(customer.phone || "");
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  // Formulario de cambio de contraseña
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  // Preferencias
+  const [prefTheme, setPrefTheme] = useState<"light" | "dark" | "system">("light");
+  const [prefChannel, setPrefChannel] = useState<"whatsapp" | "email">("whatsapp");
+  const [prefTopSize, setPrefTopSize] = useState<string>("M");
+  const [prefShoeSize, setPrefShoeSize] = useState<string>("38");
+  const [prefDrops, setPrefDrops] = useState<boolean>(true);
+  const [prefSuccess, setPrefSuccess] = useState<string | null>(null);
+
+  // Cargar preferencias iniciales de localStorage
+  useEffect(() => {
+    try {
+      const storedTheme = localStorage.getItem("aura_client_theme");
+      if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
+        setPrefTheme(storedTheme);
+      }
+      const storedChannel = localStorage.getItem("aura_pref_channel");
+      if (storedChannel === "whatsapp" || storedChannel === "email") {
+        setPrefChannel(storedChannel);
+      }
+      const storedSizes = localStorage.getItem("aura_pref_sizes");
+      if (storedSizes) {
+        const parsed = JSON.parse(storedSizes);
+        if (parsed.top) setPrefTopSize(parsed.top);
+        if (parsed.shoe) setPrefShoeSize(parsed.shoe);
+      }
+      const storedDrops = localStorage.getItem("aura_pref_drops");
+      if (storedDrops !== null) {
+        setPrefDrops(storedDrops === "true");
+      }
+    } catch {}
+  }, []);
+
+  const handleSavePreferences = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      localStorage.setItem("aura_client_theme", prefTheme);
+      localStorage.setItem("aura_pref_channel", prefChannel);
+      localStorage.setItem(
+        "aura_pref_sizes",
+        JSON.stringify({ top: prefTopSize, shoe: prefShoeSize })
+      );
+      localStorage.setItem("aura_pref_drops", String(prefDrops));
+
+      // Aplicar data-theme o clase
+      if (prefTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+
+      setPrefSuccess("Tus preferencias se guardaron correctamente.");
+      setTimeout(() => setPrefSuccess(null), 3500);
+    } catch {}
+  };
+
   // Logout
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -73,6 +234,81 @@ export function CustomerPortalClient({
       router.refresh();
     } catch {
       router.push("/");
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileError(null);
+    setProfileSuccess(null);
+    setProfileLoading(true);
+
+    try {
+      const res = await fetch("/api/customer/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profileName,
+          phone: profilePhone,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "No se pudo actualizar tu perfil.");
+      }
+
+      setCustomer(data.customer);
+      setProfileSuccess("Datos personales actualizados correctamente.");
+      setTimeout(() => setProfileSuccess(null), 3500);
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Error al actualizar perfil.");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (newPassword.length < 8) {
+      setPasswordError("La nueva contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      const res = await fetch("/api/customer/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "No se pudo actualizar la contraseña.");
+      }
+
+      setPasswordSuccess("¡Contraseña actualizada exitosamente!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setPasswordSuccess(null), 3500);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : "Error al actualizar contraseña.");
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -102,7 +338,6 @@ export function CustomerPortalClient({
         throw new Error(data.error || "No se pudo guardar la dirección.");
       }
 
-      // Refrescar lista
       if (isDefault) {
         setAddresses((prev) => [
           ...prev.map((a) => ({ ...a, isDefault: false })),
@@ -161,7 +396,7 @@ export function CustomerPortalClient({
     switch (status) {
       case "PENDING":
         return {
-          label: "Pendiente de pago",
+          label: "Pendiente de coordinación",
           classes: "bg-amber-50 text-amber-800 border-amber-200",
         };
       case "CONFIRMED":
@@ -171,7 +406,7 @@ export function CustomerPortalClient({
         };
       case "PAID":
         return {
-          label: "Abonado",
+          label: "Abonado y listo",
           classes: "bg-emerald-50 text-emerald-800 border-emerald-200",
         };
       case "CANCELLED":
@@ -190,24 +425,41 @@ export function CustomerPortalClient({
   const getDeliveryLabel = (method: string) => {
     switch (method) {
       case "HOME_DELIVERY":
-        return "Envío a domicilio";
+        return "Envío a domicilio (3 a 5 días hábiles)";
       case "MOTORCYCLE":
-        return "Motomensajería privada";
+        return "Motomensajería privada (En el día)";
       case "PICKUP":
-        return "Retiro en Showroom";
+        return "Retiro en Showroom (Inmediato sin costo)";
       default:
         return method;
     }
   };
 
   const cleanWhatsapp = whatsappNumber.replace(/\D/g, "");
+  const latestOrder = orders.length > 0 ? orders[0] : null;
+
+  // Cálculo de progreso para línea de tiempo del último pedido (4 pasos)
+  const getTimelineProgress = (status: OrderStatus) => {
+    switch (status) {
+      case "PENDING":
+        return 1;
+      case "CONFIRMED":
+        return 2;
+      case "PAID":
+        return 3;
+      case "CANCELLED":
+        return 0;
+      default:
+        return 1;
+    }
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       {/* Tarjeta de Saludo y Perfil */}
       <div className="rounded-3xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-xs mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <span className="text-[10px] tracking-[0.25em] font-semibold uppercase text-stone-500">
+          <span className="text-[11px] tracking-[0.25em] font-semibold uppercase text-stone-500">
             Mi Espacio Personal
           </span>
           <h1 className="mt-1 font-serif text-2xl sm:text-3xl font-light text-stone-900">
@@ -222,7 +474,7 @@ export function CustomerPortalClient({
           type="button"
           onClick={handleLogout}
           disabled={loggingOut}
-          className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition-colors focus-visible:outline-2 focus-visible:outline-stone-900"
+          className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 transition-colors focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer"
         >
           {loggingOut ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -234,11 +486,24 @@ export function CustomerPortalClient({
       </div>
 
       {/* Navegación por Pestañas */}
-      <div className="flex border-b border-[#e7e2da] mb-8 gap-2 overflow-x-auto">
+      <div className="flex border-b border-[#e7e2da] mb-8 gap-2 overflow-x-auto pb-px">
+        <button
+          type="button"
+          onClick={() => setActiveTab("overview")}
+          className={`flex items-center gap-2 border-b-2 px-3 sm:px-4 py-3 text-xs sm:text-sm transition-colors whitespace-nowrap cursor-pointer ${
+            activeTab === "overview"
+              ? "border-stone-900 text-stone-900 font-semibold"
+              : "border-transparent text-stone-500 hover:text-stone-900"
+          }`}
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          <span>Resumen</span>
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("orders")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-2 border-b-2 px-3 sm:px-4 py-3 text-xs sm:text-sm transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === "orders"
               ? "border-stone-900 text-stone-900 font-semibold"
               : "border-transparent text-stone-500 hover:text-stone-900"
@@ -246,15 +511,31 @@ export function CustomerPortalClient({
         >
           <Package className="h-4 w-4" />
           <span>Mis Pedidos</span>
-          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-700">
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-700 font-medium">
             {orders.length}
           </span>
         </button>
 
         <button
           type="button"
+          onClick={() => setActiveTab("saved")}
+          className={`flex items-center gap-2 border-b-2 px-3 sm:px-4 py-3 text-xs sm:text-sm transition-colors whitespace-nowrap cursor-pointer ${
+            activeTab === "saved"
+              ? "border-stone-900 text-stone-900 font-semibold"
+              : "border-transparent text-stone-500 hover:text-stone-900"
+          }`}
+        >
+          <Heart className="h-4 w-4" />
+          <span>Guardados</span>
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-700 font-medium">
+            {savedIds.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("addresses")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-2 border-b-2 px-3 sm:px-4 py-3 text-xs sm:text-sm transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === "addresses"
               ? "border-stone-900 text-stone-900 font-semibold"
               : "border-transparent text-stone-500 hover:text-stone-900"
@@ -262,7 +543,7 @@ export function CustomerPortalClient({
         >
           <MapPin className="h-4 w-4" />
           <span>Mis Direcciones</span>
-          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-700">
+          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] text-stone-700 font-medium">
             {addresses.length}
           </span>
         </button>
@@ -270,7 +551,7 @@ export function CustomerPortalClient({
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`flex items-center gap-2 border-b-2 px-3 sm:px-4 py-3 text-xs sm:text-sm transition-colors whitespace-nowrap cursor-pointer ${
             activeTab === "profile"
               ? "border-stone-900 text-stone-900 font-semibold"
               : "border-transparent text-stone-500 hover:text-stone-900"
@@ -279,11 +560,312 @@ export function CustomerPortalClient({
           <User className="h-4 w-4" />
           <span>Mis Datos</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("preferences")}
+          className={`flex items-center gap-2 border-b-2 px-3 sm:px-4 py-3 text-xs sm:text-sm transition-colors whitespace-nowrap cursor-pointer ${
+            activeTab === "preferences"
+              ? "border-stone-900 text-stone-900 font-semibold"
+              : "border-transparent text-stone-500 hover:text-stone-900"
+          }`}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          <span>Preferencias</span>
+        </button>
       </div>
 
-      {/* Pestaña: Mis Pedidos */}
+      {/* Pestaña 1: Resumen General */}
+      {activeTab === "overview" && (
+        <div className="space-y-8 animate-in fade-in-50">
+          {/* Accesos rápidos */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab("orders")}
+              className="text-left rounded-2xl border border-[#e7e2da] bg-white p-5 hover:border-stone-400 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="p-2 rounded-xl bg-stone-50 text-stone-700 group-hover:bg-stone-900 group-hover:text-white transition-colors">
+                  <Package className="h-5 w-5" />
+                </span>
+                <span className="font-serif text-2xl font-light text-stone-900">
+                  {orders.length}
+                </span>
+              </div>
+              <h3 className="mt-3 text-xs sm:text-sm font-semibold text-stone-900">
+                Mis Pedidos
+              </h3>
+              <p className="mt-0.5 text-[11px] text-stone-500">
+                Historial y estado de entrega
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("saved")}
+              className="text-left rounded-2xl border border-[#e7e2da] bg-white p-5 hover:border-stone-400 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="p-2 rounded-xl bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors">
+                  <Heart className="h-5 w-5" />
+                </span>
+                <span className="font-serif text-2xl font-light text-stone-900">
+                  {savedIds.length}
+                </span>
+              </div>
+              <h3 className="mt-3 text-xs sm:text-sm font-semibold text-stone-900">
+                Piezas Guardadas
+              </h3>
+              <p className="mt-0.5 text-[11px] text-stone-500">
+                Tus favoritas reservables
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("addresses")}
+              className="text-left rounded-2xl border border-[#e7e2da] bg-white p-5 hover:border-stone-400 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="p-2 rounded-xl bg-sky-50 text-sky-700 group-hover:bg-sky-700 group-hover:text-white transition-colors">
+                  <MapPin className="h-5 w-5" />
+                </span>
+                <span className="font-serif text-2xl font-light text-stone-900">
+                  {addresses.length}
+                </span>
+              </div>
+              <h3 className="mt-3 text-xs sm:text-sm font-semibold text-stone-900">
+                Direcciones
+              </h3>
+              <p className="mt-0.5 text-[11px] text-stone-500">
+                Puntos de entrega guardados
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("preferences")}
+              className="text-left rounded-2xl border border-[#e7e2da] bg-white p-5 hover:border-stone-400 hover:shadow-xs transition-all cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="p-2 rounded-xl bg-amber-50 text-amber-700 group-hover:bg-amber-700 group-hover:text-white transition-colors">
+                  <SlidersHorizontal className="h-5 w-5" />
+                </span>
+                <Sparkles className="h-4 w-4 text-amber-500" />
+              </div>
+              <h3 className="mt-3 text-xs sm:text-sm font-semibold text-stone-900">
+                Preferencias
+              </h3>
+              <p className="mt-0.5 text-[11px] text-stone-500">
+                Tema, talles y alertas de drop
+              </p>
+            </button>
+          </div>
+
+          {/* Último pedido con línea de tiempo */}
+          {latestOrder ? (
+            <div className="rounded-3xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f0eae1] pb-4">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-stone-500 block font-semibold">
+                    Último pedido registrado
+                  </span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="font-mono text-base sm:text-lg font-bold text-stone-900">
+                      {formatOrderCode(latestOrder.code)}
+                    </span>
+                    <span className="text-xs text-stone-500">
+                      • {new Date(latestOrder.createdAt * 1000).toLocaleDateString("es-AR", {
+                        day: "2-digit",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${
+                      getStatusBadge(latestOrder.status).classes
+                    }`}
+                  >
+                    {getStatusBadge(latestOrder.status).label}
+                  </span>
+                  <a
+                    href={`https://wa.me/${cleanWhatsapp}?text=${encodeURIComponent(
+                      `Hola ${brandName}, quería consultar sobre mi pedido ${formatOrderCode(latestOrder.code)}.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[38px] items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-100 transition-colors"
+                  >
+                    <span>Consultar</span>
+                    <ExternalLink className="h-3.5 w-3.5 text-stone-500" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Línea de tiempo visual de 4 etapas */}
+              <div className="my-8">
+                <h4 className="text-xs font-semibold text-stone-700 uppercase tracking-wider mb-6">
+                  Seguimiento del pedido
+                </h4>
+                {(() => {
+                  const progress = getTimelineProgress(latestOrder.status);
+                  const steps = [
+                    {
+                      num: 1,
+                      label: "Reservado",
+                      desc: "Pedido recibido en el showroom",
+                    },
+                    {
+                      num: 2,
+                      label: "Confirmado",
+                      desc: "Pago verificado y pieza apartada",
+                    },
+                    {
+                      num: 3,
+                      label: latestOrder.deliveryMethod === "PICKUP" ? "Listo para retiro" : "En camino",
+                      desc:
+                        latestOrder.deliveryMethod === "PICKUP"
+                          ? "Disponible en showroom"
+                          : "En motomensajería o correo",
+                    },
+                    {
+                      num: 4,
+                      label: "Entregado",
+                      desc: "En manos de su nuevo dueño",
+                    },
+                  ];
+
+                  return (
+                    <div className="relative">
+                      {/* Barra conectora */}
+                      <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-stone-200 sm:left-0 sm:top-4 sm:bottom-auto sm:h-0.5 sm:w-full sm:bg-[#e7e2da] z-0" />
+                      <div
+                        className="absolute left-4 top-4 w-0.5 bg-stone-900 transition-all sm:left-0 sm:top-4 sm:h-0.5 sm:bg-stone-900 z-0"
+                        style={{
+                          width: `${((progress - 1) / (steps.length - 1)) * 100}%`,
+                        }}
+                      />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 sm:gap-2 relative z-10">
+                        {steps.map((st) => {
+                          const isDone = st.num <= progress;
+                          const isCurrent = st.num === progress;
+
+                          return (
+                            <div key={st.num} className="flex sm:flex-col items-start sm:items-center gap-3 sm:text-center pl-2 sm:pl-0">
+                              <div
+                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 font-mono text-xs font-bold transition-all ${
+                                  isDone
+                                    ? "border-stone-900 bg-stone-900 text-white shadow-xs"
+                                    : "border-stone-300 bg-white text-stone-400"
+                                } ${isCurrent ? "ring-4 ring-stone-900/10 scale-110" : ""}`}
+                              >
+                                {isDone ? (
+                                  <Check className="h-4 w-4 stroke-[3]" />
+                                ) : (
+                                  <span>{st.num}</span>
+                                )}
+                              </div>
+                              <div>
+                                <p
+                                  className={`text-xs font-semibold ${
+                                    isDone ? "text-stone-900" : "text-stone-400"
+                                  }`}
+                                >
+                                  {st.label}
+                                </p>
+                                <p className="text-[11px] text-stone-500 mt-0.5 max-w-[150px] mx-auto">
+                                  {st.desc}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Ítems del pedido */}
+              <div className="border-t border-[#f0eae1] pt-4">
+                <h4 className="text-xs font-semibold text-stone-700 uppercase tracking-wider mb-3">
+                  Piezas incluidas
+                </h4>
+                <div className="divide-y divide-stone-100">
+                  {latestOrder.items?.map((item) => (
+                    <div key={item.id} className="py-2.5 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        {item.photoUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={item.photoUrl}
+                            alt={item.productTitle}
+                            className="h-12 w-12 rounded-xl object-cover border border-[#e7e2da]"
+                          />
+                        ) : (
+                          <div className="h-12 w-12 rounded-xl bg-stone-100 flex items-center justify-center text-stone-400">
+                            <ShoppingBag className="h-5 w-5" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-xs sm:text-sm font-medium text-stone-900">
+                            {item.productTitle}
+                          </p>
+                          <p className="text-[11px] text-stone-500">
+                            {item.colorName} • Talle {item.size} • {item.quantity} {item.quantity === 1 ? "unidad" : "unidades"}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="font-serif text-xs sm:text-sm font-semibold text-stone-900">
+                        {formatPrice(item.unitPriceCents * item.quantity)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-600">
+                  <div>
+                    <span className="font-semibold text-stone-800">Método:</span>{" "}
+                    {getDeliveryLabel(latestOrder.deliveryMethod)}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] text-stone-500 block uppercase">Total</span>
+                    <span className="font-serif text-lg font-bold text-stone-900">
+                      {formatPrice(latestOrder.totalCents)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-[#d8d2c7] bg-white/60 p-10 text-center">
+              <ShoppingBag className="mx-auto h-12 w-12 text-stone-300" />
+              <h3 className="mt-3 font-serif text-xl font-light text-stone-900">
+                Aún no realizaste ningún pedido
+              </h3>
+              <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-stone-500">
+                Cuando reserves tu primera pieza única, verás aquí su línea de tiempo y estado en tiempo real.
+              </p>
+              <Link
+                href="/"
+                className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors shadow-xs"
+              >
+                Explorar Colección
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pestaña 2: Mis Pedidos */}
       {activeTab === "orders" && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in-50">
           {orders.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-[#d8d2c7] bg-white/60 p-12 text-center">
               <ShoppingBag className="mx-auto h-12 w-12 text-stone-300" />
@@ -295,7 +877,7 @@ export function CustomerPortalClient({
               </p>
               <Link
                 href="/"
-                className="mt-6 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors"
+                className="mt-6 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors shadow-xs"
               >
                 Explorar Colección
               </Link>
@@ -344,10 +926,10 @@ export function CustomerPortalClient({
                             <img
                               src={item.photoUrl}
                               alt={item.productTitle}
-                              className="h-12 w-12 rounded-lg object-cover border border-[#e7e2da]"
+                              className="h-12 w-12 rounded-xl object-cover border border-[#e7e2da]"
                             />
                           ) : (
-                            <div className="h-12 w-12 rounded-lg bg-stone-100 flex items-center justify-center text-stone-400">
+                            <div className="h-12 w-12 rounded-xl bg-stone-100 flex items-center justify-center text-stone-400">
                               <ShoppingBag className="h-5 w-5" />
                             </div>
                           )}
@@ -360,7 +942,7 @@ export function CustomerPortalClient({
                             </p>
                           </div>
                         </div>
-                        <span className="text-xs sm:text-sm font-medium text-stone-900">
+                        <span className="font-serif text-xs sm:text-sm font-medium text-stone-900">
                           {formatPrice(item.unitPriceCents * item.quantity)}
                         </span>
                       </div>
@@ -410,9 +992,131 @@ export function CustomerPortalClient({
         </div>
       )}
 
-      {/* Pestaña: Mis Direcciones */}
+      {/* Pestaña 3: Piezas Guardadas (Favoritos) */}
+      {activeTab === "saved" && (
+        <div className="space-y-6 animate-in fade-in-50">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-serif text-xl font-medium text-stone-900">
+                Tus Piezas Guardadas
+              </h2>
+              <p className="text-xs text-stone-600 mt-0.5">
+                Seguí la disponibilidad de tus prendas favoritas antes de que sean reservadas.
+              </p>
+            </div>
+          </div>
+
+          {savedProducts.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-[#d8d2c7] bg-white/60 p-12 text-center">
+              <Heart className="mx-auto h-12 w-12 text-stone-300" />
+              <h3 className="mt-4 font-serif text-xl font-light text-stone-900">
+                No tenés piezas guardadas todavía
+              </h3>
+              <p className="mx-auto mt-2 max-w-sm text-xs sm:text-sm text-stone-500">
+                Tocá el ícono del corazón en cualquier prenda del catálogo para guardarla aquí y no perderla de vista.
+              </p>
+              <Link
+                href="/"
+                className="mt-6 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors shadow-xs"
+              >
+                Explorar Catálogo
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+              {savedProducts.map((p) => {
+                const photo = p.photos?.[0]?.keyThumb || p.photos?.[0]?.keyFull || null;
+                const isAvailable = p.status === "AVAILABLE";
+
+                return (
+                  <div
+                    key={p.id}
+                    className="group rounded-2xl border border-[#e7e2da] bg-white p-3.5 shadow-xs transition-all hover:border-stone-400 hover:shadow-sm flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-[#f0eae1] mb-3">
+                        {photo ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={photo}
+                            alt={p.title || `Pieza ${formatProductCode(p.code)}`}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-stone-300">
+                            <ShoppingBag className="h-10 w-10 stroke-[1.5]" />
+                          </div>
+                        )}
+
+                        {/* Badge de disponibilidad */}
+                        <div className="absolute left-2.5 top-2.5 z-10">
+                          {isAvailable ? (
+                            <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow-xs">
+                              Disponible
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-stone-800/90 backdrop-blur-xs px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white shadow-xs">
+                              En archivo
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Botón de quitar de favoritos */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSaved(p.id)}
+                          aria-label={`Quitar ${p.title} de guardados`}
+                          title="Quitar de guardados"
+                          className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-stone-500 shadow-xs hover:bg-white hover:text-rose-600 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs text-stone-500">
+                          <span className="font-mono font-bold text-stone-700">
+                            {formatProductCode(p.code)}
+                          </span>
+                          <span>Talle {p.size || "Único"}</span>
+                        </div>
+                        <h3 className="font-serif text-base font-normal text-stone-900 line-clamp-1">
+                          {p.title || `Pieza ${formatProductCode(p.code)}`}
+                        </h3>
+                        <p className="font-serif text-sm font-semibold text-stone-900">
+                          {formatPrice(p.priceCents)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-stone-100 flex items-center gap-2">
+                      <Link
+                        href={`/p/${p.code}`}
+                        className="flex-1 inline-flex min-h-[38px] items-center justify-center rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-50 transition-colors"
+                      >
+                        Ver pieza
+                      </Link>
+                      {isAvailable && (
+                        <button
+                          type="button"
+                          onClick={() => handleAddSavedToCart(p)}
+                          className="flex-1 inline-flex min-h-[38px] items-center justify-center rounded-xl bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-800 transition-colors shadow-xs cursor-pointer"
+                        >
+                          A la bolsa
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Pestaña 4: Mis Direcciones */}
       {activeTab === "addresses" && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in-50">
           <div className="flex items-center justify-between">
             <p className="text-xs sm:text-sm text-stone-600">
               Guardá tus direcciones de entrega para agilizar tus compras en el checkout.
@@ -420,7 +1124,7 @@ export function CustomerPortalClient({
             <button
               type="button"
               onClick={() => setIsAddingAddress(!isAddingAddress)}
-              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 transition-colors shadow-xs"
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 transition-colors shadow-xs cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               <span>Nueva Dirección</span>
@@ -437,7 +1141,7 @@ export function CustomerPortalClient({
                 <button
                   type="button"
                   onClick={() => setIsAddingAddress(false)}
-                  className="rounded-full p-1 text-stone-400 hover:text-stone-700"
+                  className="rounded-full p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -453,7 +1157,7 @@ export function CustomerPortalClient({
               <form onSubmit={handleCreateAddress} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
                       Etiqueta / Nombre
                     </label>
                     <input
@@ -462,12 +1166,12 @@ export function CustomerPortalClient({
                       value={label}
                       onChange={(e) => setLabel(e.target.value)}
                       placeholder="Ej: Casa, Trabajo, Showroom"
-                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
                       Calle, Número y Piso / Depto
                     </label>
                     <input
@@ -476,12 +1180,12 @@ export function CustomerPortalClient({
                       value={addressLine}
                       onChange={(e) => setAddressLine(e.target.value)}
                       placeholder="Ej: Av. Santa Fe 1234, 4° B"
-                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
                       Ciudad / Localidad
                     </label>
                     <input
@@ -489,12 +1193,12 @@ export function CustomerPortalClient({
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       placeholder="Ej: Palermo, CABA"
-                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
                       Código Postal
                     </label>
                     <input
@@ -502,12 +1206,12 @@ export function CustomerPortalClient({
                       value={postalCode}
                       onChange={(e) => setPostalCode(e.target.value)}
                       placeholder="Ej: C1425"
-                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
                       Nombre del Destinatario
                     </label>
                     <input
@@ -515,12 +1219,12 @@ export function CustomerPortalClient({
                       value={recipientName}
                       onChange={(e) => setRecipientName(e.target.value)}
                       placeholder="Nombre de quien recibe"
-                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">
                       Teléfono de Contacto
                     </label>
                     <input
@@ -528,13 +1232,13 @@ export function CustomerPortalClient({
                       value={recipientPhone}
                       onChange={(e) => setRecipientPhone(e.target.value)}
                       placeholder="Teléfono para el repartidor"
-                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                      className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-stone-700 mb-1">
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
                     Indicaciones de Entrega (opcional)
                   </label>
                   <input
@@ -542,7 +1246,7 @@ export function CustomerPortalClient({
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Ej: Timbre no funciona, dejar en recepción..."
-                    className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                    className="w-full rounded-xl border border-[#d8d2c7] p-2.5 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                   />
                 </div>
 
@@ -566,14 +1270,14 @@ export function CustomerPortalClient({
                   <button
                     type="button"
                     onClick={() => setIsAddingAddress(false)}
-                    className="rounded-xl border border-stone-200 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+                    className="rounded-xl border border-stone-200 px-4 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={addressLoading}
-                    className="rounded-xl bg-stone-900 px-5 py-2 text-xs font-semibold text-white hover:bg-stone-800 disabled:opacity-50"
+                    className="rounded-xl bg-stone-900 px-5 py-2 text-xs font-semibold text-white hover:bg-stone-800 disabled:opacity-50 cursor-pointer"
                   >
                     {addressLoading ? "Guardando..." : "Guardar Dirección"}
                   </button>
@@ -595,7 +1299,7 @@ export function CustomerPortalClient({
               <button
                 type="button"
                 onClick={() => setIsAddingAddress(true)}
-                className="mt-6 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors"
+                className="mt-6 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors cursor-pointer"
               >
                 <Plus className="h-4 w-4" />
                 <span>Agregar Dirección</span>
@@ -649,7 +1353,7 @@ export function CustomerPortalClient({
                       <button
                         type="button"
                         onClick={() => handleSetDefaultAddress(addr.id)}
-                        className="text-stone-600 hover:text-stone-900 underline underline-offset-2"
+                        className="text-stone-600 hover:text-stone-900 underline underline-offset-2 cursor-pointer font-medium"
                       >
                         Establecer como principal
                       </button>
@@ -660,7 +1364,7 @@ export function CustomerPortalClient({
                     <button
                       type="button"
                       onClick={() => handleDeleteAddress(addr.id)}
-                      className="inline-flex items-center gap-1 text-rose-600 hover:text-rose-800 p-1"
+                      className="inline-flex items-center gap-1 text-rose-600 hover:text-rose-800 p-1 cursor-pointer font-medium"
                       title="Eliminar dirección"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -674,68 +1378,393 @@ export function CustomerPortalClient({
         </div>
       )}
 
-      {/* Pestaña: Mis Datos */}
+      {/* Pestaña 5: Mis Datos */}
       {activeTab === "profile" && (
-        <div className="rounded-3xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-xs max-w-xl">
-          <h2 className="font-serif text-xl font-medium text-stone-900 mb-6">
-            Información de la Cuenta
-          </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in-50">
+          {/* Bloque: Información Personal */}
+          <div className="rounded-3xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-xs">
+            <h2 className="font-serif text-xl font-medium text-stone-900 mb-4">
+              Datos Personales
+            </h2>
+            <p className="text-xs text-stone-600 mb-6">
+              Actualizá tu información de contacto para pedidos y comunicaciones.
+            </p>
 
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-stone-50 border border-stone-200">
-              <User className="h-4 w-4 text-stone-500 mt-1" />
+            {profileSuccess && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-200">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span>{profileSuccess}</span>
+              </div>
+            )}
+
+            {profileError && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                <span>{profileError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-stone-400 block font-medium">
+                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
                   Nombre Completo
-                </span>
-                <span className="text-sm font-medium text-stone-900">
-                  {customer.name}
-                </span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-stone-50 border border-stone-200">
-              <Mail className="h-4 w-4 text-stone-500 mt-1" />
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-stone-400 block font-medium">
+                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
                   Correo Electrónico
-                </span>
-                <span className="text-sm font-medium text-stone-900">
-                  {customer.email}
-                </span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="email"
+                    disabled
+                    value={customer.email}
+                    className="w-full rounded-xl border border-stone-200 bg-stone-50 py-2.5 pl-10 pr-3 text-base sm:text-xs text-stone-500 cursor-not-allowed"
+                  />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                </div>
+                <p className="mt-1 text-[11px] text-stone-400">
+                  El correo es tu identificador único de cuenta y no se puede modificar directamente.
+                </p>
               </div>
-            </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-stone-50 border border-stone-200">
-              <Phone className="h-4 w-4 text-stone-500 mt-1" />
               <div>
-                <span className="text-[11px] uppercase tracking-wider text-stone-400 block font-medium">
+                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
                   Teléfono / WhatsApp
-                </span>
-                <span className="text-sm font-medium text-stone-900">
-                  {customer.phone || "No especificado"}
-                </span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={profilePhone}
+                    onChange={(e) => setProfilePhone(e.target.value)}
+                    placeholder="11 2345-6789"
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                </div>
+                <p className="mt-1 text-[11px] text-stone-500">
+                  Nos permite coordinar retiros y entregas directas por WhatsApp.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={profileLoading}
+                  className="w-full inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
+                >
+                  {profileLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Guardar mis datos</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Bloque: Seguridad y Contraseña */}
+          <div className="rounded-3xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-xs">
+            <h2 className="font-serif text-xl font-medium text-stone-900 mb-4">
+              Seguridad y Contraseña
+            </h2>
+            <p className="text-xs text-stone-600 mb-6">
+              Cambiá tu contraseña para proteger el acceso a tus pedidos y direcciones.
+            </p>
+
+            {passwordSuccess && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-200">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span>{passwordSuccess}</span>
+              </div>
+            )}
+
+            {passwordError && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200">
+                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                <span>{passwordError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                  Contraseña Actual
+                </label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-3 pr-10 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer p-1"
+                  >
+                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                  Nueva Contraseña
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 8 caracteres"
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-3 pr-10 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer p-1"
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                  Confirmar Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repetí la nueva contraseña"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 px-3 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="w-full inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-stone-300 bg-white px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-stone-800 hover:bg-stone-50 disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
+                >
+                  {passwordLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Actualizando...</span>
+                    </>
+                  ) : (
+                    <span>Actualizar contraseña</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Pestaña 6: Preferencias */}
+      {activeTab === "preferences" && (
+        <div className="rounded-3xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-xs max-w-2xl animate-in fade-in-50">
+          <h2 className="font-serif text-xl font-medium text-stone-900 mb-2">
+            Preferencias de Compra y Experiencia
+          </h2>
+          <p className="text-xs text-stone-600 mb-6">
+            Personalizá cómo ves la tienda, tus talles de referencia y cómo nos comunicamos con vos.
+          </p>
+
+          {prefSuccess && (
+            <div className="mb-6 flex items-center gap-2 rounded-xl bg-emerald-50 p-3.5 text-xs text-emerald-800 border border-emerald-200">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              <span>{prefSuccess}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSavePreferences} className="space-y-6">
+            {/* Tema de apariencia */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-800 uppercase tracking-wider mb-2">
+                Tema de apariencia
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPrefTheme("light")}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all cursor-pointer ${
+                    prefTheme === "light"
+                      ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900 text-stone-900 font-semibold"
+                      : "border-stone-200 hover:border-stone-400 text-stone-600"
+                  }`}
+                >
+                  <Sun className="h-5 w-5 text-amber-600" />
+                  <span>Claro Editorial</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPrefTheme("dark")}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all cursor-pointer ${
+                    prefTheme === "dark"
+                      ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900 text-stone-900 font-semibold"
+                      : "border-stone-200 hover:border-stone-400 text-stone-600"
+                  }`}
+                >
+                  <Moon className="h-5 w-5 text-stone-800" />
+                  <span>Noche Exclusiva</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPrefTheme("system")}
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-xs font-medium transition-all cursor-pointer ${
+                    prefTheme === "system"
+                      ? "border-stone-900 bg-stone-50 ring-1 ring-stone-900 text-stone-900 font-semibold"
+                      : "border-stone-200 hover:border-stone-400 text-stone-600"
+                  }`}
+                >
+                  <Laptop className="h-5 w-5 text-stone-500" />
+                  <span>Del sistema</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-2xl bg-stone-50 border border-stone-200">
-              <Calendar className="h-4 w-4 text-stone-500 mt-1" />
-              <div>
-                <span className="text-[11px] uppercase tracking-wider text-stone-400 block font-medium">
-                  Miembro desde
-                </span>
-                <span className="text-sm font-medium text-stone-900">
-                  {new Date(customer.createdAt).toLocaleDateString("es-AR", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
+            {/* Canal de comunicación predilecto */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-800 uppercase tracking-wider mb-2">
+                Canal de atención preferido
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:border-stone-400 cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="contact-channel"
+                    checked={prefChannel === "whatsapp"}
+                    onChange={() => setPrefChannel("whatsapp")}
+                    className="h-4 w-4 text-stone-900 focus:ring-stone-900"
+                  />
+                  <div>
+                    <span className="text-xs font-semibold text-stone-900 block">
+                      WhatsApp (Recomendado)
+                    </span>
+                    <span className="text-[11px] text-stone-500">
+                      Coordinación directa, ágil y reserva en showroom.
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:border-stone-400 cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="contact-channel"
+                    checked={prefChannel === "email"}
+                    onChange={() => setPrefChannel("email")}
+                    className="h-4 w-4 text-stone-900 focus:ring-stone-900"
+                  />
+                  <div>
+                    <span className="text-xs font-semibold text-stone-900 block">
+                      Correo Electrónico
+                    </span>
+                    <span className="text-[11px] text-stone-500">
+                      Notificaciones formales de estado y recibos.
+                    </span>
+                  </div>
+                </label>
               </div>
             </div>
-          </div>
+
+            {/* Talles habituales */}
+            <div>
+              <label className="block text-xs font-semibold text-stone-800 uppercase tracking-wider mb-2">
+                Talles de referencia
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-stone-600 mb-1">
+                    Prenda superior (Vestidos, Blazers, Tops)
+                  </label>
+                  <select
+                    value={prefTopSize}
+                    onChange={(e) => setPrefTopSize(e.target.value)}
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  >
+                    <option value="XS">XS (Extra Small)</option>
+                    <option value="S">S (Small)</option>
+                    <option value="M">M (Medium)</option>
+                    <option value="L">L (Large)</option>
+                    <option value="XL">XL (Extra Large)</option>
+                    <option value="Oversize">Oversize / Único</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-stone-600 mb-1">
+                    Calzado o Talle Inferior
+                  </label>
+                  <select
+                    value={prefShoeSize}
+                    onChange={(e) => setPrefShoeSize(e.target.value)}
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white p-2.5 text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  >
+                    {["35", "36", "37", "38", "39", "40", "41", "42"].map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Notificaciones de Drop */}
+            <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 flex items-start gap-3">
+              <input
+                id="pref-drops-checkbox"
+                type="checkbox"
+                checked={prefDrops}
+                onChange={(e) => setPrefDrops(e.target.checked)}
+                className="h-4 w-4 mt-0.5 rounded border-stone-300 text-stone-900 focus:ring-stone-900"
+              />
+              <label htmlFor="pref-drops-checkbox" className="text-xs cursor-pointer">
+                <span className="font-semibold text-stone-900 block">
+                  Avisos prioritarios de nuevos ingresos
+                </span>
+                <span className="text-stone-500 text-[11px] block mt-0.5">
+                  Recibí avisos anticipados antes de que las piezas únicas se publiquen en redes sociales.
+                </span>
+              </label>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors shadow-xs cursor-pointer"
+              >
+                <span>Guardar Preferencias</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
   );
 }
-

@@ -1,11 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --background: #faf8f5;
-  --foreground: #1c1917;
-  --card-bg: #ffffff;
-  --border-color: #e7e2da;
-  --accent: #926a3c;
+  --bg: #faf8f5;
+  --surface: #ffffff;
+  --text: #1c1917;
+  --primary: #926a3c;
+  --border: #e7e2da;
+  --danger: #e11d48;
+
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card-bg: var(--surface);
+  --border-color: var(--border);
+  --accent: var(--primary);
+}
+
+[data-theme="dark"] {
+  --bg: #0f1012;
+  --surface: #18191c;
+  --text: #f4f4f5;
+  --primary: #fbbf24;
+  --border: #2e3138;
+  --danger: #f43f5e;
+
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card-bg: var(--surface);
+  --border-color: var(--border);
+  --accent: var(--primary);
 }
 
 @theme inline {
@@ -20,8 +42,13 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-variant-numeric: lining-nums tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.font-serif, [class*="font-serif"], .font-mono, [class*="font-mono"] {
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* Ocultar barra de scroll en contenedores horizontales preservando funcionalidad */
@@ -39,6 +66,27 @@ body {
 :focus-visible {
   outline: 2px solid #1c1917;
   outline-offset: 2px;
+}
+
+/* Respeto estricto a las preferencias de reducción de movimiento (WCAG 2.2) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Prevención de zoom automático en dispositivos móviles (iOS Safari) */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* ==========================================================================

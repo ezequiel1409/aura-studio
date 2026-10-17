@@ -1,15 +1,18 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, Sparkles, Star, Tag } from "lucide-react";
+import { ArrowLeft, Sparkles, Star, Tag, ShoppingBag } from "lucide-react";
 import { getProductServiceDeps } from "../../../infra/db/connection";
 import { parseProductCode, formatProductCode } from "../../../domain/product/rules";
 import { formatPrice } from "../../../lib/format/currency";
 import { parseSizesList, cleanProductDescription } from "../../../lib/parser/product-parser";
 import { ProductGallery } from "../../../components/catalog/ProductGallery";
 import { ProductOrderSection } from "../../../components/catalog/ProductOrderSection";
+import { ProductAccordions } from "../../../components/catalog/ProductAccordions";
+import { ProductCard } from "../../../components/catalog/ProductCard";
 import { ProductGrid } from "../../../components/catalog/ProductGrid";
 import { AnalyticsTracker } from "../../../components/analytics/AnalyticsTracker";
 import { CartHeaderButton } from "../../../components/cart/CartHeaderButton";
+import { CartDrawer } from "../../../components/cart/CartDrawer";
 import { CartToast } from "../../../components/cart/CartToast";
 import { listProducts } from "../../../services/product.service";
 import { getShowroomSettings } from "../../../services/settings.service";
@@ -120,19 +123,24 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
     );
   }
 
-  // Resolver categoría y configuración de showroom en paralelo
-  const [category, settings] = await Promise.all([
+  // Resolver categoría, configuración y piezas relacionadas
+  const [category, settings, relatedResult] = await Promise.all([
     deps.categoryRepo.findById(product.categoryId),
     getShowroomSettings(deps),
+    listProducts({ pageSize: 6, sortBy: "newest" }, deps),
   ]);
 
   const whatsappNumber = settings.whatsappNumber;
-  const brandName = settings.showroomName;
+  const brandName = settings.showroomName || "Aura Studio";
 
   const formattedCode = formatProductCode(product.code);
   const sizes = parseSizesList(product.size);
   const isSoldOut = product.status === "SOLD_OUT";
   const isReserved = product.status === "RESERVED";
+
+  const relatedProducts = relatedResult.items
+    .filter((p) => p.id !== product.id)
+    .slice(0, 3);
 
   return (
     <div className="min-h-screen bg-[#faf8f5] pb-24 text-[#1c1917]">
@@ -189,9 +197,28 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
       {/* Contenedor de la Ficha */}
       <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
+        {/* Migas de pan */}
+        <nav aria-label="Migas de pan" className="mb-4 sm:mb-6 flex items-center gap-1.5 text-xs text-stone-500 font-medium">
+          <Link href="/" className="hover:text-stone-900 transition-colors">
+            Inicio
+          </Link>
+          <span className="text-stone-300">/</span>
+          {category && category.slug !== "sin-clasificar" && (
+            <>
+              <Link href={`/?categoria=${category.slug}`} className="hover:text-stone-900 transition-colors">
+                {category.name}
+              </Link>
+              <span className="text-stone-300">/</span>
+            </>
+          )}
+          <span className="text-stone-900 font-semibold truncate max-w-[220px]">
+            {product.title || formattedCode}
+          </span>
+        </nav>
+
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-12 items-start">
-          {/* Galería de Fotos */}
-          <div className="md:sticky md:top-20 z-10">
+          {/* Galería de Fotos (Columna Sticky en desktop) */}
+          <div className="md:sticky md:top-20 z-10 w-full">
             <ProductGallery
               photos={product.photos || []}
               title={product.title}
@@ -201,7 +228,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
 
           {/* Detalles de la Prenda */}
           <div className="flex flex-col justify-start">
-            {/* Cabecera con Código y Estado */}
+            {/* Cabecera con Código y Estado (un solo mensaje sin redundancias) */}
             <div className="flex flex-wrap items-center gap-2.5">
               <span className="rounded-md border border-[#e7e2da] bg-white px-2.5 py-1 text-xs font-medium text-stone-500">
                 SKU: <strong className="font-mono font-bold text-stone-900">{formattedCode}</strong>
@@ -223,12 +250,6 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               {isSoldOut && (
                 <span className="rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-xs font-bold tracking-wider text-stone-800 uppercase">
                   Agotada
-                </span>
-              )}
-
-              {!isReserved && !isSoldOut && (
-                <span className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold tracking-wider text-emerald-900 uppercase">
-                  Disponible
                 </span>
               )}
             </div>
@@ -253,7 +274,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               </div>
             )}
 
-            {/* Selector interactivo de colores, talles, cantidad y adicion a la bolsa (BR-40) */}
+            {/* Selector interactivo de colores, talles, cantidad y adición a la bolsa */}
             <ProductOrderSection
               productId={product.id}
               code={product.code}
@@ -268,20 +289,68 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               isSoldOut={isSoldOut}
               isReserved={isReserved}
               photoUrl={product.photos?.[0]?.keyThumb || product.photos?.[0]?.keyFull || null}
+              showWhatsAppInquiry={true}
             />
 
-            {/* Descripción y Texto Original (BR-05, BR-06) */}
-            <div className="mt-8 border-t border-[#e7e2da] pt-6">
-              <h2 className="font-serif text-sm font-medium tracking-widest text-stone-900 uppercase">
-                Descripción & Detalles de la pieza
-              </h2>
-              <div className="mt-3 whitespace-pre-line text-xs leading-relaxed text-stone-700 sm:text-sm">
-                {cleanProductDescription(product.rawText, product.title)}
-              </div>
-            </div>
+            {/* Acordeones estructurados: Detalles, Medidas, Cuidados y Envíos */}
+            <ProductAccordions
+              rawDescription={cleanProductDescription(product.rawText, product.title)}
+              categoryName={category?.name}
+            />
           </div>
         </div>
+
+        {/* Sección "Otras piezas exclusivas del showroom" para no terminar en vacío */}
+        {relatedProducts.length > 0 && (
+          <section className="mt-16 sm:mt-20 border-t border-[#e7e2da] pt-10" aria-label="Otras piezas del showroom">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[#926a3c] font-semibold">
+                  Curaduría del Showroom
+                </span>
+                <h2 className="font-serif text-2xl font-light text-stone-900 sm:text-3xl mt-1">
+                  Otras piezas que te pueden interesar
+                </h2>
+              </div>
+              <Link href="/" className="text-xs font-semibold text-stone-700 hover:text-stone-950 transition-colors">
+                Ver todo el archivo →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-6">
+              {relatedProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
+
+      {/* Barra fija inferior en mobile con precio y acción rápida */}
+      <aside
+        aria-label="Acción de compra rápida móvil"
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#e7e2da] px-4 py-3 shadow-lg flex items-center justify-between gap-3"
+      >
+        <div>
+          <span className="block text-[10px] font-mono text-stone-500 uppercase">{formattedCode}</span>
+          <span className="font-serif text-lg font-bold text-stone-900">
+            {formatPrice(product.priceCents, product.currency)}
+          </span>
+        </div>
+        <a
+          href="#order-section"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-xs hover:bg-stone-800"
+        >
+          <ShoppingBag className="h-3.5 w-3.5" />
+          <span>Agregar a la bolsa</span>
+        </a>
+      </aside>
+
+      {/* Drawer lateral de Carrito / Bolsa accesible */}
+      <CartDrawer
+        showroomAddress={settings.address}
+        whatsappNumber={settings.whatsappNumber}
+        brandName={brandName}
+      />
 
       {/* Footer con información de la tienda, redes y data fiscal */}
       <Footer
@@ -294,7 +363,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         dataFiscalUrl={settings.dataFiscalUrl}
       />
 
-      {/* Toast accesible de confirmación de bolsa de compras (BR-40) */}
+      {/* Toast accesible de confirmación de bolsa de compras */}
       <CartToast />
     </div>
   );

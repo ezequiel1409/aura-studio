@@ -1,9 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import React from "react";
+import { renderToString } from "react-dom/server";
 import { createTestEnvironment } from "./setup-db";
 import {
   registerCustomer,
   loginCustomer,
   getCustomerProfile,
+  updateCustomerProfile,
+  updateCustomerPassword,
   addCustomerAddress,
   getCustomerAddresses,
   setDefaultCustomerAddress,
@@ -21,6 +25,14 @@ import {
 import { ValidationError } from "../src/domain/errors";
 import { createOrder } from "../src/services/order.service";
 import { createProduct } from "../src/services/product.service";
+import { CustomerAuthClient } from "../src/components/customer/CustomerAuthClient";
+import { CustomerPortalClient } from "../src/components/customer/CustomerPortalClient";
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/cuenta",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
 
 describe("Customer Authentication & Account Management", () => {
   let env: ReturnType<typeof createTestEnvironment>;
@@ -388,6 +400,122 @@ describe("Customer Authentication & Account Management", () => {
       expect(customerOrders.length).toBe(1);
       expect(customerOrders[0].id).toBe(orderResult.order.id);
       expect(customerOrders[0].customerName).toBe("Julieta V");
+    });
+
+    it("actualiza perfil de cliente (nombre y teléfono)", async () => {
+      const reg = await registerCustomer(
+        {
+          name: "Camila Lopez",
+          email: "camila@aura.com",
+          phone: "1122334455",
+          password: "password123",
+        },
+        env.deps
+      );
+      const customerId = reg.customer!.id;
+
+      const updated = await updateCustomerProfile(
+        customerId,
+        { name: "Camila Lopez de Rossi", phone: "1199887766" },
+        env.deps
+      );
+
+      expect(updated).not.toBeNull();
+      expect(updated?.name).toBe("Camila Lopez de Rossi");
+      expect(updated?.phone).toBe("1199887766");
+      expect(updated?.email).toBe("camila@aura.com");
+    });
+
+    it("actualiza contraseña del cliente verificando la actual", async () => {
+      const reg = await registerCustomer(
+        {
+          name: "Martin Soler",
+          email: "martin@aura.com",
+          password: "password123",
+        },
+        env.deps
+      );
+      const customerId = reg.customer!.id;
+
+      // Falla con contraseña actual errónea
+      const failCurrent = await updateCustomerPassword(
+        customerId,
+        { currentPassword: "wrongPassword", newPassword: "newPassword2026" },
+        env.deps
+      );
+      expect(failCurrent.success).toBe(false);
+      expect(failCurrent.error).toContain("incorrecta");
+
+      // Falla si la nueva contraseña tiene menos de 8 caracteres
+      const failLength = await updateCustomerPassword(
+        customerId,
+        { currentPassword: "password123", newPassword: "short" },
+        env.deps
+      );
+      expect(failLength.success).toBe(false);
+      expect(failLength.error).toContain("al menos 8 caracteres");
+
+      // Exitoso con contraseña válida
+      const successUpdate = await updateCustomerPassword(
+        customerId,
+        { currentPassword: "password123", newPassword: "newPassword2026" },
+        env.deps
+      );
+      expect(successUpdate.success).toBe(true);
+
+      // Puede iniciar sesión con la nueva contraseña
+      const login = await loginCustomer(
+        { email: "martin@aura.com", password: "newPassword2026" },
+        env.deps
+      );
+      expect(login.success).toBe(true);
+    });
+  });
+
+  describe("Componente CustomerAuthClient (Accesibilidad y Seguridad)", () => {
+    it("renderiza campos accesibles con etiquetas legibles, botón de ver contraseña y opciones de ingreso", () => {
+      const html = renderToString(React.createElement(CustomerAuthClient, { brandName: "Aura Studio" }));
+
+      expect(html).toContain("Espacio de Clientes");
+      expect(html).toContain("Aura Studio");
+      expect(html).toContain("Correo electrónico");
+      expect(html).toContain("Contraseña");
+      expect(html).toContain("¿Olvidaste tu contraseña?");
+      expect(html).toContain("Ingresar a mi cuenta");
+      expect(html).toContain("Iniciar Sesión");
+      expect(html).toContain("Registrarme");
+    });
+  });
+
+  describe("Componente CustomerPortalClient (Resumen, Línea de Tiempo y Pestañas)", () => {
+    it("renderiza pestañas de navegación completas y saludo personalizado", () => {
+      const mockCustomer = {
+        id: 1,
+        name: "Sofia Navarro",
+        email: "sofia@aura.com",
+        phone: "1123456789",
+        status: "ACTIVE" as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const html = renderToString(
+        React.createElement(CustomerPortalClient, {
+          customer: mockCustomer,
+          initialOrders: [],
+          initialAddresses: [],
+          allProducts: [],
+          brandName: "Aura Studio",
+        })
+      );
+
+      expect(html).toContain("Sofia Navarro");
+      expect(html).toContain("Resumen");
+      expect(html).toContain("Mis Pedidos");
+      expect(html).toContain("Guardados");
+      expect(html).toContain("Mis Direcciones");
+      expect(html).toContain("Mis Datos");
+      expect(html).toContain("Preferencias");
     });
   });
 });

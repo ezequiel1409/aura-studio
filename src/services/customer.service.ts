@@ -244,6 +244,43 @@ export async function updateCustomerProfile(
 }
 
 /**
+ * Actualiza la contraseña del cliente verificando la contraseña actual.
+ */
+export async function updateCustomerPassword(
+  customerId: number,
+  input: { currentPassword?: string; newPassword: string },
+  deps: CustomerServiceDeps
+): Promise<{ success: boolean; error?: string }> {
+  const customer = await deps.customerRepo.findById(customerId);
+  if (!customer) {
+    return { success: false, error: "Cliente no encontrado." };
+  }
+
+  if (input.currentPassword) {
+    const isValid = await verifyPasswordHash(
+      input.currentPassword,
+      customer.passwordHash,
+      customer.passwordSalt
+    );
+    if (!isValid) {
+      return { success: false, error: "La contraseña actual es incorrecta." };
+    }
+  }
+
+  if (!input.newPassword || input.newPassword.length < 8) {
+    return {
+      success: false,
+      error: "La nueva contraseña debe tener al menos 8 caracteres.",
+    };
+  }
+
+  const { hash, salt } = await hashPassword(input.newPassword);
+  await deps.customerRepo.updatePassword(customerId, hash, salt, Date.now());
+
+  return { success: true };
+}
+
+/**
  * Lista las direcciones guardadas del cliente.
  */
 export async function getCustomerAddresses(

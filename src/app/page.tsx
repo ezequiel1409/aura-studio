@@ -8,6 +8,10 @@ import { CategoryNav } from "../components/catalog/CategoryNav";
 import { SortFilterBar } from "../components/catalog/SortFilterBar";
 import { ProductGrid } from "../components/catalog/ProductGrid";
 import { HomeHero } from "../components/catalog/HomeHero";
+import { HowToBuySection } from "../components/catalog/HowToBuySection";
+import { ArchiveSection } from "../components/catalog/ArchiveSection";
+import { NewPiecesAlertSection } from "../components/catalog/NewPiecesAlertSection";
+import { CartDrawer } from "../components/cart/CartDrawer";
 import { StoreThemeStyles } from "../components/theme/StoreThemeStyles";
 import { AnalyticsTracker } from "../components/analytics/AnalyticsTracker";
 import { CartToast } from "../components/cart/CartToast";
@@ -98,11 +102,11 @@ function CatalogSkeleton() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Cargando catálogo">
       <div className="h-10 w-full animate-pulse rounded-lg bg-[#f5f2eb]" />
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-3">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div
             key={i}
-            className="aspect-[3/4] animate-pulse rounded-xl border border-[#e7e2da] bg-[#f5f2eb]"
+            className="aspect-[4/5] animate-pulse rounded-xl border border-[#e7e2da] bg-[#f5f2eb]"
           />
         ))}
       </div>
@@ -112,10 +116,11 @@ function CatalogSkeleton() {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const deps = getProductServiceDeps();
-  const [settings, allCategories, featuredResult] = await Promise.all([
+  const [settings, allCategories, featuredResult, soldOutResult] = await Promise.all([
     getShowroomSettings(deps),
     deps.categoryRepo.listAll(),
     listProducts({ isFeatured: true, pageSize: 6 }, deps),
+    listProducts({ status: "SOLD_OUT", pageSize: 4 }, deps),
   ]);
   const brandName = settings.showroomName || "Aura Studio";
 
@@ -132,7 +137,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       {/* Contenido principal del catálogo */}
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
-        {/* Portada / Hero configurable desde el Backoffice (Carrusel, Banner o Editorial) */}
+        {/* 1. Hero compacto con llamada a la acción y barra de confianza de 4 puntos */}
         <HomeHero
           heroMode={settings.heroMode}
           heroTitle={settings.heroTitle}
@@ -140,20 +145,40 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           heroBannerUrl={settings.heroBannerUrl}
           featuredProducts={featuredResult.items}
           brandName={brandName}
+          whatsappNumber={settings.whatsappNumber}
         />
 
-        {/* Navegación por categorías desplegable y jerárquica (BR-16, BR-22, BR-38) */}
-        <section aria-label="Categorías" className="mb-4">
-          <CategoryNav categories={allCategories} />
-        </section>
+        {/* 2. Sección de Catálogo Principal con ancla para salto suave */}
+        <div id="catalogo" className="scroll-mt-20">
+          {/* Navegación por categorías */}
+          <section aria-label="Categorías" className="mb-4">
+            <CategoryNav categories={allCategories} />
+          </section>
 
-        {/* Streaming con Suspense para Partial Prerendering de Next.js 16 */}
-        <Suspense fallback={<CatalogSkeleton />}>
-          <CatalogContent searchParams={searchParams} categories={allCategories} />
-        </Suspense>
+          {/* Streaming con Suspense para Partial Prerendering */}
+          <Suspense fallback={<CatalogSkeleton />}>
+            <CatalogContent searchParams={searchParams} categories={allCategories} />
+          </Suspense>
+        </div>
+
+        {/* 3. "Cómo comprar" en 3 pasos claros */}
+        <HowToBuySection />
+
+        {/* 4. "Archivo": piezas vendidas que refuerzan la propuesta de pieza irrepetible */}
+        <ArchiveSection soldProducts={soldOutResult.items} />
+
+        {/* 5. "Avisame cuando haya nuevas piezas": captura de contactos */}
+        <NewPiecesAlertSection />
       </main>
 
-      {/* Footer con información de la tienda, redes y data fiscal */}
+      {/* Drawer lateral de Carrito / Bolsa */}
+      <CartDrawer
+        showroomAddress={settings.address}
+        whatsappNumber={settings.whatsappNumber}
+        brandName={brandName}
+      />
+
+      {/* Footer compacto de 3 columnas */}
       <Footer
         brandName={brandName}
         logoUrl={settings.logoUrl}

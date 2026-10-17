@@ -75,7 +75,7 @@ export default async function CarritoPage() {
         />
       </main>
 
-      {/* Pie de página */}
+      {/* Pie de página mínimo para no distraer en la compra */}
       <Footer
         brandName={brandName}
         logoUrl={settings.logoUrl}
@@ -84,6 +84,7 @@ export default async function CarritoPage() {
         tiktokHandle={settings.tiktokHandle}
         address={settings.address}
         dataFiscalUrl={settings.dataFiscalUrl}
+        variant="minimal"
       />
     </div>
   );

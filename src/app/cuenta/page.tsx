@@ -10,9 +10,11 @@ import {
   getCustomerOrders,
   getCustomerAddresses,
 } from "../../services/customer.service";
+import { listProducts } from "../../services/product.service";
 import { CustomerPortalClient } from "../../components/customer/CustomerPortalClient";
 import { Footer } from "../../components/layout/Footer";
 import { StoreThemeStyles } from "../../components/theme/StoreThemeStyles";
+import { CartDrawer } from "../../components/cart/CartDrawer";
 
 export const metadata: Metadata = {
   title: "Mi Cuenta | Aura Studio",
@@ -34,7 +36,7 @@ export default async function CustomerAccountPage() {
     redirect("/cuenta/ingresar");
   }
 
-  const [orders, addresses, settings] = await Promise.all([
+  const [orders, addresses, settings, productsResult] = await Promise.all([
     getCustomerOrders(session.customerId, {
       customerRepo: deps.customerRepo,
       orderRepo: deps.orderRepo,
@@ -44,6 +46,7 @@ export default async function CustomerAccountPage() {
       customerAddressRepo: deps.customerAddressRepo,
     }),
     getShowroomSettings(deps),
+    listProducts({ page: 1, pageSize: 50 }, deps),
   ]);
 
   const brandName = settings.showroomName || "Aura Studio";
@@ -85,14 +88,16 @@ export default async function CustomerAccountPage() {
             )}
           </Link>
 
-          <Link
-            href="/"
-            prefetch={true}
-            className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-[#e7e2da] bg-white px-4 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Volver al catálogo</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              prefetch={true}
+              className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-[#e7e2da] bg-white px-4 py-1.5 text-xs font-medium text-stone-700 transition-colors hover:border-stone-400 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Volver al catálogo</span>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -102,10 +107,13 @@ export default async function CustomerAccountPage() {
           customer={customer}
           initialOrders={orders}
           initialAddresses={addresses}
+          allProducts={productsResult.items}
           whatsappNumber={settings.whatsappNumber}
           brandName={brandName}
         />
       </main>
+
+      <CartDrawer />
 
       {/* Pie de página */}
       <Footer

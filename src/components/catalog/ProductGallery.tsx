@@ -160,7 +160,7 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
     <div className="flex flex-col gap-3">
       {/* Contenedor Principal del Carrusel */}
       <div
-        className="group relative mx-auto flex h-[310px] xs:h-[340px] sm:h-[390px] md:h-[410px] lg:h-[440px] w-full max-w-[360px] md:max-w-[400px] items-center justify-center overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] shadow-xs select-none"
+        className="group relative mx-auto flex aspect-[4/5] min-h-[360px] sm:min-h-[440px] lg:min-h-[500px] w-full items-center justify-center overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] shadow-xs select-none"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >

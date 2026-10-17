@@ -3,7 +3,19 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Loader2, Lock, Mail, Phone, User, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  ArrowRight,
+  Loader2,
+  Lock,
+  Mail,
+  Phone,
+  User,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  HelpCircle,
+} from "lucide-react";
 
 interface CustomerAuthClientProps {
   brandName?: string;
@@ -19,6 +31,11 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Visibilidad de contraseñas
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showForgotHelper, setShowForgotHelper] = useState(false);
+
   // Campos de login
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -28,6 +45,21 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
   const [regEmail, setRegEmail] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regPassword, setRegPassword] = useState("");
+
+  // Cálculo de fortaleza de contraseña
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: "", color: "bg-stone-200" };
+    let score = 0;
+    if (pass.length >= 8) score += 1;
+    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass) || /[^A-Za-z0-9]/.test(pass)) score += 1;
+
+    if (score === 1) return { score: 1, label: "Débil", color: "bg-rose-500", text: "text-rose-600" };
+    if (score === 2) return { score: 2, label: "Buena", color: "bg-amber-500", text: "text-amber-700" };
+    return { score: 3, label: "Muy segura", color: "bg-emerald-500", text: "text-emerald-700" };
+  };
+
+  const regStrength = getPasswordStrength(regPassword);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +95,12 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (regPassword.length < 8) {
+      setError("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -97,16 +135,16 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
     <div className="mx-auto w-full max-w-md px-4 py-8 sm:py-14">
       {/* Encabezado */}
       <div className="text-center mb-8">
-        <span className="text-[10px] tracking-[0.25em] font-semibold uppercase text-stone-500">
-          Club & Clientes {brandName}
+        <span className="text-[11px] tracking-[0.25em] font-semibold uppercase text-stone-500">
+          Espacio de Clientes · {brandName}
         </span>
         <h1 className="mt-2 font-serif text-3xl sm:text-4xl font-light text-stone-900 tracking-tight">
           {mode === "login" ? "Accedé a tu Cuenta" : "Creá tu Cuenta"}
         </h1>
         <p className="mt-2 text-xs sm:text-sm text-stone-600">
           {mode === "login"
-            ? "Gestioná tus pedidos, direcciones de entrega y seguimiento exclusivo."
-            : "Completá tus datos para disfrutar de checkout ágil y consultar tu historial."}
+            ? "Gestioná tus pedidos, direcciones de entrega y piezas guardadas."
+            : "Completá tus datos para disfrutar de checkout ágil y seguimiento exclusivo."}
         </p>
       </div>
 
@@ -117,8 +155,9 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
           onClick={() => {
             setMode("login");
             setError(null);
+            setShowForgotHelper(false);
           }}
-          className={`rounded-xl py-2.5 text-xs font-medium transition-all ${
+          className={`rounded-xl py-2.5 text-xs font-medium transition-all cursor-pointer ${
             mode === "login"
               ? "bg-white text-stone-900 shadow-xs font-semibold"
               : "text-stone-600 hover:text-stone-900"
@@ -131,8 +170,9 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
           onClick={() => {
             setMode("register");
             setError(null);
+            setShowForgotHelper(false);
           }}
-          className={`rounded-xl py-2.5 text-xs font-medium transition-all ${
+          className={`rounded-xl py-2.5 text-xs font-medium transition-all cursor-pointer ${
             mode === "register"
               ? "bg-white text-stone-900 shadow-xs font-semibold"
               : "text-stone-600 hover:text-stone-900"
@@ -169,9 +209,9 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
             <div>
               <label
                 htmlFor="login-email"
-                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+                className="block text-sm font-medium text-stone-800 mb-1.5"
               >
-                Correo Electrónico
+                Correo electrónico
               </label>
               <div className="relative">
                 <input
@@ -182,38 +222,73 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   placeholder="ejemplo@correo.com"
-                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                 />
                 <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
               </div>
             </div>
 
             <div>
-              <label
-                htmlFor="login-password"
-                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
-              >
-                Contraseña
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor="login-password"
+                  className="block text-sm font-medium text-stone-800"
+                >
+                  Contraseña
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotHelper(!showForgotHelper)}
+                  className="text-xs text-stone-600 hover:text-stone-900 underline underline-offset-2 cursor-pointer font-medium"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   id="login-password"
-                  type="password"
+                  type={showLoginPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-10 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                 />
                 <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  aria-label={showLoginPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                  title={showLoginPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer p-1"
+                >
+                  {showLoginPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
+
+              {/* Ayuda de contraseña olvidada */}
+              {showForgotHelper && (
+                <div className="mt-3 rounded-xl bg-stone-50 border border-stone-200 p-3 text-xs text-stone-600 flex items-start gap-2 animate-in fade-in-50">
+                  <HelpCircle className="h-4 w-4 text-stone-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-stone-800">Recuperación de acceso</p>
+                    <p className="mt-0.5">
+                      Por motivos de privacidad, escribinos por WhatsApp indicando tu correo para restablecer tu contraseña en minutos.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 w-full inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-colors"
+              className="mt-2 w-full inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-colors cursor-pointer"
             >
               {loading ? (
                 <>
@@ -233,7 +308,7 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
             <div>
               <label
                 htmlFor="reg-name"
-                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+                className="block text-sm font-medium text-stone-800 mb-1.5"
               >
                 Nombre y Apellido
               </label>
@@ -246,7 +321,7 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                   placeholder="Tu nombre completo"
-                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                 />
                 <User className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
               </div>
@@ -255,9 +330,9 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
             <div>
               <label
                 htmlFor="reg-email"
-                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+                className="block text-sm font-medium text-stone-800 mb-1.5"
               >
-                Correo Electrónico
+                Correo electrónico
               </label>
               <div className="relative">
                 <input
@@ -268,7 +343,7 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                   placeholder="ejemplo@correo.com"
-                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                 />
                 <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
               </div>
@@ -277,9 +352,9 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
             <div>
               <label
                 htmlFor="reg-phone"
-                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+                className="block text-sm font-medium text-stone-800 mb-1.5"
               >
-                Teléfono / WhatsApp (opcional)
+                Teléfono o WhatsApp <span className="text-stone-400 font-normal">(opcional)</span>
               </label>
               <div className="relative">
                 <input
@@ -289,42 +364,87 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
                   placeholder="11 2345-6789"
-                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                 />
                 <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
               </div>
               <p className="mt-1 text-[11px] text-stone-500">
-                Nos sirve para coordinar la entrega de tus pedidos de forma directa.
+                Nos sirve para coordinar la entrega o retiro de tus piezas reservadas.
               </p>
             </div>
 
             <div>
               <label
                 htmlFor="reg-password"
-                className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5"
+                className="block text-sm font-medium text-stone-800 mb-1.5"
               >
                 Contraseña
               </label>
               <div className="relative">
                 <input
                   id="reg-password"
-                  type="password"
+                  type={showRegPassword ? "text" : "password"}
                   required
-                  minLength={6}
+                  minLength={8}
                   autoComplete="new-password"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
-                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-sm text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  placeholder="Mínimo 8 caracteres"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-10 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                 />
                 <Lock className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  aria-label={showRegPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                  title={showRegPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 cursor-pointer p-1"
+                >
+                  {showRegPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
+
+              {/* Indicador de fortaleza */}
+              {regPassword.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-stone-100">
+                    <div
+                      className={`h-full transition-all ${
+                        regStrength.score >= 1 ? regStrength.color : "bg-stone-200"
+                      }`}
+                      style={{ width: "33.3%" }}
+                    />
+                    <div
+                      className={`h-full transition-all ${
+                        regStrength.score >= 2 ? regStrength.color : "bg-stone-200"
+                      }`}
+                      style={{ width: "33.3%" }}
+                    />
+                    <div
+                      className={`h-full transition-all ${
+                        regStrength.score >= 3 ? regStrength.color : "bg-stone-200"
+                      }`}
+                      style={{ width: "33.4%" }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-stone-500">Seguridad:</span>
+                    <span className={`font-semibold ${regStrength.text}`}>
+                      {regStrength.label}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="mt-2 w-full inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-colors"
+              className="mt-2 w-full inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3 text-xs font-semibold uppercase tracking-wider text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-colors cursor-pointer"
             >
               {loading ? (
                 <>
@@ -356,4 +476,3 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
     </div>
   );
 }
-

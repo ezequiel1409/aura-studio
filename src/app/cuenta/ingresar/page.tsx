@@ -80,15 +80,11 @@ export default async function CustomerAuthPage() {
         </Suspense>
       </main>
 
-      {/* Pie de página */}
+      {/* Pie de página mínimo */}
       <Footer
+        variant="minimal"
         brandName={brandName}
-        logoUrl={settings.logoUrl}
         whatsappNumber={settings.whatsappNumber}
-        instagramHandle={settings.instagramHandle}
-        tiktokHandle={settings.tiktokHandle}
-        address={settings.address}
-        dataFiscalUrl={settings.dataFiscalUrl}
       />
     </div>
   );

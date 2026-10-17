@@ -124,7 +124,7 @@ export function CartDrawer({
           items: items.map((i) => ({
             productId: i.productId,
             productCode: i.code,
-            productTitle: i.title || `Producto #${i.formattedCode}`,
+            productTitle: i.title || `Producto ${i.formattedCode}`,
             colorName: i.colorName,
             size: i.size,
             quantity: i.quantity,
@@ -299,7 +299,7 @@ export function CartDrawer({
                             onClick={closeCart}
                             className="font-serif text-sm font-medium text-stone-900 hover:underline line-clamp-1"
                           >
-                            {item.title || `Producto #${item.formattedCode}`}
+                            {item.title || `Producto ${item.formattedCode}`}
                           </Link>
                           <button
                             type="button"
