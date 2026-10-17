@@ -9,6 +9,8 @@ import {
   Settings,
   Settings2,
   ShoppingBag,
+  Store,
+  Tag,
   Users,
   LucideIcon,
 } from "lucide-react";
@@ -28,6 +30,7 @@ export interface AdminNavItem {
   label: string;
   mobileLabel: string;
   icon: LucideIcon;
+  badge?: string | number;
   matchPrefix?: string[];
   subItems?: AdminSubNavItem[];
 }
@@ -51,8 +54,8 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
   {
     id: "catalog",
     href: "/admin/productos",
-    label: "Catálogo",
-    mobileLabel: "Catálogo",
+    label: "Productos",
+    mobileLabel: "Productos",
     icon: Package,
     matchPrefix: ["/admin/productos", "/admin/categorias"],
     subItems: [
@@ -64,63 +67,87 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
         exact: true,
       },
       {
-        href: "/admin/productos/nuevo",
-        label: "+ Cargar Producto",
-        description: "Alta rápida de nueva prenda",
-        icon: PlusCircle,
-        exact: true,
-      },
-      {
         href: "/admin/categorias",
         label: "Categorías",
         description: "Árbol de rubros y orden",
         icon: FolderTree,
         exact: true,
       },
+      {
+        href: "/admin/productos/nuevo",
+        label: "+ Cargar Producto",
+        description: "Alta rápida de nueva pieza",
+        icon: PlusCircle,
+        exact: true,
+      },
     ],
   },
   {
-    id: "settings",
+    id: "discounts",
+    href: "/admin/configuracion?seccion=promociones",
+    label: "Descuentos",
+    mobileLabel: "Descuentos",
+    icon: Tag,
+  },
+  {
+    id: "store",
     href: "/admin/configuracion",
-    label: "Tienda y Ajustes",
-    mobileLabel: "Ajustes",
-    icon: Settings,
-    matchPrefix: ["/admin/configuracion", "/admin/usuarios"],
+    label: "Tienda",
+    mobileLabel: "Tienda",
+    icon: Store,
+    matchPrefix: ["/admin/configuracion"],
     subItems: [
       {
         href: "/admin/configuracion?seccion=top",
-        label: "Parte Superior",
-        description: "Logo y nombre de marca",
+        label: "Identidad y Rubro",
+        description: "Nombre, logo y tipo de negocio",
         icon: PanelTop,
         tabParam: "top",
       },
       {
         href: "/admin/configuracion?seccion=main",
-        label: "Contenido Principal",
-        description: "Portada Hero y colores",
+        label: "Portada y Colores",
+        description: "Banners y paleta con contraste AA",
         icon: LayoutTemplate,
         tabParam: "main",
       },
       {
         href: "/admin/configuracion?seccion=footer",
-        label: "Pie de Página",
-        description: "WhatsApp, redes y AFIP",
+        label: "Contacto y Redes",
+        description: "WhatsApp, dirección y datos fiscales",
         icon: MapPin,
         tabParam: "footer",
       },
       {
         href: "/admin/configuracion?seccion=general",
-        label: "Configuraciones",
-        description: "Reglas de reserva",
+        label: "Políticas e Inventario",
+        description: "Reglas de reserva y cambios",
         icon: Settings2,
         tabParam: "general",
       },
+    ],
+  },
+  {
+    id: "settings",
+    href: "/admin/usuarios",
+    label: "Configuración",
+    mobileLabel: "Ajustes",
+    icon: Settings,
+    matchPrefix: ["/admin/usuarios"],
+    subItems: [
       {
         href: "/admin/usuarios",
-        label: "Equipo Admin",
-        description: "Usuarios y permisos",
+        label: "Equipo y Accesos",
+        description: "Administradores y roles",
         icon: Users,
         exact: true,
+      },
+      {
+        href: "/admin/configuracion?seccion=general",
+        label: "Reservas e Inventario",
+        description: "Tiempos de reserva automática",
+        icon: Settings2,
+        tabParam: "general",
       },
     ],
   },

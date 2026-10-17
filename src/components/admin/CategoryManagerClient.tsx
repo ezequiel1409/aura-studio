@@ -375,17 +375,17 @@ export function CategoryManagerClient({
                 </div>
 
                 {/* Acciones de la Raíz */}
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {/* Reordenar */}
                   <button
                     type="button"
                     onClick={() => handleMoveOrder(tree, rootIdx, "up")}
                     disabled={rootIdx === 0 || loading}
                     aria-label={`Subir posición de la categoría ${root.name}`}
-                    className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                    className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     title="Subir posición"
                   >
-                    <ArrowUp size={14} aria-hidden="true" />
+                    <ArrowUp size={15} aria-hidden="true" />
                   </button>
 
                   <button
@@ -393,10 +393,10 @@ export function CategoryManagerClient({
                     onClick={() => handleMoveOrder(tree, rootIdx, "down")}
                     disabled={rootIdx === tree.length - 1 || loading}
                     aria-label={`Bajar posición de la categoría ${root.name}`}
-                    className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                    className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     title="Bajar posición"
                   >
-                    <ArrowDown size={14} aria-hidden="true" />
+                    <ArrowDown size={15} aria-hidden="true" />
                   </button>
 
                   {/* Agregar Subcategoría (BR-15, BR-18) */}
@@ -417,11 +417,11 @@ export function CategoryManagerClient({
                         setErrorMessage(null);
                         setCreateModalOpen(true);
                       }}
-                      className="p-1.5 rounded-lg text-amber-200 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                      className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-amber-200 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       title="Agregar subcategoría"
                       aria-label={`Agregar subcategoría dentro de ${root.name}`}
                     >
-                      <Plus size={15} aria-hidden="true" />
+                      <Plus size={16} aria-hidden="true" />
                     </button>
                   )}
 
@@ -437,10 +437,10 @@ export function CategoryManagerClient({
                         setEditModalOpen(true);
                       }}
                       aria-label={`Editar categoría ${root.name}`}
-                      className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                      className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       title="Editar categoría"
                     >
-                      <Edit2 size={14} aria-hidden="true" />
+                      <Edit2 size={15} aria-hidden="true" />
                     </button>
                   )}
 
@@ -450,10 +450,10 @@ export function CategoryManagerClient({
                       type="button"
                       onClick={() => handleInitiateDelete(root)}
                       aria-label={`Eliminar categoría ${root.name}`}
-                      className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                      className="p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                       title="Eliminar categoría"
                     >
-                      <Trash2 size={14} aria-hidden="true" />
+                      <Trash2 size={15} aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -489,16 +489,16 @@ export function CategoryManagerClient({
                       </div>
 
                       {/* Acciones Subcategoría */}
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => handleMoveOrder(root.children, subIdx, "up")}
                           disabled={subIdx === 0 || loading}
                           aria-label={`Subir posición de la subcategoría ${sub.name}`}
                           title={`Subir posición de ${sub.name}`}
-                          className="p-1 rounded text-zinc-400 hover:text-zinc-100 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                          className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-all"
                         >
-                          <ArrowUp size={13} aria-hidden="true" />
+                          <ArrowUp size={14} aria-hidden="true" />
                         </button>
 
                         <button
@@ -507,9 +507,9 @@ export function CategoryManagerClient({
                           disabled={subIdx === root.children.length - 1 || loading}
                           aria-label={`Bajar posición de la subcategoría ${sub.name}`}
                           title={`Bajar posición de ${sub.name}`}
-                          className="p-1 rounded text-zinc-400 hover:text-zinc-100 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                          className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-all"
                         >
-                          <ArrowDown size={13} aria-hidden="true" />
+                          <ArrowDown size={14} aria-hidden="true" />
                         </button>
 
                         <button
@@ -523,9 +523,9 @@ export function CategoryManagerClient({
                           }}
                           aria-label={`Editar subcategoría ${sub.name}`}
                           title={`Editar subcategoría ${sub.name}`}
-                          className="p-1 rounded text-zinc-400 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                          className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-all"
                         >
-                          <Edit2 size={13} aria-hidden="true" />
+                          <Edit2 size={14} aria-hidden="true" />
                         </button>
 
                         <button
@@ -533,9 +533,9 @@ export function CategoryManagerClient({
                           onClick={() => handleInitiateDelete(sub)}
                           aria-label={`Eliminar subcategoría ${sub.name}`}
                           title={`Eliminar subcategoría ${sub.name}`}
-                          className="p-1 rounded text-zinc-500 hover:text-rose-400 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                          className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-all"
                         >
-                          <Trash2 size={13} aria-hidden="true" />
+                          <Trash2 size={14} aria-hidden="true" />
                         </button>
                       </div>
                     </div>

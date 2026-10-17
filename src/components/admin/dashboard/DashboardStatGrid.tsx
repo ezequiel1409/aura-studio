@@ -37,7 +37,7 @@ export function DashboardStatGrid({ summary }: DashboardStatGridProps) {
     {
       title: "Agotadas",
       count: summary.soldOut,
-      description: "Sin stock (purga automática a los 30 días)",
+      description: "Sin stock · Listas para archivar",
       href: "/admin/productos?status=SOLD_OUT",
       icon: Package,
       bgBadge: "status-badge-soldout",
@@ -46,7 +46,7 @@ export function DashboardStatGrid({ summary }: DashboardStatGridProps) {
     {
       title: "Por vencer",
       count: summary.expiringSoon,
-      description: "Agotadas hace más de 23 días (≤ 7 días para purga)",
+      description: "Agotadas hace más de 20 días",
       href: "/admin/productos?filter=por_vencer",
       icon: AlertTriangle,
       bgBadge: "status-badge-expiring",

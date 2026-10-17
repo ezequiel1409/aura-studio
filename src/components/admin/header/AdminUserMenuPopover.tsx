@@ -45,7 +45,7 @@ export function AdminUserMenuPopover({
             ? `Cuenta de ${userEmail} (${userRoleDisplay}). Administrar cuenta y sesión.`
             : `Cuenta de administración de ${brandName}`
         }
-        title={userEmail ? `${userEmail} (${userRoleDisplay})` : "Cuenta de Administradora"}
+        title={userEmail ? `${userEmail} (${userRoleDisplay})` : "Cuenta de Administrador"}
         className="flex items-center gap-1.5 p-1 rounded-full hover:ring-2 hover:ring-amber-400/60 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-all group cursor-pointer"
       >
         <div className="w-9 h-9 rounded-full bg-amber-300 text-zinc-950 font-bold text-xs flex items-center justify-center shadow-xs border border-amber-400/50 select-none">
@@ -76,7 +76,7 @@ export function AdminUserMenuPopover({
                   id="user-dialog-title"
                   className="text-sm font-bold text-zinc-100 truncate max-w-[240px]"
                 >
-                  {userEmail || "Administradora Aura"}
+                  {userEmail || "Administrador Aura"}
                 </h3>
                 <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-[11px] uppercase font-bold tracking-wider text-amber-300">
                   <Shield size={11} aria-hidden="true" />
@@ -100,7 +100,7 @@ export function AdminUserMenuPopover({
                 )}
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Autenticación segura por 2 horas de inactividad (BR-37).
+                Autenticación segura por 2 horas de inactividad.
               </p>
               <button
                 type="button"

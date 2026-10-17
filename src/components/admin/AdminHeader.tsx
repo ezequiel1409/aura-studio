@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, LogOut, Menu, X } from "lucide-react";
+import { ArrowUpRight, LogOut, Menu, PlusCircle, Search, X } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { AdminThemeToggle } from "./AdminThemeToggle";
-import { AdminDesktopNav } from "./header/AdminDesktopNav";
-import { AdminSubNavBar } from "./header/AdminSubNavBar";
+import { AdminSidebar } from "./header/AdminSidebar";
 import { AdminMobileDrawer } from "./header/AdminMobileDrawer";
 import { AdminUserMenuPopover } from "./header/AdminUserMenuPopover";
 
@@ -36,11 +35,13 @@ export function AdminHeader({
   const [user, setUser] = useState<SessionUser | null>(null);
   const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(null);
   const [renewingSession, setRenewingSession] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const hasLoadedSessionRef = useRef(false);
   const hasLoadedBrandRef = useRef(Boolean(initialBrandName));
 
-  // Consulta de datos de sesión del usuario logueado (BR-10, BR-37)
+  // Consulta de datos de sesión del usuario logueado
   const fetchSession = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/session", { cache: "no-store" });
@@ -57,7 +58,7 @@ export function AdminHeader({
     }
   }, []);
 
-  // Cargar sesión solo 1 vez al montar (o tras login), evitando fetches repetidos en cada cambio de pestaña
+  // Cargar sesión solo 1 vez al montar (o tras login)
   useEffect(() => {
     const isAuthRoute =
       pathname === "/admin/login" ||
@@ -96,12 +97,19 @@ export function AdminHeader({
     setIsUserMenuOpen(false);
   }, [pathname]);
 
-  // Cerrar popover con tecla Escape
+  // Teclas rápidas: Escape para cerrar menús, '/' para enfocar buscador
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsUserMenuOpen(false);
         setIsNavOpen(false);
+      } else if (
+        e.key === "/" &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
@@ -145,100 +153,152 @@ export function AdminHeader({
     }
   };
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    if (query.startsWith("#") || /^\d+$/.test(query)) {
+      // Búsqueda por número/código
+      router.push(`/admin/productos?q=${encodeURIComponent(query)}`);
+    } else {
+      router.push(`/admin/productos?q=${encodeURIComponent(query)}`);
+    }
+  };
+
   const userInitial = user?.email ? user.email.charAt(0).toUpperCase() : "A";
   const userRoleDisplay =
-    user?.role === "SUPER_ADMIN" ? "Super Administradora" : "Administradora";
+    user?.role === "SUPER_ADMIN" ? "Superadmin" : "Administrador";
 
   return (
-    <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 text-zinc-100 admin-header transition-colors">
-      <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-        {/* Lado Izquierdo: Botón Hamburguesa Móvil & Logo de Marca */}
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setIsNavOpen(!isNavOpen)}
-            aria-expanded={isNavOpen}
-            aria-controls="admin-collapsible-nav"
-            aria-label={isNavOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
-            className="sm:hidden p-2.5 rounded-xl text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors cursor-pointer"
-          >
-            {isNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
-          </button>
-
-          <Link
-            href="/admin"
-            aria-label={`${brandName}, ir al panel de administración`}
-            className="font-serif text-xl tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5 admin-logo"
-          >
-            {brandName}
-          </Link>
-          <span className="text-[10px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-200 border border-zinc-700 admin-badge hidden xs:inline-block">
-            Admin
-          </span>
-        </div>
-
-        {/* Navegación Desktop / Tablet Principal */}
-        <AdminDesktopNav pathname={pathname} />
-
-        {/* Enlaces de Acción, Selector de Tema & Avatar de Usuario */}
-        <div className="flex items-center gap-2">
-          <AdminThemeToggle />
-
-          <a
-            href="/"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Abrir catálogo público de la tienda en una pestaña nueva"
-            className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-zinc-100 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-            title="Ver catálogo público en una nueva pestaña"
-          >
-            <span className="hidden md:inline">Ver tienda</span>
-            <ArrowUpRight size={15} aria-hidden="true" />
-          </a>
-
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            aria-label={loggingOut ? "Cerrando sesión..." : "Cerrar sesión de administración"}
-            className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-rose-300 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-rose-950/40 hover:border-rose-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none disabled:opacity-50 cursor-pointer"
-            title="Cerrar sesión"
-          >
-            <LogOut size={15} aria-hidden="true" />
-            <span>{loggingOut ? "Saliendo..." : "Salir"}</span>
-          </button>
-
-          <AdminUserMenuPopover
-            isOpen={isUserMenuOpen}
-            brandName={brandName}
-            userEmail={user?.email}
-            userInitial={userInitial}
-            userRoleDisplay={userRoleDisplay}
-            expiresInSeconds={expiresInSeconds}
-            renewingSession={renewingSession}
-            loggingOut={loggingOut}
-            onToggle={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            onClose={() => setIsUserMenuOpen(false)}
-            onRenewSession={handleRenewSession}
-            onLogout={handleLogout}
-          />
-        </div>
-      </div>
-
-      {/* Barra Secundaria Contextual (Sub-secciones de Catálogo o Tienda y Ajustes) */}
-      <AdminSubNavBar pathname={pathname} />
-
-      {/* Menú Móvil Desplegable */}
-      <AdminMobileDrawer
-        isOpen={isNavOpen}
+    <>
+      {/* 1. Barra Lateral Fija para Escritorio (md:w-64) */}
+      <AdminSidebar
         pathname={pathname}
-        userEmail={user?.email}
+        brandName={brandName}
+        user={user}
         userInitial={userInitial}
         userRoleDisplay={userRoleDisplay}
         loggingOut={loggingOut}
-        onClose={() => setIsNavOpen(false)}
         onLogout={handleLogout}
       />
-    </header>
+
+      {/* 2. Barra Superior Mínima (md:pl-64 para compensar sidebar) */}
+      <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 text-zinc-100 admin-header transition-colors md:pl-64">
+        <div className="w-full px-4 md:px-6 h-16 flex items-center justify-between gap-3">
+          {/* Lado Izquierdo Móvil: Botón Hamburguesa & Marca */}
+          <div className="flex items-center gap-2.5 md:hidden">
+            <button
+              type="button"
+              onClick={() => setIsNavOpen(!isNavOpen)}
+              aria-expanded={isNavOpen}
+              aria-controls="admin-collapsible-nav"
+              aria-label={isNavOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+              className="p-2.5 rounded-xl text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors cursor-pointer"
+            >
+              {isNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+            </button>
+
+            <Link
+              href="/admin"
+              aria-label={`${brandName}, ir al panel de administración`}
+              className="font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5"
+            >
+              {brandName}
+            </Link>
+            <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+              Admin
+            </span>
+          </div>
+
+          {/* Lado Izquierdo Escritorio: Buscador Global */}
+          <form
+            onSubmit={handleSearchSubmit}
+            className="hidden md:flex items-center gap-2 flex-1 max-w-sm"
+          >
+            <div className="relative w-full">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                aria-hidden="true"
+              />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Buscar por nombre, #código o pedido... (/)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Búsqueda rápida en el panel"
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors"
+              />
+            </div>
+          </form>
+
+          {/* Lado Derecho: + Nuevo, Tema, Ver tienda, Salir, Avatar */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/productos/nuevo"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-zinc-950 px-3 py-1.5 rounded-xl bg-amber-300 hover:bg-amber-200 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+            >
+              <PlusCircle size={14} aria-hidden="true" />
+              <span>+ Nuevo</span>
+            </Link>
+
+            <AdminThemeToggle />
+
+            <a
+              href="/"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Abrir catálogo público de la tienda en una pestaña nueva"
+              className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-zinc-100 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+              title="Ver catálogo público en una nueva pestaña"
+            >
+              <span className="hidden md:inline">Ver tienda</span>
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </a>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              aria-label={loggingOut ? "Cerrando sesión..." : "Cerrar sesión de administración"}
+              className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-rose-300 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-rose-950/40 hover:border-rose-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none disabled:opacity-50 cursor-pointer"
+              title="Cerrar sesión"
+            >
+              <LogOut size={14} aria-hidden="true" />
+              <span>{loggingOut ? "Saliendo..." : "Salir"}</span>
+            </button>
+
+            <AdminUserMenuPopover
+              isOpen={isUserMenuOpen}
+              brandName={brandName}
+              userEmail={user?.email}
+              userInitial={userInitial}
+              userRoleDisplay={userRoleDisplay}
+              expiresInSeconds={expiresInSeconds}
+              renewingSession={renewingSession}
+              loggingOut={loggingOut}
+              onToggle={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              onClose={() => setIsUserMenuOpen(false)}
+              onRenewSession={handleRenewSession}
+              onLogout={handleLogout}
+            />
+          </div>
+        </div>
+
+        {/* Menú Móvil Desplegable */}
+        <AdminMobileDrawer
+          isOpen={isNavOpen}
+          pathname={pathname}
+          userEmail={user?.email}
+          userInitial={userInitial}
+          userRoleDisplay={userRoleDisplay}
+          loggingOut={loggingOut}
+          onClose={() => setIsNavOpen(false)}
+          onLogout={handleLogout}
+        />
+      </header>
+    </>
   );
 }

@@ -75,6 +75,7 @@ export function MainContentSettingsSection({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             type="button"
+            aria-pressed={heroMode === "featured_carousel"}
             onClick={() => onHeroModeChange("featured_carousel")}
             className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
               heroMode === "featured_carousel"
@@ -94,6 +95,7 @@ export function MainContentSettingsSection({
 
           <button
             type="button"
+            aria-pressed={heroMode === "editorial"}
             onClick={() => onHeroModeChange("editorial")}
             className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
               heroMode === "editorial"
@@ -112,6 +114,7 @@ export function MainContentSettingsSection({
 
           <button
             type="button"
+            aria-pressed={heroMode === "custom_banner"}
             onClick={() => onHeroModeChange("custom_banner")}
             className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
               heroMode === "custom_banner"
@@ -212,6 +215,7 @@ export function MainContentSettingsSection({
               <button
                 key={p.id}
                 type="button"
+                aria-pressed={isSelected}
                 onClick={() => onSelectPreset(p.id)}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                   isSelected

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { AdminHeader } from "../../components/admin/AdminHeader";
 import { AdminSessionMonitor } from "../../components/admin/AdminSessionMonitor";
+import { AdminThemeInitializer } from "../../components/admin/AdminThemeInitializer";
 
 export const metadata: Metadata = {
   title: "Panel de Control",
@@ -28,12 +29,8 @@ export default function AdminLayout({
       data-theme="light"
       className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col font-sans selection:bg-amber-800 selection:text-amber-50 transition-colors"
     >
-      {/* Hidratación ultra-rápida sin FOUC de la preferencia de tema */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `try{var t=localStorage.getItem("aura_admin_theme")||"light";var el=document.getElementById("admin-layout-root");if(el){el.setAttribute("data-theme",t);}}catch(e){}`,
-        }}
-      />
+      {/* Sincronización de tema accesible sin script tag en el árbol de React */}
+      <AdminThemeInitializer />
       {/* Enlace accesible para saltar directo al contenido con teclado o lector de pantalla */}
       <a
         href="#admin-main"
@@ -45,11 +42,13 @@ export default function AdminLayout({
       <main
         id="admin-main"
         tabIndex={-1}
-        className="flex-1 w-full max-w-5xl mx-auto px-4 py-6 md:py-8 focus:outline-none min-w-0"
+        className="flex-1 w-full px-4 py-6 md:py-8 md:pl-64 focus:outline-none min-w-0"
       >
-        {children}
+        <div className="max-w-6xl mx-auto w-full">
+          {children}
+        </div>
       </main>
-      <footer className="w-full py-4 text-center border-t border-zinc-800 text-xs text-zinc-500">
+      <footer className="w-full py-4 text-center border-t border-zinc-800 text-xs text-zinc-500 md:pl-64">
         <span>
           Creado por <strong className="font-semibold text-zinc-300">Altum</strong>
         </span>

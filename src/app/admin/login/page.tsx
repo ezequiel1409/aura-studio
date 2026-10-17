@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Lock, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
-import { AdminThemeToggle } from "../../../components/admin/AdminThemeToggle";
+import { Eye, EyeOff, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 
 export default function AdminLoginPage({
   initialBrandName = "Aura Studio",
@@ -56,7 +55,17 @@ export default function AdminLoginPage({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password.trim() || !email.trim() || loading || remainingLockSeconds > 0) return;
+    if (loading || remainingLockSeconds > 0) return;
+
+    if (!email.trim()) {
+      setErrorMessage("Por favor, ingresá tu correo electrónico.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setErrorMessage("Por favor, ingresá tu contraseña.");
+      return;
+    }
 
     setLoading(true);
     setErrorMessage(null);
@@ -95,23 +104,8 @@ export default function AdminLoginPage({
   return (
     <div className="min-h-[calc(100vh-8rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
-        {/* Selector de tema accesible en esquina superior de tarjeta */}
-        <div className="flex justify-end mb-3">
-          <AdminThemeToggle />
-        </div>
-
         {/* Cabecera / Identidad */}
         <div className="text-center mb-7">
-          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 shadow-2xs">
-            <span className="text-[11px] uppercase font-mono tracking-widest text-zinc-400 font-semibold">
-              {storeType}
-            </span>
-          </div>
-          <div>
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-950/30 border border-amber-800/60 text-amber-300 mb-4 shadow-2xs">
-              <Lock size={26} strokeWidth={1.75} aria-hidden="true" />
-            </div>
-          </div>
           <h1 className="font-serif text-3xl font-bold tracking-wide text-zinc-100">
             {storeName}
           </h1>
@@ -223,7 +217,7 @@ export default function AdminLoginPage({
             {/* Botón de Ingreso Táctil */}
             <button
               type="submit"
-              disabled={loading || isLocked || !password.trim() || !email.trim()}
+              disabled={loading || isLocked}
               className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-sm mt-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
             >
               {loading ? (

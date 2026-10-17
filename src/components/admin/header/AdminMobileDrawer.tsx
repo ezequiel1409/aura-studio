@@ -50,7 +50,7 @@ export function AdminMobileDrawer({
             </div>
             <div className="min-w-0">
               <p className="text-xs font-bold text-zinc-100 truncate">
-                {userEmail || "Administradora"}
+                {userEmail || "Administrador"}
               </p>
               <p className="text-[11px] text-amber-300 font-semibold">{userRoleDisplay}</p>
             </div>

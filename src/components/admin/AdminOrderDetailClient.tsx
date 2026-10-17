@@ -76,6 +76,7 @@ export function AdminOrderDetailClient({
   const [order, setOrder] = useState<Order>(initialOrder);
   const [isUpdating, setIsUpdating] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const formattedCode = formatOrderCode(order.code);
   const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING;
@@ -94,6 +95,7 @@ export function AdminOrderDetailClient({
   const handleStatusChange = async (newStatus: OrderStatus) => {
     const prev = order;
     setIsUpdating(true);
+    setErrorMessage(null);
     setOrder({ ...order, status: newStatus });
 
     try {
@@ -112,7 +114,7 @@ export function AdminOrderDetailClient({
       setTimeout(() => setToastMessage(null), 3000);
     } catch (err: unknown) {
       setOrder(prev);
-      alert(err instanceof Error ? err.message : "Error al actualizar");
+      setErrorMessage(err instanceof Error ? err.message : "Error al actualizar el estado");
     } finally {
       setIsUpdating(false);
     }
@@ -132,6 +134,25 @@ export function AdminOrderDetailClient({
           className="fixed top-20 right-4 z-50 rounded-xl border border-emerald-800 bg-emerald-950/95 px-4 py-2.5 text-xs font-semibold text-emerald-200 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2"
         >
           {toastMessage}
+        </div>
+      )}
+
+      {/* Banner de error accesible */}
+      {errorMessage && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-rose-950/60 border border-rose-700/80 text-rose-200 text-xs font-medium shadow-sm"
+        >
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            aria-label="Cerrar aviso de error"
+            className="p-1 rounded-lg text-rose-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
         </div>
       )}
 

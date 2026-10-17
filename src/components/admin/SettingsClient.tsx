@@ -117,8 +117,8 @@ export function SettingsClient({
     reader.readAsDataURL(file);
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setSaving(true);
     setErrorMessage(null);
     setSavedSuccess(false);
@@ -159,6 +159,49 @@ export function SettingsClient({
     } finally {
       setSaving(false);
     }
+  };
+
+  const hasUnsavedChanges =
+    showroomName !== initialSettings.showroomName ||
+    storeType !== (initialSettings.storeType || "Showroom") ||
+    logoUrl !== (initialSettings.logoUrl || "") ||
+    heroMode !== (initialSettings.heroMode || "featured_carousel") ||
+    heroTitle !== (initialSettings.heroTitle || "") ||
+    heroSubtitle !== (initialSettings.heroSubtitle || "") ||
+    heroBannerUrl !== (initialSettings.heroBannerUrl || "") ||
+    themePalette !== (initialSettings.themePalette || "lino") ||
+    themePrimaryColor !==
+      (initialSettings.themePrimaryColor ||
+        THEME_PALETTES[initialSettings.themePalette || "lino"]?.accent ||
+        "#926a3c") ||
+    whatsappNumber !== initialSettings.whatsappNumber ||
+    instagramHandle !== (initialSettings.instagramHandle || "") ||
+    tiktokHandle !== (initialSettings.tiktokHandle || "") ||
+    address !== (initialSettings.address || "") ||
+    dataFiscalUrl !== (initialSettings.dataFiscalUrl || "") ||
+    reservationHours !== (initialSettings.reservationHours || 48);
+
+  const handleDiscardChanges = () => {
+    setShowroomName(initialSettings.showroomName);
+    setStoreType(initialSettings.storeType || "Showroom");
+    setLogoUrl(initialSettings.logoUrl || "");
+    setHeroMode(initialSettings.heroMode || "featured_carousel");
+    setHeroTitle(initialSettings.heroTitle || "");
+    setHeroSubtitle(initialSettings.heroSubtitle || "");
+    setHeroBannerUrl(initialSettings.heroBannerUrl || "");
+    setThemePalette(initialSettings.themePalette || "lino");
+    setThemePrimaryColor(
+      initialSettings.themePrimaryColor ||
+        THEME_PALETTES[initialSettings.themePalette || "lino"]?.accent ||
+        "#926a3c"
+    );
+    setWhatsappNumber(initialSettings.whatsappNumber);
+    setInstagramHandle(initialSettings.instagramHandle || "");
+    setTiktokHandle(initialSettings.tiktokHandle || "");
+    setAddress(initialSettings.address || "");
+    setDataFiscalUrl(initialSettings.dataFiscalUrl || "");
+    setReservationHours(initialSettings.reservationHours || 48);
+    setErrorMessage(null);
   };
 
   return (
@@ -279,6 +322,39 @@ export function SettingsClient({
           </button>
         </div>
       </form>
+
+      {/* Barra Flotante de Cambios sin Guardar */}
+      {hasUnsavedChanges && (
+        <aside
+          aria-label="Aviso de cambios pendientes de guardado"
+          className="fixed bottom-4 left-4 right-4 max-w-xl mx-auto z-50 bg-zinc-950/95 border border-amber-400/60 rounded-2xl p-3.5 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 animate-in slide-in-from-bottom-2"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+            <span className="text-xs font-bold text-zinc-100">
+              Tenés cambios sin guardar
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDiscardChanges}
+              className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs font-semibold text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
+            >
+              Descartar
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSave()}
+              disabled={saving || readingFile}
+              className="px-4 py-1.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-zinc-950 text-xs font-extrabold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {saving ? "Guardando..." : "Guardar cambios"}
+            </button>
+          </div>
+        </aside>
+      )}
     </div>
   );
 }

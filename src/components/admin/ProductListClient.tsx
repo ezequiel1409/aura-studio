@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
+  Check,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -70,6 +71,12 @@ export function ProductListClient({
   const [expandedProductIds, setExpandedProductIds] = useState<Set<number>>(new Set());
   // Menú de acciones '···' abierto actualmente
   const [openMenuProductId, setOpenMenuProductId] = useState<number | null>(null);
+
+  // Control de densidad de filas (Cómoda vs Compacta)
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
+  // Edición rápida de precio en línea
+  const [editingPriceId, setEditingPriceId] = useState<number | null>(null);
+  const [inlinePriceInput, setInlinePriceInput] = useState<string>("");
 
   // Integración con Zustand para selección múltiple y estado de lote (AR-10, BR-29)
   const {
@@ -415,6 +422,29 @@ export function ProductListClient({
         prev.map((p) => (p.id === productId ? currentProduct : p))
       );
       setFeedbackError("Error de conexión con el servidor.");
+    }
+  };
+
+  // Edición rápida de precio en línea
+  const handleSaveInlinePrice = async (productId: number, priceStr: string) => {
+    const priceVal = parseFloat(priceStr.replace(/,/g, "."));
+    const priceCents = Number.isNaN(priceVal) ? null : Math.round(priceVal * 100);
+    try {
+      const res = await fetch(`/api/admin/products/${productId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priceCents }),
+      });
+      if (res.ok) {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === productId ? { ...p, priceCents } : p))
+        );
+        setEditingPriceId(null);
+      } else {
+        setFeedbackError("No se pudo actualizar el precio");
+      }
+    } catch {
+      setFeedbackError("Error de conexión al actualizar el precio");
     }
   };
 
@@ -786,6 +816,34 @@ export function ProductListClient({
               <span>- Vista compacta</span>
             </button>
           </div>
+
+          {/* Control de Densidad: Cómoda vs Compacta */}
+          <div className="flex items-center gap-1 border-l border-zinc-800 pl-2">
+            <button
+              type="button"
+              onClick={() => setDensity("comfortable")}
+              aria-pressed={density === "comfortable"}
+              className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                density === "comfortable"
+                  ? "bg-amber-200 text-zinc-950 font-bold"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Cómoda
+            </button>
+            <button
+              type="button"
+              onClick={() => setDensity("compact")}
+              aria-pressed={density === "compact"}
+              className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${
+                density === "compact"
+                  ? "bg-amber-200 text-zinc-950 font-bold"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              Compacta
+            </button>
+          </div>
         </div>
       </div>
 
@@ -909,8 +967,8 @@ export function ProductListClient({
                               : "bg-zinc-900/70 border-zinc-800/90 hover:border-zinc-700/80"
                           }`}
                         >
-                          {/* Fila Principal de la Prenda (Compacta, nunca ahoga el título) */}
-                          <div className="p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3">
+                          {/* Fila Principal de la Prenda */}
+                          <div className={`${density === "compact" ? "p-2 sm:p-2.5" : "p-3 sm:p-3.5"} flex items-center gap-2.5 sm:gap-3`}>
                             {/* Checkbox de selección múltiple */}
                             <button
                               type="button"
@@ -928,7 +986,7 @@ export function ProductListClient({
                             </button>
 
                             {/* Foto miniatura con badge de código */}
-                            <div className="relative w-12 h-14 sm:w-14 sm:h-16 rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 shrink-0">
+                            <div className={`relative ${density === "compact" ? "w-10 h-12" : "w-12 h-14 sm:w-14 sm:h-16"} rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 shrink-0`}>
                               {thumbUrl ? (
                                 <img
                                   src={thumbUrl}
@@ -965,11 +1023,63 @@ export function ProductListClient({
                               </div>
 
                               <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] sm:text-xs pt-0.5">
-                                <span className="font-mono font-semibold text-amber-200">
-                                  {p.priceCents !== null
-                                    ? formatPriceARS(p.priceCents, p.currency)
-                                    : "Consultar precio"}
-                                </span>
+                                {/* Edición rápida de precio en línea */}
+                                {editingPriceId === p.id ? (
+                                  <span className="inline-flex items-center gap-1 bg-zinc-950 border border-amber-400/80 rounded-lg p-0.5">
+                                    <span className="text-zinc-400 font-mono text-xs pl-1">$</span>
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={inlinePriceInput}
+                                      onChange={(e) => setInlinePriceInput(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          handleSaveInlinePrice(p.id, inlinePriceInput);
+                                        } else if (e.key === "Escape") {
+                                          setEditingPriceId(null);
+                                        }
+                                      }}
+                                      autoFocus
+                                      className="w-20 px-1 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-xs font-mono text-zinc-100 focus:outline-none"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveInlinePrice(p.id, inlinePriceInput)}
+                                      className="p-1 rounded bg-amber-300 text-zinc-950 hover:bg-amber-200"
+                                      title="Guardar precio"
+                                    >
+                                      <Check size={11} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingPriceId(null)}
+                                      className="p-1 rounded text-zinc-400 hover:text-zinc-200"
+                                      title="Cancelar"
+                                    >
+                                      <X size={11} />
+                                    </button>
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingPriceId(p.id);
+                                      setInlinePriceInput(
+                                        p.priceCents !== null ? String(p.priceCents / 100) : ""
+                                      );
+                                    }}
+                                    className="font-mono font-semibold text-amber-200 hover:underline inline-flex items-center gap-1 group/price cursor-pointer"
+                                    title="Clic para editar precio rápidamente"
+                                  >
+                                    <span>
+                                      {p.priceCents !== null
+                                        ? formatPriceARS(p.priceCents, p.currency)
+                                        : "Consultar precio"}
+                                    </span>
+                                    <Edit2 size={10} className="opacity-0 group-hover/price:opacity-100 text-amber-400 transition-opacity" />
+                                  </button>
+                                )}
+
                                 <span className="text-zinc-500">•</span>
                                 <span className="text-zinc-400 truncate max-w-[120px]">
                                   {category?.name || "Sin clasificar"}
@@ -981,7 +1091,7 @@ export function ProductListClient({
                               </div>
                             </div>
 
-                            {/* Selector Rápido de Estado en 1 Clic */}
+                            {/* Selector Rápido de Estado con Texto Completo */}
                             <div className="shrink-0">
                               <div
                                 role="group"
@@ -999,7 +1109,8 @@ export function ProductListClient({
                                       : "text-zinc-400 hover:text-zinc-200"
                                   }`}
                                 >
-                                  Disp.
+                                  <span className="hidden sm:inline">Disponible</span>
+                                  <span className="sm:hidden">Disp.</span>
                                 </button>
                                 <button
                                   type="button"
@@ -1012,7 +1123,8 @@ export function ProductListClient({
                                       : "text-zinc-400 hover:text-zinc-200"
                                   }`}
                                 >
-                                  Res.
+                                  <span className="hidden sm:inline">Reservado</span>
+                                  <span className="sm:hidden">Res.</span>
                                 </button>
                                 <button
                                   type="button"
@@ -1025,7 +1137,8 @@ export function ProductListClient({
                                       : "text-zinc-400 hover:text-zinc-200"
                                   }`}
                                 >
-                                  Agot.
+                                  <span className="hidden sm:inline">Agotado</span>
+                                  <span className="sm:hidden">Agot.</span>
                                 </button>
                               </div>
                             </div>
@@ -1207,7 +1320,7 @@ export function ProductListClient({
                                 )}
                               </div>
 
-                              {/* Métricas privadas y Alerta de Purga */}
+                              {/* Métricas privadas y Alerta de Archivo */}
                               <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs border-t border-zinc-800/40">
                                 <div className="flex items-center gap-4 text-zinc-400 text-[11px]">
                                   <span
@@ -1230,25 +1343,15 @@ export function ProductListClient({
                                   </span>
                                 </div>
 
-                                {daysUntilPurge !== null && (
-                                  <div
-                                    className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg border ${
-                                      isExpiringSoon
-                                        ? "status-badge-expiring"
-                                        : "status-badge-soldout"
-                                    }`}
+                                {p.status === "SOLD_OUT" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteProduct(p)}
+                                    className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-amber-300 transition-colors"
                                   >
-                                    {isExpiringSoon ? (
-                                      <AlertTriangle
-                                        size={12}
-                                        className="text-rose-500"
-                                        aria-hidden="true"
-                                      />
-                                    ) : (
-                                      <Clock size={12} aria-hidden="true" />
-                                    )}
-                                    <span>Purga en {daysUntilPurge} días</span>
-                                  </div>
+                                    <Clock size={12} aria-hidden="true" />
+                                    <span>Archivar pieza</span>
+                                  </button>
                                 )}
                               </div>
                             </div>

@@ -144,7 +144,7 @@ export function AdminUsersClient({
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
-        alert(data.error || "Error al actualizar el estado del usuario.");
+        setError(data.error || "Error al actualizar el estado del usuario.");
         return;
       }
 
@@ -159,7 +159,7 @@ export function AdminUsersClient({
         prev.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u))
       );
     } catch {
-      alert("Error de conexión al actualizar el estado.");
+      setError("Error de conexión al actualizar el estado.");
     } finally {
       setTogglingId(null);
     }
