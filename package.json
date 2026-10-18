@@ -13,6 +13,7 @@
     "db:setup-local": "tsx src/infra/db/setup-local.ts",
     "d1:create": "wrangler d1 create aura-studio-db",
     "d1:migrate": "wrangler d1 migrations apply aura-studio-db --remote",
+    "d1:migrate:orders": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/d1-migration-orders-customers.sql",
     "d1:seed": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/seed.sql",
     "postinstall": "node scripts/patch-opennext.mjs",
     "build:worker": "node scripts/patch-opennext.mjs && opennextjs-cloudflare build",

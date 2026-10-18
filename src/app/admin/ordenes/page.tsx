@@ -15,8 +15,14 @@ export default async function AdminOrdersPage() {
   const deps = getProductServiceDeps();
 
   const [orders, settings] = await Promise.all([
-    listOrders({ limit: 100 }, deps),
-    getShowroomSettings(deps),
+    listOrders({ limit: 100 }, deps).catch((err) => {
+      console.error("Error al cargar pedidos en /admin/ordenes:", err);
+      return [];
+    }),
+    getShowroomSettings(deps).catch((err) => {
+      console.error("Error al cargar configuración en /admin/ordenes:", err);
+      return { showroomName: "Aura Studio", whatsappNumber: "+5491100000000" };
+    }),
   ]);
 
   return (

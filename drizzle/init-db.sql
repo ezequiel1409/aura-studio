@@ -149,53 +149,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS `password_reset_tokens_token_hash_unique` ON `
 CREATE INDEX IF NOT EXISTS `password_reset_tokens_token_hash_idx` ON `password_reset_tokens` (`token_hash`);
 CREATE INDEX IF NOT EXISTS `password_reset_tokens_user_id_idx` ON `password_reset_tokens` (`user_id`);
 
-CREATE TABLE IF NOT EXISTS `orders` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`code` integer NOT NULL,
-	`customer_name` text NOT NULL,
-	`customer_phone` text NOT NULL,
-	`customer_email` text,
-	`delivery_method` text NOT NULL,
-	`delivery_address` text,
-	`delivery_notes` text,
-	`subtotal_cents` integer NOT NULL,
-	`discount_cents` integer DEFAULT 0 NOT NULL,
-	`shipping_cents` integer DEFAULT 0 NOT NULL,
-	`total_cents` integer NOT NULL,
-	`currency` text DEFAULT 'ARS' NOT NULL,
-	`coupon_code` text,
-	`status` text DEFAULT 'PENDING' NOT NULL,
-	`customer_id` integer,
-	`commerce_id` integer,
-	`notes` text,
-	`created_at` integer NOT NULL,
-	`updated_at` integer NOT NULL,
-	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE set null,
-	FOREIGN KEY (`commerce_id`) REFERENCES `commerces`(`id`) ON UPDATE no action ON DELETE set null
-);
-CREATE UNIQUE INDEX IF NOT EXISTS `orders_code_unique` ON `orders` (`code`);
-CREATE INDEX IF NOT EXISTS `orders_code_idx` ON `orders` (`code`);
-CREATE INDEX IF NOT EXISTS `orders_status_created_at_idx` ON `orders` (`status`,`created_at`);
-CREATE INDEX IF NOT EXISTS `orders_customer_id_idx` ON `orders` (`customer_id`);
-CREATE INDEX IF NOT EXISTS `orders_commerce_id_idx` ON `orders` (`commerce_id`);
-
-CREATE TABLE IF NOT EXISTS `order_items` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`order_id` integer NOT NULL,
-	`product_id` integer,
-	`product_code` integer NOT NULL,
-	`product_title` text NOT NULL,
-	`color_name` text NOT NULL,
-	`size` text NOT NULL,
-	`quantity` integer NOT NULL,
-	`unit_price_cents` integer NOT NULL,
-	`subtotal_cents` integer NOT NULL,
-	`photo_url` text,
-	FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE set null
-);
-CREATE INDEX IF NOT EXISTS `order_items_order_id_idx` ON `order_items` (`order_id`);
-
 CREATE TABLE IF NOT EXISTS `commerces` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`slug` text NOT NULL,
@@ -244,6 +197,53 @@ CREATE TABLE IF NOT EXISTS `customer_addresses` (
 	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE cascade
 );
 CREATE INDEX IF NOT EXISTS `customer_addresses_customer_id_idx` ON `customer_addresses` (`customer_id`);
+
+CREATE TABLE IF NOT EXISTS `orders` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`code` integer NOT NULL,
+	`customer_name` text NOT NULL,
+	`customer_phone` text NOT NULL,
+	`customer_email` text,
+	`delivery_method` text NOT NULL,
+	`delivery_address` text,
+	`delivery_notes` text,
+	`subtotal_cents` integer NOT NULL,
+	`discount_cents` integer DEFAULT 0 NOT NULL,
+	`shipping_cents` integer DEFAULT 0 NOT NULL,
+	`total_cents` integer NOT NULL,
+	`currency` text DEFAULT 'ARS' NOT NULL,
+	`coupon_code` text,
+	`status` text DEFAULT 'PENDING' NOT NULL,
+	`customer_id` integer,
+	`commerce_id` integer,
+	`notes` text,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL,
+	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`commerce_id`) REFERENCES `commerces`(`id`) ON UPDATE no action ON DELETE set null
+);
+CREATE UNIQUE INDEX IF NOT EXISTS `orders_code_unique` ON `orders` (`code`);
+CREATE INDEX IF NOT EXISTS `orders_code_idx` ON `orders` (`code`);
+CREATE INDEX IF NOT EXISTS `orders_status_created_at_idx` ON `orders` (`status`,`created_at`);
+CREATE INDEX IF NOT EXISTS `orders_customer_id_idx` ON `orders` (`customer_id`);
+CREATE INDEX IF NOT EXISTS `orders_commerce_id_idx` ON `orders` (`commerce_id`);
+
+CREATE TABLE IF NOT EXISTS `order_items` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`order_id` integer NOT NULL,
+	`product_id` integer,
+	`product_code` integer NOT NULL,
+	`product_title` text NOT NULL,
+	`color_name` text NOT NULL,
+	`size` text NOT NULL,
+	`quantity` integer NOT NULL,
+	`unit_price_cents` integer NOT NULL,
+	`subtotal_cents` integer NOT NULL,
+	`photo_url` text,
+	FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE set null
+);
+CREATE INDEX IF NOT EXISTS `order_items_order_id_idx` ON `order_items` (`order_id`);
 
 -- ===================================================
 -- DATOS INICIALES (SEED)

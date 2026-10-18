@@ -40,13 +40,32 @@ export default async function CustomerAccountPage() {
     getCustomerOrders(session.customerId, {
       customerRepo: deps.customerRepo,
       orderRepo: deps.orderRepo,
+    }).catch((err) => {
+      console.error("Error al cargar pedidos en /cuenta:", err);
+      return [];
     }),
     getCustomerAddresses(session.customerId, {
       customerRepo: deps.customerRepo,
       customerAddressRepo: deps.customerAddressRepo,
+    }).catch((err) => {
+      console.error("Error al cargar direcciones en /cuenta:", err);
+      return [];
     }),
-    getShowroomSettings(deps),
-    listProducts({ page: 1, pageSize: 50 }, deps),
+    getShowroomSettings(deps).catch(() => ({
+      showroomName: "Aura Studio",
+      themePalette: "lino",
+      themePrimaryColor: "#1c1917",
+      whatsappNumber: "+5491100000000",
+      logoUrl: null,
+      instagramHandle: null,
+      tiktokHandle: null,
+      address: null,
+      dataFiscalUrl: null,
+    } as unknown as Awaited<ReturnType<typeof getShowroomSettings>>)),
+    listProducts({ page: 1, pageSize: 50 }, deps).catch((err) => {
+      console.error("Error al cargar productos en /cuenta:", err);
+      return { items: [], total: 0 };
+    }),
   ]);
 
   const brandName = settings.showroomName || "Aura Studio";
