@@ -84,10 +84,11 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
   },
   {
     id: "discounts",
-    href: "/admin/configuracion?seccion=promociones",
+    href: "/admin/descuentos",
     label: "Descuentos",
     mobileLabel: "Descuentos",
     icon: Tag,
+    matchPrefix: ["/admin/descuentos"],
   },
   {
     id: "store",

@@ -108,3 +108,48 @@ CREATE INDEX IF NOT EXISTS `order_items_order_id_idx` ON `order_items` (`order_i
 -- 6. Sembrar Comercio Predeterminado si no existe
 INSERT OR IGNORE INTO `commerces` (`id`, `slug`, `name`, `whatsapp_number`, `is_active`, `created_at`, `updated_at`)
 VALUES (1, 'aura-studio', 'Aura Studio', '+5491100000000', 1, 1791548960000, 1791548960000);
+
+-- 7. Tabla de Cupones de Descuento
+CREATE TABLE IF NOT EXISTS `coupons` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`code` text NOT NULL,
+	`description` text,
+	`type` text NOT NULL,
+	`value` integer NOT NULL,
+	`min_order_cents` integer DEFAULT 0,
+	`max_discount_cents` integer,
+	`usage_limit` integer,
+	`used_count` integer DEFAULT 0 NOT NULL,
+	`max_uses_per_email` integer DEFAULT 1,
+	`is_active` integer DEFAULT 1 NOT NULL,
+	`starts_at` integer,
+	`expires_at` integer,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS `coupons_code_unique` ON `coupons` (`code`);
+CREATE INDEX IF NOT EXISTS `coupons_code_idx` ON `coupons` (`code`);
+CREATE INDEX IF NOT EXISTS `coupons_is_active_idx` ON `coupons` (`is_active`);
+
+-- 8. Tabla de Canjes de Cupones
+CREATE TABLE IF NOT EXISTS `coupon_redemptions` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`coupon_id` integer NOT NULL,
+	`order_id` integer,
+	`customer_email` text NOT NULL,
+	`customer_phone` text,
+	`customer_dni` text,
+	`customer_id` integer,
+	`discount_cents` integer NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`coupon_id`) REFERENCES `coupons`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON UPDATE no action ON DELETE set null
+);
+CREATE INDEX IF NOT EXISTS `coupon_redemptions_coupon_id_idx` ON `coupon_redemptions` (`coupon_id`);
+CREATE INDEX IF NOT EXISTS `coupon_redemptions_customer_email_idx` ON `coupon_redemptions` (`customer_email`);
+CREATE INDEX IF NOT EXISTS `coupon_redemptions_customer_phone_idx` ON `coupon_redemptions` (`customer_phone`);
+CREATE INDEX IF NOT EXISTS `coupon_redemptions_customer_dni_idx` ON `coupon_redemptions` (`customer_dni`);
+CREATE INDEX IF NOT EXISTS `coupon_redemptions_coupon_email_idx` ON `coupon_redemptions` (`coupon_id`, `customer_email`);
+
+

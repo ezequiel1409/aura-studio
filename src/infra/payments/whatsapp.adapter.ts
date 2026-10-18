@@ -66,6 +66,7 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
       shippingCents: number;
       totalCents: number;
       currency: string;
+      couponCode?: string | null;
       items?: Array<{
         productCode: number;
         productTitle: string;
@@ -114,7 +115,8 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
 
     let discountPart = "";
     if (order.discountCents > 0) {
-      discountPart = `\nDescuento: -$${(order.discountCents / 100).toLocaleString("es-AR")}`;
+      const couponTag = order.couponCode ? ` (Cupón ${order.couponCode})` : "";
+      discountPart = `\nDescuento${couponTag}: -$${(order.discountCents / 100).toLocaleString("es-AR")}`;
     }
 
     let notesPart = "";

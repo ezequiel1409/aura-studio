@@ -15,6 +15,7 @@ import {
   DrizzleCustomerRepository,
   DrizzleCustomerAddressRepository,
   DrizzleCommerceRepository,
+  DrizzleCouponRepository,
 } from "./index";
 import { ProductServiceDeps } from "../../services/product.service";
 
@@ -26,6 +27,7 @@ export interface GlobalAppDeps extends ProductServiceDeps {
   customerRepo: DrizzleCustomerRepository;
   customerAddressRepo: DrizzleCustomerAddressRepository;
   commerceRepo: DrizzleCommerceRepository;
+  couponRepo: DrizzleCouponRepository;
   db?: DbClient;
 }
 
@@ -111,6 +113,59 @@ export function getDb(): DbClient {
       }
     }
 
+    // Verificar y auto-migrar tabla de cupones y canjes si faltan
+    try {
+      const couponsTableCheck = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='coupons'")
+        .get();
+      if (!couponsTableCheck) {
+        sqlite.exec(`
+          CREATE TABLE IF NOT EXISTS coupons (
+            id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+            code text NOT NULL UNIQUE,
+            description text,
+            type text NOT NULL,
+            value integer NOT NULL,
+            min_order_cents integer DEFAULT 0,
+            max_discount_cents integer,
+            usage_limit integer,
+            used_count integer DEFAULT 0 NOT NULL,
+            max_uses_per_email integer DEFAULT 1,
+            is_active integer DEFAULT 1 NOT NULL,
+            starts_at integer,
+            expires_at integer,
+            created_at integer NOT NULL,
+            updated_at integer NOT NULL
+          );
+          CREATE UNIQUE INDEX IF NOT EXISTS coupons_code_unique ON coupons (code);
+          CREATE INDEX IF NOT EXISTS coupons_code_idx ON coupons (code);
+          CREATE INDEX IF NOT EXISTS coupons_is_active_idx ON coupons (is_active);
+
+          CREATE TABLE IF NOT EXISTS coupon_redemptions (
+            id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+            coupon_id integer NOT NULL,
+            order_id integer,
+            customer_email text NOT NULL,
+            customer_phone text,
+            customer_dni text,
+            customer_id integer,
+            discount_cents integer NOT NULL,
+            created_at integer NOT NULL,
+            FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE cascade,
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE set null,
+            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE set null
+          );
+          CREATE INDEX IF NOT EXISTS coupon_redemptions_coupon_id_idx ON coupon_redemptions (coupon_id);
+          CREATE INDEX IF NOT EXISTS coupon_redemptions_customer_email_idx ON coupon_redemptions (customer_email);
+          CREATE INDEX IF NOT EXISTS coupon_redemptions_customer_phone_idx ON coupon_redemptions (customer_phone);
+          CREATE INDEX IF NOT EXISTS coupon_redemptions_customer_dni_idx ON coupon_redemptions (customer_dni);
+          CREATE INDEX IF NOT EXISTS coupon_redemptions_coupon_email_idx ON coupon_redemptions (coupon_id, customer_email);
+        `);
+      }
+    } catch {
+      // Ignorar si ocurre error al verificar
+    }
+
     // Sembrar comercio principal por defecto si no existe ninguno
     try {
       const commercesTable = sqlite
@@ -162,6 +217,7 @@ export function getProductServiceDeps(): GlobalAppDeps {
     customerRepo: new DrizzleCustomerRepository(db),
     customerAddressRepo: new DrizzleCustomerAddressRepository(db),
     commerceRepo: new DrizzleCommerceRepository(db),
+    couponRepo: new DrizzleCouponRepository(db),
     db,
   };
 

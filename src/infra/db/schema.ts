@@ -379,3 +379,58 @@ export const orderItems = sqliteTable(
   (table) => [index("order_items_order_id_idx").on(table.orderId)]
 );
 
+/**
+ * Cupones de descuento (Portal de Descuentos)
+ */
+export const coupons = sqliteTable(
+  "coupons",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    code: text("code").notNull().unique(),
+    description: text("description"),
+    type: text("type", { enum: ["PERCENTAGE", "FIXED_AMOUNT", "FREE_SHIPPING"] }).notNull(),
+    value: integer("value").notNull(), // Porcentaje (ej: 10 para 10%) o centavos (ej: 500000 para $5.000)
+    minOrderCents: integer("min_order_cents").default(0),
+    maxDiscountCents: integer("max_discount_cents"), // Tope máximo en centavos para descuentos porcentuales
+    usageLimit: integer("usage_limit"), // Límite global total de usos (null = ilimitado)
+    usedCount: integer("used_count").notNull().default(0),
+    maxUsesPerEmail: integer("max_uses_per_email").default(1), // Tope por usuario/email (1 por defecto, null = ilimitado)
+    isActive: integer("is_active").notNull().default(1),
+    startsAt: integer("starts_at"),
+    expiresAt: integer("expires_at"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("coupons_code_idx").on(table.code),
+    index("coupons_is_active_idx").on(table.isActive),
+  ]
+);
+
+/**
+ * Canjes y usos registrados de cupones por orden y email
+ */
+export const couponRedemptions = sqliteTable(
+  "coupon_redemptions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    couponId: integer("coupon_id")
+      .notNull()
+      .references(() => coupons.id, { onDelete: "cascade" }),
+    orderId: integer("order_id").references(() => orders.id, { onDelete: "set null" }),
+    customerEmail: text("customer_email").notNull(),
+    customerPhone: text("customer_phone"),
+    customerDni: text("customer_dni"),
+    customerId: integer("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    discountCents: integer("discount_cents").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("coupon_redemptions_coupon_id_idx").on(table.couponId),
+    index("coupon_redemptions_customer_email_idx").on(table.customerEmail),
+    index("coupon_redemptions_customer_phone_idx").on(table.customerPhone),
+    index("coupon_redemptions_customer_dni_idx").on(table.customerDni),
+    index("coupon_redemptions_coupon_email_idx").on(table.couponId, table.customerEmail),
+  ]
+);
+

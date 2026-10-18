@@ -22,6 +22,8 @@ import {
   CreditCard,
   MessageCircle,
   RotateCcw,
+  Tag,
+  X,
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { formatPrice } from "../../lib/format/currency";
@@ -129,11 +131,66 @@ export function CartPageClient({
     );
   }
 
+  // Cupón de descuento aplicado
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    type?: string;
+    value?: number;
+    discountCents: number;
+    freeShipping?: boolean;
+    message: string;
+  } | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
   const totalCount = getTotalItemsCount();
   const subtotalCents = getSubtotalCents();
-  const shippingCents = deliveryMethod === "PICKUP" ? 0 : SHIPPING_COSTS[deliveryMethod];
-  const finalTotalCents = subtotalCents + shippingCents;
+  const baseShippingCents = deliveryMethod === "PICKUP" ? 0 : SHIPPING_COSTS[deliveryMethod];
+  const shippingCents = appliedCoupon?.freeShipping ? 0 : baseShippingCents;
+  const discountCents = appliedCoupon ? appliedCoupon.discountCents : 0;
+  const finalTotalCents = Math.max(0, subtotalCents - discountCents + shippingCents);
   const cleanPhone = whatsappNumber.replace(/\D/g, "");
+
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponInput.trim()) return;
+    setCouponError(null);
+    setIsValidatingCoupon(true);
+
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponInput.trim(),
+          email: customerEmail.trim() || customer?.email || undefined,
+          phone: customerPhone.trim() || customer?.phone || undefined,
+          subtotalCents,
+          shippingCents: baseShippingCents,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setCouponError(data.error || "Cupón no válido.");
+        setAppliedCoupon(null);
+      } else {
+        setAppliedCoupon(data.result);
+        setCouponError(null);
+      }
+    } catch {
+      setCouponError("No se pudo validar el cupón en este momento.");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+  };
 
   const handleEstimateShipping = (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,6 +261,8 @@ export function CartPageClient({
           deliveryAddress: deliveryAddress.trim() || null,
           deliveryNotes: deliveryNotes.trim() ? `${deliveryNotes.trim()} [Medio: ${selectedPaymentNote}]` : `[Medio: ${selectedPaymentNote}]`,
           shippingCents,
+          discountCents,
+          couponCode: appliedCoupon?.code || null,
           items: items.map((i) => ({
             productId: i.productId,
             productCode: i.code,
@@ -535,6 +594,17 @@ export function CartPageClient({
                     <span>Subtotal:</span>
                     <span className="font-semibold text-stone-900">{formatPrice(subtotalCents, "ARS")}</span>
                   </div>
+
+                  {appliedCoupon && discountCents > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-medium">
+                      <span className="flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        Cupón ({appliedCoupon.code}):
+                      </span>
+                      <span className="font-mono font-bold">-{formatPrice(discountCents, "ARS")}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
                     <span>Envío:</span>
                     <span className="font-medium text-stone-500">Se calcula en el siguiente paso</span>
@@ -542,10 +612,59 @@ export function CartPageClient({
 
                   <div className="border-t border-[#e7e2da] pt-3.5 flex justify-between items-baseline">
                     <span className="font-semibold text-stone-900 text-sm">Total:</span>
-                    <span className="font-serif text-3xl font-bold text-stone-900 tracking-tight">
-                      {formatPrice(subtotalCents, "ARS")}
+                    <span className="font-serif text-3xl font-bold text-stone-900 tracking-tight font-lining-nums">
+                      {formatPrice(finalTotalCents, "ARS")}
                     </span>
                   </div>
+                </div>
+
+                {/* Input de Cupón de Descuento */}
+                <div className="border-t border-[#e7e2da] pt-3">
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/80 p-2.5 text-xs text-emerald-800">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Tag className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                        <span className="font-mono font-bold">{appliedCoupon.code}</span>
+                        <span className="text-[11px] text-emerald-700 truncate">({appliedCoupon.message})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        title="Quitar cupón"
+                        className="text-emerald-700 hover:text-emerald-900 p-1 cursor-pointer shrink-0"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleApplyCoupon} className="space-y-1.5">
+                      <label className="block text-[11px] font-semibold text-stone-600 uppercase tracking-wider">
+                        ¿Tenés un cupón de descuento?
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => {
+                            setCouponInput(e.target.value.toUpperCase());
+                            setCouponError(null);
+                          }}
+                          placeholder="EJ: BIENVENIDA10"
+                          className="flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-base sm:text-xs font-mono font-bold uppercase text-stone-900 placeholder-stone-400 focus-visible:outline-2 focus-visible:outline-stone-900"
+                        />
+                        <button
+                          type="submit"
+                          disabled={isValidatingCoupon || !couponInput.trim()}
+                          className="rounded-xl bg-stone-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-stone-800 disabled:opacity-50 transition-colors cursor-pointer"
+                        >
+                          {isValidatingCoupon ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Aplicar"}
+                        </button>
+                      </div>
+                      {couponError && (
+                        <p className="text-[11px] text-rose-600 font-medium">{couponError}</p>
+                      )}
+                    </form>
+                  )}
                 </div>
 
                 {/* Botón destacado: Continuar con la reserva */}
@@ -940,6 +1059,15 @@ export function CartPageClient({
                     <span>Subtotal:</span>
                     <span className="font-semibold text-stone-900">{formatPrice(subtotalCents, "ARS")}</span>
                   </div>
+                  {appliedCoupon && discountCents > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-medium">
+                      <span className="flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        Cupón ({appliedCoupon.code}):
+                      </span>
+                      <span className="font-mono font-bold">-{formatPrice(discountCents, "ARS")}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Envío:</span>
                     <span className="font-medium text-stone-900">
@@ -1054,6 +1182,15 @@ export function CartPageClient({
                   <span>Subtotal piezas:</span>
                   <span>{formatPrice(subtotalCents, "ARS")}</span>
                 </div>
+                {appliedCoupon && discountCents > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-medium">
+                    <span className="flex items-center gap-1">
+                      <Tag className="h-3 w-3" />
+                      Descuento cupón ({appliedCoupon.code}):
+                    </span>
+                    <span className="font-mono font-bold">-{formatPrice(discountCents, "ARS")}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Costo de envío:</span>
                   <span>{shippingCents === 0 ? "Gratis" : formatPrice(shippingCents, "ARS")}</span>

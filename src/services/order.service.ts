@@ -10,6 +10,7 @@ import { ProductNotFoundError, OrderNotFoundError, ValidationError } from "../do
 import { WhatsAppPaymentAdapter } from "../infra/payments/whatsapp.adapter";
 import { getShowroomSettings } from "./settings.service";
 import { trackAnalyticsEvent } from "./analytics.service";
+import { normalizeEmail, normalizePhone } from "./coupon.service";
 
 /**
  * Caso de uso: Crear Orden de Compra y generar enlace WhatsApp consolidado (BR-40, BR-41, BR-42)
@@ -87,6 +88,30 @@ export async function createOrder(
       photoUrl: i.photoUrl ?? null,
     })),
   });
+
+  // 4b. Registrar canje de cupón si aplica (BR-41)
+  if (validated.couponCode && deps.couponRepo) {
+    try {
+      const coupon = await deps.couponRepo.findByCode(validated.couponCode);
+      if (coupon) {
+        await deps.couponRepo.incrementUsage(coupon.id);
+        const cleanEmail = validated.customerEmail ? normalizeEmail(validated.customerEmail) : "";
+        const cleanPhone = validated.customerPhone ? normalizePhone(validated.customerPhone) : null;
+        if (cleanEmail || cleanPhone) {
+          await deps.couponRepo.recordRedemption({
+            couponId: coupon.id,
+            orderId: order.id,
+            customerEmail: cleanEmail || "cliente@aurastudio.com",
+            customerPhone: cleanPhone,
+            customerId: validated.customerId,
+            discountCents: validated.discountCents,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Error al registrar canje de cupón:", err);
+    }
+  }
 
   // 5. Descontar stock físico atómico en base de datos (BR-02, BR-40) y registrar telemetría (BR-39)
   for (const item of input.items) {

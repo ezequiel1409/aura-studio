@@ -12,6 +12,7 @@ import {
   AdminUser,
   PasswordResetToken,
 } from "../auth/types";
+import { Coupon, CouponRedemption } from "../coupon/types";
 
 export interface CreateProductColorRepoData {
   name: string;
@@ -210,6 +211,44 @@ export interface ICommerceRepository {
   getDefault(): Promise<Commerce | null>;
   findDefault(): Promise<Commerce | null>;
   list(): Promise<Commerce[]>;
+}
+
+export interface CreateCouponRepoData {
+  code: string;
+  description?: string | null;
+  type: "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_SHIPPING";
+  value: number;
+  minOrderCents?: number | null;
+  maxDiscountCents?: number | null;
+  usageLimit?: number | null;
+  maxUsesPerEmail?: number | null;
+  isActive?: boolean;
+  startsAt?: number | null;
+  expiresAt?: number | null;
+}
+
+export interface ICouponRepository {
+  create(data: CreateCouponRepoData): Promise<Coupon>;
+  findById(id: number): Promise<Coupon | null>;
+  findByCode(code: string): Promise<Coupon | null>;
+  list(options?: { activeOnly?: boolean }): Promise<Coupon[]>;
+  update(id: number, data: Partial<CreateCouponRepoData>): Promise<Coupon>;
+  delete(id: number): Promise<void>;
+  incrementUsage(id: number): Promise<void>;
+  countRedemptions(
+    couponId: number,
+    identifiers: { email?: string | null; phone?: string | null; dni?: string | null }
+  ): Promise<number>;
+  countRedemptionsByEmail(couponId: number, email: string): Promise<number>;
+  recordRedemption(data: {
+    couponId: number;
+    orderId?: number | null;
+    customerEmail: string;
+    customerPhone?: string | null;
+    customerDni?: string | null;
+    customerId?: number | null;
+    discountCents: number;
+  }): Promise<CouponRedemption>;
 }
 
 export * from "./email.port";

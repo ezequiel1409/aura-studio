@@ -26,6 +26,36 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Validar cupón de descuento en servidor (con tope estricto por email)
+    if (body.couponCode && deps.couponRepo) {
+      const { validateCoupon } = await import("../../../services/coupon.service");
+      const subtotalCents = Array.isArray(body.items)
+        ? body.items.reduce(
+            (acc: number, item: { unitPriceCents?: number; quantity?: number }) =>
+              acc + (item.unitPriceCents || 0) * (item.quantity || 1),
+            0
+          )
+        : 0;
+
+      const validation = await validateCoupon(
+        {
+          code: body.couponCode,
+          email: body.customerEmail || null,
+          phone: body.customerPhone || null,
+          subtotalCents,
+          shippingCents: body.shippingCents || 0,
+        },
+        deps
+      );
+
+      if (!validation.valid) {
+        return NextResponse.json({ error: validation.message }, { status: 400 });
+      }
+
+      body.discountCents = validation.discountCents;
+      body.couponCode = validation.code;
+    }
+
     const result = await createOrder(body, deps);
     return NextResponse.json(result);
   } catch (error) {
