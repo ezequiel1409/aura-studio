@@ -20,15 +20,22 @@ import {
   MapPin,
   Clock,
   CreditCard,
+  Building2,
+  Copy,
+  Check,
   MessageCircle,
   RotateCcw,
   Tag,
   X,
+  Banknote,
+  ExternalLink,
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { formatPrice } from "../../lib/format/currency";
 import { CartStepper, CheckoutStep } from "./CartStepper";
 import { DeliveryMethod } from "../../domain/order/types";
+import { PaymentMethod, PaymentPreferenceResult } from "../../domain/payment/types";
+
 
 interface CartPageClientProps {
   showroomAddress?: string | null;
@@ -72,7 +79,52 @@ export function CartPageClient({
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
-  const [selectedPaymentNote, setSelectedPaymentNote] = useState<string>("TRANSFER");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("TRANSFER");
+  const [paymentMethods, setPaymentMethods] = useState<Array<{
+    method: PaymentMethod;
+    name: string;
+    description: string;
+    enabled: boolean;
+    discountPercent?: number;
+    badge?: string;
+  }>>([
+    {
+      method: "TRANSFER",
+      name: "Transferencia Bancaria",
+      description: "Aboná por CBU/CVU o Alias con 10% de descuento automático.",
+      enabled: true,
+      discountPercent: 10,
+      badge: "10% OFF",
+    },
+    {
+      method: "MERCADOPAGO",
+      name: "Mercado Pago",
+      description: "Tarjetas de crédito, débito, dinero en cuenta o cuotas.",
+      enabled: true,
+      badge: "Inmediato",
+    },
+    {
+      method: "CASH",
+      name: "Efectivo",
+      description: "Aboná en efectivo al retirar en showroom o recibir tu paquete.",
+      enabled: true,
+    },
+    {
+      method: "WHATSAPP",
+      name: "Coordinar por WhatsApp",
+      description: "Asistencia directa con el showroom para coordinar tu pago.",
+      enabled: true,
+    },
+  ]);
+  const [bankDetails, setBankDetails] = useState<{
+    bankName?: string | null;
+    accountHolder?: string | null;
+    cbu?: string | null;
+    alias?: string | null;
+    cuit?: string | null;
+    discountPercent: number;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Términos y condiciones en Revisión (Paso 3)
   const [acceptTerms, setAcceptTerms] = useState(true);
@@ -88,7 +140,10 @@ export function CartPageClient({
   const [orderSuccess, setOrderSuccess] = useState<{
     code: number;
     whatsappUrl: string;
+    paymentPreference?: PaymentPreferenceResult;
+    paymentMethod: PaymentMethod;
   } | null>(null);
+
 
   useEffect(() => {
     setMounted(true);
@@ -121,6 +176,19 @@ export function CartPageClient({
         }
       })
       .catch(() => {});
+
+    // Cargar métodos de pago activos configurados para el comercio (BR-47)
+    fetch("/api/payments/methods")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.methods && Array.isArray(data.methods) && data.methods.length > 0) {
+          setPaymentMethods(data.methods);
+          if (data.bankDetails) {
+            setBankDetails(data.bankDetails);
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   if (!mounted) {
@@ -149,7 +217,19 @@ export function CartPageClient({
   const baseShippingCents = deliveryMethod === "PICKUP" ? 0 : SHIPPING_COSTS[deliveryMethod];
   const shippingCents = appliedCoupon?.freeShipping ? 0 : baseShippingCents;
   const discountCents = appliedCoupon ? appliedCoupon.discountCents : 0;
-  const finalTotalCents = Math.max(0, subtotalCents - discountCents + shippingCents);
+
+  // Bonificación por método de pago (ej: 10% OFF en transferencia)
+  const activeMethod = paymentMethods.find((m) => m.method === selectedPaymentMethod);
+  const transferDiscountPercent =
+    selectedPaymentMethod === "TRANSFER"
+      ? (activeMethod?.discountPercent ?? bankDetails?.discountPercent ?? 10)
+      : 0;
+  const paymentDiscountCents =
+    transferDiscountPercent > 0
+      ? Math.round((Math.max(0, subtotalCents - discountCents) * transferDiscountPercent) / 100)
+      : 0;
+  const finalTotalCents = Math.max(0, subtotalCents - discountCents - paymentDiscountCents + shippingCents);
+
   const cleanPhone = whatsappNumber.replace(/\D/g, "");
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
@@ -198,6 +278,14 @@ export function CartPageClient({
     setEstimatedShippingNotice(
       `CP ${postalCodeInput.trim()}: Envío a domicilio por correo aprox. $4.500 (3-5 días) · Retiro en showroom GRATIS hoy.`
     );
+  };
+
+  const handleCopy = (text: string, field: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    }
   };
 
   // Validaciones antes de avanzar del Paso 1 al Paso 2
@@ -259,9 +347,11 @@ export function CartPageClient({
           customerId: customer?.id || null,
           deliveryMethod,
           deliveryAddress: deliveryAddress.trim() || null,
-          deliveryNotes: deliveryNotes.trim() ? `${deliveryNotes.trim()} [Medio: ${selectedPaymentNote}]` : `[Medio: ${selectedPaymentNote}]`,
+          deliveryNotes: deliveryNotes.trim() ? `${deliveryNotes.trim()}` : null,
           shippingCents,
           discountCents,
+          paymentMethod: selectedPaymentMethod,
+          paymentDiscountCents,
           couponCode: appliedCoupon?.code || null,
           items: items.map((i) => ({
             productId: i.productId,
@@ -284,11 +374,20 @@ export function CartPageClient({
       setOrderSuccess({
         code: data.order.code,
         whatsappUrl: data.whatsappUrl,
+        paymentPreference: data.paymentPreference,
+        paymentMethod: selectedPaymentMethod,
       });
 
       clearCart();
 
-      if (typeof window !== "undefined" && data.whatsappUrl) {
+      // Si es Mercado Pago, redirigir a la preferencia de cobro
+      if (selectedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
+        window.location.href = data.paymentPreference.paymentUrl;
+        return;
+      }
+
+      // Si es WhatsApp, abrir chat directamente
+      if (selectedPaymentMethod === "WHATSAPP" && typeof window !== "undefined" && data.whatsappUrl) {
         window.open(data.whatsappUrl, "_blank", "noopener,noreferrer");
       }
     } catch (err) {
@@ -311,26 +410,198 @@ export function CartPageClient({
 
       {/* Pantalla de Éxito al finalizar el pedido */}
       {orderSuccess ? (
-        <div className="rounded-2xl border border-[#e7e2da] bg-white p-8 sm:p-12 text-center shadow-xs max-w-xl mx-auto animate-in fade-in zoom-in-95 duration-200">
+        <div className="rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-10 text-center shadow-xs max-w-xl mx-auto animate-in fade-in zoom-in-95 duration-200">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
             <CheckCircle2 className="h-8 w-8" />
           </div>
           <h1 className="mt-5 font-serif text-2xl sm:text-3xl font-light text-stone-900">
             ¡Pedido #{orderSuccess.code.toString().padStart(3, "0")} Registrado!
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-xs sm:text-sm leading-relaxed text-stone-600">
-            Tu reserva ha sido registrada en nuestro sistema. Abrimos una conversación directa en WhatsApp para coordinar el pago (transferencia, Mercado Pago o efectivo al retirar) y confirmar los detalles de entrega.
-          </p>
 
-          <div className="mt-4 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700 max-w-md mx-auto text-left space-y-1.5">
-            <div className="flex items-center gap-2 text-stone-900 font-semibold">
-              <Clock className="h-4 w-4 text-[#926a3c]" />
-              <span>¿Qué pasa ahora?</span>
+          {/* TRANSFERENCIA BANCARIA */}
+          {orderSuccess.paymentMethod === "TRANSFER" ? (
+            <div className="mt-5 space-y-4 text-left">
+              <p className="text-xs sm:text-sm text-stone-600 text-center">
+                Para confirmar la reserva de tus prendas con el <strong>10% OFF</strong>, realizá la transferencia con los siguientes datos:
+              </p>
+
+              <div className="rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-4 text-xs space-y-2.5 text-stone-800">
+                <div className="flex items-center justify-between border-b border-[#e7e2da] pb-2 font-semibold text-stone-900">
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4 text-[#926a3c]" />
+                    Datos de la Cuenta Bancaria
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Transferencia
+                  </span>
+                </div>
+
+                {bankDetails?.bankName && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-stone-500">Banco:</span>
+                    <span className="font-medium text-stone-900">{bankDetails.bankName}</span>
+                  </div>
+                )}
+
+                {bankDetails?.accountHolder && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-stone-500">Titular:</span>
+                    <span className="font-medium text-stone-900">{bankDetails.accountHolder}</span>
+                  </div>
+                )}
+
+                {bankDetails?.cuit && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-stone-500">CUIT:</span>
+                    <span className="font-mono text-stone-900">{bankDetails.cuit}</span>
+                  </div>
+                )}
+
+                {bankDetails?.alias && (
+                  <div className="flex items-center justify-between py-1.5 border-t border-[#e7e2da]/60">
+                    <span className="text-stone-500">Alias:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-stone-900">{bankDetails.alias}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(bankDetails.alias || "", "alias")}
+                        className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-[11px] font-medium text-stone-700 border border-stone-200 hover:bg-stone-50 cursor-pointer"
+                      >
+                        {copiedField === "alias" ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-600" />
+                            <span className="text-emerald-700">Copiado</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Copiar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {bankDetails?.cbu && (
+                  <div className="flex items-center justify-between py-1.5 border-t border-[#e7e2da]/60">
+                    <span className="text-stone-500">CBU / CVU:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-stone-900">{bankDetails.cbu}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(bankDetails.cbu || "", "cbu")}
+                        className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-[11px] font-medium text-stone-700 border border-stone-200 hover:bg-stone-50 cursor-pointer"
+                      >
+                        {copiedField === "cbu" ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-600" />
+                            <span className="text-emerald-700">Copiado</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" />
+                            <span>Copiar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between py-1.5 border-t border-[#e7e2da]/60">
+                  <span className="text-stone-500">Referencia / Concepto:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-stone-900">
+                      ORD-{orderSuccess.code.toString().padStart(3, "0")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopy(`ORD-${orderSuccess.code.toString().padStart(3, "0")}`, "ref")
+                      }
+                      className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-[11px] font-medium text-stone-700 border border-stone-200 hover:bg-stone-50 cursor-pointer"
+                    >
+                      {copiedField === "ref" ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-600" />
+                          <span className="text-emerald-700">Copiado</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          <span>Copiar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 space-y-1">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+                  Paso importante para finalizar
+                </p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Una vez transferido, tocá el botón verde abajo para enviarnos el comprobante por WhatsApp. Tus prendas quedarán reservadas inmediatamente.
+                </p>
+              </div>
             </div>
-            <p className="text-[11px] text-stone-600">
-              Te respondemos en menos de 2 horas en horario de showroom para confirmar el apartado de tus prendas y pasarte los datos de pago.
-            </p>
-          </div>
+          ) : orderSuccess.paymentMethod === "MERCADOPAGO" ? (
+            /* MERCADO PAGO */
+            <div className="mt-5 space-y-4 text-center">
+              <p className="text-xs sm:text-sm text-stone-600">
+                Tu orden fue registrada. Podés completar el pago de forma segura a través de Mercado Pago con tarjetas de crédito, débito o dinero en cuenta.
+              </p>
+              {orderSuccess.paymentPreference?.paymentUrl && (
+                <div className="pt-2">
+                  <a
+                    href={orderSuccess.paymentPreference.paymentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-6 py-3 text-xs font-bold text-white uppercase tracking-wider shadow-sm hover:bg-sky-600 transition-colors"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    <span>Pagar con Mercado Pago ahora</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              )}
+            </div>
+          ) : orderSuccess.paymentMethod === "CASH" ? (
+            /* EFECTIVO */
+            <div className="mt-5 space-y-3 text-left">
+              <p className="text-xs sm:text-sm text-stone-600 text-center">
+                Abonarás en efectivo al retirar en nuestro showroom o al momento de recibir el paquete en tu domicilio.
+              </p>
+              <div className="rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700 space-y-1.5">
+                <div className="flex items-center gap-2 text-stone-900 font-semibold">
+                  <Clock className="h-4 w-4 text-[#926a3c]" />
+                  <span>Reserva por 30 minutos</span>
+                </div>
+                <p className="text-[11px] text-stone-600">
+                  Apartamos tus prendas en showroom. Coordinamos los detalles por WhatsApp para preparar tu entrega.
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* WHATSAPP POR DEFECTO */
+            <div className="mt-5 space-y-3">
+              <p className="mx-auto max-w-md text-xs sm:text-sm leading-relaxed text-stone-600">
+                Tu reserva ha sido registrada en nuestro sistema. Abrimos una conversación directa en WhatsApp para coordinar el pago y confirmar los detalles de entrega.
+              </p>
+              <div className="rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700 max-w-md mx-auto text-left space-y-1.5">
+                <div className="flex items-center gap-2 text-stone-900 font-semibold">
+                  <Clock className="h-4 w-4 text-[#926a3c]" />
+                  <span>¿Qué pasa ahora?</span>
+                </div>
+                <p className="text-[11px] text-stone-600">
+                  Te respondemos en menos de 2 horas en horario de showroom para confirmar el apartado de tus prendas y pasarte los datos de pago.
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <a
@@ -340,7 +611,11 @@ export function CartPageClient({
               className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 py-2.5 text-xs font-bold text-white uppercase tracking-wider shadow-sm hover:bg-[#20bd5a] transition-colors cursor-pointer"
             >
               <MessageCircle className="h-4 w-4" />
-              <span>Abrir WhatsApp</span>
+              <span>
+                {orderSuccess.paymentMethod === "TRANSFER"
+                  ? "Enviar Comprobante por WhatsApp"
+                  : "Abrir WhatsApp"}
+              </span>
             </a>
             <Link
               href="/"
@@ -962,50 +1237,6 @@ export function CartPageClient({
                     </div>
                   </div>
 
-                  {/* Método de Pago Preferido */}
-                  <div className="border-t border-[#e7e2da] pt-5">
-                    <label className="block font-sans text-xs font-semibold tracking-wider text-stone-800 uppercase mb-2">
-                      ¿Cómo preferís abonar? (Se coordina por WhatsApp)
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                      <label className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer ${selectedPaymentNote === "TRANSFER" ? "border-stone-900 bg-stone-900 text-white font-medium" : "border-stone-200 bg-stone-50 text-stone-700"}`}>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="TRANSFER"
-                          checked={selectedPaymentNote === "TRANSFER"}
-                          onChange={() => setSelectedPaymentNote("TRANSFER")}
-                          className="sr-only"
-                        />
-                        <span>Transferencia (CBU/Alias)</span>
-                      </label>
-
-                      <label className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer ${selectedPaymentNote === "MERCADO_PAGO" ? "border-stone-900 bg-stone-900 text-white font-medium" : "border-stone-200 bg-stone-50 text-stone-700"}`}>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="MERCADO_PAGO"
-                          checked={selectedPaymentNote === "MERCADO_PAGO"}
-                          onChange={() => setSelectedPaymentNote("MERCADO_PAGO")}
-                          className="sr-only"
-                        />
-                        <span>Mercado Pago</span>
-                      </label>
-
-                      <label className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer ${selectedPaymentNote === "CASH" ? "border-stone-900 bg-stone-900 text-white font-medium" : "border-stone-200 bg-stone-50 text-stone-700"}`}>
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value="CASH"
-                          checked={selectedPaymentNote === "CASH"}
-                          onChange={() => setSelectedPaymentNote("CASH")}
-                          className="sr-only"
-                        />
-                        <span>Efectivo en Showroom</span>
-                      </label>
-                    </div>
-                  </div>
-
                   {errorMessage && (
                     <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
                       <AlertCircle className="h-4 w-4 shrink-0" />
@@ -1176,6 +1407,70 @@ export function CartPageClient({
                 </ul>
               </div>
 
+              {/* Selector de Método de Pago (BR-47) */}
+              <div className="border-t border-[#e7e2da] pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-stone-900 uppercase tracking-wider text-[11px]">
+                    Método de Pago
+                  </span>
+                  {transferDiscountPercent > 0 && (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                      {transferDiscountPercent}% OFF con Transferencia
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {paymentMethods
+                    .filter((m) => m.enabled)
+                    .map((m) => {
+                      const isSelected = selectedPaymentMethod === m.method;
+                      return (
+                        <label
+                          key={m.method}
+                          className={`flex items-start gap-3 p-3.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                            isSelected
+                              ? "border-stone-900 bg-stone-50/70 shadow-2xs ring-1 ring-stone-900"
+                              : "border-[#e7e2da] hover:border-stone-300 bg-white"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value={m.method}
+                            checked={isSelected}
+                            onChange={() => setSelectedPaymentMethod(m.method)}
+                            className="mt-0.5 accent-stone-900"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 font-medium text-stone-900">
+                              {m.method === "TRANSFER" && <Building2 className="h-4 w-4 text-[#926a3c] shrink-0" />}
+                              {m.method === "MERCADOPAGO" && <CreditCard className="h-4 w-4 text-sky-600 shrink-0" />}
+                              {m.method === "CASH" && <Banknote className="h-4 w-4 text-emerald-600 shrink-0" />}
+                              {m.method === "WHATSAPP" && <MessageCircle className="h-4 w-4 text-[#25D366] shrink-0" />}
+                              <span className="truncate">{m.name}</span>
+                              {m.badge && (
+                                <span
+                                  className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 ${
+                                    m.method === "TRANSFER"
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-sky-100 text-sky-800"
+                                  }`}
+                                >
+                                  {m.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 text-[11px] text-stone-500 leading-normal">
+                              {m.description}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+
               {/* Total final */}
               <div className="border-t border-[#e7e2da] pt-4 space-y-1.5 text-xs text-stone-600">
                 <div className="flex justify-between">
@@ -1189,6 +1484,15 @@ export function CartPageClient({
                       Descuento cupón ({appliedCoupon.code}):
                     </span>
                     <span className="font-mono font-bold">-{formatPrice(discountCents, "ARS")}</span>
+                  </div>
+                )}
+                {selectedPaymentMethod === "TRANSFER" && paymentDiscountCents > 0 && (
+                  <div className="flex justify-between text-emerald-700 font-medium">
+                    <span className="flex items-center gap-1">
+                      <Building2 className="h-3 w-3" />
+                      Descuento Transferencia ({transferDiscountPercent}% OFF):
+                    </span>
+                    <span className="font-mono font-bold">-{formatPrice(paymentDiscountCents, "ARS")}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
@@ -1246,6 +1550,21 @@ export function CartPageClient({
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Registrando orden...</span>
+                    </>
+                  ) : selectedPaymentMethod === "MERCADOPAGO" ? (
+                    <>
+                      <CreditCard className="h-4 w-4 text-sky-400" />
+                      <span>Continuar a Mercado Pago</span>
+                    </>
+                  ) : selectedPaymentMethod === "TRANSFER" ? (
+                    <>
+                      <Building2 className="h-4 w-4 text-[#d4af37]" />
+                      <span>Confirmar y ver CBU para transferir</span>
+                    </>
+                  ) : selectedPaymentMethod === "CASH" ? (
+                    <>
+                      <Banknote className="h-4 w-4 text-emerald-400" />
+                      <span>Confirmar pedido (Efectivo)</span>
                     </>
                   ) : (
                     <>
