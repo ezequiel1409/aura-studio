@@ -1,5 +1,6 @@
 import { ValidationError } from "../errors";
 import { CreateOrderInput, DeliveryMethod, OrderStatus } from "./types";
+import { isValidPaymentMethod, PaymentMethod } from "../payment";
 
 /**
  * Formatea el código correlativo de orden: ej 1 -> "#ORD-001"
@@ -21,7 +22,7 @@ export function parseOrderCode(input: string): number | null {
 }
 
 /**
- * Normaliza y valida una orden de compra antes de ser persistida (BR-40, BR-41, BR-42)
+ * Normaliza y valida una orden de compra antes de ser persistida (BR-40, BR-41, BR-42, BR-47)
  */
 export function validateCreateOrderInput(input: CreateOrderInput): {
   customerName: string;
@@ -33,8 +34,10 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   deliveryNotes: string | null;
   subtotalCents: number;
   discountCents: number;
+  paymentDiscountCents: number;
   shippingCents: number;
   totalCents: number;
+  paymentMethod: PaymentMethod;
   couponCode: string | null;
   customerId: number | null;
   commerceId: number | null;
@@ -88,7 +91,13 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
 
   const shippingCents = Math.max(0, input.shippingCents || 0);
   const discountCents = Math.max(0, input.discountCents || 0);
-  const totalCents = Math.max(0, subtotal - discountCents + shippingCents);
+  const paymentDiscountCents = Math.max(0, input.paymentDiscountCents || 0);
+  const totalCents = Math.max(0, subtotal - discountCents - paymentDiscountCents + shippingCents);
+
+  let paymentMethod: PaymentMethod = "WHATSAPP";
+  if (input.paymentMethod && isValidPaymentMethod(input.paymentMethod)) {
+    paymentMethod = input.paymentMethod;
+  }
 
   return {
     customerName,
@@ -100,8 +109,10 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
     deliveryNotes: input.deliveryNotes?.trim() || null,
     subtotalCents: subtotal,
     discountCents,
+    paymentDiscountCents,
     shippingCents,
     totalCents,
+    paymentMethod,
     couponCode: input.couponCode?.trim().toUpperCase() || null,
     customerId: input.customerId ?? null,
     commerceId: input.commerceId ?? null,

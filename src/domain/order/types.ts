@@ -1,4 +1,5 @@
 import { OrderClaim } from "../claim/types";
+import { PaymentMethod, PaymentStatus } from "../payment/types";
 
 export type DeliveryMethod = "HOME_DELIVERY" | "MOTORCYCLE" | "PICKUP";
 export type OrderStatus = "PENDING" | "CONFIRMED" | "PAID" | "CANCELLED";
@@ -34,6 +35,10 @@ export interface Order {
   currency: string;
   couponCode?: string | null;
   status: OrderStatus;
+  paymentMethod?: PaymentMethod | null;
+  paymentStatus?: PaymentStatus | null;
+  paymentExternalId?: string | null;
+  paymentDiscountCents?: number;
   customerId?: number | null;
   commerceId?: number | null;
   notes?: string | null;
@@ -64,9 +69,13 @@ export interface CreateOrderInput {
   deliveryNotes?: string | null;
   shippingCents?: number;
   discountCents?: number;
+  paymentMethod?: PaymentMethod;
+  paymentDiscountCents?: number;
   couponCode?: string | null;
   customerId?: number | null;
   commerceId?: number | null;
+  baseUrl?: string;
   notes?: string | null;
   items: CreateOrderItemInput[];
 }
+

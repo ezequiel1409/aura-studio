@@ -10,4 +10,5 @@ export * from "./order/types";
 export * from "./order/rules";
 export * from "./cart/types";
 export * from "./cart/rules";
+export * from "./payment";
 
