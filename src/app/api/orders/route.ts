@@ -57,6 +57,26 @@ export async function POST(req: NextRequest) {
       body.couponCode = validation.code;
     }
 
+    // Validar y aplicar bonificación por método de pago en servidor (BR-47)
+    if (body.paymentMethod === "TRANSFER") {
+      const { getShowroomSettings } = await import("../../../services/settings.service");
+      const { calculatePaymentDiscount } = await import("../../../domain/payment");
+      const settings = await getShowroomSettings(deps);
+      if (settings.transferEnabled && settings.transferDiscountPercent > 0) {
+        const subtotalCents = Array.isArray(body.items)
+          ? body.items.reduce(
+              (acc: number, item: { unitPriceCents?: number; quantity?: number }) =>
+                acc + (item.unitPriceCents || 0) * (item.quantity || 1),
+              0
+            )
+          : 0;
+        const couponDiscount = body.discountCents || 0;
+        const eligibleSubtotal = Math.max(0, subtotalCents - couponDiscount);
+        body.paymentDiscountCents = calculatePaymentDiscount(eligibleSubtotal, settings.transferDiscountPercent);
+      }
+    }
+
+    body.baseUrl = req.nextUrl.origin;
     const result = await createOrder(body, deps);
     return NextResponse.json(result);
   } catch (error) {

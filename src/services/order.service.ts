@@ -11,16 +11,19 @@ import { WhatsAppPaymentAdapter } from "../infra/payments/whatsapp.adapter";
 import { getShowroomSettings } from "./settings.service";
 import { trackAnalyticsEvent } from "./analytics.service";
 import { normalizeEmail, normalizePhone } from "./coupon.service";
+import { PaymentPreferenceResult } from "../domain/payment/types";
+import { createOrderPaymentPreference } from "./payment.service";
 
 /**
- * Caso de uso: Crear Orden de Compra y generar enlace WhatsApp consolidado (BR-40, BR-41, BR-42)
+ * Caso de uso: Crear Orden de Compra y generar enlace WhatsApp consolidado (BR-40, BR-41, BR-42, BR-47)
  */
 export async function createOrder(
   input: CreateOrderInput,
   deps: GlobalAppDeps
-): Promise<{ order: Order; whatsappUrl: string }> {
-  // 1. Validar reglas de dominio de orden y comprador (BR-41, BR-42)
+): Promise<{ order: Order; whatsappUrl: string; paymentPreference?: PaymentPreferenceResult }> {
+  // 1. Validar reglas de dominio de orden y comprador (BR-41, BR-42, BR-47)
   const validated = validateCreateOrderInput(input);
+
 
   // 2. Control estricto de inventario (BR-40): verificar existencia y stock de cada ítem
   const resolvedItems = await Promise.all(
@@ -93,6 +96,9 @@ export async function createOrder(
     currency: "ARS",
     couponCode: validated.couponCode,
     status: "PENDING",
+    paymentMethod: validated.paymentMethod,
+    paymentStatus: "PENDING",
+    paymentDiscountCents: validated.paymentDiscountCents,
     notes: validated.notes,
     createdAt: now,
     updatedAt: now,
@@ -172,9 +178,15 @@ export async function createOrder(
     showroomAddress: settings.address,
   });
 
+  // 7. Generar preferencia o instrucciones de pago según método elegido (BR-47)
+  const paymentPreference = await createOrderPaymentPreference(order, deps, {
+    baseUrl: input.baseUrl,
+  });
+
   return {
     order,
     whatsappUrl: paymentAction.url,
+    paymentPreference,
   };
 }
 
@@ -263,6 +275,11 @@ export async function updateOrderStatus(
         );
       }
     }
+  }
+
+  // Si pasa a PAID y paymentStatus no estaba en PAID, actualizar estado de cobro
+  if (status === "PAID" && existing.paymentStatus !== "PAID" && typeof deps.orderRepo.updatePayment === "function") {
+    await deps.orderRepo.updatePayment(id, { paymentStatus: "PAID", updatedAt: now });
   }
 
   return deps.orderRepo.updateStatus(id, status, now);
