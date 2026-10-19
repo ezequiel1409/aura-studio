@@ -161,7 +161,7 @@ describe("Cart Domain & Store (BR-40)", () => {
       expect(useCartStore.getState().items.length).toBe(0);
     });
 
-    it("permite seleccionar método de entrega", () => {
+    it("permite seleccionar método de entrega y lo reinicia al vaciar el carrito", () => {
       const store = useCartStore.getState();
       expect(store.deliveryMethod).toBe("PICKUP");
 
@@ -170,6 +170,9 @@ describe("Cart Domain & Store (BR-40)", () => {
 
       store.setDeliveryMethod("MOTORCYCLE");
       expect(useCartStore.getState().deliveryMethod).toBe("MOTORCYCLE");
+
+      store.clearCart();
+      expect(useCartStore.getState().deliveryMethod).toBe("PICKUP");
     });
   });
 

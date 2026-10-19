@@ -142,7 +142,7 @@ export const useCartStore = create<CartStoreState>()(
       },
 
       clearCart: () => {
-        set({ items: [] });
+        set({ items: [], deliveryMethod: "PICKUP" });
       },
 
       getTotalItemsCount: () => {
@@ -162,7 +162,6 @@ export const useCartStore = create<CartStoreState>()(
       })),
       partialize: (state) => ({
         items: state.items,
-        deliveryMethod: state.deliveryMethod,
       }),
     }),
     { name: "AuraCartStore", enabled: true }

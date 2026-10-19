@@ -160,6 +160,8 @@ export function CartPageClient({
 
   useEffect(() => {
     setMounted(true);
+    // Asegurar que al iniciar en Paso 1 no queden métodos arrastrados de sesiones previas
+    setDeliveryMethod("PICKUP");
 
     // Intentar autocompletar si el cliente tiene sesión activa
     fetch("/api/auth/me")
@@ -205,7 +207,7 @@ export function CartPageClient({
         }
       })
       .catch(() => {});
-  }, []);
+  }, [setDeliveryMethod]);
 
   if (!mounted) {
     return (
@@ -221,7 +223,7 @@ export function CartPageClient({
   const shippingCents = appliedCoupon?.freeShipping ? 0 : baseShippingCents;
   const discountCents = appliedCoupon ? appliedCoupon.discountCents : 0;
 
-  // Bonificación por método de pago (ej: 10% OFF en transferencia)
+  // Bonificación por método de pago (ej: 10% OFF en transferencia, aplicable en Paso 3)
   const activeMethod = paymentMethods.find((m) => m.method === selectedPaymentMethod);
   const transferDiscountPercent =
     selectedPaymentMethod === "TRANSFER"
@@ -231,9 +233,27 @@ export function CartPageClient({
     transferDiscountPercent > 0
       ? Math.round((Math.max(0, subtotalCents - discountCents) * transferDiscountPercent) / 100)
       : 0;
+
+  const step1TotalCents = Math.max(0, subtotalCents - discountCents);
+  const step2TotalCents = Math.max(0, subtotalCents - discountCents + shippingCents);
   const finalTotalCents = Math.max(0, subtotalCents - discountCents - paymentDiscountCents + shippingCents);
 
   const cleanPhone = whatsappNumber.replace(/\D/g, "");
+
+  // Al volver al Paso 1 (Bolsa), reiniciar las selecciones de entrega y pago de pasos posteriores
+  const handleReturnToCartStep = () => {
+    setDeliveryMethod("PICKUP");
+    setSelectedPaymentMethod("TRANSFER");
+    setPostalCode("");
+    setDeliveryNotes("");
+    setPostalCodeInput("");
+    setEstimatedShippingNotice(null);
+    setErrorMessage(null);
+    setCurrentStep("cart");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -381,23 +401,33 @@ export function CartPageClient({
         throw new Error(data.error || "Error al procesar la orden.");
       }
 
+      const confirmedPaymentMethod = selectedPaymentMethod;
+
       setOrderSuccess({
         code: data.order.code,
         whatsappUrl: data.whatsappUrl,
         paymentPreference: data.paymentPreference,
-        paymentMethod: selectedPaymentMethod,
+        paymentMethod: confirmedPaymentMethod,
       });
 
+      // Limpiar bolsa y reiniciar métodos elegidos para próximas compras
       clearCart();
+      setSelectedPaymentMethod("TRANSFER");
+      setAppliedCoupon(null);
+      setCouponInput("");
+      setDeliveryNotes("");
+      setPostalCode("");
+      setPostalCodeInput("");
+      setEstimatedShippingNotice(null);
 
       // Si es Mercado Pago, redirigir a la preferencia de cobro
-      if (selectedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
+      if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
         window.location.href = data.paymentPreference.paymentUrl;
         return;
       }
 
       // Si es WhatsApp, abrir chat directamente
-      if (selectedPaymentMethod === "WHATSAPP" && typeof window !== "undefined" && data.whatsappUrl) {
+      if (confirmedPaymentMethod === "WHATSAPP" && typeof window !== "undefined" && data.whatsappUrl) {
         window.open(data.whatsappUrl, "_blank", "noopener,noreferrer");
       }
     } catch (err) {
@@ -413,8 +443,11 @@ export function CartPageClient({
       <CartStepper
         currentStep={currentStep}
         onStepClick={(step) => {
-          if (step === "cart") setCurrentStep("cart");
-          if (step === "shipping" && items.length > 0) setCurrentStep("shipping");
+          if (step === "cart") handleReturnToCartStep();
+          if (step === "shipping" && items.length > 0) {
+            setSelectedPaymentMethod("TRANSFER");
+            setCurrentStep("shipping");
+          }
         }}
       />
 
@@ -898,7 +931,7 @@ export function CartPageClient({
                   <div className="border-t border-[#e7e2da] pt-3.5 flex justify-between items-baseline">
                     <span className="font-semibold text-stone-900 text-sm">Total:</span>
                     <span className="font-serif text-3xl font-bold text-stone-900 tracking-tight font-lining-nums">
-                      {formatPrice(finalTotalCents, "ARS")}
+                      {formatPrice(step1TotalCents, "ARS")}
                     </span>
                   </div>
                 </div>
@@ -1019,7 +1052,7 @@ export function CartPageClient({
                   </div>
                   <button
                     type="button"
-                    onClick={() => setCurrentStep("cart")}
+                    onClick={handleReturnToCartStep}
                     className="text-xs font-medium text-stone-600 hover:text-stone-950 transition-colors cursor-pointer"
                   >
                     ← Modificar bolsa
@@ -1275,7 +1308,7 @@ export function CartPageClient({
                   <div className="flex items-center justify-between border-t border-[#e7e2da] pt-5">
                     <button
                       type="button"
-                      onClick={() => setCurrentStep("cart")}
+                      onClick={handleReturnToCartStep}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer"
                     >
                       <ArrowLeft className="h-3.5 w-3.5" />
@@ -1336,7 +1369,7 @@ export function CartPageClient({
                   <div className="border-t border-[#e7e2da] pt-3 flex justify-between items-baseline">
                     <span className="font-semibold text-stone-900 text-sm">Total:</span>
                     <span className="font-serif text-2xl sm:text-3xl font-bold text-stone-900">
-                      {formatPrice(finalTotalCents, "ARS")}
+                      {formatPrice(step2TotalCents, "ARS")}
                     </span>
                   </div>
                 </div>
@@ -1364,7 +1397,10 @@ export function CartPageClient({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setCurrentStep("shipping")}
+                    onClick={() => {
+                      setSelectedPaymentMethod("TRANSFER");
+                      setCurrentStep("shipping");
+                    }}
                     className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer"
                   >
                     Editar
@@ -1383,7 +1419,10 @@ export function CartPageClient({
                   </span>
                   <button
                     type="button"
-                    onClick={() => setCurrentStep("shipping")}
+                    onClick={() => {
+                      setSelectedPaymentMethod("TRANSFER");
+                      setCurrentStep("shipping");
+                    }}
                     className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer"
                   >
                     Editar
@@ -1409,7 +1448,7 @@ export function CartPageClient({
                   </h2>
                   <button
                     type="button"
-                    onClick={() => setCurrentStep("cart")}
+                    onClick={handleReturnToCartStep}
                     className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer"
                   >
                     Editar bolsa
@@ -1561,7 +1600,10 @@ export function CartPageClient({
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#e7e2da] pt-5">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep("shipping")}
+                  onClick={() => {
+                    setSelectedPaymentMethod("TRANSFER");
+                    setCurrentStep("shipping");
+                  }}
                   className="w-full sm:w-auto inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
