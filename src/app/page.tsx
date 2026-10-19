@@ -130,6 +130,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <StoreThemeStyles
         paletteId={settings.themePalette}
         primaryColor={settings.themePrimaryColor}
+        fontId={settings.themeFont}
       />
 
       {/* Header fijo con buscador por código (BR-24) */}

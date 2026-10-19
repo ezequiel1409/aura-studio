@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
         heroBannerUrl: body.heroBannerUrl,
         themePalette: body.themePalette,
         themePrimaryColor: body.themePrimaryColor,
+        themeFont: body.themeFont,
       },
       deps
     );

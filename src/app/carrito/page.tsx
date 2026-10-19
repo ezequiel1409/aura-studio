@@ -23,6 +23,7 @@ export default async function CarritoPage() {
       <StoreThemeStyles
         paletteId={settings.themePalette}
         primaryColor={settings.themePrimaryColor}
+        fontId={settings.themeFont}
       />
 
       {/* Cabecera minimalista editorial para checkout aislado */}

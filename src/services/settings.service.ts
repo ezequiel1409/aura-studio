@@ -23,6 +23,7 @@ export interface ShowroomSettings {
   heroBannerUrl?: string | null;
   themePalette: string;
   themePrimaryColor?: string | null;
+  themeFont: string;
 }
 
 export interface UpdateShowroomSettingsInput {
@@ -41,6 +42,7 @@ export interface UpdateShowroomSettingsInput {
   heroBannerUrl?: string | null;
   themePalette?: string;
   themePrimaryColor?: string | null;
+  themeFont?: string | null;
 }
 
 const DEFAULT_WHATSAPP_NUMBER = "+5491100000000";
@@ -49,6 +51,7 @@ const DEFAULT_STORE_TYPE = "Showroom";
 const DEFAULT_RESERVATION_HOURS = 48;
 const DEFAULT_HERO_MODE: HeroMode = "featured_carousel";
 const DEFAULT_THEME_PALETTE = "lino";
+const DEFAULT_THEME_FONT = "cormorant";
 
 /**
  * Obtiene la configuración del showroom desde la base de datos sin deploy.
@@ -74,6 +77,7 @@ export async function getShowroomSettings(
   let storedHeroBannerUrl: string | null = null;
   let storedThemePalette: string | null = null;
   let storedThemePrimaryColor: string | null = null;
+  let storedThemeFont: string | null = null;
 
   if (settingsRepo) {
     if (typeof settingsRepo.getAll === "function") {
@@ -93,6 +97,7 @@ export async function getShowroomSettings(
       storedHeroBannerUrl = all["hero_banner_url"] ?? null;
       storedThemePalette = all["theme_palette"] ?? null;
       storedThemePrimaryColor = all["theme_primary_color"] ?? null;
+      storedThemeFont = all["theme_font"] ?? null;
     } else {
       [
         storedWhatsapp,
@@ -110,6 +115,7 @@ export async function getShowroomSettings(
         storedHeroBannerUrl,
         storedThemePalette,
         storedThemePrimaryColor,
+        storedThemeFont,
       ] = await Promise.all([
         settingsRepo.get("whatsapp_number"),
         settingsRepo.get("showroom_name"),
@@ -126,6 +132,7 @@ export async function getShowroomSettings(
         settingsRepo.get("hero_banner_url"),
         settingsRepo.get("theme_palette"),
         settingsRepo.get("theme_primary_color"),
+        settingsRepo.get("theme_font"),
       ]);
     }
   }
@@ -154,6 +161,7 @@ export async function getShowroomSettings(
     heroBannerUrl: storedHeroBannerUrl && storedHeroBannerUrl.trim() ? storedHeroBannerUrl.trim() : null,
     themePalette: storedThemePalette && storedThemePalette.trim() ? storedThemePalette.trim() : DEFAULT_THEME_PALETTE,
     themePrimaryColor: storedThemePrimaryColor && storedThemePrimaryColor.trim() ? storedThemePrimaryColor.trim() : null,
+    themeFont: storedThemeFont && storedThemeFont.trim() ? storedThemeFont.trim() : DEFAULT_THEME_FONT,
   };
 }
 
@@ -243,6 +251,10 @@ export async function updateShowroomSettings(
 
   if (input.themePrimaryColor !== undefined) {
     await settingsRepo.set("theme_primary_color", input.themePrimaryColor ? input.themePrimaryColor.trim() : "");
+  }
+
+  if (input.themeFont !== undefined) {
+    await settingsRepo.set("theme_font", input.themeFont ? input.themeFont.trim() : DEFAULT_THEME_FONT);
   }
 
   return getShowroomSettings(deps);

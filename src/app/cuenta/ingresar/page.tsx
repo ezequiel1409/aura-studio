@@ -30,6 +30,7 @@ export default async function CustomerAuthPage() {
       <StoreThemeStyles
         paletteId={settings.themePalette}
         primaryColor={settings.themePrimaryColor}
+        fontId={settings.themeFont}
       />
 
       {/* Cabecera */}

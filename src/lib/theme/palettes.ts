@@ -54,7 +54,29 @@ export const THEME_PALETTES: Record<string, ThemePalette> = {
     text: "#1c1f1a",
     border: "#dde3da",
   },
+  borgona: {
+    id: "borgona",
+    name: "Borgoña & Rosa Seda",
+    description: "Romántico y sofisticado con acentos vino tinto profundo y fondo cálido sutil",
+    bg: "#fdf8f8",
+    surface: "#ffffff",
+    accent: "#831843",
+    text: "#2a1215",
+    border: "#f3e2e6",
+  },
+  marino: {
+    id: "marino",
+    name: "Azul Marino & Acero",
+    description: "Sobrio, contemporáneo y distinguido con tonos marinos y fondo equilibrado",
+    bg: "#f8fafc",
+    surface: "#ffffff",
+    accent: "#1e3a8a",
+    text: "#0f172a",
+    border: "#e2e8f0",
+  },
 };
+
+export const DEFAULT_THEME_PALETTE = "lino";
 
 /**
  * Convierte color hexadecimal a componentes RGB { r, g, b }
@@ -104,6 +126,14 @@ export function resolveStoreTheme(
       accent: customPrimaryColor.trim(),
       text: "#1c1917",
       border: "#e7e2da",
+    };
+  }
+
+  // Si se definió un color primario personalizado y es válido, sobreescribir el accent del preset
+  if (customPrimaryColor && /^#[0-9a-fA-F]{3,6}$/.test(customPrimaryColor.trim()) && customPrimaryColor.trim() !== preset.accent) {
+    return {
+      ...preset,
+      accent: customPrimaryColor.trim(),
     };
   }
 

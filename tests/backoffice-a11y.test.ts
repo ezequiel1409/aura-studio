@@ -232,6 +232,7 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
         heroMode: "featured_carousel" as const,
         themePalette: "lino",
         themePrimaryColor: "#926a3c",
+        themeFont: "cormorant",
       };
 
       const html = renderToString(React.createElement(SettingsClient, { initialSettings: mockSettings }));

@@ -41,6 +41,7 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
         heroSubtitle: "Diseño de autor en edición limitada",
         themePalette: "terracota",
         themePrimaryColor: "#b45309",
+        themeFont: "playfair",
       },
       deps
     );
@@ -58,6 +59,7 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
     expect(updated.heroSubtitle).toBe("Diseño de autor en edición limitada");
     expect(updated.themePalette).toBe("terracota");
     expect(updated.themePrimaryColor).toBe("#b45309");
+    expect(updated.themeFont).toBe("playfair");
 
     // Verificar que una llamada subsiguiente a getShowroomSettings retorna los nuevos datos
     const fetchedAgain = await getShowroomSettings(deps);
@@ -74,6 +76,7 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
     expect(fetchedAgain.heroSubtitle).toBe("Diseño de autor en edición limitada");
     expect(fetchedAgain.themePalette).toBe("terracota");
     expect(fetchedAgain.themePrimaryColor).toBe("#b45309");
+    expect(fetchedAgain.themeFont).toBe("playfair");
   });
 
   it("valida campos erróneos arrojando ValidationError", async () => {

@@ -75,6 +75,7 @@ export default async function CustomerAccountPage() {
       <StoreThemeStyles
         paletteId={settings.themePalette}
         primaryColor={settings.themePrimaryColor}
+        fontId={settings.themeFont}
       />
 
       {/* Cabecera */}

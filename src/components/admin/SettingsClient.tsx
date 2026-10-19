@@ -60,6 +60,9 @@ export function SettingsClient({
       THEME_PALETTES[initialSettings.themePalette || "lino"]?.accent ||
       "#926a3c"
   );
+  const [themeFont, setThemeFont] = useState<string>(
+    initialSettings.themeFont || "cormorant"
+  );
 
   // 3. Pie de Página (Contacto, Redes, Dirección y AFIP)
   const [whatsappNumber, setWhatsappNumber] = useState(initialSettings.whatsappNumber);
@@ -143,6 +146,7 @@ export function SettingsClient({
           heroBannerUrl: heroBannerUrl.trim(),
           themePalette,
           themePrimaryColor: themePrimaryColor.trim(),
+          themeFont,
         }),
       });
 
@@ -174,6 +178,7 @@ export function SettingsClient({
       (initialSettings.themePrimaryColor ||
         THEME_PALETTES[initialSettings.themePalette || "lino"]?.accent ||
         "#926a3c") ||
+    themeFont !== (initialSettings.themeFont || "cormorant") ||
     whatsappNumber !== initialSettings.whatsappNumber ||
     instagramHandle !== (initialSettings.instagramHandle || "") ||
     tiktokHandle !== (initialSettings.tiktokHandle || "") ||
@@ -184,7 +189,7 @@ export function SettingsClient({
   const handleDiscardChanges = () => {
     setShowroomName(initialSettings.showroomName);
     setStoreType(initialSettings.storeType || "Showroom");
-    setLogoUrl(initialSettings.logoUrl || "");
+    logoUrl !== (initialSettings.logoUrl || "") && setLogoUrl(initialSettings.logoUrl || "");
     setHeroMode(initialSettings.heroMode || "featured_carousel");
     setHeroTitle(initialSettings.heroTitle || "");
     setHeroSubtitle(initialSettings.heroSubtitle || "");
@@ -195,6 +200,7 @@ export function SettingsClient({
         THEME_PALETTES[initialSettings.themePalette || "lino"]?.accent ||
         "#926a3c"
     );
+    setThemeFont(initialSettings.themeFont || "cormorant");
     setWhatsappNumber(initialSettings.whatsappNumber);
     setInstagramHandle(initialSettings.instagramHandle || "");
     setTiktokHandle(initialSettings.tiktokHandle || "");
@@ -247,12 +253,14 @@ export function SettingsClient({
             heroBannerUrl={heroBannerUrl}
             themePalette={themePalette}
             themePrimaryColor={themePrimaryColor}
+            themeFont={themeFont}
             onHeroModeChange={setHeroMode}
             onHeroTitleChange={setHeroTitle}
             onHeroSubtitleChange={setHeroSubtitle}
             onHeroBannerUrlChange={setHeroBannerUrl}
             onSelectPreset={handleSelectPreset}
             onCustomColorChange={handleCustomColorChange}
+            onThemeFontChange={setThemeFont}
           />
         </div>
 

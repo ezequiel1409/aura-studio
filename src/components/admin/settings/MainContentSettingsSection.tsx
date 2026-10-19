@@ -1,8 +1,9 @@
 "use client";
 
-import { Image as ImageIcon, LayoutTemplate, Palette, Sparkles } from "lucide-react";
+import { Image as ImageIcon, LayoutTemplate, Palette, Sparkles, Type } from "lucide-react";
 import { HeroMode } from "../../../services/settings.service";
 import { THEME_PALETTES, hexToRgb, rgbToHex } from "../../../lib/theme/palettes";
+import { THEME_FONTS } from "../../../lib/theme/fonts";
 
 interface MainContentSettingsSectionProps {
   heroMode: HeroMode;
@@ -11,12 +12,14 @@ interface MainContentSettingsSectionProps {
   heroBannerUrl: string;
   themePalette: string;
   themePrimaryColor: string;
+  themeFont: string;
   onHeroModeChange: (mode: HeroMode) => void;
   onHeroTitleChange: (val: string) => void;
   onHeroSubtitleChange: (val: string) => void;
   onHeroBannerUrlChange: (val: string) => void;
   onSelectPreset: (paletteId: string) => void;
   onCustomColorChange: (hex: string) => void;
+  onThemeFontChange: (fontId: string) => void;
 }
 
 export function MainContentSettingsSection({
@@ -26,12 +29,14 @@ export function MainContentSettingsSection({
   heroBannerUrl,
   themePalette,
   themePrimaryColor,
+  themeFont,
   onHeroModeChange,
   onHeroTitleChange,
   onHeroSubtitleChange,
   onHeroBannerUrlChange,
   onSelectPreset,
   onCustomColorChange,
+  onThemeFontChange,
 }: MainContentSettingsSectionProps) {
   const currentRgb = hexToRgb(themePrimaryColor) || { r: 146, g: 106, b: 60 };
 
@@ -202,13 +207,13 @@ export function MainContentSettingsSection({
               Paleta de Colores de la Tienda
             </h2>
             <p className="text-[11px] text-zinc-400">
-              Personalizá la armonía visual del contenido principal eligiendo una paleta curada o
-              definiendo tu color de acento.
+              Personalizá la armonía visual de tu tienda eligiendo una paleta curada o
+              definiendo tu color de acento propio.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {Object.values(THEME_PALETTES).map((p) => {
             const isSelected = themePalette === p.id;
             return (
@@ -223,14 +228,21 @@ export function MainContentSettingsSection({
                     : "border-zinc-800 bg-zinc-950/60 hover:border-zinc-700"
                 }`}
               >
-                <div className="flex items-center gap-1.5 mb-2">
+                <div className="flex items-center gap-2 mb-2">
                   <span
                     className="w-4 h-4 rounded-full border border-black/20 shadow-2xs inline-block shrink-0"
                     style={{ backgroundColor: p.accent }}
+                    title={`Acento: ${p.accent}`}
                   />
                   <span
                     className="w-4 h-4 rounded-full border border-black/20 shadow-2xs inline-block shrink-0"
                     style={{ backgroundColor: p.bg }}
+                    title={`Fondo: ${p.bg}`}
+                  />
+                  <span
+                    className="w-4 h-4 rounded-full border border-black/20 shadow-2xs inline-block shrink-0"
+                    style={{ backgroundColor: p.border }}
+                    title={`Borde: ${p.border}`}
                   />
                 </div>
                 <p className="text-xs font-semibold text-zinc-100">{p.name}</p>
@@ -323,7 +335,7 @@ export function MainContentSettingsSection({
             <div className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60">
               <span className="text-[11px] text-zinc-400">Vista previa de acento:</span>
               <span
-                className="px-2.5 py-1 rounded-md text-xs font-bold shadow-xs transition-colors"
+                className="px-3 py-1.5 rounded-lg text-xs font-bold shadow-xs transition-colors"
                 style={{ backgroundColor: themePrimaryColor, color: previewTextColor }}
               >
                 Aura Studio
@@ -332,7 +344,65 @@ export function MainContentSettingsSection({
           </div>
         </div>
       </div>
+
+      {/* Bloque 3: Tipografía de la Marca (Estilo de Fuente y Títulos) */}
+      <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Type size={16} className="text-amber-400" aria-hidden="true" />
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+              Tipografía de la Marca (Estilo de Fuente)
+            </h2>
+            <p className="text-[11px] text-zinc-400">
+              Elegí la personalidad tipográfica para los títulos, nombres de prendas y encabezados de tu tienda.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Object.values(THEME_FONTS).map((f) => {
+            const isSelected = themeFont === f.id;
+            return (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => onThemeFontChange(f.id)}
+                className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  isSelected
+                    ? "border-amber-400 bg-amber-950/20 ring-1 ring-amber-400"
+                    : "border-zinc-800 bg-zinc-950/60 hover:border-zinc-700"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <p className="text-xs font-bold text-zinc-100">{f.name}</p>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400 border border-zinc-700">
+                      {f.category}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 leading-snug line-clamp-2">
+                    {f.description}
+                  </p>
+                </div>
+
+                {/* Muestra de Espécimen Tipográfico con la fuente real */}
+                <div className="mt-3 pt-3 border-t border-zinc-800/80 bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800/50">
+                  <p
+                    className="text-sm font-medium text-zinc-100 truncate"
+                    style={{ fontFamily: f.serifFont }}
+                  >
+                    {f.sampleHeading}
+                  </p>
+                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                    {f.sampleSubtitle}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
-
