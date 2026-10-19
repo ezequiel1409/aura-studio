@@ -6,7 +6,7 @@ import { CheckCircle2, ShoppingBag, X, ArrowRight } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 
 export function CartToast() {
-  const { toast, dismissToast } = useCartStore();
+  const { toast, isOpen, dismissToast } = useCartStore();
 
   useEffect(() => {
     if (!toast) return;
@@ -18,7 +18,7 @@ export function CartToast() {
     return () => clearTimeout(timer);
   }, [toast, dismissToast]);
 
-  if (!toast) return null;
+  if (!toast || isOpen) return null;
 
   return (
     <div
