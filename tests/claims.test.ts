@@ -2,7 +2,15 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createTestEnvironment } from "./setup-db";
 import { createProduct } from "../src/services/product.service";
 import { createOrder, getOrderByCode, getOrderById, listOrders, updateOrderStatus } from "../src/services/order.service";
-import { createOrderClaim, inspectOrderClaim, normalizeDni, normalizeEmail, normalizePhone } from "../src/services/claim.service";
+import {
+  createOrderClaim,
+  inspectOrderClaim,
+  isValidEmail,
+  isValidPhone,
+  normalizeDni,
+  normalizeEmail,
+  normalizePhone,
+} from "../src/services/claim.service";
 import { ValidationError } from "../src/domain/errors";
 
 describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424/2020)", () => {
@@ -13,7 +21,7 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
     await env.seed();
   });
 
-  describe("Funciones utilitarias de normalización", () => {
+  describe("Funciones utilitarias de normalización y validación", () => {
     it("normaliza DNI eliminando puntos y espacios", () => {
       expect(normalizeDni("40.123.456")).toBe("40123456");
       expect(normalizeDni(" 40 123 456 ")).toBe("40123456");
@@ -26,10 +34,17 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
     it("normaliza email convirtiendo a minúsculas y quitando espacios", () => {
       expect(normalizeEmail("  Comprador@Example.COM ")).toBe("comprador@example.com");
     });
+
+    it("valida formato de email y teléfono por separado", () => {
+      expect(isValidEmail("cliente@tienda.com")).toBe(true);
+      expect(isValidEmail("invalido-sin-arroba")).toBe(false);
+      expect(isValidPhone("11 4444-5555")).toBe(true);
+      expect(isValidPhone("123")).toBe(false);
+    });
   });
 
   describe("Creación de Solicitud de Arrepentimiento (createOrderClaim)", () => {
-    it("valida campos requeridos: número de pedido, DNI, contacto y condición de uso", async () => {
+    it("valida campos requeridos: número de pedido, DNI, email y teléfono por separado y condición de uso", async () => {
       // Falta orden
       await expect(
         createOrderClaim(
@@ -37,7 +52,8 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
             orderCode: 0,
             customerName: "Camila Díaz",
             customerDni: "40123456",
-            contactValue: "camila@example.com",
+            customerEmail: "camila@example.com",
+            customerPhone: "1144445555",
             conditionAccepted: true,
           },
           env.deps
@@ -51,26 +67,43 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
             orderCode: 1,
             customerName: "Camila Díaz",
             customerDni: "123",
-            contactValue: "camila@example.com",
+            customerEmail: "camila@example.com",
+            customerPhone: "1144445555",
             conditionAccepted: true,
           },
           env.deps
         )
       ).rejects.toThrow(ValidationError);
 
-      // Falta contacto
+      // Email inválido cuando se envían campos separados
       await expect(
         createOrderClaim(
           {
             orderCode: 1,
             customerName: "Camila Díaz",
             customerDni: "40123456",
-            contactValue: "",
+            customerEmail: "correo-invalido",
+            customerPhone: "1144445555",
             conditionAccepted: true,
           },
           env.deps
         )
-      ).rejects.toThrow(ValidationError);
+      ).rejects.toThrow("correo electrónico válido");
+
+      // Teléfono inválido cuando se envían campos separados
+      await expect(
+        createOrderClaim(
+          {
+            orderCode: 1,
+            customerName: "Camila Díaz",
+            customerDni: "40123456",
+            customerEmail: "camila@example.com",
+            customerPhone: "123",
+            conditionAccepted: true,
+          },
+          env.deps
+        )
+      ).rejects.toThrow("número de teléfono válido");
 
       // Condición de recirculación no aceptada (prenda con manchas o usada)
       await expect(
@@ -79,7 +112,8 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
             orderCode: 1,
             customerName: "Camila Díaz",
             customerDni: "40123456",
-            contactValue: "camila@example.com",
+            customerEmail: "camila@example.com",
+            customerPhone: "1144445555",
             conditionAccepted: false,
           },
           env.deps
@@ -94,7 +128,8 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
             orderCode: 99999,
             customerName: "Camila Díaz",
             customerDni: "40123456",
-            contactValue: "camila@example.com",
+            customerEmail: "camila@example.com",
+            customerPhone: "1144445555",
             conditionAccepted: true,
           },
           env.deps
@@ -132,14 +167,30 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
         env.deps
       );
 
-      // Contacto no coincide
+      // Email no coincide
       await expect(
         createOrderClaim(
           {
             orderCode: orderResult.order.code,
             customerName: "Desconocido",
             customerDni: "40123456",
-            contactValue: "intruso@hacker.com",
+            customerEmail: "intruso@hacker.com",
+            customerPhone: "1155558888",
+            conditionAccepted: true,
+          },
+          env.deps
+        )
+      ).rejects.toThrow("no coincide con los datos registrados");
+
+      // Teléfono no coincide
+      await expect(
+        createOrderClaim(
+          {
+            orderCode: orderResult.order.code,
+            customerName: "Desconocido",
+            customerDni: "40123456",
+            customerEmail: "valeria@example.com",
+            customerPhone: "1199990000",
             conditionAccepted: true,
           },
           env.deps

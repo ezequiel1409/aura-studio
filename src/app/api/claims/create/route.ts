@@ -11,7 +11,9 @@ export async function POST(req: NextRequest) {
       {
         orderCode: Number(body.orderCode),
         customerDni: String(body.customerDni || ""),
-        contactValue: String(body.contactValue || ""),
+        customerEmail: body.customerEmail !== undefined ? String(body.customerEmail) : undefined,
+        customerPhone: body.customerPhone !== undefined ? String(body.customerPhone) : undefined,
+        contactValue: body.contactValue ? String(body.contactValue) : undefined,
         customerName: body.customerName ? String(body.customerName) : undefined,
         reason: body.reason ? String(body.reason) : undefined,
         type: body.type === "EXCHANGE" ? "EXCHANGE" : "REVOCATION",

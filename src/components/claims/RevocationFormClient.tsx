@@ -25,10 +25,18 @@ export function RevocationFormClient({
 }: RevocationFormClientProps) {
   const [orderCode, setOrderCode] = useState("");
   const [customerDni, setCustomerDni] = useState("");
-  const [contactValue, setContactValue] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [reason, setReason] = useState("");
   const [conditionAccepted, setConditionAccepted] = useState(false);
+
+  const [fieldErrors, setFieldErrors] = useState<{
+    orderCode?: string;
+    customerDni?: string;
+    customerEmail?: string;
+    customerPhone?: string;
+  }>({});
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -36,23 +44,78 @@ export function RevocationFormClient({
 
   const cleanPhone = whatsappNumber ? whatsappNumber.replace(/[^0-9]/g, "") : null;
 
+  const validateEmail = (value: string): string | undefined => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return "Ingresá el email utilizado en la compra.";
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      return "Ingresá un correo electrónico válido (ej: ejemplo@correo.com).";
+    }
+    return undefined;
+  };
+
+  const validatePhone = (value: string): string | undefined => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return "Ingresá el teléfono utilizado en la compra.";
+    }
+    const digits = trimmed.replace(/[^0-9]/g, "");
+    if (digits.length < 6 || digits.length > 16) {
+      return "Ingresá un número de teléfono válido (mínimo 6 dígitos).";
+    }
+    return undefined;
+  };
+
+  const validateDni = (value: string): string | undefined => {
+    const digits = value.replace(/[^0-9]/g, "");
+    if (!digits || digits.length < 6) {
+      return "Ingresá un número de DNI válido (mínimo 6 dígitos).";
+    }
+    return undefined;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
     const cleanOrderNum = parseInt(orderCode.replace(/[^0-9]/g, ""), 10);
+    const nextErrors: {
+      orderCode?: string;
+      customerDni?: string;
+      customerEmail?: string;
+      customerPhone?: string;
+    } = {};
+
     if (!cleanOrderNum || cleanOrderNum <= 0) {
-      setErrorMessage("Por favor ingresá un número de pedido válido (ej: #004 o 4).");
-      return;
+      nextErrors.orderCode = "Ingresá un número de pedido válido (ej: #004 o 4).";
     }
 
-    if (!customerDni.trim() || customerDni.replace(/[^0-9]/g, "").length < 6) {
-      setErrorMessage("Por favor ingresá un número de DNI válido.");
-      return;
+    const dniError = validateDni(customerDni);
+    if (dniError) {
+      nextErrors.customerDni = dniError;
     }
 
-    if (!contactValue.trim()) {
-      setErrorMessage("Por favor ingresá el email o teléfono con el que realizaste la compra.");
+    const emailError = validateEmail(customerEmail);
+    if (emailError) {
+      nextErrors.customerEmail = emailError;
+    }
+
+    const phoneError = validatePhone(customerPhone);
+    if (phoneError) {
+      nextErrors.customerPhone = phoneError;
+    }
+
+    setFieldErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrorMessage(
+        nextErrors.orderCode ||
+          nextErrors.customerDni ||
+          nextErrors.customerEmail ||
+          nextErrors.customerPhone ||
+          "Por favor revisá los datos ingresados."
+      );
       return;
     }
 
@@ -72,7 +135,8 @@ export function RevocationFormClient({
         body: JSON.stringify({
           orderCode: cleanOrderNum,
           customerDni: customerDni.trim(),
-          contactValue: contactValue.trim(),
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone.trim(),
           customerName: customerName.trim() || undefined,
           reason: reason.trim() || undefined,
           conditionAccepted: true,
@@ -206,7 +270,7 @@ export function RevocationFormClient({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 text-xs">
         {/* Número de Pedido */}
         <div className="space-y-1">
           <label htmlFor="order-code" className="font-semibold text-stone-800 block">
@@ -220,15 +284,29 @@ export function RevocationFormClient({
               id="order-code"
               type="text"
               required
+              aria-invalid={Boolean(fieldErrors.orderCode)}
               value={orderCode}
-              onChange={(e) => setOrderCode(e.target.value)}
+              onChange={(e) => {
+                setOrderCode(e.target.value);
+                if (fieldErrors.orderCode) {
+                  setFieldErrors((prev) => ({ ...prev, orderCode: undefined }));
+                }
+              }}
               placeholder="004"
-              className="w-full rounded-xl border border-[#e7e2da] bg-[#faf8f5] pl-8 pr-3.5 py-2.5 text-sm font-mono text-stone-900 placeholder:text-stone-400 focus:bg-white focus:border-stone-800 focus:outline-none transition-colors"
+              className={`w-full rounded-xl border bg-[#faf8f5] pl-8 pr-3.5 py-2.5 text-sm font-mono text-stone-900 placeholder:text-stone-400 focus:bg-white focus:outline-none transition-colors ${
+                fieldErrors.orderCode
+                  ? "border-rose-400 focus:border-rose-600"
+                  : "border-[#e7e2da] focus:border-stone-800"
+              }`}
             />
           </div>
-          <span className="text-[11px] text-stone-400">
-            Podés encontrarlo en el mensaje de confirmación de tu pedido (ej. #004).
-          </span>
+          {fieldErrors.orderCode ? (
+            <p className="text-[11px] font-medium text-rose-600">{fieldErrors.orderCode}</p>
+          ) : (
+            <span className="text-[11px] text-stone-400">
+              Podés encontrarlo en el mensaje de confirmación de tu pedido (ej. #004).
+            </span>
+          )}
         </div>
 
         {/* DNI del Titular */}
@@ -239,31 +317,116 @@ export function RevocationFormClient({
           <input
             id="customer-dni"
             type="text"
+            inputMode="numeric"
             required
+            aria-invalid={Boolean(fieldErrors.customerDni)}
             value={customerDni}
-            onChange={(e) => setCustomerDni(e.target.value)}
+            onChange={(e) => {
+              setCustomerDni(e.target.value);
+              if (fieldErrors.customerDni) {
+                setFieldErrors((prev) => ({ ...prev, customerDni: undefined }));
+              }
+            }}
+            onBlur={() => {
+              if (customerDni.trim()) {
+                setFieldErrors((prev) => ({ ...prev, customerDni: validateDni(customerDni) }));
+              }
+            }}
             placeholder="Ej: 38491203"
-            className="w-full rounded-xl border border-[#e7e2da] bg-[#faf8f5] px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:bg-white focus:border-stone-800 focus:outline-none transition-colors"
+            className={`w-full rounded-xl border bg-[#faf8f5] px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:bg-white focus:outline-none transition-colors ${
+              fieldErrors.customerDni
+                ? "border-rose-400 focus:border-rose-600"
+                : "border-[#e7e2da] focus:border-stone-800"
+            }`}
           />
+          {fieldErrors.customerDni && (
+            <p className="text-[11px] font-medium text-rose-600">{fieldErrors.customerDni}</p>
+          )}
         </div>
 
-        {/* Email o Teléfono registrado */}
-        <div className="space-y-1">
-          <label htmlFor="contact-val" className="font-semibold text-stone-800 block">
-            Email o Teléfono utilizado en la compra *
-          </label>
-          <input
-            id="contact-val"
-            type="text"
-            required
-            value={contactValue}
-            onChange={(e) => setContactValue(e.target.value)}
-            placeholder="ejemplo@email.com o +54 9 11..."
-            className="w-full rounded-xl border border-[#e7e2da] bg-[#faf8f5] px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:bg-white focus:border-stone-800 focus:outline-none transition-colors"
-          />
-          <span className="text-[11px] text-stone-400">
-            Debe coincidir con los datos cargados al momento de realizar la compra.
-          </span>
+        {/* Email y Teléfono utilizados en la compra (por separado con validación) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label htmlFor="customer-email" className="font-semibold text-stone-800 block">
+              Email utilizado en la compra *
+            </label>
+            <input
+              id="customer-email"
+              type="email"
+              inputMode="email"
+              required
+              aria-invalid={Boolean(fieldErrors.customerEmail)}
+              value={customerEmail}
+              onChange={(e) => {
+                setCustomerEmail(e.target.value);
+                if (fieldErrors.customerEmail) {
+                  setFieldErrors((prev) => ({ ...prev, customerEmail: undefined }));
+                }
+              }}
+              onBlur={() => {
+                if (customerEmail.trim()) {
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    customerEmail: validateEmail(customerEmail),
+                  }));
+                }
+              }}
+              placeholder="ejemplo@email.com"
+              className={`w-full rounded-xl border bg-[#faf8f5] px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:bg-white focus:outline-none transition-colors ${
+                fieldErrors.customerEmail
+                  ? "border-rose-400 focus:border-rose-600"
+                  : "border-[#e7e2da] focus:border-stone-800"
+              }`}
+            />
+            {fieldErrors.customerEmail ? (
+              <p className="text-[11px] font-medium text-rose-600">{fieldErrors.customerEmail}</p>
+            ) : (
+              <span className="text-[11px] text-stone-400 block">
+                Correo registrado en el pedido.
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="customer-phone" className="font-semibold text-stone-800 block">
+              Teléfono utilizado en la compra *
+            </label>
+            <input
+              id="customer-phone"
+              type="tel"
+              inputMode="tel"
+              required
+              aria-invalid={Boolean(fieldErrors.customerPhone)}
+              value={customerPhone}
+              onChange={(e) => {
+                setCustomerPhone(e.target.value);
+                if (fieldErrors.customerPhone) {
+                  setFieldErrors((prev) => ({ ...prev, customerPhone: undefined }));
+                }
+              }}
+              onBlur={() => {
+                if (customerPhone.trim()) {
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    customerPhone: validatePhone(customerPhone),
+                  }));
+                }
+              }}
+              placeholder="Ej: 11 4444-5555"
+              className={`w-full rounded-xl border bg-[#faf8f5] px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 focus:bg-white focus:outline-none transition-colors ${
+                fieldErrors.customerPhone
+                  ? "border-rose-400 focus:border-rose-600"
+                  : "border-[#e7e2da] focus:border-stone-800"
+              }`}
+            />
+            {fieldErrors.customerPhone ? (
+              <p className="text-[11px] font-medium text-rose-600">{fieldErrors.customerPhone}</p>
+            ) : (
+              <span className="text-[11px] text-stone-400 block">
+                WhatsApp o celular del pedido (mín. 6 dígitos).
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Nombre completo */}

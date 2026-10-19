@@ -26,6 +26,21 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
+ * Valida formato de correo electrónico
+ */
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+/**
+ * Valida longitud mínima y máxima de teléfono numérico
+ */
+export function isValidPhone(phone: string): boolean {
+  const digits = normalizePhone(phone);
+  return digits.length >= 6 && digits.length <= 16;
+}
+
+/**
  * Caso de uso: Crear Solicitud de Arrepentimiento o Cambio (Res. 424/2020)
  */
 export async function createOrderClaim(
@@ -42,9 +57,28 @@ export async function createOrderClaim(
     throw new ValidationError("Ingresá un número de DNI válido (mínimo 6 dígitos).");
   }
 
+  const hasSeparateFields =
+    input.customerEmail !== undefined || input.customerPhone !== undefined;
+
+  const rawEmail = input.customerEmail ? input.customerEmail.trim() : "";
+  const rawPhone = input.customerPhone ? input.customerPhone.trim() : "";
   const cleanContact = input.contactValue ? input.contactValue.trim() : "";
-  if (!cleanContact) {
-    throw new ValidationError("Debes ingresar el Email o Teléfono con el que realizaste la compra.");
+
+  if (hasSeparateFields) {
+    if (!rawEmail || !isValidEmail(rawEmail)) {
+      throw new ValidationError(
+        "Ingresá un correo electrónico válido utilizado en la compra."
+      );
+    }
+    if (!rawPhone || !isValidPhone(rawPhone)) {
+      throw new ValidationError(
+        "Ingresá un número de teléfono válido (mínimo 6 dígitos) utilizado en la compra."
+      );
+    }
+  } else if (!cleanContact) {
+    throw new ValidationError(
+      "Debes ingresar el Email y Teléfono con los que realizaste la compra."
+    );
   }
 
   if (!input.conditionAccepted) {
@@ -62,23 +96,40 @@ export async function createOrderClaim(
   }
 
   // 3. Validar coincidencia de identidad (anti-trolls)
-  const contactAsEmail = normalizeEmail(cleanContact);
-  const contactAsPhone = normalizePhone(cleanContact);
-
   const orderEmail = order.customerEmail ? normalizeEmail(order.customerEmail) : "";
   const orderPhone = order.customerPhone ? normalizePhone(order.customerPhone) : "";
 
-  const matchesEmail = Boolean(orderEmail && contactAsEmail && orderEmail === contactAsEmail);
-  const matchesPhone = Boolean(
-    orderPhone &&
-      contactAsPhone &&
-      (orderPhone.includes(contactAsPhone) || contactAsPhone.includes(orderPhone))
-  );
+  if (hasSeparateFields) {
+    const cleanEmail = normalizeEmail(rawEmail);
+    const cleanPhone = normalizePhone(rawPhone);
 
-  if (!matchesEmail && !matchesPhone) {
-    throw new ValidationError(
-      "El email o teléfono ingresado no coincide con los datos registrados en este pedido."
+    const matchesEmail = !orderEmail || orderEmail === cleanEmail;
+    const matchesPhone =
+      !orderPhone ||
+      orderPhone.includes(cleanPhone) ||
+      cleanPhone.includes(orderPhone);
+
+    if (!matchesEmail || !matchesPhone) {
+      throw new ValidationError(
+        "El email o teléfono ingresado no coincide con los datos registrados en este pedido."
+      );
+    }
+  } else {
+    const contactAsEmail = normalizeEmail(cleanContact);
+    const contactAsPhone = normalizePhone(cleanContact);
+
+    const matchesEmail = Boolean(orderEmail && contactAsEmail && orderEmail === contactAsEmail);
+    const matchesPhone = Boolean(
+      orderPhone &&
+        contactAsPhone &&
+        (orderPhone.includes(contactAsPhone) || contactAsPhone.includes(orderPhone))
     );
+
+    if (!matchesEmail && !matchesPhone) {
+      throw new ValidationError(
+        "El email o teléfono ingresado no coincide con los datos registrados en este pedido."
+      );
+    }
   }
 
   // 4. Validar estado de la orden
@@ -134,8 +185,8 @@ export async function createOrderClaim(
     claimCode,
     customerName: input.customerName || order.customerName,
     customerDni: cleanDni,
-    customerEmail: order.customerEmail || cleanContact,
-    customerPhone: order.customerPhone || cleanContact,
+    customerEmail: rawEmail ? normalizeEmail(rawEmail) : order.customerEmail || cleanContact,
+    customerPhone: rawPhone || order.customerPhone || cleanContact,
     reason: input.reason?.trim() || null,
     conditionAccepted: true,
     status: "PENDING",

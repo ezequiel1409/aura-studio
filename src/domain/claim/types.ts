@@ -23,7 +23,9 @@ export interface OrderClaim {
 export interface CreateOrderClaimInput {
   orderCode: number;
   customerDni: string;
-  contactValue: string; // email o teléfono para verificar pertenencia
+  customerEmail?: string;
+  customerPhone?: string;
+  contactValue?: string; // compatibilidad hacia atrás
   customerName?: string;
   type?: ClaimType;
   reason?: string;
