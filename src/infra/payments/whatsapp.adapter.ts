@@ -119,25 +119,46 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
       discountPart = `\nDescuento${couponTag}: -$${(order.discountCents / 100).toLocaleString("es-AR")}`;
     }
 
+    const orderAny = order as { paymentMethod?: string; paymentDiscountCents?: number };
+    let paymentDiscountPart = "";
+    if (orderAny.paymentDiscountCents && orderAny.paymentDiscountCents > 0) {
+      paymentDiscountPart = `\nDescuento transferencia: -$${(orderAny.paymentDiscountCents / 100).toLocaleString("es-AR")}`;
+    }
+
+    const paymentMethodLabel =
+      orderAny.paymentMethod === "TRANSFER"
+        ? "Transferencia bancaria"
+        : orderAny.paymentMethod === "MERCADOPAGO"
+        ? "Mercado Pago"
+        : orderAny.paymentMethod === "CASH"
+        ? "Efectivo"
+        : "A coordinar";
+
     let notesPart = "";
     if (order.deliveryNotes) {
       notesPart = `\nNotas: ${order.deliveryNotes}`;
     }
+
+    const closingLine =
+      orderAny.paymentMethod === "TRANSFER"
+        ? "Ya tengo los datos de transferencia, ¿me confirmás la recepción del comprobante? ¡Muchas gracias!"
+        : "¿Me indicás los pasos a seguir para completar la compra? ¡Muchas gracias!";
 
     const message = `¡Hola! Quiero confirmar mi pedido ${formattedCode} en ${brand}:
 
 🛍️ Productos:
 ${itemsLines || "• Detalle de prendas"}
 
-Subtotal: ${subtotalStr}${discountPart}
+Subtotal: ${subtotalStr}${discountPart}${paymentDiscountPart}
 Logística: ${deliveryDesc} (${shippingStr})
+Método de pago: ${paymentMethodLabel}
 Total a abonar: ${totalStr}
 
 👤 Comprador:
 Nombre: ${order.customerName}
 Teléfono: ${order.customerPhone}${notesPart}
 
-¿Me indicás los datos para realizar el pago? ¡Muchas gracias!`;
+${closingLine}`;
 
     const encoded = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${number}?text=${encoded}`;
