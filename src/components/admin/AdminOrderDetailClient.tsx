@@ -5,6 +5,10 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Bike,
+  Building2,
+  CreditCard,
+  Banknote,
+  Check,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -21,6 +25,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../domain/order/types";
+import { PaymentMethod, PaymentStatus } from "../../domain/payment/types";
 import { formatOrderCode } from "../../domain/order/rules";
 import { formatPriceARS } from "../../lib/format/currency";
 
@@ -30,6 +35,53 @@ interface AdminOrderDetailClientProps {
   whatsappNumber?: string | null;
   showroomAddress?: string | null;
 }
+
+const PAYMENT_METHOD_CONFIG: Record<
+  PaymentMethod,
+  { label: string; icon: typeof Building2; color: string }
+> = {
+  TRANSFER: { label: "Transferencia Bancaria", icon: Building2, color: "text-[#d4af37]" },
+  MERCADOPAGO: { label: "Mercado Pago", icon: CreditCard, color: "text-sky-400" },
+  CASH: { label: "Efectivo", icon: Banknote, color: "text-emerald-400" },
+  WHATSAPP: { label: "WhatsApp Directo", icon: MessageCircle, color: "text-[#25D366]" },
+  STRIPE: { label: "Stripe", icon: CreditCard, color: "text-indigo-400" },
+};
+
+const PAYMENT_STATUS_CONFIG: Record<
+  PaymentStatus,
+  { label: string; bg: string; text: string; border: string }
+> = {
+  PENDING: {
+    label: "Cobro Pendiente",
+    bg: "bg-amber-950/60",
+    text: "text-amber-300",
+    border: "border-amber-800/80",
+  },
+  AUTHORIZED: {
+    label: "En Procesamiento",
+    bg: "bg-sky-950/60",
+    text: "text-sky-300",
+    border: "border-sky-800/80",
+  },
+  PAID: {
+    label: "Cobro Acreditado",
+    bg: "bg-emerald-950/60",
+    text: "text-emerald-300",
+    border: "border-emerald-800/80",
+  },
+  REJECTED: {
+    label: "Cobro Rechazado",
+    bg: "bg-rose-950/60",
+    text: "text-rose-300",
+    border: "border-rose-800/80",
+  },
+  REFUNDED: {
+    label: "Reembolsado",
+    bg: "bg-zinc-900",
+    text: "text-zinc-400",
+    border: "border-zinc-700",
+  },
+};
 
 const STATUS_CONFIG: Record<
   OrderStatus,
@@ -117,6 +169,40 @@ export function AdminOrderDetailClient({
       setErrorMessage(err instanceof Error ? err.message : "Error al actualizar el estado");
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+
+  const handlePaymentStatusChange = async (newPaymentStatus: PaymentStatus) => {
+    const prev = order;
+    setIsUpdatingPayment(true);
+    setErrorMessage(null);
+    setOrder({
+      ...order,
+      paymentStatus: newPaymentStatus,
+      status: newPaymentStatus === "PAID" ? "PAID" : order.status,
+    });
+
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentStatus: newPaymentStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "No se pudo actualizar el estado de cobro");
+      }
+      setToastMessage(
+        `Cobro actualizado a "${PAYMENT_STATUS_CONFIG[newPaymentStatus]?.label || newPaymentStatus}" exitosamente`
+      );
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err: unknown) {
+      setOrder(prev);
+      setErrorMessage(err instanceof Error ? err.message : "Error al actualizar el cobro");
+    } finally {
+      setIsUpdatingPayment(false);
     }
   };
 
@@ -292,6 +378,13 @@ export function AdminOrderDetailClient({
                 </div>
               )}
 
+              {order.paymentDiscountCents && order.paymentDiscountCents > 0 ? (
+                <div className="flex items-center justify-between text-emerald-400 font-mono">
+                  <span>Bonificación Transferencia</span>
+                  <span>-{formatPriceARS(order.paymentDiscountCents, order.currency)}</span>
+                </div>
+              ) : null}
+
               <div className="flex items-center justify-between text-zinc-400 font-mono">
                 <span>Costo de envío / logística</span>
                 <span>
@@ -325,6 +418,92 @@ export function AdminOrderDetailClient({
 
         {/* Columna Derecha (1/3): Datos del Comprador, Logística y Estado */}
         <div className="space-y-6">
+          {/* Card: Cobro y Pago (BR-47, BR-48) */}
+          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 space-y-3.5 text-xs">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                Método y Cobro
+              </h2>
+              {order.paymentStatus && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                    (PAYMENT_STATUS_CONFIG[order.paymentStatus] || PAYMENT_STATUS_CONFIG.PENDING).bg
+                  } ${
+                    (PAYMENT_STATUS_CONFIG[order.paymentStatus] || PAYMENT_STATUS_CONFIG.PENDING).text
+                  } ${
+                    (PAYMENT_STATUS_CONFIG[order.paymentStatus] || PAYMENT_STATUS_CONFIG.PENDING).border
+                  }`}
+                >
+                  {(PAYMENT_STATUS_CONFIG[order.paymentStatus] || PAYMENT_STATUS_CONFIG.PENDING).label}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-2 pt-0.5">
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                {(() => {
+                  const methodCfg =
+                    order.paymentMethod && PAYMENT_METHOD_CONFIG[order.paymentMethod]
+                      ? PAYMENT_METHOD_CONFIG[order.paymentMethod]
+                      : PAYMENT_METHOD_CONFIG.WHATSAPP;
+                  const Icon = methodCfg.icon;
+                  return (
+                    <>
+                      <Icon className={`h-4 w-4 ${methodCfg.color} shrink-0`} />
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold text-zinc-200 block truncate">
+                          {methodCfg.label}
+                        </span>
+                        {order.paymentExternalId && (
+                          <span className="text-[10px] font-mono text-zinc-500 block truncate">
+                            Ref: {order.paymentExternalId}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Botón de Confirmación Rápida de Cobro */}
+              {order.paymentStatus !== "PAID" ? (
+                <button
+                  type="button"
+                  disabled={isUpdatingPayment}
+                  onClick={() => handlePaymentStatusChange("PAID")}
+                  className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isUpdatingPayment ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Registrando cobro...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Confirmar Cobro / Marcar Pagado</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="flex items-center justify-between text-[11px] text-zinc-400 p-2 rounded-xl bg-emerald-950/30 border border-emerald-800/40">
+                  <span className="text-emerald-300 font-medium flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                    Cobro registrado con éxito
+                  </span>
+                  <button
+                    type="button"
+                    disabled={isUpdatingPayment}
+                    onClick={() => handlePaymentStatusChange("PENDING")}
+                    className="text-[10px] text-zinc-400 hover:text-zinc-200 underline cursor-pointer"
+                  >
+                    Revertir
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* Card: Selector de Estado */}
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 space-y-3">
             <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CreditCard,
   LayoutTemplate,
   MapPin,
   PanelTop,
@@ -8,7 +9,7 @@ import {
   LucideIcon,
 } from "lucide-react";
 
-export type SettingsTabId = "top" | "main" | "footer" | "general";
+export type SettingsTabId = "top" | "main" | "footer" | "payments" | "general";
 
 export interface SettingsTabItem {
   id: SettingsTabId;
@@ -41,10 +42,17 @@ export const SETTINGS_TABS: SettingsTabItem[] = [
     icon: MapPin,
   },
   {
+    id: "payments",
+    label: "Métodos de Pago",
+    shortLabel: "Pagos",
+    description: "Transferencia, Mercado Pago y efectivo",
+    icon: CreditCard,
+  },
+  {
     id: "general",
     label: "Ventas y Políticas",
     shortLabel: "Ventas",
-    description: "Tiempos de reserva, envíos y legales",
+    description: "Tiempos de reserva y configuración",
     icon: Settings2,
   },
 ];
@@ -62,7 +70,7 @@ export function SettingsSectionTabs({
     <div
       role="tablist"
       aria-label="Secciones de configuración de la tienda"
-      className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1.5 rounded-2xl bg-zinc-900/90 border border-zinc-800"
+      className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 p-1.5 rounded-2xl bg-zinc-900/90 border border-zinc-800"
     >
       {SETTINGS_TABS.map((tab) => {
         const Icon = tab.icon;

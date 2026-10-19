@@ -50,6 +50,17 @@ export async function POST(req: NextRequest) {
         themePalette: body.themePalette,
         themePrimaryColor: body.themePrimaryColor,
         themeFont: body.themeFont,
+        mercadopagoEnabled: body.mercadopagoEnabled !== undefined ? Boolean(body.mercadopagoEnabled) : undefined,
+        transferEnabled: body.transferEnabled !== undefined ? Boolean(body.transferEnabled) : undefined,
+        transferBankName: body.transferBankName,
+        transferAccountHolder: body.transferAccountHolder,
+        transferCbu: body.transferCbu,
+        transferAlias: body.transferAlias,
+        transferCuit: body.transferCuit,
+        transferDiscountPercent: body.transferDiscountPercent !== undefined ? Number(body.transferDiscountPercent) : undefined,
+        cashEnabled: body.cashEnabled !== undefined ? Boolean(body.cashEnabled) : undefined,
+        cashNotes: body.cashNotes,
+        whatsappPaymentEnabled: body.whatsappPaymentEnabled !== undefined ? Boolean(body.whatsappPaymentEnabled) : undefined,
       },
       deps
     );

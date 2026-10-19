@@ -13,13 +13,14 @@ import { TopHeaderSettingsSection } from "./settings/TopHeaderSettingsSection";
 import { MainContentSettingsSection } from "./settings/MainContentSettingsSection";
 import { FooterSettingsSection } from "./settings/FooterSettingsSection";
 import { GeneralSystemSettingsSection } from "./settings/GeneralSystemSettingsSection";
+import { PaymentsSettingsSection } from "./settings/PaymentsSettingsSection";
 
 interface SettingsClientProps {
   initialSettings: ShowroomSettings;
   initialTab?: SettingsTabId;
 }
 
-const VALID_TABS: SettingsTabId[] = ["top", "main", "footer", "general"];
+const VALID_TABS: SettingsTabId[] = ["top", "main", "footer", "payments", "general"];
 
 export function SettingsClient({
   initialSettings,
@@ -76,6 +77,41 @@ export function SettingsClient({
   // 4. Configuraciones Generales
   const [reservationHours, setReservationHours] = useState<number>(
     initialSettings.reservationHours || 48
+  );
+
+  // 5. Métodos de Pago (BR-47)
+  const [mercadopagoEnabled, setMercadopagoEnabled] = useState<boolean>(
+    initialSettings.mercadopagoEnabled ?? false
+  );
+  const [transferEnabled, setTransferEnabled] = useState<boolean>(
+    initialSettings.transferEnabled ?? true
+  );
+  const [transferBankName, setTransferBankName] = useState<string>(
+    initialSettings.transferBankName || ""
+  );
+  const [transferAccountHolder, setTransferAccountHolder] = useState<string>(
+    initialSettings.transferAccountHolder || ""
+  );
+  const [transferCbu, setTransferCbu] = useState<string>(
+    initialSettings.transferCbu || ""
+  );
+  const [transferAlias, setTransferAlias] = useState<string>(
+    initialSettings.transferAlias || ""
+  );
+  const [transferCuit, setTransferCuit] = useState<string>(
+    initialSettings.transferCuit || ""
+  );
+  const [transferDiscountPercent, setTransferDiscountPercent] = useState<number>(
+    initialSettings.transferDiscountPercent ?? 10
+  );
+  const [cashEnabled, setCashEnabled] = useState<boolean>(
+    initialSettings.cashEnabled ?? true
+  );
+  const [cashNotes, setCashNotes] = useState<string>(
+    initialSettings.cashNotes || ""
+  );
+  const [whatsappPaymentEnabled, setWhatsappPaymentEnabled] = useState<boolean>(
+    initialSettings.whatsappPaymentEnabled ?? true
   );
 
   const [saving, setSaving] = useState(false);
@@ -147,6 +183,17 @@ export function SettingsClient({
           themePalette,
           themePrimaryColor: themePrimaryColor.trim(),
           themeFont,
+          mercadopagoEnabled,
+          transferEnabled,
+          transferBankName: transferBankName.trim(),
+          transferAccountHolder: transferAccountHolder.trim(),
+          transferCbu: transferCbu.trim(),
+          transferAlias: transferAlias.trim(),
+          transferCuit: transferCuit.trim(),
+          transferDiscountPercent,
+          cashEnabled,
+          cashNotes: cashNotes.trim(),
+          whatsappPaymentEnabled,
         }),
       });
 
@@ -184,7 +231,18 @@ export function SettingsClient({
     tiktokHandle !== (initialSettings.tiktokHandle || "") ||
     address !== (initialSettings.address || "") ||
     dataFiscalUrl !== (initialSettings.dataFiscalUrl || "") ||
-    reservationHours !== (initialSettings.reservationHours || 48);
+    reservationHours !== (initialSettings.reservationHours || 48) ||
+    mercadopagoEnabled !== (initialSettings.mercadopagoEnabled ?? false) ||
+    transferEnabled !== (initialSettings.transferEnabled ?? true) ||
+    transferBankName !== (initialSettings.transferBankName || "") ||
+    transferAccountHolder !== (initialSettings.transferAccountHolder || "") ||
+    transferCbu !== (initialSettings.transferCbu || "") ||
+    transferAlias !== (initialSettings.transferAlias || "") ||
+    transferCuit !== (initialSettings.transferCuit || "") ||
+    transferDiscountPercent !== (initialSettings.transferDiscountPercent ?? 10) ||
+    cashEnabled !== (initialSettings.cashEnabled ?? true) ||
+    cashNotes !== (initialSettings.cashNotes || "") ||
+    whatsappPaymentEnabled !== (initialSettings.whatsappPaymentEnabled ?? true);
 
   const handleDiscardChanges = () => {
     setShowroomName(initialSettings.showroomName);
@@ -207,6 +265,17 @@ export function SettingsClient({
     setAddress(initialSettings.address || "");
     setDataFiscalUrl(initialSettings.dataFiscalUrl || "");
     setReservationHours(initialSettings.reservationHours || 48);
+    setMercadopagoEnabled(initialSettings.mercadopagoEnabled ?? false);
+    setTransferEnabled(initialSettings.transferEnabled ?? true);
+    setTransferBankName(initialSettings.transferBankName || "");
+    setTransferAccountHolder(initialSettings.transferAccountHolder || "");
+    setTransferCbu(initialSettings.transferCbu || "");
+    setTransferAlias(initialSettings.transferAlias || "");
+    setTransferCuit(initialSettings.transferCuit || "");
+    setTransferDiscountPercent(initialSettings.transferDiscountPercent ?? 10);
+    setCashEnabled(initialSettings.cashEnabled ?? true);
+    setCashNotes(initialSettings.cashNotes || "");
+    setWhatsappPaymentEnabled(initialSettings.whatsappPaymentEnabled ?? true);
     setErrorMessage(null);
   };
 
@@ -221,15 +290,15 @@ export function SettingsClient({
           Configuración de la Tienda
         </h1>
         <p className="text-xs text-zinc-400 mt-1">
-          Seleccioná la sección de la tienda que querés editar: Parte Superior, Contenido
-          Principal, Pie de Página o Configuraciones Generales.
+          Seleccioná la sección de la tienda que querés editar: Identidad, Portada, Contacto,
+          Métodos de Pago o Políticas Generales.
         </p>
       </div>
 
       {/* Pestañas de Secciones */}
       <SettingsSectionTabs activeTab={activeTab} onSelectTab={setActiveTab} />
 
-      {/* Formulario Modular (4 secciones pre-montadas para cambio de pestaña instantáneo en 0ms) */}
+      {/* Formulario Modular (5 secciones pre-montadas para cambio de pestaña instantáneo en 0ms) */}
       <form onSubmit={handleSave} className="space-y-5">
         <div hidden={activeTab !== "top"}>
           <TopHeaderSettingsSection
@@ -276,6 +345,33 @@ export function SettingsClient({
             onTiktokHandleChange={setTiktokHandle}
             onAddressChange={setAddress}
             onDataFiscalUrlChange={setDataFiscalUrl}
+          />
+        </div>
+
+        <div hidden={activeTab !== "payments"}>
+          <PaymentsSettingsSection
+            mercadopagoEnabled={mercadopagoEnabled}
+            onMercadopagoEnabledChange={setMercadopagoEnabled}
+            transferEnabled={transferEnabled}
+            onTransferEnabledChange={setTransferEnabled}
+            transferBankName={transferBankName}
+            onTransferBankNameChange={setTransferBankName}
+            transferAccountHolder={transferAccountHolder}
+            onTransferAccountHolderChange={setTransferAccountHolder}
+            transferCbu={transferCbu}
+            onTransferCbuChange={setTransferCbu}
+            transferAlias={transferAlias}
+            onTransferAliasChange={setTransferAlias}
+            transferCuit={transferCuit}
+            onTransferCuitChange={setTransferCuit}
+            transferDiscountPercent={transferDiscountPercent}
+            onTransferDiscountPercentChange={setTransferDiscountPercent}
+            cashEnabled={cashEnabled}
+            onCashEnabledChange={setCashEnabled}
+            cashNotes={cashNotes}
+            onCashNotesChange={setCashNotes}
+            whatsappPaymentEnabled={whatsappPaymentEnabled}
+            onWhatsappPaymentEnabledChange={setWhatsappPaymentEnabled}
           />
         </div>
 

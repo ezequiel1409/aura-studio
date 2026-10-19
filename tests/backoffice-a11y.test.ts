@@ -233,6 +233,11 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
         themePalette: "lino",
         themePrimaryColor: "#926a3c",
         themeFont: "cormorant",
+        mercadopagoEnabled: false,
+        transferEnabled: true,
+        transferDiscountPercent: 10,
+        cashEnabled: true,
+        whatsappPaymentEnabled: true,
       };
 
       const html = renderToString(React.createElement(SettingsClient, { initialSettings: mockSettings }));

@@ -608,6 +608,28 @@ export function OrdersManagerClient({
                         <span>{config.label}</span>
                       </span>
 
+                      {order.paymentMethod && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
+                          {order.paymentMethod === "TRANSFER"
+                            ? "Transferencia"
+                            : order.paymentMethod === "MERCADOPAGO"
+                            ? "Mercado Pago"
+                            : order.paymentMethod === "CASH"
+                            ? "Efectivo"
+                            : "WhatsApp"}
+                        </span>
+                      )}
+
+                      {order.paymentStatus === "PAID" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">
+                          Cobrado
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/80 text-amber-400 border border-amber-800/80">
+                          Por Cobrar
+                        </span>
+                      )}
+
                       {order.claim && (
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
@@ -1097,6 +1119,12 @@ export function OrdersManagerClient({
                   <span className="font-mono">-{formatPriceARS(selectedOrder.discountCents)}</span>
                 </div>
               )}
+              {selectedOrder.paymentDiscountCents && selectedOrder.paymentDiscountCents > 0 ? (
+                <div className="flex items-center justify-between text-emerald-400">
+                  <span>Bonificación Transferencia</span>
+                  <span className="font-mono">-{formatPriceARS(selectedOrder.paymentDiscountCents)}</span>
+                </div>
+              ) : null}
               <div className="flex items-center justify-between text-zinc-400">
                 <span>Envío</span>
                 <span className="font-mono">
