@@ -165,6 +165,7 @@ export interface IPasswordResetTokenRepository {
 }
 
 import { Order, OrderItem, OrderStatus } from "../order/types";
+import { PaymentStatus } from "../payment/types";
 import { Customer, CustomerAddress, CustomerStatus } from "../customer/types";
 import { Commerce } from "../commerce/types";
 
@@ -184,6 +185,7 @@ export interface IOrderRepository {
   list(options?: { status?: OrderStatus; limit?: number; offset?: number }): Promise<Order[]>;
   listByCustomer(customerId: number): Promise<Order[]>;
   updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order>;
+  updatePayment?(id: number, data: { paymentStatus: PaymentStatus; paymentExternalId?: string | null; updatedAt: number }): Promise<Order>;
   getSummaryCounts?(): Promise<OrderSummaryCounts>;
 }
 

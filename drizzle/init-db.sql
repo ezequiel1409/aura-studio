@@ -216,6 +216,10 @@ CREATE TABLE IF NOT EXISTS `orders` (
 	`currency` text DEFAULT 'ARS' NOT NULL,
 	`coupon_code` text,
 	`status` text DEFAULT 'PENDING' NOT NULL,
+	`payment_method` text DEFAULT 'WHATSAPP' NOT NULL,
+	`payment_status` text DEFAULT 'PENDING' NOT NULL,
+	`payment_external_id` text,
+	`payment_discount_cents` integer DEFAULT 0 NOT NULL,
 	`customer_id` integer,
 	`commerce_id` integer,
 	`notes` text,
@@ -227,6 +231,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
 CREATE UNIQUE INDEX IF NOT EXISTS `orders_code_unique` ON `orders` (`code`);
 CREATE INDEX IF NOT EXISTS `orders_code_idx` ON `orders` (`code`);
 CREATE INDEX IF NOT EXISTS `orders_status_created_at_idx` ON `orders` (`status`,`created_at`);
+CREATE INDEX IF NOT EXISTS `orders_payment_status_idx` ON `orders` (`payment_status`);
 CREATE INDEX IF NOT EXISTS `orders_customer_id_idx` ON `orders` (`customer_id`);
 CREATE INDEX IF NOT EXISTS `orders_customer_dni_idx` ON `orders` (`customer_dni`);
 CREATE INDEX IF NOT EXISTS `orders_commerce_id_idx` ON `orders` (`commerce_id`);

@@ -263,6 +263,18 @@ export const orders = sqliteTable(
     })
       .notNull()
       .default("PENDING"),
+    paymentMethod: text("payment_method", {
+      enum: ["MERCADOPAGO", "TRANSFER", "CASH", "STRIPE", "WHATSAPP"],
+    })
+      .notNull()
+      .default("WHATSAPP"),
+    paymentStatus: text("payment_status", {
+      enum: ["PENDING", "AUTHORIZED", "PAID", "REJECTED", "REFUNDED"],
+    })
+      .notNull()
+      .default("PENDING"),
+    paymentExternalId: text("payment_external_id"),
+    paymentDiscountCents: integer("payment_discount_cents").notNull().default(0),
     customerId: integer("customer_id").references(() => customers.id, {
       onDelete: "set null",
     }),
@@ -276,6 +288,7 @@ export const orders = sqliteTable(
   (table) => [
     index("orders_code_idx").on(table.code),
     index("orders_status_created_at_idx").on(table.status, table.createdAt),
+    index("orders_payment_status_idx").on(table.paymentStatus),
     index("orders_customer_id_idx").on(table.customerId),
     index("orders_customer_dni_idx").on(table.customerDni),
     index("orders_commerce_id_idx").on(table.commerceId),

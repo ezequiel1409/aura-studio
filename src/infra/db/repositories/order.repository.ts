@@ -5,6 +5,7 @@ import {
   OrderSummaryCounts,
 } from "../../../domain/ports/repositories.port";
 import { Order, OrderItem, OrderStatus } from "../../../domain/order/types";
+import { PaymentStatus } from "../../../domain/payment/types";
 import { DbClient } from "../client";
 import { orderItems, orders } from "../schema";
 
@@ -44,6 +45,10 @@ export class DrizzleOrderRepository implements IOrderRepository {
         currency: data.currency,
         couponCode: data.couponCode,
         status: data.status,
+        paymentMethod: data.paymentMethod ?? "WHATSAPP",
+        paymentStatus: data.paymentStatus ?? "PENDING",
+        paymentExternalId: data.paymentExternalId ?? null,
+        paymentDiscountCents: data.paymentDiscountCents ?? 0,
         customerId: data.customerId ?? null,
         commerceId: data.commerceId ?? null,
         notes: data.notes,
@@ -175,4 +180,28 @@ export class DrizzleOrderRepository implements IOrderRepository {
     }
     return updated;
   }
+
+  async updatePayment(
+    id: number,
+    data: { paymentStatus: PaymentStatus; paymentExternalId?: string | null; updatedAt: number }
+  ): Promise<Order> {
+    const updatePayload: Record<string, unknown> = {
+      paymentStatus: data.paymentStatus,
+      updatedAt: data.updatedAt,
+    };
+    if (data.paymentExternalId !== undefined) {
+      updatePayload.paymentExternalId = data.paymentExternalId;
+    }
+    await this.db
+      .update(orders)
+      .set(updatePayload)
+      .where(eq(orders.id, id));
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw new Error(`Order ${id} not found`);
+    }
+    return updated;
+  }
 }
+
