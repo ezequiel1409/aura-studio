@@ -144,6 +144,18 @@ export function CartPageClient({
     paymentMethod: PaymentMethod;
   } | null>(null);
 
+  // Cupón de descuento aplicado
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    type?: string;
+    value?: number;
+    discountCents: number;
+    freeShipping?: boolean;
+    message: string;
+  } | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -198,19 +210,6 @@ export function CartPageClient({
       </div>
     );
   }
-
-  // Cupón de descuento aplicado
-  const [couponInput, setCouponInput] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    code: string;
-    type?: string;
-    value?: number;
-    discountCents: number;
-    freeShipping?: boolean;
-    message: string;
-  } | null>(null);
-  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
-  const [couponError, setCouponError] = useState<string | null>(null);
 
   const totalCount = getTotalItemsCount();
   const subtotalCents = getSubtotalCents();

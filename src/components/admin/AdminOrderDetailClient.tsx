@@ -127,6 +127,7 @@ export function AdminOrderDetailClient({
 }: AdminOrderDetailClientProps) {
   const [order, setOrder] = useState<Order>(initialOrder);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -171,8 +172,6 @@ export function AdminOrderDetailClient({
       setIsUpdating(false);
     }
   };
-
-  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   const handlePaymentStatusChange = async (newPaymentStatus: PaymentStatus) => {
     const prev = order;

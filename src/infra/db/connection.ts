@@ -183,6 +183,24 @@ export function getDb(): DbClient {
         sqlite.exec("CREATE INDEX IF NOT EXISTS orders_customer_dni_idx ON orders (customer_dni);");
       }
 
+      const hasPaymentMethod = pragmaOrderCols.some((col) => col.name === "payment_method");
+      if (!hasPaymentMethod) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN payment_method text DEFAULT 'CASH_ON_PICKUP' NOT NULL;");
+      }
+      const hasPaymentStatus = pragmaOrderCols.some((col) => col.name === "payment_status");
+      if (!hasPaymentStatus) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN payment_status text DEFAULT 'PENDING' NOT NULL;");
+        sqlite.exec("CREATE INDEX IF NOT EXISTS orders_payment_status_idx ON orders (payment_status);");
+      }
+      const hasPaymentExternalId = pragmaOrderCols.some((col) => col.name === "payment_external_id");
+      if (!hasPaymentExternalId) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN payment_external_id text;");
+      }
+      const hasPaymentDiscountCents = pragmaOrderCols.some((col) => col.name === "payment_discount_cents");
+      if (!hasPaymentDiscountCents) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN payment_discount_cents integer DEFAULT 0 NOT NULL;");
+      }
+
       sqlite.exec(`
         CREATE TABLE IF NOT EXISTS order_claims (
           id text PRIMARY KEY NOT NULL,
