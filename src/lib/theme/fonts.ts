@@ -74,3 +74,4 @@ export function resolveStoreFont(fontId?: string | null): ThemeFont {
   }
   return THEME_FONTS[DEFAULT_THEME_FONT];
 }
+

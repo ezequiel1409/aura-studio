@@ -292,10 +292,30 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               showWhatsAppInquiry={true}
             />
 
+            {/* Aviso de Venta Final / Sin cambio ni devolución (estilo Adidas) */}
+            {product.allowReturn === false && (
+              <div
+                role="note"
+                aria-label="Política especial de esta pieza"
+                className="mt-4 rounded-xl border border-stone-200 bg-stone-100/90 p-3.5 text-xs text-stone-700 flex items-start gap-2.5 shadow-xs"
+              >
+                <span className="text-base leading-none select-none" aria-hidden="true">🚫</span>
+                <div>
+                  <p className="font-semibold text-stone-900 tracking-wide">
+                    Pieza de Venta Final · Sin cambios ni devoluciones
+                  </p>
+                  <p className="text-[11px] text-stone-600 mt-0.5 leading-relaxed">
+                    Por tratarse de una pieza única, archivo o personalizada, este artículo no admite cambio ni devolución.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Acordeones estructurados: Detalles, Medidas, Cuidados y Envíos */}
             <ProductAccordions
               rawDescription={cleanProductDescription(product.rawText, product.title)}
               categoryName={category?.name}
+              allowReturn={product.allowReturn !== false}
             />
           </div>
         </div>

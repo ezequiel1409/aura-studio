@@ -6,9 +6,10 @@ import { ChevronDown, Sparkles, Ruler, HeartHandshake, RefreshCw, Truck } from "
 interface ProductAccordionsProps {
   rawDescription?: string | null;
   categoryName?: string | null;
+  allowReturn?: boolean;
 }
 
-export function ProductAccordions({ rawDescription, categoryName }: ProductAccordionsProps) {
+export function ProductAccordions({ rawDescription, categoryName, allowReturn = true }: ProductAccordionsProps) {
   const [openSection, setOpenSection] = useState<string | null>("details");
 
   const toggleSection = (id: string) => {
@@ -104,7 +105,13 @@ export function ProductAccordions({ rawDescription, categoryName }: ProductAccor
               <RefreshCw className="h-3 w-3 text-stone-600" />
               <span>Política de Cambios</span>
             </div>
-            <span>Las prendas tienen cambio dentro de los 15 días posteriores a la compra con etiqueta original y sin uso.</span>
+            {allowReturn === false ? (
+              <span className="text-stone-800 font-medium">
+                ⚠️ <strong>Sin cambio ni devolución:</strong> Por su condición de pieza única, archivo o personalizada, este artículo es venta final y no admite cambios ni devoluciones.
+              </span>
+            ) : (
+              <span>Las prendas tienen cambio dentro de los 15 días posteriores a la compra con etiqueta original y sin uso.</span>
+            )}
           </div>
         </div>
       ),

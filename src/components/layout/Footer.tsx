@@ -168,17 +168,13 @@ export function Footer({
                 </a>
               </li>
               <li>
-                {whatsappHref && (
-                  <a
-                    href={`${whatsappHref}?text=${encodeURIComponent("Hola! Deseo solicitar la revocación/arrepentimiento de mi compra conforme a la Resolución 424/2020.")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-stone-500 hover:text-rose-700 transition-colors"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5 text-stone-400" />
-                    <span>Botón de arrepentimiento (Res. 424/2020)</span>
-                  </a>
-                )}
+                <Link
+                  href="/arrepentimiento"
+                  className="inline-flex items-center gap-1.5 text-stone-500 hover:text-rose-700 transition-colors"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 text-stone-400" />
+                  <span>Botón de arrepentimiento (Res. 424/2020)</span>
+                </Link>
               </li>
             </ul>
           </div>

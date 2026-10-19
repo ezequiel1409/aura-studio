@@ -91,6 +91,7 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
   });
   const [initialStatus, setInitialStatus] = useState<"AVAILABLE" | "RESERVED">("AVAILABLE");
   const [isFeatured, setIsFeatured] = useState(false);
+  const [allowReturn, setAllowReturn] = useState(true);
 
   // Creación rápida de categoría en línea
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -341,6 +342,7 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
         categoryId: selectedCategoryId,
         status: finalStatus,
         isFeatured,
+        allowReturn,
         colors: colors.map((c, cIdx) => ({
           name: c.name.trim() || "Único",
           position: cIdx,
@@ -979,18 +981,38 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
 
                 {/* Destacado y Estado Inicial */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-zinc-800/80">
-                  <div className="flex items-center gap-3">
-                    <input
-                      id="feat-check"
-                      type="checkbox"
-                      checked={isFeatured}
-                      onChange={(e) => setIsFeatured(e.target.checked)}
-                      className="w-4 h-4 rounded-md accent-amber-400 cursor-pointer"
-                    />
-                    <label htmlFor="feat-check" className="text-xs font-semibold text-zinc-200 cursor-pointer flex items-center gap-1.5">
-                      <Star size={14} className={isFeatured ? "text-amber-400 fill-amber-400" : "text-zinc-500"} />
-                      <span>Destacar en portada</span>
-                    </label>
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-3">
+                      <input
+                        id="feat-check"
+                        type="checkbox"
+                        checked={isFeatured}
+                        onChange={(e) => setIsFeatured(e.target.checked)}
+                        className="w-4 h-4 rounded-md accent-amber-400 cursor-pointer"
+                      />
+                      <label htmlFor="feat-check" className="text-xs font-semibold text-zinc-200 cursor-pointer flex items-center gap-1.5">
+                        <Star size={14} className={isFeatured ? "text-amber-400 fill-amber-400" : "text-zinc-500"} />
+                        <span>Destacar en portada</span>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <input
+                        id="allow-return-check"
+                        type="checkbox"
+                        checked={allowReturn}
+                        onChange={(e) => setAllowReturn(e.target.checked)}
+                        className="w-4 h-4 rounded-md accent-amber-400 cursor-pointer"
+                      />
+                      <label htmlFor="allow-return-check" className="text-xs font-semibold text-zinc-200 cursor-pointer">
+                        <span>Permitir cambios y devoluciones</span>
+                        {!allowReturn && (
+                          <span className="ml-2 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-rose-400/20 text-rose-300">
+                            Venta Final
+                          </span>
+                        )}
+                      </label>
+                    </div>
                   </div>
 
                   <div className="space-y-1">

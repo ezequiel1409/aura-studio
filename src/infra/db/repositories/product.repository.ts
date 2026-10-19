@@ -52,6 +52,7 @@ export class DrizzleProductRepository implements IProductRepository {
         categoryId: data.categoryId,
         status: data.status,
         isFeatured: data.isFeatured ? 1 : 0,
+        allowReturn: data.allowReturn === false ? 0 : 1,
         soldOutAt: data.soldOutAt,
         reservedUntil: data.reservedUntil,
         manualFields: JSON.stringify(data.manualFields || []),
@@ -155,6 +156,7 @@ export class DrizzleProductRepository implements IProductRepository {
       categoryId: inserted.categoryId,
       status: inserted.status as ProductStatus,
       isFeatured: Boolean(inserted.isFeatured),
+      allowReturn: Boolean(inserted.allowReturn),
       soldOutAt: inserted.soldOutAt,
       reservedUntil: inserted.reservedUntil,
       manualFields: JSON.parse(inserted.manualFields || "[]"),
@@ -229,6 +231,7 @@ export class DrizzleProductRepository implements IProductRepository {
     if (data.categoryId !== undefined) updateValues.categoryId = data.categoryId;
     if (data.status !== undefined) updateValues.status = data.status;
     if (data.isFeatured !== undefined) updateValues.isFeatured = data.isFeatured ? 1 : 0;
+    if (data.allowReturn !== undefined) updateValues.allowReturn = data.allowReturn ? 1 : 0;
     if (data.soldOutAt !== undefined) updateValues.soldOutAt = data.soldOutAt;
     if (data.reservedUntil !== undefined) updateValues.reservedUntil = data.reservedUntil;
     if (data.manualFields !== undefined)
@@ -810,6 +813,7 @@ export class DrizzleProductRepository implements IProductRepository {
       categoryId: row.categoryId,
       status: row.status as ProductStatus,
       isFeatured: Boolean(row.isFeatured),
+      allowReturn: row.allowReturn === undefined || row.allowReturn === null ? true : Boolean(row.allowReturn),
       soldOutAt: row.soldOutAt,
       reservedUntil: row.reservedUntil,
       manualFields: JSON.parse(row.manualFields || "[]"),

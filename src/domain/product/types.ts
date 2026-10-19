@@ -45,6 +45,7 @@ export interface Product {
   categoryId: number;
   status: ProductStatus;
   isFeatured: boolean;
+  allowReturn: boolean;
   soldOutAt: number | null;
   reservedUntil: number | null;
   manualFields: string[];
@@ -88,6 +89,7 @@ export interface CreateProductInput {
   size?: string | null;
   categoryId?: number;
   isFeatured?: boolean;
+  allowReturn?: boolean;
   colors?: CreateColorInput[];
   photos?: Array<{
     keyThumb: string;
@@ -107,6 +109,7 @@ export interface UpdateProductInput {
   categoryId?: number;
   status?: ProductStatus;
   isFeatured?: boolean;
+  allowReturn?: boolean;
   colors?: CreateColorInput[];
   photos?: Array<{
     keyThumb: string;

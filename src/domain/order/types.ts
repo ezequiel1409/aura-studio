@@ -1,3 +1,5 @@
+import { OrderClaim } from "../claim/types";
+
 export type DeliveryMethod = "HOME_DELIVERY" | "MOTORCYCLE" | "PICKUP";
 export type OrderStatus = "PENDING" | "CONFIRMED" | "PAID" | "CANCELLED";
 
@@ -37,6 +39,7 @@ export interface Order {
   createdAt: number;
   updatedAt: number;
   items?: OrderItem[];
+  claim?: OrderClaim | null;
 }
 
 export interface CreateOrderItemInput {

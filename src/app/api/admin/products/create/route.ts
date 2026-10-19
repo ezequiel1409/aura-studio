@@ -184,6 +184,7 @@ export async function POST(req: NextRequest) {
         size: body.size,
         categoryId: body.categoryId,
         isFeatured: body.isFeatured !== undefined ? Boolean(body.isFeatured) : false,
+        allowReturn: body.allowReturn !== undefined ? Boolean(body.allowReturn) : true,
         colors: body.colors,
         photos: body.photos,
         source: "web",

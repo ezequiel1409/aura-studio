@@ -66,6 +66,7 @@ export function EditProductClient({
   );
   const [status, setStatus] = useState<ProductStatus>(product.status);
   const [isFeatured, setIsFeatured] = useState<boolean>(product.isFeatured ?? false);
+  const [allowReturn, setAllowReturn] = useState<boolean>(product.allowReturn ?? true);
 
   // Variantes de color y talles (BR-20, BR-33)
   const [colors, setColors] = useState<ColorState[]>(() => {
@@ -297,6 +298,7 @@ export function EditProductClient({
         categoryId: selectedCategoryId,
         status,
         isFeatured,
+        allowReturn,
         colors: colors.map((c, cIdx) => ({
           name: c.name.trim() || "Único",
           hexCode: c.hexCode || null,
@@ -558,6 +560,44 @@ export function EditProductClient({
                 <span
                   className={`admin-switch-thumb pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
                     isFeatured ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Política de Cambios y Devoluciones (Venta Final estilo Adidas) */}
+            <div className="sm:col-span-2 flex items-center justify-between p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 gap-3">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-zinc-200">
+                    Permitir cambios y devoluciones
+                  </span>
+                  {!allowReturn && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-rose-400/20 text-rose-300 border border-rose-400/30">
+                      Venta Final
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  {allowReturn
+                    ? "El cliente podrá solicitar cambio o arrepentimiento legal dentro de los 10 días."
+                    : "🚫 Sin cambio ni devolución: La ficha mostrará el aviso destacado en la tienda."}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={allowReturn}
+                aria-label="Permitir cambios y devoluciones para este producto"
+                onClick={() => setAllowReturn((prev) => !prev)}
+                className={`admin-switch-track relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                  allowReturn ? "bg-amber-400" : "bg-zinc-800"
+                }`}
+              >
+                <span
+                  className={`admin-switch-thumb pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
+                    allowReturn ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </button>

@@ -14,4 +14,5 @@ export * from "./repositories/customer.repository";
 export * from "./repositories/customer-address.repository";
 export * from "./repositories/commerce.repository";
 export * from "./repositories/coupon.repository";
+export * from "./repositories/order-claim.repository";
 

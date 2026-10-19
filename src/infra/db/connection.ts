@@ -16,6 +16,7 @@ import {
   DrizzleCustomerAddressRepository,
   DrizzleCommerceRepository,
   DrizzleCouponRepository,
+  DrizzleOrderClaimRepository,
 } from "./index";
 import { ProductServiceDeps } from "../../services/product.service";
 
@@ -28,6 +29,7 @@ export interface GlobalAppDeps extends ProductServiceDeps {
   customerAddressRepo: DrizzleCustomerAddressRepository;
   commerceRepo: DrizzleCommerceRepository;
   couponRepo: DrizzleCouponRepository;
+  orderClaimRepo: DrizzleOrderClaimRepository;
   db?: DbClient;
 }
 
@@ -166,6 +168,43 @@ export function getDb(): DbClient {
       // Ignorar si ocurre error al verificar
     }
 
+    // Verificar y auto-migrar order_claims y products.allow_return si faltan
+    try {
+      const pragmaCols = sqlite.prepare("PRAGMA table_info(products)").all() as Array<{ name: string }>;
+      const hasAllowReturn = pragmaCols.some((col) => col.name === "allow_return");
+      if (!hasAllowReturn) {
+        sqlite.exec("ALTER TABLE products ADD COLUMN allow_return integer DEFAULT 1 NOT NULL;");
+      }
+
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS order_claims (
+          id text PRIMARY KEY NOT NULL,
+          order_id integer NOT NULL,
+          order_code integer NOT NULL,
+          type text DEFAULT 'REVOCATION' NOT NULL,
+          claim_code text NOT NULL UNIQUE,
+          customer_name text NOT NULL,
+          customer_dni text NOT NULL,
+          customer_email text NOT NULL,
+          customer_phone text NOT NULL,
+          reason text,
+          condition_accepted integer DEFAULT 1 NOT NULL,
+          status text DEFAULT 'PENDING' NOT NULL,
+          rejection_reason text,
+          admin_notes text,
+          created_at integer NOT NULL,
+          resolved_at integer,
+          FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE cascade
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS order_claims_claim_code_unique ON order_claims (claim_code);
+        CREATE INDEX IF NOT EXISTS order_claims_order_id_idx ON order_claims (order_id);
+        CREATE INDEX IF NOT EXISTS order_claims_claim_code_idx ON order_claims (claim_code);
+        CREATE INDEX IF NOT EXISTS order_claims_status_idx ON order_claims (status);
+      `);
+    } catch {
+      // Ignorar si ocurre error al verificar
+    }
+
     // Sembrar comercio principal por defecto si no existe ninguno
     try {
       const commercesTable = sqlite
@@ -218,6 +257,7 @@ export function getProductServiceDeps(): GlobalAppDeps {
     customerAddressRepo: new DrizzleCustomerAddressRepository(db),
     commerceRepo: new DrizzleCommerceRepository(db),
     couponRepo: new DrizzleCouponRepository(db),
+    orderClaimRepo: new DrizzleOrderClaimRepository(db),
     db,
   };
 

@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS `products` (
 	`category_id` integer NOT NULL,
 	`status` text DEFAULT 'AVAILABLE' NOT NULL,
 	`is_featured` integer DEFAULT 0 NOT NULL,
+	`allow_return` integer DEFAULT 1 NOT NULL,
 	`sold_out_at` integer,
 	`reserved_until` integer,
 	`manual_fields` text DEFAULT '[]' NOT NULL,
@@ -297,4 +298,28 @@ INSERT OR IGNORE INTO categories (id, parent_id, name, slug, position, is_hidden
 INSERT OR IGNORE INTO category_stats (category_id, views_count, last_viewed_at) VALUES
   (11, 0, NULL),
   (12, 0, NULL);
+
+CREATE TABLE IF NOT EXISTS `order_claims` (
+	`id` text PRIMARY KEY NOT NULL,
+	`order_id` integer NOT NULL,
+	`order_code` integer NOT NULL,
+	`type` text DEFAULT 'REVOCATION' NOT NULL,
+	`claim_code` text NOT NULL,
+	`customer_name` text NOT NULL,
+	`customer_dni` text NOT NULL,
+	`customer_email` text NOT NULL,
+	`customer_phone` text NOT NULL,
+	`reason` text,
+	`condition_accepted` integer DEFAULT 1 NOT NULL,
+	`status` text DEFAULT 'PENDING' NOT NULL,
+	`rejection_reason` text,
+	`admin_notes` text,
+	`created_at` integer NOT NULL,
+	`resolved_at` integer,
+	FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON UPDATE no action ON DELETE cascade
+);
+CREATE UNIQUE INDEX IF NOT EXISTS `order_claims_claim_code_unique` ON `order_claims` (`claim_code`);
+CREATE INDEX IF NOT EXISTS `order_claims_order_id_idx` ON `order_claims` (`order_id`);
+CREATE INDEX IF NOT EXISTS `order_claims_claim_code_idx` ON `order_claims` (`claim_code`);
+CREATE INDEX IF NOT EXISTS `order_claims_status_idx` ON `order_claims` (`status`);
 

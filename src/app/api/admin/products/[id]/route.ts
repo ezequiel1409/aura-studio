@@ -61,6 +61,7 @@ export async function PUT(
         categoryId: body.categoryId !== undefined ? Number(body.categoryId) : undefined,
         status: body.status,
         isFeatured: body.isFeatured !== undefined ? Boolean(body.isFeatured) : undefined,
+        allowReturn: body.allowReturn !== undefined ? Boolean(body.allowReturn) : undefined,
         colors: body.colors,
         photos: body.photos,
         source: "web",

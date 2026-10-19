@@ -25,8 +25,10 @@ import {
   Bike,
   X,
   XCircle,
+  RotateCcw,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../domain/order/types";
+import { OrderClaim } from "../../domain/claim/types";
 import { formatOrderCode } from "../../domain/order/rules";
 import { formatPriceARS } from "../../lib/format/currency";
 
@@ -145,17 +147,82 @@ export function OrdersManagerClient({
     }
   };
 
+  // Inspección de calidad del reclamo/arrepentimiento
+  const [inspectingClaimId, setInspectingClaimId] = useState<string | null>(null);
+
+  const handleInspectClaim = async (
+    claimId: string,
+    decision: "APPROVE_RESTOCK" | "REJECT_CONDITION",
+    rejectionReason?: string
+  ) => {
+    setInspectingClaimId(claimId);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/claims/${claimId}/inspect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, rejectionReason }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "No se pudo procesar la inspección.");
+      }
+
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o.claim?.id === claimId) {
+            return {
+              ...o,
+              status: decision === "APPROVE_RESTOCK" ? "CANCELLED" : o.status,
+              claim: data.claim,
+            };
+          }
+          return o;
+        })
+      );
+
+      setToastMessage(
+        decision === "APPROVE_RESTOCK"
+          ? "Devolución aprobada. El stock fue recirculado automáticamente a la tienda."
+          : "Devolución rechazada por no cumplir las condiciones de recirculación."
+      );
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Error al procesar la inspección.");
+    } finally {
+      setInspectingClaimId(null);
+    }
+  };
+
+  const handleRejectCondition = (claim: OrderClaim) => {
+    const reason = window.prompt(
+      "Ingresá el motivo del rechazo del producto (ej: Manchas de maquillaje en cuello, olor a perfume, sin etiqueta original):",
+      "Prenda recibida con manchas o señales de uso que impiden su recirculación."
+    );
+    if (reason === null) return;
+    handleInspectClaim(claim.id, "REJECT_CONDITION", reason);
+
+    const cleanPhone = claim.customerPhone.replace(/[^0-9]/g, "");
+    const waText = encodeURIComponent(
+      `Hola ${claim.customerName.split(" ")[0]}! Te contactamos de ${brandName} por tu trámite ${claim.claimCode}. Recibimos la prenda en el showroom pero durante el control de calidad detectamos que no se encuentra en condiciones de recirculación (${reason}). Te enviamos fotos para coordinar.`
+    );
+    window.open(`https://wa.me/${cleanPhone}?text=${waText}`, "_blank");
+  };
+
   // Conteo de pedidos por pestaña
   const counts = useMemo(() => {
     const pending = orders.filter((o) => o.status === "PENDING").length;
     const inProgress = orders.filter((o) => o.status === "CONFIRMED" || o.status === "PAID").length;
     const cancelled = orders.filter((o) => o.status === "CANCELLED").length;
+    const claims = orders.filter((o) => o.claim && o.claim.status === "PENDING").length;
     const all = orders.length;
 
     return {
       PENDING: pending,
       IN_PROGRESS: inProgress,
       CANCELLED: cancelled,
+      CLAIMS: claims,
       ALL: all,
     };
   }, [orders]);
@@ -166,6 +233,7 @@ export function OrdersManagerClient({
       if (activeTab === "PENDING" && o.status !== "PENDING") return false;
       if (activeTab === "IN_PROGRESS" && o.status !== "CONFIRMED" && o.status !== "PAID") return false;
       if (activeTab === "CANCELLED" && o.status !== "CANCELLED") return false;
+      if (activeTab === "CLAIMS" && !o.claim) return false;
 
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
@@ -174,7 +242,8 @@ export function OrdersManagerClient({
         const nameMatch = o.customerName.toLowerCase().includes(query);
         const phoneMatch = o.customerPhone.includes(query);
         const codeMatch = codeNum.includes(query) || codeStr.includes(query);
-        return nameMatch || phoneMatch || codeMatch;
+        const claimMatch = o.claim?.claimCode.toLowerCase().includes(query) || false;
+        return nameMatch || phoneMatch || codeMatch || claimMatch;
       }
 
       return true;
@@ -279,6 +348,7 @@ export function OrdersManagerClient({
           {[
             { id: "PENDING", label: "Pendientes", count: counts.PENDING, highlight: true },
             { id: "IN_PROGRESS", label: "En curso", count: counts.IN_PROGRESS },
+            { id: "CLAIMS", label: "Arrepentimientos", count: counts.CLAIMS, highlight: true },
             { id: "CANCELLED", label: "Cancelados", count: counts.CANCELLED },
             { id: "ALL", label: "Todos", count: counts.ALL },
           ].map((tab) => {
@@ -378,6 +448,27 @@ export function OrdersManagerClient({
                         <Icon size={11} />
                         <span>{config.label}</span>
                       </span>
+
+                      {order.claim && (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            order.claim.status === "PENDING"
+                              ? "bg-amber-950/80 text-amber-300 border-amber-600/80 animate-pulse"
+                              : order.claim.status === "APPROVED_RESTOCKED"
+                              ? "bg-emerald-950/80 text-emerald-300 border-emerald-700/80"
+                              : "bg-rose-950/80 text-rose-300 border-rose-800/80"
+                          }`}
+                        >
+                          <RotateCcw size={10} />
+                          <span>
+                            {order.claim.status === "PENDING"
+                              ? `Arrepentimiento: ${order.claim.claimCode}`
+                              : order.claim.status === "APPROVED_RESTOCKED"
+                              ? "Arrepentimiento Aprobado"
+                              : "Devolución Rechazada"}
+                          </span>
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs text-zinc-400 flex items-center gap-2 flex-wrap">
@@ -482,6 +573,102 @@ export function OrdersManagerClient({
                 <X size={18} />
               </button>
             </div>
+
+            {/* Tarjeta Anidada: Solicitud de Arrepentimiento / Postventa (Res. 424/2020) */}
+            {selectedOrder.claim && (
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-amber-500/40 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <RotateCcw size={15} className="text-amber-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                      {selectedOrder.claim.type === "EXCHANGE" ? "Solicitud de Cambio" : "Solicitud de Arrepentimiento"}
+                    </span>
+                  </div>
+                  <span className="font-mono text-xs font-bold text-zinc-100 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-700">
+                    {selectedOrder.claim.claimCode}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 text-xs text-zinc-300">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Titular / DNI:</span>
+                    <span className="font-medium text-zinc-200">
+                      {selectedOrder.claim.customerName} (DNI {selectedOrder.claim.customerDni})
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Fecha de solicitud:</span>
+                    <span>{new Date(selectedOrder.claim.createdAt * 1000).toLocaleString("es-AR")}</span>
+                  </div>
+                  {selectedOrder.claim.reason && (
+                    <div className="pt-1 text-[11px] bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800 text-zinc-300">
+                      <span className="text-zinc-400 block font-semibold">Observación del cliente:</span>
+                      <p className="italic mt-0.5">"{selectedOrder.claim.reason}"</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 pt-1">
+                    <CheckCircle2 size={13} className="shrink-0" />
+                    <span>Cliente declaró prenda con etiqueta, sin uso ni manchas para recircular.</span>
+                  </div>
+                </div>
+
+                {/* Estado de Inspección y Acciones del Comercio */}
+                {selectedOrder.claim.status === "PENDING" ? (
+                  <div className="pt-2 border-t border-zinc-800 space-y-2">
+                    <span className="block text-[11px] font-bold text-zinc-300 uppercase tracking-wide">
+                      Control de Calidad & Recirculación:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        disabled={inspectingClaimId === selectedOrder.claim.id}
+                        onClick={() => handleInspectClaim(selectedOrder.claim!.id, "APPROVE_RESTOCK")}
+                        className="py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                      >
+                        {inspectingClaimId === selectedOrder.claim.id ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <Check size={13} />
+                        )}
+                        <span>Aprobar y Recircular (+1 stock)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={inspectingClaimId === selectedOrder.claim.id}
+                        onClick={() => handleRejectCondition(selectedOrder.claim!)}
+                        className="py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-rose-950/40 text-rose-300 border border-rose-900/40 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <XCircle size={13} />
+                        <span>Rechazar por Manchas / Uso</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedOrder.claim.status === "APPROVED_RESTOCKED" ? (
+                  <div className="p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-xs text-emerald-300 flex items-start gap-2">
+                    <CheckCircle2 size={15} className="shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold">Devolución aprobada y finalizada</p>
+                      <p className="text-[11px] text-emerald-400/80 mt-0.5">
+                        La orden fue cancelada y el stock de cada variante volvió a estar disponible en tienda.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/60 text-xs text-rose-300 space-y-1">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <XCircle size={15} />
+                      <span>Devolución rechazada por control de calidad</span>
+                    </div>
+                    {selectedOrder.claim.rejectionReason && (
+                      <p className="text-[11px] text-zinc-400 italic">
+                        Motivo: {selectedOrder.claim.rejectionReason}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Botón de Acción Principal Contextual */}
             <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-3">

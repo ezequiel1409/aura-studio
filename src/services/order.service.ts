@@ -23,34 +23,52 @@ export async function createOrder(
   const validated = validateCreateOrderInput(input);
 
   // 2. Control estricto de inventario (BR-40): verificar existencia y stock de cada ítem
-  for (const item of input.items) {
-    if (item.productId) {
-      const product = await deps.productRepo.findById(item.productId);
-      if (!product) {
-        throw new ProductNotFoundError(item.productCode);
-      }
-      if (product.status === "SOLD_OUT") {
-        throw new ValidationError(`El producto #${item.productCode} (${item.productTitle}) se encuentra agotado.`);
+  const resolvedItems = await Promise.all(
+    input.items.map(async (item) => {
+      let productId = item.productId ?? null;
+      let product = null;
+      if (productId) {
+        product = await deps.productRepo.findById(productId);
+      } else if (item.productCode) {
+        product = await deps.productRepo.findByCode(item.productCode);
+        if (product) {
+          productId = product.id;
+        }
       }
 
-      // Validar stock específico de la variante si tiene colores y talles
-      if (product.colors && product.colors.length > 0) {
-        const matchingColor = product.colors.find(
-          (c) => c.name.toLowerCase() === item.colorName.toLowerCase()
-        );
-        if (matchingColor) {
-          const matchingSize = matchingColor.sizes.find(
-            (s) => s.size.toUpperCase() === item.size.toUpperCase()
+      if (!product && item.productCode) {
+        throw new ProductNotFoundError(item.productCode);
+      }
+
+      if (product) {
+        if (product.status === "SOLD_OUT") {
+          throw new ValidationError(`El producto #${item.productCode} (${item.productTitle}) se encuentra agotado.`);
+        }
+
+        // Validar stock específico de la variante si tiene colores y talles
+        if (product.colors && product.colors.length > 0) {
+          const matchingColor = product.colors.find(
+            (c) => c.name.toLowerCase() === item.colorName.toLowerCase()
           );
-          if (matchingSize && matchingSize.stock < item.quantity) {
-            throw new ValidationError(
-              `El producto #${item.productCode} en ${item.colorName} (${item.size}) solo dispone de ${matchingSize.stock} unidad(es).`
+          if (matchingColor) {
+            const matchingSize = matchingColor.sizes.find(
+              (s) => s.size.toUpperCase() === item.size.toUpperCase()
             );
+            if (matchingSize && matchingSize.stock < item.quantity) {
+              throw new ValidationError(
+                `El producto #${item.productCode} en ${item.colorName} (${item.size}) solo dispone de ${matchingSize.stock} unidad(es).`
+              );
+            }
           }
         }
       }
-    }
-  }
+
+      return {
+        ...item,
+        productId,
+      };
+    })
+  );
 
   // 3. Generar número correlativo atómico único (BR-01)
   const nextCode = await deps.counterRepo.getNextSequence("order");
@@ -77,8 +95,8 @@ export async function createOrder(
     notes: validated.notes,
     createdAt: now,
     updatedAt: now,
-    items: input.items.map((i) => ({
-      productId: i.productId ?? null,
+    items: resolvedItems.map((i) => ({
+      productId: i.productId,
       productCode: i.productCode,
       productTitle: i.productTitle,
       colorName: i.colorName,
@@ -114,7 +132,7 @@ export async function createOrder(
   }
 
   // 5. Descontar stock físico atómico en base de datos (BR-02, BR-40) y registrar telemetría (BR-39)
-  for (const item of input.items) {
+  for (const item of resolvedItems) {
     if (item.productId) {
       await deps.productRepo.decrementStock(
         item.productId,
@@ -162,6 +180,10 @@ export async function getOrderById(id: number, deps: GlobalAppDeps): Promise<Ord
   if (!order) {
     throw new OrderNotFoundError(id);
   }
+  if (deps.orderClaimRepo) {
+    const claim = await deps.orderClaimRepo.findByOrderId(order.id);
+    order.claim = claim || null;
+  }
   return order;
 }
 
@@ -170,14 +192,34 @@ export async function getOrderByCode(code: number, deps: GlobalAppDeps): Promise
   if (!order) {
     throw new OrderNotFoundError(formatOrderCode(code));
   }
+  if (deps.orderClaimRepo) {
+    const claim = await deps.orderClaimRepo.findByOrderId(order.id);
+    order.claim = claim || null;
+  }
   return order;
 }
 
 export async function listOrders(
-  options: { status?: OrderStatus; limit?: number; offset?: number } = {},
-  deps: GlobalAppDeps
+  optionsOrDeps: { status?: OrderStatus; limit?: number; offset?: number } | GlobalAppDeps = {},
+  maybeDeps?: GlobalAppDeps
 ): Promise<Order[]> {
-  return deps.orderRepo.list(options);
+  const isDepsFirst = Boolean(optionsOrDeps && "orderRepo" in (optionsOrDeps as object));
+  const deps = (isDepsFirst ? optionsOrDeps : maybeDeps) as GlobalAppDeps;
+  const options = isDepsFirst ? {} : (optionsOrDeps as { status?: OrderStatus; limit?: number; offset?: number });
+
+  const orders = await deps.orderRepo.list(options);
+  if (deps.orderClaimRepo && orders.length > 0) {
+    try {
+      const allClaims = await deps.orderClaimRepo.listAll();
+      const claimByOrderId = new Map(allClaims.map((c) => [c.orderId, c]));
+      for (const ord of orders) {
+        ord.claim = claimByOrderId.get(ord.id) || null;
+      }
+    } catch {
+      // Ignorar si falla hydrate
+    }
+  }
+  return orders;
 }
 
 export async function getOrdersSummaryCounts(

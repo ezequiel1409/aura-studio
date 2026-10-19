@@ -41,6 +41,7 @@ export const products = sqliteTable(
       .notNull()
       .default("AVAILABLE"),
     isFeatured: integer("is_featured").notNull().default(0),
+    allowReturn: integer("allow_return").notNull().default(1),
     soldOutAt: integer("sold_out_at"),
     reservedUntil: integer("reserved_until"),
     manualFields: text("manual_fields").notNull().default("[]"),
@@ -431,6 +432,40 @@ export const couponRedemptions = sqliteTable(
     index("coupon_redemptions_customer_phone_idx").on(table.customerPhone),
     index("coupon_redemptions_customer_dni_idx").on(table.customerDni),
     index("coupon_redemptions_coupon_email_idx").on(table.couponId, table.customerEmail),
+  ]
+);
+
+/**
+ * Solicitudes de Arrepentimiento y Cambios (Postventa / Res. 424/2020)
+ */
+export const orderClaims = sqliteTable(
+  "order_claims",
+  {
+    id: text("id").primaryKey(),
+    orderId: integer("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    orderCode: integer("order_code").notNull(),
+    type: text("type", { enum: ["REVOCATION", "EXCHANGE"] }).notNull().default("REVOCATION"),
+    claimCode: text("claim_code").notNull().unique(),
+    customerName: text("customer_name").notNull(),
+    customerDni: text("customer_dni").notNull(),
+    customerEmail: text("customer_email").notNull(),
+    customerPhone: text("customer_phone").notNull(),
+    reason: text("reason"),
+    conditionAccepted: integer("condition_accepted").notNull().default(1),
+    status: text("status", { enum: ["PENDING", "APPROVED_RESTOCKED", "REJECTED_CONDITION", "RESOLVED"] })
+      .notNull()
+      .default("PENDING"),
+    rejectionReason: text("rejection_reason"),
+    adminNotes: text("admin_notes"),
+    createdAt: integer("created_at").notNull(),
+    resolvedAt: integer("resolved_at"),
+  },
+  (table) => [
+    index("order_claims_order_id_idx").on(table.orderId),
+    index("order_claims_claim_code_idx").on(table.claimCode),
+    index("order_claims_status_idx").on(table.status),
   ]
 );
 
