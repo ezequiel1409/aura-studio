@@ -154,6 +154,7 @@ export function CustomerPortalClient({
   // Formulario de edición de perfil
   const [profileName, setProfileName] = useState(customer.name || "");
   const [profilePhone, setProfilePhone] = useState(customer.phone || "");
+  const [profileDni, setProfileDni] = useState(customer.dni || "");
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -241,6 +242,13 @@ export function CustomerPortalClient({
     e.preventDefault();
     setProfileError(null);
     setProfileSuccess(null);
+
+    const dniDigits = profileDni.replace(/\D/g, "");
+    if (profileDni.trim() && dniDigits.length < 6) {
+      setProfileError("Ingresá un número de DNI válido (mínimo 6 dígitos).");
+      return;
+    }
+
     setProfileLoading(true);
 
     try {
@@ -250,6 +258,7 @@ export function CustomerPortalClient({
         body: JSON.stringify({
           name: profileName,
           phone: profilePhone,
+          dni: dniDigits || null,
         }),
       });
 
@@ -466,7 +475,7 @@ export function CustomerPortalClient({
             Hola, {customer.name}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-stone-600">
-            {customer.email} {customer.phone ? `• ${customer.phone}` : ""}
+            {customer.email} {customer.dni ? `• DNI ${customer.dni}` : ""} {customer.phone ? `• ${customer.phone}` : ""}
           </p>
         </div>
 
@@ -1439,24 +1448,44 @@ export function CustomerPortalClient({
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  Teléfono / WhatsApp
-                </label>
-                <div className="relative">
-                  <input
-                    type="tel"
-                    value={profilePhone}
-                    onChange={(e) => setProfilePhone(e.target.value)}
-                    placeholder="11 2345-6789"
-                    className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
-                  />
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                    DNI / Documento *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      value={profileDni}
+                      onChange={(e) => setProfileDni(e.target.value)}
+                      placeholder="Ej: 40123456"
+                      className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                    />
+                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                  </div>
                 </div>
-                <p className="mt-1 text-[11px] text-stone-500">
-                  Nos permite coordinar retiros y entregas directas por WhatsApp.
-                </p>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+                    Teléfono / WhatsApp
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                      placeholder="11 2345-6789"
+                      className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3 text-base sm:text-xs text-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                    />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                  </div>
+                </div>
               </div>
+              <p className="text-[11px] text-stone-500">
+                Tu DNI y WhatsApp se autocompletan al reservar prendas y son necesarios para retiros o envíos.
+              </p>
 
               <div className="pt-2">
                 <button

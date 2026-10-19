@@ -64,12 +64,13 @@ export async function PATCH(req: NextRequest) {
 
     // 2. Si incluye actualización de datos de perfil
     let updatedCustomer = null;
-    if (body.name !== undefined || body.phone !== undefined) {
+    if (body.name !== undefined || body.phone !== undefined || body.dni !== undefined) {
       updatedCustomer = await updateCustomerProfile(
         session.customerId,
         {
           name: body.name,
           phone: body.phone,
+          dni: body.dni,
         },
         { customerRepo: deps.customerRepo }
       );

@@ -193,7 +193,7 @@ export interface ICustomerRepository {
   create(data: Omit<Customer, "id"> | (Omit<Customer, "id" | "createdAt" | "updatedAt"> & { createdAt?: number; updatedAt?: number })): Promise<Customer>;
   findById(id: number): Promise<Customer | null>;
   findByEmail(email: string): Promise<Customer | null>;
-  updateProfile(id: number, data: { name?: string; phone?: string | null; updatedAt: number }): Promise<Customer>;
+  updateProfile(id: number, data: { name?: string; phone?: string | null; dni?: string | null; updatedAt: number }): Promise<Customer>;
   updatePassword(id: number, passwordHash: string, passwordSalt: string, updatedAt: number): Promise<void>;
   updateStatus(id: number, status: CustomerStatus, updatedAt: number): Promise<Customer>;
   count(): Promise<number>;

@@ -83,6 +83,7 @@ export async function registerCustomer(
     email: clean.email,
     name: clean.name,
     phone: clean.phone,
+    dni: clean.dni,
     passwordHash,
     passwordSalt: salt,
     status: "ACTIVE",
@@ -224,19 +225,25 @@ export async function getCustomerProfile(
 }
 
 /**
- * Actualiza el perfil básico del cliente (nombre, teléfono).
+ * Actualiza el perfil básico del cliente (nombre, teléfono, DNI).
  */
 export async function updateCustomerProfile(
   customerId: number,
-  input: { name?: string; phone?: string | null },
+  input: { name?: string; phone?: string | null; dni?: string | null },
   deps: CustomerServiceDeps
 ): Promise<SafeCustomer | null> {
   const customer = await deps.customerRepo.findById(customerId);
   if (!customer) return null;
 
+  const cleanDni =
+    input.dni !== undefined
+      ? (input.dni ? input.dni.replace(/\D/g, "") || null : null)
+      : customer.dni;
+
   const updated = await deps.customerRepo.updateProfile(customerId, {
     name: input.name?.trim() || customer.name,
     phone: input.phone !== undefined ? (input.phone?.trim() || null) : customer.phone,
+    dni: cleanDni,
     updatedAt: Date.now(),
   });
 

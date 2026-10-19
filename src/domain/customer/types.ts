@@ -5,6 +5,7 @@ export interface Customer {
   email: string;
   name: string;
   phone?: string | null;
+  dni?: string | null;
   passwordHash: string;
   passwordSalt: string;
   status: CustomerStatus;
@@ -38,6 +39,7 @@ export interface CreateCustomerInput {
   email: string;
   name: string;
   phone?: string | null;
+  dni?: string | null;
   password: string;
 }
 

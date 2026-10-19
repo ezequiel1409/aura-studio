@@ -74,6 +74,7 @@ export function CartPageClient({
 
   // Datos del formulario de checkout (Paso 2)
   const [customerName, setCustomerName] = useState("");
+  const [customerDni, setCustomerDni] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -130,7 +131,7 @@ export function CartPageClient({
   const [acceptTerms, setAcceptTerms] = useState(true);
 
   // Sesión de cliente autenticado y direcciones guardadas
-  const [customer, setCustomer] = useState<{ id: number; name: string; email: string; phone?: string | null } | null>(null);
+  const [customer, setCustomer] = useState<{ id: number; name: string; email: string; phone?: string | null; dni?: string | null } | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<Array<{ id: number; label: string; address: string; city?: string | null; isDefault: boolean }>>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -170,6 +171,9 @@ export function CartPageClient({
           setCustomerEmail((prev) => (prev ? prev : data.customer.email));
           if (data.customer.phone) {
             setCustomerPhone((prev) => (prev ? prev : data.customer.phone));
+          }
+          if (data.customer.dni) {
+            setCustomerDni((prev) => (prev ? prev : data.customer.dni));
           }
 
           // Cargar direcciones guardadas del cliente
@@ -305,6 +309,12 @@ export function CartPageClient({
       return;
     }
 
+    const dniDigits = customerDni.replace(/\D/g, "");
+    if (!dniDigits || dniDigits.length < 6) {
+      setErrorMessage("Por favor ingresá un número de DNI válido (mínimo 6 dígitos).");
+      return;
+    }
+
     const digits = customerPhone.replace(/\D/g, "");
     if (!digits || digits.length < 6) {
       setErrorMessage("Por favor ingresá un número de teléfono o WhatsApp válido.");
@@ -341,6 +351,7 @@ export function CartPageClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerName: customerName.trim(),
+          customerDni: customerDni.replace(/\D/g, "") || customer?.dni || "",
           customerPhone: customerPhone.trim(),
           customerEmail: customerEmail.trim() || customer?.email || null,
           customerId: customer?.id || null,
@@ -1132,6 +1143,24 @@ export function CartPageClient({
                       </div>
 
                       <div>
+                        <label htmlFor="checkout-dni" className="block text-xs font-semibold text-stone-700 mb-1">
+                          DNI del titular *
+                        </label>
+                        <input
+                          id="checkout-dni"
+                          type="text"
+                          inputMode="numeric"
+                          required
+                          value={customerDni}
+                          onChange={(e) => setCustomerDni(e.target.value)}
+                          placeholder="Ej: 40123456"
+                          className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
                         <label htmlFor="checkout-phone" className="block text-xs font-semibold text-stone-700 mb-1">
                           Teléfono / WhatsApp *
                         </label>
@@ -1145,21 +1174,21 @@ export function CartPageClient({
                           className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                         />
                       </div>
-                    </div>
 
-                    <div>
-                      <label htmlFor="checkout-email" className="block text-xs font-semibold text-stone-700 mb-1">
-                        Correo Electrónico (para recibo y seguimiento) *
-                      </label>
-                      <input
-                        id="checkout-email"
-                        type="email"
-                        required
-                        value={customerEmail}
-                        onChange={(e) => setCustomerEmail(e.target.value)}
-                        placeholder="tuemail@ejemplo.com"
-                        className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
-                      />
+                      <div>
+                        <label htmlFor="checkout-email" className="block text-xs font-semibold text-stone-700 mb-1">
+                          Correo Electrónico (recibo y seguimiento) *
+                        </label>
+                        <input
+                          id="checkout-email"
+                          type="email"
+                          required
+                          value={customerEmail}
+                          onChange={(e) => setCustomerEmail(e.target.value)}
+                          placeholder="tuemail@ejemplo.com"
+                          className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                        />
+                      </div>
                     </div>
 
                     {(deliveryMethod === "HOME_DELIVERY" || deliveryMethod === "MOTORCYCLE") && (
@@ -1342,7 +1371,7 @@ export function CartPageClient({
                   </button>
                 </div>
                 <p className="text-stone-800">
-                  {customerName} · {customerPhone} · {customerEmail}
+                  {customerName} · DNI {customerDni} · {customerPhone} · {customerEmail}
                 </p>
               </div>
 

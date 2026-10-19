@@ -11,10 +11,26 @@ export async function POST(req: NextRequest) {
 
     // Si el usuario está autenticado como cliente, vincular la orden a su cuenta
     const customerSession = await getAuthenticatedCustomer(req);
-    if (customerSession && !body.customerId) {
-      body.customerId = customerSession.customerId;
+    if (customerSession) {
+      if (!body.customerId) {
+        body.customerId = customerSession.customerId;
+      }
       if (!body.customerEmail && customerSession.email) {
         body.customerEmail = customerSession.email;
+      }
+      const customerRecord = await deps.customerRepo.findById(customerSession.customerId);
+      if (customerRecord) {
+        if (!body.customerDni && customerRecord.dni) {
+          body.customerDni = customerRecord.dni;
+        } else if (body.customerDni && !customerRecord.dni) {
+          const cleanDni = String(body.customerDni).replace(/\D/g, "");
+          if (cleanDni.length >= 6) {
+            await deps.customerRepo.updateProfile(customerRecord.id, {
+              dni: cleanDni,
+              updatedAt: Date.now(),
+            });
+          }
+        }
       }
     }
 

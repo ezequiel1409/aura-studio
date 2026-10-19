@@ -43,6 +43,7 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
   // Campos de registro
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
+  const [regDni, setRegDni] = useState("");
   const [regPhone, setRegPhone] = useState("");
   const [regPassword, setRegPassword] = useState("");
 
@@ -96,6 +97,12 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
     e.preventDefault();
     setError(null);
 
+    const dniDigits = regDni.replace(/\D/g, "");
+    if (!dniDigits || dniDigits.length < 6) {
+      setError("Por favor ingresá un número de DNI válido (mínimo 6 dígitos).");
+      return;
+    }
+
     if (regPassword.length < 8) {
       setError("La contraseña debe tener al menos 8 caracteres.");
       return;
@@ -110,6 +117,7 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
         body: JSON.stringify({
           name: regName,
           email: regEmail,
+          dni: dniDigits,
           phone: regPhone || null,
           password: regPassword,
         }),
@@ -349,29 +357,52 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
               </div>
             </div>
 
-            <div>
-              <label
-                htmlFor="reg-phone"
-                className="block text-sm font-medium text-stone-800 mb-1.5"
-              >
-                Teléfono o WhatsApp <span className="text-stone-400 font-normal">(opcional)</span>
-              </label>
-              <div className="relative">
-                <input
-                  id="reg-phone"
-                  type="tel"
-                  autoComplete="tel"
-                  value={regPhone}
-                  onChange={(e) => setRegPhone(e.target.value)}
-                  placeholder="11 2345-6789"
-                  className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-10 pr-3.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
-                />
-                <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label
+                  htmlFor="reg-dni"
+                  className="block text-sm font-medium text-stone-800 mb-1.5"
+                >
+                  DNI del titular *
+                </label>
+                <div className="relative">
+                  <input
+                    id="reg-dni"
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    value={regDni}
+                    onChange={(e) => setRegDni(e.target.value)}
+                    placeholder="Ej: 40123456"
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 px-3.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                </div>
               </div>
-              <p className="mt-1 text-[11px] text-stone-500">
-                Nos sirve para coordinar la entrega o retiro de tus piezas reservadas.
-              </p>
+
+              <div>
+                <label
+                  htmlFor="reg-phone"
+                  className="block text-sm font-medium text-stone-800 mb-1.5"
+                >
+                  Teléfono / WhatsApp
+                </label>
+                <div className="relative">
+                  <input
+                    id="reg-phone"
+                    type="tel"
+                    autoComplete="tel"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    placeholder="11 2345-6789"
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white py-2.5 pl-9 pr-3.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                  <Phone className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                </div>
+              </div>
             </div>
+            <p className="-mt-2 text-[11px] text-stone-500">
+              Usamos tu DNI y WhatsApp para validar la titularidad al retirar o recibir tus piezas.
+            </p>
 
             <div>
               <label

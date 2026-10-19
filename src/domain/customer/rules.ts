@@ -5,6 +5,7 @@ export function validateCustomerRegistration(input: CreateCustomerInput): {
   email: string;
   name: string;
   phone: string | null;
+  dni: string | null;
   password: string;
 } {
   const email = input.email?.trim().toLowerCase();
@@ -25,12 +26,21 @@ export function validateCustomerRegistration(input: CreateCustomerInput): {
     }
   }
 
+  let dni: string | null = null;
+  if (input.dni && input.dni.trim()) {
+    const dniDigits = input.dni.replace(/\D/g, "");
+    if (dniDigits.length < 6) {
+      throw new ValidationError("Ingresá un número de DNI válido (mínimo 6 dígitos).");
+    }
+    dni = dniDigits;
+  }
+
   const password = input.password;
   if (!password || password.length < 6) {
     throw new ValidationError("La contraseña debe tener al menos 6 caracteres.");
   }
 
-  return { email, name, phone, password };
+  return { email, name, phone, dni, password };
 }
 
 export function validateCustomerAddress(input: CreateCustomerAddressInput): {

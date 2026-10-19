@@ -329,6 +329,7 @@ export const customers = sqliteTable(
     email: text("email").notNull().unique(),
     name: text("name").notNull(),
     phone: text("phone"),
+    dni: text("dni"),
     passwordHash: text("password_hash").notNull(),
     passwordSalt: text("password_salt").notNull(),
     status: text("status", { enum: ["ACTIVE", "SUSPENDED"] })
@@ -340,6 +341,7 @@ export const customers = sqliteTable(
   (table) => [
     index("customers_email_idx").on(table.email),
     index("customers_phone_idx").on(table.phone),
+    index("customers_dni_idx").on(table.dni),
     index("customers_status_idx").on(table.status),
   ]
 );

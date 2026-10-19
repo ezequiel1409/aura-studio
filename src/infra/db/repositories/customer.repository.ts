@@ -15,6 +15,7 @@ export class DrizzleCustomerRepository implements ICustomerRepository {
         email: data.email.toLowerCase().trim(),
         name: data.name.trim(),
         phone: data.phone?.trim() ?? null,
+        dni: data.dni?.trim() ?? null,
         passwordHash: data.passwordHash,
         passwordSalt: data.passwordSalt,
         status: data.status,
@@ -42,13 +43,14 @@ export class DrizzleCustomerRepository implements ICustomerRepository {
 
   async updateProfile(
     id: number,
-    data: { name?: string; phone?: string | null; updatedAt: number }
+    data: { name?: string; phone?: string | null; dni?: string | null; updatedAt: number }
   ): Promise<Customer> {
     const updates: Partial<typeof customers.$inferInsert> = {
       updatedAt: data.updatedAt,
     };
     if (data.name !== undefined) updates.name = data.name.trim();
     if (data.phone !== undefined) updates.phone = data.phone?.trim() ?? null;
+    if (data.dni !== undefined) updates.dni = data.dni?.trim() ?? null;
 
     const [updated] = await this.db
       .update(customers)

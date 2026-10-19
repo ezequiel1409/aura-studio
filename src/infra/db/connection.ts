@@ -201,6 +201,15 @@ export function getDb(): DbClient {
         sqlite.exec("ALTER TABLE orders ADD COLUMN payment_discount_cents integer DEFAULT 0 NOT NULL;");
       }
 
+      const pragmaCustomerCols = sqlite.prepare("PRAGMA table_info(customers)").all() as Array<{ name: string }>;
+      if (pragmaCustomerCols.length > 0) {
+        const hasDni = pragmaCustomerCols.some((col) => col.name === "dni");
+        if (!hasDni) {
+          sqlite.exec("ALTER TABLE customers ADD COLUMN dni text;");
+          sqlite.exec("CREATE INDEX IF NOT EXISTS customers_dni_idx ON customers (dni);");
+        }
+      }
+
       sqlite.exec(`
         CREATE TABLE IF NOT EXISTS order_claims (
           id text PRIMARY KEY NOT NULL,
