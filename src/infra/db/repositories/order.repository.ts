@@ -33,7 +33,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         customerEmail: data.customerEmail,
-        customerDni: data.customerDni ?? null,
+        customerDni: data.customerDni,
         deliveryMethod: data.deliveryMethod,
         deliveryAddress: data.deliveryAddress,
         deliveryNotes: data.deliveryNotes,

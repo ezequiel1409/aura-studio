@@ -48,6 +48,7 @@ export function CartDrawer({
   // Formulario del comprador
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [customerDni, setCustomerDni] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
@@ -61,6 +62,18 @@ export function CartDrawer({
   // Cerrar con Escape y bloquear scroll del body
   useEffect(() => {
     if (!isOpen) return;
+
+    // Intentar auto-completar datos si el cliente está conectado
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.customer) {
+          if (data.customer.name && !customerName) setCustomerName(data.customer.name);
+          if (data.customer.email && !customerEmail) setCustomerEmail(data.customer.email);
+          if (data.customer.phone && !customerPhone) setCustomerPhone(data.customer.phone);
+        }
+      })
+      .catch(() => {});
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -99,6 +112,17 @@ export function CartDrawer({
       return;
     }
 
+    if (!customerEmail.trim() || !customerEmail.includes("@")) {
+      setErrorMessage("Por favor ingresá un correo electrónico válido para recibir tu comprobante.");
+      return;
+    }
+
+    const dniDigits = customerDni.replace(/\D/g, "");
+    if (!dniDigits || dniDigits.length < 6) {
+      setErrorMessage("Por favor ingresá un número de DNI válido (mínimo 6 dígitos).");
+      return;
+    }
+
     if ((deliveryMethod === "HOME_DELIVERY" || deliveryMethod === "MOTORCYCLE") && !deliveryAddress.trim()) {
       setErrorMessage("Por favor ingresá la dirección completa de entrega.");
       return;
@@ -118,7 +142,8 @@ export function CartDrawer({
         body: JSON.stringify({
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
-          customerDni: customerDni.trim() || null,
+          customerEmail: customerEmail.trim().toLowerCase(),
+          customerDni: dniDigits,
           deliveryMethod,
           deliveryAddress: deliveryAddress.trim() || null,
           deliveryNotes: deliveryNotes.trim() || null,
@@ -471,7 +496,36 @@ export function CartDrawer({
                 />
               </div>
 
+              <div>
+                <label htmlFor="customer-email" className="block text-xs font-medium text-stone-700 mb-1">
+                  Email de contacto *
+                </label>
+                <input
+                  id="customer-email"
+                  type="email"
+                  required
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="Ej: sofia@ejemplo.com"
+                  className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                />
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="customer-dni" className="block text-xs font-medium text-stone-700 mb-1">
+                    DNI del titular *
+                  </label>
+                  <input
+                    id="customer-dni"
+                    type="text"
+                    required
+                    value={customerDni}
+                    onChange={(e) => setCustomerDni(e.target.value)}
+                    placeholder="Ej: 40123456"
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                </div>
                 <div>
                   <label htmlFor="customer-phone" className="block text-xs font-medium text-stone-700 mb-1">
                     Teléfono / WhatsApp *
@@ -483,19 +537,6 @@ export function CartDrawer({
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     placeholder="Ej: 11 2345-6789"
-                    className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="customer-dni" className="block text-xs font-medium text-stone-700 mb-1">
-                    DNI del titular (opcional)
-                  </label>
-                  <input
-                    id="customer-dni"
-                    type="text"
-                    value={customerDni}
-                    onChange={(e) => setCustomerDni(e.target.value)}
-                    placeholder="Ej: 40.123.456"
                     className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                   />
                 </div>

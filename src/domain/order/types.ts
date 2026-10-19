@@ -22,8 +22,8 @@ export interface Order {
   code: number;
   customerName: string;
   customerPhone: string;
-  customerEmail?: string | null;
-  customerDni?: string | null;
+  customerEmail: string;
+  customerDni: string;
   deliveryMethod: DeliveryMethod;
   deliveryAddress?: string | null;
   deliveryNotes?: string | null;
@@ -57,8 +57,8 @@ export interface CreateOrderItemInput {
 export interface CreateOrderInput {
   customerName: string;
   customerPhone: string;
-  customerEmail?: string | null;
-  customerDni?: string | null;
+  customerEmail: string;
+  customerDni: string;
   deliveryMethod: DeliveryMethod;
   deliveryAddress?: string | null;
   deliveryNotes?: string | null;

@@ -245,8 +245,8 @@ export const orders = sqliteTable(
     code: integer("code").notNull().unique(),
     customerName: text("customer_name").notNull(),
     customerPhone: text("customer_phone").notNull(),
-    customerEmail: text("customer_email"),
-    customerDni: text("customer_dni"),
+    customerEmail: text("customer_email").notNull().default(""),
+    customerDni: text("customer_dni").notNull().default(""),
     deliveryMethod: text("delivery_method", {
       enum: ["HOME_DELIVERY", "MOTORCYCLE", "PICKUP"],
     }).notNull(),

@@ -21,6 +21,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
         validateCreateOrderInput({
           customerName: "",
           customerPhone: "1123456789",
+          customerEmail: "camila@example.com",
+          customerDni: "40123456",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -40,6 +42,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
         validateCreateOrderInput({
           customerName: "Camila Díaz",
           customerPhone: "123",
+          customerEmail: "camila@example.com",
+          customerDni: "40123456",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -54,11 +58,95 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
         })
       ).toThrow(ValidationError);
 
+      // Email inválido o faltante
+      expect(() =>
+        validateCreateOrderInput({
+          customerName: "Camila Díaz",
+          customerPhone: "1123456789",
+          customerEmail: "",
+          customerDni: "40123456",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productCode: 1,
+              productTitle: "Top",
+              colorName: "Negro",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 2000000,
+            },
+          ],
+        })
+      ).toThrow(/email/i);
+
+      expect(() =>
+        validateCreateOrderInput({
+          customerName: "Camila Díaz",
+          customerPhone: "1123456789",
+          customerEmail: "invalido",
+          customerDni: "40123456",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productCode: 1,
+              productTitle: "Top",
+              colorName: "Negro",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 2000000,
+            },
+          ],
+        })
+      ).toThrow(/email/i);
+
+      // DNI inválido o faltante (< 6 dígitos)
+      expect(() =>
+        validateCreateOrderInput({
+          customerName: "Camila Díaz",
+          customerPhone: "1123456789",
+          customerEmail: "camila@example.com",
+          customerDni: "",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productCode: 1,
+              productTitle: "Top",
+              colorName: "Negro",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 2000000,
+            },
+          ],
+        })
+      ).toThrow(/dni/i);
+
+      expect(() =>
+        validateCreateOrderInput({
+          customerName: "Camila Díaz",
+          customerPhone: "1123456789",
+          customerEmail: "camila@example.com",
+          customerDni: "12345",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productCode: 1,
+              productTitle: "Top",
+              colorName: "Negro",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 2000000,
+            },
+          ],
+        })
+      ).toThrow(/dni/i);
+
       // Envío a domicilio sin dirección
       expect(() =>
         validateCreateOrderInput({
           customerName: "Camila Díaz",
           customerPhone: "1123456789",
+          customerEmail: "camila@example.com",
+          customerDni: "40123456",
           deliveryMethod: "HOME_DELIVERY",
           deliveryAddress: "",
           items: [
@@ -78,6 +166,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       const valid = validateCreateOrderInput({
         customerName: "Camila Díaz",
         customerPhone: "1123456789",
+        customerEmail: "camila@example.com",
+        customerDni: "40123456",
         deliveryMethod: "PICKUP",
         items: [
           {
@@ -93,6 +183,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
 
       expect(valid.subtotalCents).toBe(4000000);
       expect(valid.totalCents).toBe(4000000);
+      expect(valid.customerEmail).toBe("camila@example.com");
+      expect(valid.customerDni).toBe("40123456");
     });
   });
 
@@ -118,6 +210,7 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
           customerName: "Valeria Gómez",
           customerPhone: "11 5555-8888",
           customerEmail: "valeria@example.com",
+          customerDni: "40123456",
           deliveryMethod: "HOME_DELIVERY",
           deliveryAddress: "Av. Corrientes 1500, CABA",
           deliveryNotes: "Dejar en portería",
@@ -178,6 +271,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
           {
             customerName: "Lucía Luna",
             customerPhone: "11 9999-0000",
+            customerEmail: "lucia@example.com",
+            customerDni: "38123456",
             deliveryMethod: "PICKUP",
             items: [
               {
@@ -216,6 +311,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
         {
           customerName: "Valeria Gómez",
           customerPhone: "11 5555-8888",
+          customerEmail: "valeria@example.com",
+          customerDni: "40123456",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -248,6 +345,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
         {
           customerName: "Camila Díaz",
           customerPhone: "11 4444-1111",
+          customerEmail: "camila@example.com",
+          customerDni: "40123456",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -303,6 +402,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
         {
           customerName: "Marina Torres",
           customerPhone: "11 8888-9999",
+          customerEmail: "marina@example.com",
+          customerDni: "36123456",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -422,6 +523,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
         {
           customerName: "Florencia Peña",
           customerPhone: "1122334455",
+          customerEmail: "florencia@example.com",
+          customerDni: "34123456",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -454,6 +557,7 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       const validated = validateCreateOrderInput({
         customerName: "Camila Díaz",
         customerPhone: "1123456789",
+        customerEmail: "camila@example.com",
         customerDni: "40.123.456",
         deliveryMethod: "PICKUP",
         items: [

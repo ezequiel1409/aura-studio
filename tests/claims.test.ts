@@ -116,6 +116,7 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
           customerName: "Valeria Gómez",
           customerPhone: "1155558888",
           customerEmail: "valeria@example.com",
+          customerDni: "40123456",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -162,6 +163,7 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
           customerName: "Lucía Fernández",
           customerPhone: "1144445555",
           customerEmail: "lucia@example.com",
+          customerDni: "38999888",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -206,6 +208,7 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
           customerName: "Sofía Martínez",
           customerPhone: "1122334455",
           customerEmail: "sofia@example.com",
+          customerDni: "35123456",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -270,6 +273,7 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
           customerName: "Agustina Paz",
           customerPhone: "1166778899",
           customerEmail: "agustina@example.com",
+          customerDni: "37456789",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -336,6 +340,7 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
           customerName: "Elena Blanco",
           customerPhone: "1199887766",
           customerEmail: "elena@example.com",
+          customerDni: "32111222",
           deliveryMethod: "PICKUP",
           items: [
             {
@@ -409,6 +414,7 @@ describe("Botón de Arrepentimiento, Devoluciones y Control de Calidad (Res. 424
           customerName: "Paula Rossi",
           customerPhone: "1155443322",
           customerEmail: "paula@example.com",
+          customerDni: "39888777",
           deliveryMethod: "PICKUP",
           items: [
             {

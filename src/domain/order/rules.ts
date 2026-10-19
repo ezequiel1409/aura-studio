@@ -26,8 +26,8 @@ export function parseOrderCode(input: string): number | null {
 export function validateCreateOrderInput(input: CreateOrderInput): {
   customerName: string;
   customerPhone: string;
-  customerEmail: string | null;
-  customerDni: string | null;
+  customerEmail: string;
+  customerDni: string;
   deliveryMethod: DeliveryMethod;
   deliveryAddress: string | null;
   deliveryNotes: string | null;
@@ -49,6 +49,16 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   const digits = customerPhone ? customerPhone.replace(/\D/g, "") : "";
   if (!digits || digits.length < 6) {
     throw new ValidationError("Ingresá un número de teléfono o WhatsApp válido.");
+  }
+
+  const customerEmail = input.customerEmail?.trim().toLowerCase();
+  if (!customerEmail || !customerEmail.includes("@") || customerEmail.length < 5) {
+    throw new ValidationError("El email de contacto es obligatorio y debe tener un formato válido.");
+  }
+
+  const cleanDni = input.customerDni ? input.customerDni.replace(/\D/g, "") : "";
+  if (!cleanDni || cleanDni.length < 6) {
+    throw new ValidationError("El DNI del titular es obligatorio y debe tener al menos 6 dígitos.");
   }
 
   const validMethods: DeliveryMethod[] = ["HOME_DELIVERY", "MOTORCYCLE", "PICKUP"];
@@ -79,13 +89,12 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   const shippingCents = Math.max(0, input.shippingCents || 0);
   const discountCents = Math.max(0, input.discountCents || 0);
   const totalCents = Math.max(0, subtotal - discountCents + shippingCents);
-  const cleanDni = input.customerDni ? input.customerDni.replace(/\D/g, "") : null;
 
   return {
     customerName,
     customerPhone,
-    customerEmail: input.customerEmail?.trim() || null,
-    customerDni: cleanDni && cleanDni.length >= 6 ? cleanDni : null,
+    customerEmail,
+    customerDni: cleanDni,
     deliveryMethod: input.deliveryMethod,
     deliveryAddress,
     deliveryNotes: input.deliveryNotes?.trim() || null,

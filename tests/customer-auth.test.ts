@@ -376,6 +376,7 @@ describe("Customer Authentication & Account Management", () => {
           customerName: "Julieta V",
           customerPhone: "1198765432",
           customerEmail: "julieta@aura.com",
+          customerDni: "35111222",
           deliveryMethod: "PICKUP",
           items: [
             {
