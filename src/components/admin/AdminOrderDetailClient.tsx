@@ -16,8 +16,8 @@ import {
   MapPin,
   MessageCircle,
   Package,
-  Phone,
   Printer,
+  RotateCcw,
   ShoppingBag,
   Store,
   Truck,
@@ -25,6 +25,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../domain/order/types";
+import { OrderClaim } from "../../domain/claim/types";
 import { PaymentMethod, PaymentStatus } from "../../domain/payment/types";
 import { formatOrderCode } from "../../domain/order/rules";
 import { formatPriceARS } from "../../lib/format/currency";
@@ -128,6 +129,7 @@ export function AdminOrderDetailClient({
   const [order, setOrder] = useState<Order>(initialOrder);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [isInspectingClaim, setIsInspectingClaim] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -203,6 +205,75 @@ export function AdminOrderDetailClient({
     } finally {
       setIsUpdatingPayment(false);
     }
+  };
+
+  const handleInspectClaim = async (
+    claimId: string,
+    decision: "APPROVE_RESTOCK" | "REJECT_CONDITION",
+    rejectionReason?: string
+  ) => {
+    setIsInspectingClaim(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/claims/${claimId}/inspect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision, rejectionReason }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "No se pudo procesar la inspección.");
+      }
+
+      setOrder((prev) => ({
+        ...prev,
+        status: decision === "APPROVE_RESTOCK" ? "CANCELLED" : prev.status,
+        claim: data.claim,
+      }));
+
+      setToastMessage(
+        decision === "APPROVE_RESTOCK"
+          ? "Devolución aprobada. El stock fue recirculado automáticamente a la tienda."
+          : "Devolución rechazada por no cumplir las condiciones de recirculación."
+      );
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : "Error al procesar la inspección.");
+    } finally {
+      setIsInspectingClaim(false);
+    }
+  };
+
+  const handleRejectCondition = (claim: OrderClaim) => {
+    const reason = window.prompt(
+      "Ingresá el motivo del rechazo del producto (ej: Manchas de maquillaje en cuello, olor a perfume, sin etiqueta original):",
+      "Prenda recibida con manchas o señales de uso que impiden su recirculación."
+    );
+    if (reason === null) return;
+    handleInspectClaim(claim.id, "REJECT_CONDITION", reason);
+
+    const claimPhone = claim.customerPhone.replace(/[^0-9]/g, "");
+    const waText = encodeURIComponent(
+      `Hola ${claim.customerName.split(" ")[0]}! Te contactamos de ${brandName} por tu trámite ${claim.claimCode}. Recibimos la prenda en el showroom pero durante el control de calidad detectamos que no se encuentra en condiciones de recirculación (${reason}). Te enviamos fotos para coordinar.`
+    );
+    window.open(`https://wa.me/${claimPhone}?text=${waText}`, "_blank");
+  };
+
+  const getWhatsAppTemplateLink = (type: "receipt" | "confirmed" | "ready") => {
+    const firstName = order.customerName.split(" ")[0];
+    let text = `¡Hola ${firstName}! Te contactamos por tu pedido ${formattedCode} en ${brandName}.`;
+    if (type === "receipt") {
+      text = `¡Hola ${firstName}! Recibimos tu pedido ${formattedCode} en ${brandName}. Te pasamos los datos para coordinar el pago o la entrega.`;
+    } else if (type === "confirmed") {
+      text = `¡Hola ${firstName}! Tu pedido ${formattedCode} ya está confirmado y estamos preparando tus prendas.`;
+    } else if (type === "ready") {
+      text =
+        order.deliveryMethod === "PICKUP"
+          ? `¡Hola ${firstName}! Tu pedido ${formattedCode} ya está listo para retirar en nuestro showroom. ¡Te esperamos!`
+          : `¡Hola ${firstName}! Tu paquete del pedido ${formattedCode} ya está listo y en camino a tu domicilio.`;
+    }
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
   };
 
   const buyerGreeting = encodeURIComponent(
@@ -296,8 +367,86 @@ export function AdminOrderDetailClient({
 
       {/* Grid de Contenido Principal */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Columna Izquierda (2/3): Artículos y Desglose Financiero */}
+        {/* Columna Izquierda (2/3): Reclamo Postventa, Artículos y Desglose Financiero */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Card: Alerta de Reclamo / Arrepentimiento Postventa */}
+          {order.claim && (
+            <section className="rounded-2xl border border-rose-800/70 bg-rose-950/30 p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <RotateCcw className="h-4 w-4 text-rose-400" />
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-rose-300">
+                    Solicitud de Arrepentimiento / Postventa
+                  </h2>
+                </div>
+                <span className="font-mono text-xs font-bold text-rose-200 bg-rose-950 border border-rose-800 px-2.5 py-0.5 rounded-lg">
+                  {order.claim.claimCode}
+                </span>
+              </div>
+
+              <div className="text-xs text-zinc-300 space-y-1.5">
+                <p>
+                  <strong className="text-zinc-400">Tipo de solicitud:</strong>{" "}
+                  {order.claim.type === "EXCHANGE"
+                    ? "Cambio de talle / prenda"
+                    : "Arrepentimiento de compra (Ley 24.240)"}
+                </p>
+                {order.claim.reason && (
+                  <p className="italic text-zinc-200 bg-zinc-950/70 p-3 rounded-xl border border-rose-900/40">
+                    &ldquo;{order.claim.reason}&rdquo;
+                  </p>
+                )}
+              </div>
+
+              {order.claim.status === "PENDING" ? (
+                <div className="pt-3 border-t border-rose-900/50 space-y-2.5">
+                  <p className="text-[11px] font-semibold text-rose-200">
+                    Control de Calidad al recibir la prenda:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      disabled={isInspectingClaim}
+                      onClick={() => handleInspectClaim(order.claim!.id, "APPROVE_RESTOCK")}
+                      className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold text-xs px-3 py-2.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <Check className="h-4 w-4" />
+                      <span>Aprobar y Recircular (+1 stock)</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isInspectingClaim}
+                      onClick={() => handleRejectCondition(order.claim!)}
+                      className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-900/80 hover:bg-rose-800 border border-rose-700 text-rose-100 font-semibold text-xs px-3 py-2.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <XCircle className="h-4 w-4" />
+                      <span>Rechazar por Manchas / Uso</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-2 border-t border-rose-900/50 text-xs">
+                  {order.claim.status === "APPROVED_RESTOCKED" ? (
+                    <span className="text-emerald-400 font-semibold">
+                      ✓ Control de calidad aprobado · Stock recirculado a la tienda
+                    </span>
+                  ) : (
+                    <div className="text-rose-300 space-y-0.5">
+                      <p className="font-semibold">
+                        ✕ Devolución rechazada en control de calidad
+                      </p>
+                      {order.claim.rejectionReason && (
+                        <p className="text-zinc-400 text-[11px]">
+                          Motivo: {order.claim.rejectionReason}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Card: Lista de Productos */}
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-zinc-800 flex items-center justify-between">
@@ -415,7 +564,7 @@ export function AdminOrderDetailClient({
           )}
         </div>
 
-        {/* Columna Derecha (1/3): Datos del Comprador, Logística y Estado */}
+        {/* Columna Derecha (1/3): Datos del Comprador, Logística, Mensajes Rápidos y Estado */}
         <div className="space-y-6">
           {/* Card: Cobro y Pago (BR-47, BR-48) */}
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 space-y-3.5 text-xs">
@@ -550,6 +699,13 @@ export function AdminOrderDetailClient({
                 <p className="font-semibold text-zinc-100">{order.customerName}</p>
               </div>
 
+              {order.customerDni && (
+                <div>
+                  <span className="text-[10px] text-zinc-500 uppercase font-bold block">DNI</span>
+                  <p className="font-mono text-zinc-200">{order.customerDni}</p>
+                </div>
+              )}
+
               <div>
                 <span className="text-[10px] text-zinc-500 uppercase font-bold block">WhatsApp / Teléfono</span>
                 <div className="flex items-center justify-between gap-2 mt-0.5">
@@ -576,6 +732,56 @@ export function AdminOrderDetailClient({
               )}
             </div>
           </section>
+
+          {/* Card: Mensajes Rápidos por WhatsApp */}
+          {cleanPhone && (
+            <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 space-y-2.5 text-xs">
+              <div className="flex items-center gap-2 text-zinc-200">
+                <MessageCircle className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                  Mensajes rápidos por WhatsApp
+                </h2>
+              </div>
+              <div className="grid grid-cols-1 gap-2 pt-1">
+                <a
+                  href={getWhatsAppTemplateLink("receipt")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-xl border border-emerald-800/50 bg-emerald-950/30 hover:bg-emerald-950/60 px-3.5 py-2.5 text-xs font-medium text-emerald-200 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <MessageCircle className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                    1. Enviar datos de pago / recepción
+                  </span>
+                  <ExternalLink className="h-3 w-3 text-emerald-500 shrink-0" />
+                </a>
+                <a
+                  href={getWhatsAppTemplateLink("confirmed")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-xl border border-sky-800/50 bg-sky-950/30 hover:bg-sky-950/60 px-3.5 py-2.5 text-xs font-medium text-sky-200 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <MessageCircle className="h-3.5 w-3.5 text-sky-400 shrink-0" />
+                    2. Avisar que el pedido está confirmado
+                  </span>
+                  <ExternalLink className="h-3 w-3 text-sky-500 shrink-0" />
+                </a>
+                <a
+                  href={getWhatsAppTemplateLink("ready")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-xl border border-amber-800/50 bg-amber-950/30 hover:bg-amber-950/60 px-3.5 py-2.5 text-xs font-medium text-amber-200 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <MessageCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    3. Avisar que está listo / en camino
+                  </span>
+                  <ExternalLink className="h-3 w-3 text-amber-500 shrink-0" />
+                </a>
+              </div>
+            </section>
+          )}
 
           {/* Card: Logística y Entrega */}
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-5 space-y-3 text-xs">

@@ -335,4 +335,93 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(html).toContain('title="Ver contraseña"');
     });
   });
+
+  describe("OrdersManagerClient (Hierarchical, Collapsible & Full-Page Detail UX)", () => {
+    it("renderiza pedidos jerarquizados por grupos colapsables, selector de densidad, estado inline y enlace a ficha completa sin drawer", async () => {
+      const { OrdersManagerClient } = await import(
+        "../src/components/admin/OrdersManagerClient"
+      );
+
+      const mockOrders = [
+        {
+          id: 101,
+          code: 1,
+          customerName: "Valentina Gómez",
+          customerPhone: "+5491155551111",
+          customerDni: "38123456",
+          customerEmail: "valentina@example.com",
+          deliveryMethod: "PICKUP" as const,
+          paymentMethod: "TRANSFER" as const,
+          paymentStatus: "PENDING" as const,
+          status: "PENDING" as const,
+          subtotalCents: 1850000,
+          discountCents: 0,
+          shippingCents: 0,
+          totalCents: 1850000,
+          currency: "ARS",
+          createdAt: Math.floor(Date.now() / 1000) - 3600,
+          updatedAt: Math.floor(Date.now() / 1000) - 3600,
+          items: [
+            {
+              id: 1,
+              orderId: 101,
+              productId: 10,
+              productCode: 23,
+              productTitle: "Vestido Lino Siena",
+              colorName: "Natural",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 1850000,
+              subtotalCents: 1850000,
+            },
+          ],
+        },
+        {
+          id: 102,
+          code: 2,
+          customerName: "Martina López",
+          customerPhone: "+5491155552222",
+          customerDni: "40987654",
+          deliveryMethod: "HOME_DELIVERY" as const,
+          paymentMethod: "MERCADOPAGO" as const,
+          paymentStatus: "PAID" as const,
+          status: "CONFIRMED" as const,
+          subtotalCents: 2500000,
+          discountCents: 0,
+          shippingCents: 0,
+          totalCents: 2500000,
+          currency: "ARS",
+          createdAt: Math.floor(Date.now() / 1000) - 7200,
+          updatedAt: Math.floor(Date.now() / 1000) - 7200,
+          items: [],
+        },
+      ];
+
+      const html = renderToString(
+        React.createElement(OrdersManagerClient, {
+          initialOrders: mockOrders as any,
+          brandName: "Aura Studio",
+        })
+      );
+
+      // Controles de agrupación jerárquica y densidad
+      expect(html).toContain("Agrupar por:");
+      expect(html).toContain("Estados");
+      expect(html).toContain("Entrega");
+      expect(html).toContain("Cobro");
+      expect(html).toContain("Cómoda");
+      expect(html).toContain("Compacta");
+      expect(html).toContain("+ Ver detalles");
+
+      // Grupos colapsables con aria-expanded
+      expect(html).toContain("Pendientes de Confirmación");
+      expect(html).toContain("Confirmados (Preparando Pedido)");
+      expect(html).toContain('aria-expanded="true"');
+
+      // Enlace directo a la ficha de página completa (/admin/ordenes/101) y ausencia de drawer modal
+      expect(html).toContain('href="/admin/ordenes/101"');
+      expect(html).toContain("Ver ficha");
+      expect(html).not.toContain('id="drawer-order-title"');
+    });
+  });
 });

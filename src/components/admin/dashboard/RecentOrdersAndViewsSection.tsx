@@ -95,9 +95,12 @@ export function RecentOrdersAndViewsSection({
                   >
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-zinc-100 font-mono">
+                        <Link
+                          href={`/admin/ordenes/${order.id}`}
+                          className="font-bold text-zinc-100 hover:text-amber-300 font-mono transition-colors"
+                        >
                           {formatOrderCode(order.code)}
-                        </span>
+                        </Link>
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.className}`}
                         >
@@ -115,10 +118,10 @@ export function RecentOrdersAndViewsSection({
                         {formatPriceARS(order.totalCents)}
                       </p>
                       <Link
-                        href={`/admin/ordenes?id=${order.id}`}
+                        href={`/admin/ordenes/${order.id}`}
                         className="text-[11px] text-amber-300 hover:underline font-semibold"
                       >
-                        Revisar
+                        Ver ficha
                       </Link>
                     </div>
                   </div>

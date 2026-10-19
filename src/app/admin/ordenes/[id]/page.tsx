@@ -62,6 +62,15 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
     notFound();
   }
 
+  if (deps.orderClaimRepo) {
+    try {
+      const claim = await deps.orderClaimRepo.findByOrderId(order.id);
+      order.claim = claim || null;
+    } catch {
+      // Ignorar si falla hydrate
+    }
+  }
+
   const settings = await getShowroomSettings(deps);
 
   return (
