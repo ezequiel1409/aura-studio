@@ -56,7 +56,7 @@ export default function AdminRecoverPasswordPage() {
 
   return (
     <div className="min-h-[calc(100vh-8rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm mx-auto">
         <div className="flex justify-end mb-3">
           <AdminThemeToggle />
         </div>

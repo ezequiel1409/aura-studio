@@ -103,7 +103,7 @@ export default function AdminLoginPage({
 
   return (
     <div className="min-h-[calc(100vh-8rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm mx-auto">
         {/* Cabecera / Identidad */}
         <div className="text-center mb-7">
           <h1 className="font-serif text-3xl font-bold tracking-wide text-zinc-100">

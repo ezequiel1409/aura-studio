@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { AdminHeader } from "../../components/admin/AdminHeader";
+import { AdminLayoutFrame } from "../../components/admin/AdminLayoutFrame";
 import { AdminSessionMonitor } from "../../components/admin/AdminSessionMonitor";
 import { AdminThemeInitializer } from "../../components/admin/AdminThemeInitializer";
 
@@ -39,20 +40,7 @@ export default function AdminLayout({
         Saltar al contenido principal
       </a>
       <AdminHeader />
-      <main
-        id="admin-main"
-        tabIndex={-1}
-        className="flex-1 w-full px-4 py-6 md:py-8 md:pl-64 focus:outline-none min-w-0"
-      >
-        <div className="max-w-6xl mx-auto w-full">
-          {children}
-        </div>
-      </main>
-      <footer className="w-full py-4 text-center border-t border-zinc-800 text-xs text-zinc-500 md:pl-64">
-        <span>
-          Creado por <strong className="font-semibold text-zinc-300">Altum</strong>
-        </span>
-      </footer>
+      <AdminLayoutFrame>{children}</AdminLayoutFrame>
       {/* Monitor de expiración de sesión y renovación en 1 clic (BR-10, BR-37) */}
       <AdminSessionMonitor />
     </div>
