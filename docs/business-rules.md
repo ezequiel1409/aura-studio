@@ -135,6 +135,58 @@ Los IDs **no se renumeran**: si una regla deja de aplicar se marca como *derogad
   - **Portal del Cliente (`/cuenta`)**: Permite al cliente consultar su historial de pedidos con desglose de ítems y estados, gestionar su libreta de direcciones habituales (`customer_addresses`, con soporte de dirección predeterminada) y editar sus datos de contacto.
   - **Checkout Híbrido (Invitado o Autenticado)**: En `/carrito`, si el cliente tiene sesión activa, se autocompletan sus datos personales y puede elegir con un clic cualquiera de sus direcciones guardadas o guardar la dirección ingresada para futuras compras.
 
+- **BR-46 · Botón de arrepentimiento legal, mesa de reclamos y recirculación de stock (Res. 424/2020).**
+  - Todo comprador en el storefront dispone de un acceso visible y directo al "Botón de Arrepentimiento" para revocar su compra dentro del plazo legal de 10 días corridos desde la recepción o compra.
+  - Al solicitar arrepentimiento o cambio, se genera un reclamo (`OrderClaim`) asociado a la orden con motivo, descripción y estado inicial `SUBMITTED`.
+  - La administradora gestiona la mesa de control de calidad desde el Backoffice (`/admin/reclamos`): aprueba o rechaza el reclamo, gestiona la devolución o cambio, y en caso de producto en condiciones óptimas, puede ordenar la recirculación y reposición atómica de stock en el inventario del comercio.
+
+## 11. Métodos de Pago y Pasarelas Múltiples
+
+- **BR-47 · Soporte de métodos de pago múltiples y bonificación por transferencia.**
+  - Cada comercio puede activar de manera independiente uno o varios métodos de pago:
+    1. *Mercado Pago*: Checkout Pro / Checkout Transparente (tarjetas, dinero en cuenta, cuotas).
+    2. *Stripe*: Tarjetas internacionales y billeteras digitales (Apple Pay, Google Pay).
+    3. *Transferencia Bancaria Directa*: El cliente recibe los datos CBU/CVU/Alias del comercio y puede cargar su comprobante de pago; permite configurar una bonificación o descuento automático (ej: 10% OFF).
+    4. *Efectivo contra entrega / Retiro en Showroom*: Pago presencial al momento de recibir o retirar el pedido.
+    5. *WhatsApp Checkout*: Asistencia directa para coordinar pago manual.
+  - La orden recalcula el total final aplicando descuentos o recargos según el método de pago elegido antes de confirmar.
+  - Los pagos online confirmados vía webhook actualizan la orden a `PAID` de forma atómica y descuentan el stock físico inmediatamente.
+
+## 12. Finanzas, Costos, Comisiones y Facturación
+
+- **BR-48 · Liquidación financiera, desglose de costos y comisiones en Backoffice.**
+  - El Backoffice del comercio provee un panel de control financiero donde se visualizan:
+    1. *Ingresos Brutos*: Total facturado a clientes en productos y envíos.
+    2. *Comisiones de Pasarela*: Deducción exacta o estimada según el método de cobro utilizado (Mercado Pago, Stripe, comisiones financieras).
+    3. *Retenciones impositivas estimadas*: Retenciones automáticas de IIBB, IVA o Ganancias según corresponda a la pasarela.
+    4. *Ingreso Neto Liquidado*: Dinero real neto que ingresa al comercio.
+  - Se incluye un simulador de márgenes para que el comerciante calcule su rentabilidad real por prenda según el método de pago seleccionado.
+
+- **BR-49 · Comprobante comercial de compra no fiscal y desacoplamiento tributario.**
+  - Tras confirmarse la orden, la plataforma emite un Comprobante de Compra / Nota de Venta interna en PDF descargable y enviado por email al comprador y al comercio.
+  - **Delimitación legal**: El comprobante comercial no constituye factura fiscal electrónica ante entes tributarios (AFIP / ARCA), evitando contingencias legales o responsabilidades solidarias para la plataforma de software.
+  - Para aquellos comercios que emitan facturación fiscal electrónica, se provee:
+    1. Exportación contable compatible con libro de IVA Ventas.
+    2. Conector desacoplado (`InvoicingPort`) hacia plataformas autorizadas (Facturante, TusFacturas, AFIP WSFE) operado exclusivamente bajo el CUIT y certificado digital del propio comercio vendedor.
+
+## 13. Logística, Métodos de Envío y Tracking
+
+- **BR-50 · Métodos de envío dinámicos, etiquetas de despacho y tracking de pedidos.**
+  - El checkout permite al cliente seleccionar entre:
+    1. *Retiro gratuito en Showroom / Punto de entrega*: con dirección, horarios y notas de retiro.
+    2. *Envío propio zonal / motomensajería*: con tarifas fijas o por código postal configuradas por el comercio.
+    3. *Operadores logísticos integrados (Correo Argentino MiCorreo, Andreani, Envíopack)*: cotización en tiempo real basada en código postal de destino, peso y dimensiones del paquete.
+  - El comercio puede configurar reglas de "Envío Gratis" superando un monto mínimo de compra.
+  - En el Backoffice, el comercio puede generar e imprimir la etiqueta de despacho (remito/guía) con un solo clic.
+  - El cliente y el comercio pueden dar seguimiento al estado de entrega (`PREPARANDO`, `DESPACHADO`, `EN_DISTRIBUCION`, `ENTREGADO`) en tiempo real desde `/cuenta` o mediante enlace público de tracking.
+
+## 14. Multi-Comercio y Marca Blanca
+
+- **BR-51 · Aislamiento multi-comercio (Multi-tenancy).**
+  - Cada comercio (`Commerce`) opera con un identificador unívoco (`commerce_id`) en base de datos.
+  - Las entidades transaccionales y de catálogo (`products`, `categories`, `orders`, `coupons`, `settings`) están estrictamente aisladas por comercio.
+  - Cada comercio personaliza su marca (logotipo, tipografías, paletas de colores, redes sociales, datos de showroom y mensajes) sin requerir re-compilación ni re-despliegue de la aplicación.
+
 ---
 
 ## Decisiones pendientes
@@ -144,3 +196,4 @@ Los IDs **no se renumeran**: si una regla deja de aplicar se marca como *derogad
 - [ ] Sistema de talles: letras (S/M/L), numérico (38/40) o mixto. Cómo se normaliza "Talle único".
 - [ ] Convención del texto libre para el parser (necesitamos 3 o 4 ejemplos reales).
 - [ ] Moneda y formato de precios (propuesta: ARS, locale `es-AR`).
+

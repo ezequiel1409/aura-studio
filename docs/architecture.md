@@ -52,5 +52,21 @@ src/
 - **AR-15**: Anuncios y Popups Condicionales con Control de Frecuencia:
   - Los anuncios (banners) y popups se configuran desde la administración y se persisten en base de datos.
   - La frecuencia de visualización se gestiona en cliente (`localStorage`) para asegurar que una ventana o anuncio cerrado no vuelva a interrumpir la navegación del usuario en la misma sesión, optimizando Core Web Vitals (evitando CLS) y respetando accesibilidad.
+- **AR-16**: Arquitectura de Pasarelas de Pago Desacopladas (Hexagonal / `PaymentGatewayPort`):
+  - El dominio define la interfaz pura `PaymentGatewayPort`. Ni la entidad `Order` ni los servicios de checkout conocen detalles de SDKs de terceros (Mercado Pago SDK, Stripe SDK, etc.).
+  - Cada método de pago implementa su propio adaptador de infraestructura (`MercadoPagoAdapter`, `StripeAdapter`, `BankTransferAdapter`, `CashOnDeliveryAdapter`).
+  - La confirmación de pagos opera mediante webhooks idempotentes y verificación de firmas criptográficas, asegurando que la acreditación y el descuento atómico de stock se ejecuten de forma segura y sin race conditions.
+- **AR-17**: Arquitectura de Operadores Logísticos y Cotización (`ShippingCarrierPort`):
+  - La lógica de cotización, despacho y tracking se abstrae bajo el puerto `ShippingCarrierPort`.
+  - Los adaptadores concretos (Correo Argentino, Andreani, Envíopack, Local Delivery) resuelven la comunicación con las APIs externas y normalizan los estados de envío (`PREPARING`, `DISPATCHED`, `IN_TRANSIT`, `DELIVERED`).
+  - La selección de transportista y el cálculo de tarifas nunca bloquean la navegación del storefront; se ejecutan mediante Server Actions o endpoints reactivos con fallback a tarifas zonales si el servicio externo no responde.
+- **AR-18**: Desacoplamiento de Facturación y Comprobantes (`InvoicingPort` & Tax Decoupling):
+  - Se establece una separación arquitectónica estricta entre comprobantes comerciales internos y facturación fiscal electrónica ante organismos tributarios (AFIP / ARCA).
+  - La generación de Comprobantes de Compra (PDF/HTML) se ejecuta en un servicio de dominio desacoplado libre de contingencias impositivas.
+  - La emisión fiscal electrónica se modela como un puerto opcional (`InvoicingPort`), permitiendo conectar servicios especializados (Facturante, TusFacturas, AFIP WSFE) utilizando exclusivamente el CUIT y los certificados digitales delegados por cada comercio particular.
+- **AR-19**: Aislamiento Multi-Comercio y Tenancy en Clean Architecture:
+  - Todas las consultas, mutaciones y operaciones de persistencia en D1 / Drizzle deben estar restringidas por el contexto del comercio (`commerceId`).
+  - Las configuraciones de marca, temas, pasarelas activas, cuentas bancarias y tarifas de envío se resuelven en tiempo de ejecución según el comercio activo, garantizando la venta y despliegue del software como un producto marca blanca multi-cliente.
+
 
 
