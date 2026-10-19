@@ -447,4 +447,68 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       expect(byCode.code).toBe(order.code);
     });
   });
+
+  describe("DNI del Titular y Búsqueda Omnicanal en Órdenes", () => {
+    it("valida y persiste el DNI del comprador en la orden", async () => {
+      // 1. Normalización de DNI en reglas
+      const validated = validateCreateOrderInput({
+        customerName: "Camila Díaz",
+        customerPhone: "1123456789",
+        customerDni: "40.123.456",
+        deliveryMethod: "PICKUP",
+        items: [
+          {
+            productCode: 1,
+            productTitle: "Top",
+            colorName: "Negro",
+            size: "M",
+            quantity: 1,
+            unitPriceCents: 2000000,
+          },
+        ],
+      });
+      expect(validated.customerDni).toBe("40123456");
+
+      // 2. Persistencia en base de datos vía createOrder
+      const product = await createProduct(
+        {
+          rawText: "Top Seda $20.000",
+          colors: [{ name: "Negro", position: 0, sizes: [{ size: "M", stock: 5 }] }],
+        },
+        env.deps
+      );
+
+      const { order } = await createOrder(
+        {
+          customerName: "Camila Díaz",
+          customerPhone: "1123456789",
+          customerEmail: "camila@example.com",
+          customerDni: "40.123.456",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title ?? "Top Seda",
+              colorName: "Negro",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 2000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      expect(order.customerDni).toBe("40123456");
+
+      // Recuperación por ID y por Código
+      const byId = await getOrderById(order.id, env.deps);
+      expect(byId.customerDni).toBe("40123456");
+
+      const byCode = await getOrderByCode(order.code, env.deps);
+      expect(byCode.customerDni).toBe("40123456");
+    });
+  });
 });
+

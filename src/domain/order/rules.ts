@@ -27,6 +27,7 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   customerName: string;
   customerPhone: string;
   customerEmail: string | null;
+  customerDni: string | null;
   deliveryMethod: DeliveryMethod;
   deliveryAddress: string | null;
   deliveryNotes: string | null;
@@ -78,11 +79,13 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   const shippingCents = Math.max(0, input.shippingCents || 0);
   const discountCents = Math.max(0, input.discountCents || 0);
   const totalCents = Math.max(0, subtotal - discountCents + shippingCents);
+  const cleanDni = input.customerDni ? input.customerDni.replace(/\D/g, "") : null;
 
   return {
     customerName,
     customerPhone,
     customerEmail: input.customerEmail?.trim() || null,
+    customerDni: cleanDni && cleanDni.length >= 6 ? cleanDni : null,
     deliveryMethod: input.deliveryMethod,
     deliveryAddress,
     deliveryNotes: input.deliveryNotes?.trim() || null,

@@ -205,6 +205,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
 	`customer_name` text NOT NULL,
 	`customer_phone` text NOT NULL,
 	`customer_email` text,
+	`customer_dni` text,
 	`delivery_method` text NOT NULL,
 	`delivery_address` text,
 	`delivery_notes` text,
@@ -227,6 +228,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS `orders_code_unique` ON `orders` (`code`);
 CREATE INDEX IF NOT EXISTS `orders_code_idx` ON `orders` (`code`);
 CREATE INDEX IF NOT EXISTS `orders_status_created_at_idx` ON `orders` (`status`,`created_at`);
 CREATE INDEX IF NOT EXISTS `orders_customer_id_idx` ON `orders` (`customer_id`);
+CREATE INDEX IF NOT EXISTS `orders_customer_dni_idx` ON `orders` (`customer_dni`);
 CREATE INDEX IF NOT EXISTS `orders_commerce_id_idx` ON `orders` (`commerce_id`);
 
 CREATE TABLE IF NOT EXISTS `order_items` (

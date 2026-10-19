@@ -176,6 +176,13 @@ export function getDb(): DbClient {
         sqlite.exec("ALTER TABLE products ADD COLUMN allow_return integer DEFAULT 1 NOT NULL;");
       }
 
+      const pragmaOrderCols = sqlite.prepare("PRAGMA table_info(orders)").all() as Array<{ name: string }>;
+      const hasCustomerDni = pragmaOrderCols.some((col) => col.name === "customer_dni");
+      if (!hasCustomerDni) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN customer_dni text;");
+        sqlite.exec("CREATE INDEX IF NOT EXISTS orders_customer_dni_idx ON orders (customer_dni);");
+      }
+
       sqlite.exec(`
         CREATE TABLE IF NOT EXISTS order_claims (
           id text PRIMARY KEY NOT NULL,

@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
           code: body.couponCode,
           email: body.customerEmail || null,
           phone: body.customerPhone || null,
+          dni: body.customerDni || null,
           subtotalCents,
           shippingCents: body.shippingCents || 0,
         },

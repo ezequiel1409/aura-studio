@@ -246,6 +246,7 @@ export const orders = sqliteTable(
     customerName: text("customer_name").notNull(),
     customerPhone: text("customer_phone").notNull(),
     customerEmail: text("customer_email"),
+    customerDni: text("customer_dni"),
     deliveryMethod: text("delivery_method", {
       enum: ["HOME_DELIVERY", "MOTORCYCLE", "PICKUP"],
     }).notNull(),
@@ -276,6 +277,7 @@ export const orders = sqliteTable(
     index("orders_code_idx").on(table.code),
     index("orders_status_created_at_idx").on(table.status, table.createdAt),
     index("orders_customer_id_idx").on(table.customerId),
+    index("orders_customer_dni_idx").on(table.customerDni),
     index("orders_commerce_id_idx").on(table.commerceId),
   ]
 );

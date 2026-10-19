@@ -82,6 +82,7 @@ export async function createOrder(
     customerName: validated.customerName,
     customerPhone: validated.customerPhone,
     customerEmail: validated.customerEmail,
+    customerDni: validated.customerDni,
     deliveryMethod: validated.deliveryMethod,
     deliveryAddress: validated.deliveryAddress,
     deliveryNotes: validated.deliveryNotes,
@@ -115,12 +116,14 @@ export async function createOrder(
         await deps.couponRepo.incrementUsage(coupon.id);
         const cleanEmail = validated.customerEmail ? normalizeEmail(validated.customerEmail) : "";
         const cleanPhone = validated.customerPhone ? normalizePhone(validated.customerPhone) : null;
-        if (cleanEmail || cleanPhone) {
+        const cleanDni = validated.customerDni || null;
+        if (cleanEmail || cleanPhone || cleanDni) {
           await deps.couponRepo.recordRedemption({
             couponId: coupon.id,
             orderId: order.id,
             customerEmail: cleanEmail || "cliente@aurastudio.com",
             customerPhone: cleanPhone,
+            customerDni: cleanDni,
             customerId: validated.customerId,
             discountCents: validated.discountCents,
           });

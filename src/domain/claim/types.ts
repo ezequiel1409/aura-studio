@@ -35,3 +35,4 @@ export interface InspectClaimInput {
   rejectionReason?: string;
   adminNotes?: string;
 }
+

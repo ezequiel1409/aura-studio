@@ -57,6 +57,13 @@
       "when": 1792414171466,
       "tag": "0007_round_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792415000000,
+      "tag": "0008_orders_customer_dni",
+      "breakpoints": true
     }
   ]
 }

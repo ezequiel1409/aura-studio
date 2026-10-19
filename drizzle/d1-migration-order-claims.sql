@@ -31,3 +31,4 @@ CREATE UNIQUE INDEX IF NOT EXISTS `order_claims_claim_code_unique` ON `order_cla
 CREATE INDEX IF NOT EXISTS `order_claims_order_id_idx` ON `order_claims` (`order_id`);
 CREATE INDEX IF NOT EXISTS `order_claims_claim_code_idx` ON `order_claims` (`claim_code`);
 CREATE INDEX IF NOT EXISTS `order_claims_status_idx` ON `order_claims` (`status`);
+

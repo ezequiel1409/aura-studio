@@ -23,6 +23,7 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   customerEmail?: string | null;
+  customerDni?: string | null;
   deliveryMethod: DeliveryMethod;
   deliveryAddress?: string | null;
   deliveryNotes?: string | null;
@@ -57,6 +58,7 @@ export interface CreateOrderInput {
   customerName: string;
   customerPhone: string;
   customerEmail?: string | null;
+  customerDni?: string | null;
   deliveryMethod: DeliveryMethod;
   deliveryAddress?: string | null;
   deliveryNotes?: string | null;

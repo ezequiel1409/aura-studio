@@ -23,6 +23,7 @@ import {
   Store,
   Truck,
   Bike,
+  Calendar,
   X,
   XCircle,
   RotateCcw,
@@ -86,6 +87,8 @@ export function OrdersManagerClient({
   );
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [deliveryMethodFilter, setDeliveryMethodFilter] = useState<string>("ALL");
+  const [dateRangeFilter, setDateRangeFilter] = useState<string>("ALL");
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(() => {
     const idParam = searchParams.get("id");
     return idParam ? parseInt(idParam, 10) : null;
@@ -227,28 +230,118 @@ export function OrdersManagerClient({
     };
   }, [orders]);
 
-  // Filtrado reactivo por pestaña y búsqueda
+  // Limpieza de filtros
+  const hasActiveFilters =
+    searchQuery.trim() !== "" ||
+    deliveryMethodFilter !== "ALL" ||
+    dateRangeFilter !== "ALL" ||
+    activeTab !== "ALL";
+
+  const handleClearFilters = () => {
+    setSearchQuery("");
+    setDeliveryMethodFilter("ALL");
+    setDateRangeFilter("ALL");
+    setActiveTab("ALL");
+  };
+
+  // Filtrado reactivo por pestaña, método de entrega, fecha y búsqueda omnicanal
   const filteredOrders = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
     return orders.filter((o) => {
+      // 1. Filtro por Pestaña de Estado
       if (activeTab === "PENDING" && o.status !== "PENDING") return false;
       if (activeTab === "IN_PROGRESS" && o.status !== "CONFIRMED" && o.status !== "PAID") return false;
       if (activeTab === "CANCELLED" && o.status !== "CANCELLED") return false;
       if (activeTab === "CLAIMS" && !o.claim) return false;
 
+      // 2. Filtro por Método de Entrega
+      if (deliveryMethodFilter !== "ALL" && o.deliveryMethod !== deliveryMethodFilter) {
+        return false;
+      }
+
+      // 3. Filtro por Rango de Fecha
+      const orderDateMs = o.createdAt * 1000;
+      if (dateRangeFilter === "TODAY" && orderDateMs < todayStart) return false;
+      if (dateRangeFilter === "WEEK" && orderDateMs < weekAgo) return false;
+      if (dateRangeFilter === "MONTH" && orderDateMs < monthStart) return false;
+
+      // 4. Búsqueda Omnicanal (DNI, Código, Email, Teléfono, Nombre, Trámite, Cupón, Prenda)
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
+        const queryDigits = query.replace(/\D/g, "");
+
+        // A. Código de orden (#ORD-001, 1, 001)
         const codeNum = String(o.code);
         const codeStr = formatOrderCode(o.code).toLowerCase();
+        const codeMatch =
+          codeNum.includes(query) ||
+          codeStr.includes(query) ||
+          (queryDigits !== "" && queryDigits === codeNum);
+
+        // B. DNI del comprador (en orden o en reclamo de arrepentimiento)
+        const dniDigits = o.customerDni ? o.customerDni.replace(/\D/g, "") : "";
+        const claimDniDigits = o.claim?.customerDni ? o.claim.customerDni.replace(/\D/g, "") : "";
+        const dniMatch =
+          Boolean(o.customerDni && o.customerDni.toLowerCase().includes(query)) ||
+          (queryDigits.length >= 3 && dniDigits.includes(queryDigits)) ||
+          Boolean(o.claim?.customerDni && o.claim.customerDni.toLowerCase().includes(query)) ||
+          (queryDigits.length >= 3 && claimDniDigits.includes(queryDigits));
+
+        // C. Nombre del comprador
         const nameMatch = o.customerName.toLowerCase().includes(query);
-        const phoneMatch = o.customerPhone.includes(query);
-        const codeMatch = codeNum.includes(query) || codeStr.includes(query);
-        const claimMatch = o.claim?.claimCode.toLowerCase().includes(query) || false;
-        return nameMatch || phoneMatch || codeMatch || claimMatch;
+
+        // D. Teléfono / WhatsApp (con o sin símbolos)
+        const phoneDigits = o.customerPhone.replace(/\D/g, "");
+        const phoneMatch =
+          o.customerPhone.toLowerCase().includes(query) ||
+          (queryDigits.length >= 3 && phoneDigits.includes(queryDigits));
+
+        // E. Email del comprador
+        const emailMatch = Boolean(o.customerEmail && o.customerEmail.toLowerCase().includes(query));
+
+        // F. Código de trámite / arrepentimiento (REV-#ORD-001-XXXX o CAM-...)
+        const claimMatch = Boolean(o.claim?.claimCode && o.claim.claimCode.toLowerCase().includes(query));
+
+        // G. Cupón de descuento aplicado
+        const couponMatch = Boolean(o.couponCode && o.couponCode.toLowerCase().includes(query));
+
+        // H. Prendas o código de producto dentro de la orden
+        const itemMatch = Boolean(
+          o.items?.some(
+            (i) =>
+              i.productTitle.toLowerCase().includes(query) ||
+              String(i.productCode).includes(query) ||
+              i.colorName.toLowerCase().includes(query) ||
+              i.size.toLowerCase().includes(query)
+          )
+        );
+
+        // I. Dirección de entrega / notas
+        const addressMatch = Boolean(
+          (o.deliveryAddress && o.deliveryAddress.toLowerCase().includes(query)) ||
+          (o.deliveryNotes && o.deliveryNotes.toLowerCase().includes(query))
+        );
+
+        return (
+          codeMatch ||
+          dniMatch ||
+          nameMatch ||
+          phoneMatch ||
+          emailMatch ||
+          claimMatch ||
+          couponMatch ||
+          itemMatch ||
+          addressMatch
+        );
       }
 
       return true;
     });
-  }, [orders, activeTab, searchQuery]);
+  }, [orders, activeTab, deliveryMethodFilter, dateRangeFilter, searchQuery]);
 
   // Generador de plantillas de WhatsApp según el estado
   const getWhatsAppMessage = (order: Order, type: "receipt" | "confirmed" | "ready") => {
@@ -337,61 +430,126 @@ export function OrdersManagerClient({
         </div>
       </div>
 
-      {/* Barra de Filtros y Buscador Rápido */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Pestañas de filtrado con badge destacado para pendientes */}
-        <div
-          role="tablist"
-          aria-label="Filtros de estado de órdenes"
-          className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs"
-        >
-          {[
-            { id: "PENDING", label: "Pendientes", count: counts.PENDING, highlight: true },
-            { id: "IN_PROGRESS", label: "En curso", count: counts.IN_PROGRESS },
-            { id: "CLAIMS", label: "Arrepentimientos", count: counts.CLAIMS, highlight: true },
-            { id: "CANCELLED", label: "Cancelados", count: counts.CANCELLED },
-            { id: "ALL", label: "Todos", count: counts.ALL },
-          ].map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
-                  isActive
-                    ? "bg-amber-300 text-zinc-950 font-bold shadow-xs"
-                    : tab.highlight && tab.count > 0
-                    ? "bg-amber-950/40 border border-amber-500/40 text-amber-300 hover:bg-amber-950/60"
-                    : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800"
-                }`}
-              >
-                <span>{tab.label}</span>
-                <span
-                  className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono ${
+      {/* Barra de Filtros, Buscador y Selectores */}
+      <div className="space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Pestañas de filtrado con badge destacado para pendientes */}
+          <div
+            role="tablist"
+            aria-label="Filtros de estado de órdenes"
+            className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs"
+          >
+            {[
+              { id: "PENDING", label: "Pendientes", count: counts.PENDING, highlight: true },
+              { id: "IN_PROGRESS", label: "En curso", count: counts.IN_PROGRESS },
+              { id: "CLAIMS", label: "Arrepentimientos", count: counts.CLAIMS, highlight: true },
+              { id: "CANCELLED", label: "Cancelados", count: counts.CANCELLED },
+              { id: "ALL", label: "Todos", count: counts.ALL },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                     isActive
-                      ? "bg-zinc-950 text-amber-300"
-                      : "bg-zinc-800 text-zinc-400"
+                      ? "bg-amber-300 text-zinc-950 font-bold shadow-xs"
+                      : tab.highlight && tab.count > 0
+                      ? "bg-amber-950/40 border border-amber-500/40 text-amber-300 hover:bg-amber-950/60"
+                      : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800"
                   }`}
                 >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
+                  <span>{tab.label}</span>
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono ${
+                      isActive
+                        ? "bg-zinc-950 text-amber-300"
+                        : "bg-zinc-800 text-zinc-400"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Buscador Omnicanal y Filtros Dropdowns */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+            {/* Buscador Omnicanal */}
+            <div className="relative flex-1 sm:w-72 lg:w-80">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Buscar por DNI, #orden, cliente, tel, cupón..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-8 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 cursor-pointer"
+                  aria-label="Borrar búsqueda"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            {/* Dropdown Método de Entrega */}
+            <div className="relative">
+              <select
+                value={deliveryMethodFilter}
+                onChange={(e) => setDeliveryMethodFilter(e.target.value)}
+                aria-label="Filtrar por método de entrega"
+                className="w-full sm:w-auto text-xs py-2 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 focus:outline-none focus:border-amber-400 cursor-pointer"
+              >
+                <option value="ALL">Entrega: Todas</option>
+                <option value="PICKUP">Retiro Showroom</option>
+                <option value="MOTORCYCLE">Moto Express</option>
+                <option value="HOME_DELIVERY">A Domicilio</option>
+              </select>
+            </div>
+
+            {/* Dropdown Rango de Fecha */}
+            <div className="relative">
+              <select
+                value={dateRangeFilter}
+                onChange={(e) => setDateRangeFilter(e.target.value)}
+                aria-label="Filtrar por fecha"
+                className="w-full sm:w-auto text-xs py-2 px-3 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 focus:outline-none focus:border-amber-400 cursor-pointer"
+              >
+                <option value="ALL">Fecha: Todas</option>
+                <option value="TODAY">Hoy</option>
+                <option value="WEEK">Últimos 7 días</option>
+                <option value="MONTH">Este mes</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Buscador por Nombre, Teléfono o Código */}
-        <div className="relative w-full sm:w-72">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, tel o #código..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400"
-          />
+        {/* Resumen de Resultados y Botón de Limpiar Filtros */}
+        <div className="flex items-center justify-between text-xs text-zinc-400 pt-0.5">
+          <span>
+            Mostrando <strong className="text-zinc-200">{filteredOrders.length}</strong> de{" "}
+            <strong className="text-zinc-200">{orders.length}</strong> pedidos
+            {filteredOrders.length < orders.length && " (filtrados)"}
+          </span>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 hover:underline cursor-pointer font-medium"
+            >
+              <X size={13} />
+              <span>Limpiar filtros</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -400,17 +558,18 @@ export function OrdersManagerClient({
         <div className="p-12 text-center rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
           <ShoppingBag size={32} className="mx-auto text-zinc-600" />
           <p className="text-sm font-semibold text-zinc-300">
-            {activeTab === "PENDING"
+            {activeTab === "PENDING" && !hasActiveFilters
               ? "No tenés pedidos pendientes de confirmación. ¡Todo al día! ✨"
-              : "No se encontraron pedidos con los filtros actuales."}
+              : "No se encontraron pedidos con los filtros o búsqueda actuales."}
           </p>
-          {activeTab !== "ALL" && (
+          {hasActiveFilters && (
             <button
               type="button"
-              onClick={() => setActiveTab("ALL")}
-              className="text-xs font-bold text-amber-300 hover:underline"
+              onClick={handleClearFilters}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-amber-300 cursor-pointer transition-colors"
             >
-              Ver todos los pedidos
+              <X size={13} />
+              <span>Restablecer y ver todos los pedidos</span>
             </button>
           )}
         </div>
@@ -473,6 +632,12 @@ export function OrdersManagerClient({
 
                     <p className="text-xs text-zinc-400 flex items-center gap-2 flex-wrap">
                       <span>{order.customerPhone}</span>
+                      {order.customerDni && (
+                        <>
+                          <span>·</span>
+                          <span className="font-mono text-zinc-300">DNI {order.customerDni}</span>
+                        </>
+                      )}
                       <span>·</span>
                       <span>
                         {order.deliveryMethod === "PICKUP"
@@ -481,6 +646,14 @@ export function OrdersManagerClient({
                           ? "Envío Moto Express"
                           : "Envío a Domicilio"}
                       </span>
+                      {order.couponCode && (
+                        <>
+                          <span>·</span>
+                          <span className="font-mono text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded text-[10px] border border-amber-800/60">
+                            Cupón {order.couponCode}
+                          </span>
+                        </>
+                      )}
                       <span>·</span>
                       <span>
                         {order.items?.length || 1} {order.items?.length === 1 ? "pieza" : "piezas"}
@@ -825,6 +998,22 @@ export function OrdersManagerClient({
                   <div className="flex items-center justify-between">
                     <span className="text-zinc-400">Email:</span>
                     <span className="text-zinc-300 font-mono">{selectedOrder.customerEmail}</span>
+                  </div>
+                )}
+
+                {selectedOrder.customerDni && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-400">DNI:</span>
+                    <span className="text-zinc-200 font-mono font-medium">{selectedOrder.customerDni}</span>
+                  </div>
+                )}
+
+                {selectedOrder.couponCode && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-400">Cupón aplicado:</span>
+                    <span className="font-mono text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded text-xs border border-amber-800/60 font-semibold">
+                      {selectedOrder.couponCode}
+                    </span>
                   </div>
                 )}
 

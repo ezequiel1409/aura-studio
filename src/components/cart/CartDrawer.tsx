@@ -48,6 +48,7 @@ export function CartDrawer({
   // Formulario del comprador
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [customerDni, setCustomerDni] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -117,6 +118,7 @@ export function CartDrawer({
         body: JSON.stringify({
           customerName: customerName.trim(),
           customerPhone: customerPhone.trim(),
+          customerDni: customerDni.trim() || null,
           deliveryMethod,
           deliveryAddress: deliveryAddress.trim() || null,
           deliveryNotes: deliveryNotes.trim() || null,
@@ -469,19 +471,34 @@ export function CartDrawer({
                 />
               </div>
 
-              <div>
-                <label htmlFor="customer-phone" className="block text-xs font-medium text-stone-700 mb-1">
-                  Teléfono / WhatsApp de contacto *
-                </label>
-                <input
-                  id="customer-phone"
-                  type="tel"
-                  required
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Ej: 11 2345-6789"
-                  className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="customer-phone" className="block text-xs font-medium text-stone-700 mb-1">
+                    Teléfono / WhatsApp *
+                  </label>
+                  <input
+                    id="customer-phone"
+                    type="tel"
+                    required
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="Ej: 11 2345-6789"
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="customer-dni" className="block text-xs font-medium text-stone-700 mb-1">
+                    DNI del titular (opcional)
+                  </label>
+                  <input
+                    id="customer-dni"
+                    type="text"
+                    value={customerDni}
+                    onChange={(e) => setCustomerDni(e.target.value)}
+                    placeholder="Ej: 40.123.456"
+                    className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                  />
+                </div>
               </div>
 
               {(deliveryMethod === "HOME_DELIVERY" || deliveryMethod === "MOTORCYCLE") && (
