@@ -405,20 +405,16 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       );
 
       // Controles de agrupación jerárquica y densidad
-      expect(html).toContain("Agrupar por:");
-      expect(html).toContain("Estados");
-      expect(html).toContain("Entrega");
-      expect(html).toContain("Cobro");
-      expect(html).toContain("Cómoda");
+      expect(html).toContain("Total pedidos:");
+      expect(html).toContain("Estado: Todos");
+      expect(html).toContain("Entrega: Todas");
+      expect(html).toContain("Cobro: Todos");
+      expect(html).toContain("Fecha: Todas");
+      expect(html).toContain("Buscar por DNI, #orden, cliente, tel, prenda...");
       expect(html).toContain("Compacta");
       expect(html).toContain("+ Ver detalles");
-
-      // Grupos colapsables con aria-expanded
-      expect(html).toContain("Pendientes de Confirmación");
-      expect(html).toContain("Confirmados (Preparando Pedido)");
-      expect(html).toContain('aria-expanded="true"');
-
-      // Enlace directo a la ficha de página completa (/admin/ordenes/101) y ausencia de drawer modal
+      expect(html).toContain("Chat");
+      expect(html).toContain("Abrir chat de WhatsApp con");
       expect(html).toContain('href="/admin/ordenes/101"');
       expect(html).toContain("Ver ficha");
       expect(html).not.toContain('id="drawer-order-title"');

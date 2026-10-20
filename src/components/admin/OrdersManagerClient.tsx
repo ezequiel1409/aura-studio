@@ -95,11 +95,11 @@ export function OrdersManagerClient({
   const [deliveryMethodFilter, setDeliveryMethodFilter] = useState<string>("ALL");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("ALL");
   const [dateRangeFilter, setDateRangeFilter] = useState<string>("ALL");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
-  // 2. Controles de Jerarquía, Agrupación, Densidad y Acordeón Inline (igual que Catálogo de Productos)
-  const [groupBy, setGroupBy] = useState<"status" | "delivery" | "payment" | "none">("status");
+  // 2. Densidad y Acordeón Inline (resumen de prendas desplegable)
   const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
-  const [collapsedGroupIds, setCollapsedGroupIds] = useState<string[]>([]);
   const [expandedOrderIds, setExpandedOrderIds] = useState<number[]>([]);
 
   // 3. Paginación para escalar con cientos de pedidos sin perder visibilidad
@@ -110,12 +110,6 @@ export function OrdersManagerClient({
   const [updatingPaymentId, setUpdatingPaymentId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const toggleGroupCollapse = (groupId: string) => {
-    setCollapsedGroupIds((prev) =>
-      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
-    );
-  };
 
   const toggleOrderExpand = (orderId: number) => {
     setExpandedOrderIds((prev) =>
@@ -229,6 +223,8 @@ export function OrdersManagerClient({
     deliveryMethodFilter !== "ALL" ||
     paymentStatusFilter !== "ALL" ||
     dateRangeFilter !== "ALL" ||
+    startDate !== "" ||
+    endDate !== "" ||
     activeTab !== "ALL";
 
   const handleClearFilters = () => {
@@ -236,6 +232,8 @@ export function OrdersManagerClient({
     setDeliveryMethodFilter("ALL");
     setPaymentStatusFilter("ALL");
     setDateRangeFilter("ALL");
+    setStartDate("");
+    setEndDate("");
     setActiveTab("ALL");
     setCurrentPage(1);
   };
@@ -247,8 +245,19 @@ export function OrdersManagerClient({
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
+    const parseLocalDate = (dateStr: string, endOfDay = false): number | null => {
+      if (!dateStr) return null;
+      const parts = dateStr.split("-").map(Number);
+      if (parts.length !== 3 || parts.some(isNaN)) return null;
+      const [year, month, day] = parts;
+      if (endOfDay) {
+        return new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
+      }
+      return new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
+    };
+
     return orders.filter((o) => {
-      // 1. Filtro por Pestaña de Estado
+      // 1. Filtro por Pestaña / Selector de Estado
       if (activeTab === "PENDING" && o.status !== "PENDING") return false;
       if (
         activeTab === "IN_PROGRESS" &&
@@ -269,11 +278,21 @@ export function OrdersManagerClient({
       if (paymentStatusFilter === "PAID" && o.paymentStatus !== "PAID") return false;
       if (paymentStatusFilter === "PENDING" && o.paymentStatus === "PAID") return false;
 
-      // 4. Filtro por Rango de Fecha
+      // 4. Filtro por Rango de Fecha (Presets y Rango Personalizado Desde / Hasta)
       const orderDateMs = o.createdAt * 1000;
       if (dateRangeFilter === "TODAY" && orderDateMs < todayStart) return false;
+      if (dateRangeFilter === "YESTERDAY") {
+        const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
+        if (orderDateMs < yesterdayStart || orderDateMs >= todayStart) return false;
+      }
       if (dateRangeFilter === "WEEK" && orderDateMs < weekAgo) return false;
       if (dateRangeFilter === "MONTH" && orderDateMs < monthStart) return false;
+      if (dateRangeFilter === "CUSTOM") {
+        const startMs = parseLocalDate(startDate, false);
+        if (startMs !== null && orderDateMs < startMs) return false;
+        const endMs = parseLocalDate(endDate, true);
+        if (endMs !== null && orderDateMs > endMs) return false;
+      }
 
       // 5. Búsqueda Omnicanal (DNI, Código, Email, Teléfono, Nombre, Trámite, Cupón, Prenda)
       if (searchQuery.trim()) {
@@ -354,6 +373,8 @@ export function OrdersManagerClient({
     deliveryMethodFilter,
     paymentStatusFilter,
     dateRangeFilter,
+    startDate,
+    endDate,
     searchQuery,
   ]);
 
@@ -365,81 +386,6 @@ export function OrdersManagerClient({
     const start = (safePage - 1) * pageSize;
     return filteredOrders.slice(start, start + pageSize);
   }, [filteredOrders, safePage, pageSize]);
-
-  // Agrupación jerárquica sobre la página visible
-  const groupedOrders = useMemo(() => {
-    if (groupBy === "none") {
-      return [
-        {
-          id: "all",
-          title: "Todos los pedidos",
-          orders: paginatedOrders,
-        },
-      ];
-    }
-
-    if (groupBy === "status") {
-      const groups: { id: string; title: string; orders: Order[] }[] = [
-        {
-          id: "status-PENDING",
-          title: "Pendientes de Confirmación",
-          orders: paginatedOrders.filter((o) => o.status === "PENDING"),
-        },
-        {
-          id: "status-CONFIRMED",
-          title: "Confirmados (Preparando Pedido)",
-          orders: paginatedOrders.filter((o) => o.status === "CONFIRMED"),
-        },
-        {
-          id: "status-PAID",
-          title: "Pagados / Finalizados",
-          orders: paginatedOrders.filter((o) => o.status === "PAID"),
-        },
-        {
-          id: "status-CANCELLED",
-          title: "Cancelados",
-          orders: paginatedOrders.filter((o) => o.status === "CANCELLED"),
-        },
-      ];
-      return groups.filter((g) => g.orders.length > 0);
-    }
-
-    if (groupBy === "delivery") {
-      const groups: { id: string; title: string; orders: Order[] }[] = [
-        {
-          id: "delivery-PICKUP",
-          title: "Retiro en Showroom",
-          orders: paginatedOrders.filter((o) => o.deliveryMethod === "PICKUP"),
-        },
-        {
-          id: "delivery-MOTORCYCLE",
-          title: "Motomensajería Express",
-          orders: paginatedOrders.filter((o) => o.deliveryMethod === "MOTORCYCLE"),
-        },
-        {
-          id: "delivery-HOME_DELIVERY",
-          title: "Envío a Domicilio",
-          orders: paginatedOrders.filter((o) => o.deliveryMethod === "HOME_DELIVERY"),
-        },
-      ];
-      return groups.filter((g) => g.orders.length > 0);
-    }
-
-    // groupBy === "payment"
-    const groups: { id: string; title: string; orders: Order[] }[] = [
-      {
-        id: "payment-PENDING",
-        title: "Pendientes de Cobro",
-        orders: paginatedOrders.filter((o) => o.paymentStatus !== "PAID"),
-      },
-      {
-        id: "payment-PAID",
-        title: "Cobrados",
-        orders: paginatedOrders.filter((o) => o.paymentStatus === "PAID"),
-      },
-    ];
-    return groups.filter((g) => g.orders.length > 0);
-  }, [paginatedOrders, groupBy]);
 
   // Generador de plantillas de WhatsApp según el estado
   const getWhatsAppMessage = (
@@ -528,7 +474,7 @@ export function OrdersManagerClient({
 
         <div className="flex items-center gap-2 font-mono text-xs">
           <span className="rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-1.5 text-zinc-300">
-            Total: <strong className="text-zinc-100">{orders.length}</strong>
+            Total pedidos: <strong className="text-zinc-100">{orders.length}</strong>
           </span>
           {counts.PENDING > 0 && (
             <span className="rounded-lg bg-amber-950/70 border border-amber-800/80 px-3 py-1.5 text-amber-300 font-semibold">
@@ -539,237 +485,195 @@ export function OrdersManagerClient({
       </div>
 
       {/* Barra de Filtros, Buscador y Selectores */}
-      <div className="space-y-3 bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Pestañas de filtrado rápido */}
-          <div
-            role="tablist"
-            aria-label="Filtros de estado de órdenes"
-            className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs"
-          >
-            {[
-              { id: "ALL", label: "Todos", count: counts.ALL },
-              {
-                id: "PENDING",
-                label: "Pendientes",
-                count: counts.PENDING,
-                highlight: true,
-              },
-              {
-                id: "IN_PROGRESS",
-                label: "En curso / Pagados",
-                count: counts.IN_PROGRESS,
-              },
-              {
-                id: "CLAIMS",
-                label: "Arrepentimientos",
-                count: counts.CLAIMS,
-                highlight: true,
-              },
-              { id: "CANCELLED", label: "Cancelados", count: counts.CANCELLED },
-            ].map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setCurrentPage(1);
-                  }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
-                    isActive
-                      ? "bg-amber-300 text-zinc-950 font-bold shadow-xs"
-                      : tab.highlight && tab.count > 0
-                      ? "bg-amber-950/40 border border-amber-500/40 text-amber-300 hover:bg-amber-950/60"
-                      : "bg-zinc-950 border border-zinc-800 text-zinc-300 hover:bg-zinc-800"
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono ${
-                      isActive
-                        ? "bg-zinc-950 text-amber-300"
-                        : "bg-zinc-800 text-zinc-400"
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Buscador Omnicanal y Filtros Dropdowns */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
-            <div className="relative flex-1 sm:w-64 lg:w-72">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
-              />
-              <input
-                type="search"
-                aria-label="Buscar pedido por DNI, número de orden, cliente, teléfono o prenda"
-                placeholder="DNI, #orden, cliente, tel, prenda..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-zinc-950 border border-zinc-700 text-xs text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-amber-400"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setCurrentPage(1);
-                  }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 cursor-pointer"
-                  aria-label="Borrar búsqueda"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            <select
-              value={deliveryMethodFilter}
-              onChange={(e) => {
-                setDeliveryMethodFilter(e.target.value);
+      <div className="space-y-3.5 bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
+        {/* Fila 1: Buscador Omnicanal a Ancho Completo */}
+        <div className="relative w-full">
+          <Search
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"
+          />
+          <input
+            type="search"
+            aria-label="Buscar pedido por DNI, número de orden, cliente, teléfono o prenda"
+            placeholder="Buscar por DNI, #orden, cliente, tel, prenda..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-sm text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-amber-400 transition-colors"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
                 setCurrentPage(1);
               }}
-              aria-label="Filtrar por método de entrega"
-              className="w-full sm:w-auto text-xs py-1.5 px-2.5 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-200 focus:outline-none focus:border-amber-400 cursor-pointer"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 cursor-pointer p-1"
+              aria-label="Borrar búsqueda"
             >
-              <option value="ALL">Entrega: Todas</option>
-              <option value="PICKUP">Retiro Showroom</option>
-              <option value="MOTORCYCLE">Moto Express</option>
-              <option value="HOME_DELIVERY">A Domicilio</option>
-            </select>
-
-            <select
-              value={paymentStatusFilter}
-              onChange={(e) => {
-                setPaymentStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              aria-label="Filtrar por estado de cobro"
-              className="w-full sm:w-auto text-xs py-1.5 px-2.5 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-200 focus:outline-none focus:border-amber-400 cursor-pointer"
-            >
-              <option value="ALL">Cobro: Todos</option>
-              <option value="PENDING">Por Cobrar</option>
-              <option value="PAID">Cobrados</option>
-            </select>
-
-            <select
-              value={dateRangeFilter}
-              onChange={(e) => {
-                setDateRangeFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              aria-label="Filtrar por fecha"
-              className="w-full sm:w-auto text-xs py-1.5 px-2.5 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-200 focus:outline-none focus:border-amber-400 cursor-pointer"
-            >
-              <option value="ALL">Fecha: Todas</option>
-              <option value="TODAY">Hoy</option>
-              <option value="WEEK">Últimos 7 días</option>
-              <option value="MONTH">Este mes</option>
-            </select>
-          </div>
+              <X size={14} />
+            </button>
+          )}
         </div>
 
-        {/* Barra de Controles de Vista, Agrupación, Densidad y Acordeón (Consistente con ProductListClient) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-zinc-800/80 text-xs">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-zinc-400 font-medium">Agrupar por:</span>
-            <div
-              role="group"
-              aria-label="Agrupar pedidos por"
-              className="inline-flex rounded-lg bg-zinc-950 p-0.5 border border-zinc-800"
-            >
-              {(
-                [
-                  { key: "status", label: "Estados" },
-                  { key: "delivery", label: "Entrega" },
-                  { key: "payment", label: "Cobro" },
-                  { key: "none", label: "Sin agrupar" },
-                ] as const
-              ).map((opt) => (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => {
-                    setGroupBy(opt.key);
-                    setCollapsedGroupIds([]);
-                  }}
-                  aria-pressed={groupBy === opt.key}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
-                    groupBy === opt.key
-                      ? "bg-amber-300 text-zinc-950 font-bold"
-                      : "text-zinc-300 hover:text-zinc-100"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+        {/* Fila 2: Filtros desplegables en Dropdown (Estado, Entrega, Cobro, Fecha con Desde/Hasta) */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Dropdown de Estado */}
+          <select
+            value={activeTab}
+            onChange={(e) => {
+              setActiveTab(e.target.value);
+              setCurrentPage(1);
+            }}
+            aria-label="Filtrar por estado"
+            className="text-xs py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
+          >
+            <option value="ALL">Estado: Todos ({counts.ALL})</option>
+            <option value="PENDING">Pendientes ({counts.PENDING})</option>
+            <option value="IN_PROGRESS">En curso / Pagados ({counts.IN_PROGRESS})</option>
+            <option value="CLAIMS">Arrepentimientos ({counts.CLAIMS})</option>
+            <option value="CANCELLED">Cancelados ({counts.CANCELLED})</option>
+          </select>
 
-            {groupBy !== "none" && groupedOrders.length > 1 && (
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setCollapsedGroupIds(groupedOrders.map((g) => g.id))}
-                  className="px-2 py-1 rounded bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                >
-                  Colapsar grupos
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCollapsedGroupIds([])}
-                  className="px-2 py-1 rounded bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                >
-                  Expandir grupos
-                </button>
+          {/* Dropdown de Método de Entrega */}
+          <select
+            value={deliveryMethodFilter}
+            onChange={(e) => {
+              setDeliveryMethodFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            aria-label="Filtrar por método de entrega"
+            className="text-xs py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
+          >
+            <option value="ALL">Entrega: Todas</option>
+            <option value="PICKUP">Retiro Showroom</option>
+            <option value="MOTORCYCLE">Moto Express</option>
+            <option value="HOME_DELIVERY">A Domicilio</option>
+          </select>
+
+          {/* Dropdown de Estado de Cobro */}
+          <select
+            value={paymentStatusFilter}
+            onChange={(e) => {
+              setPaymentStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            aria-label="Filtrar por estado de cobro"
+            className="text-xs py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
+          >
+            <option value="ALL">Cobro: Todos</option>
+            <option value="PENDING">Por Cobrar</option>
+            <option value="PAID">Cobrados</option>
+          </select>
+
+          {/* Dropdown de Rango de Fecha */}
+          <select
+            value={dateRangeFilter}
+            onChange={(e) => {
+              setDateRangeFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            aria-label="Filtrar por fecha"
+            className="text-xs py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
+          >
+            <option value="ALL">Fecha: Todas</option>
+            <option value="TODAY">Hoy</option>
+            <option value="YESTERDAY">Ayer</option>
+            <option value="WEEK">Últimos 7 días</option>
+            <option value="MONTH">Este mes</option>
+            <option value="CUSTOM">Personalizada (Desde / Hasta)</option>
+          </select>
+
+          {/* Selector de Rango Personalizado (Desde / Hasta) */}
+          {dateRangeFilter === "CUSTOM" && (
+            <div className="flex flex-wrap items-center gap-2 p-1 bg-zinc-950/80 rounded-lg border border-zinc-800">
+              <div className="flex items-center gap-1.5 px-2">
+                <label htmlFor="order-filter-start" className="text-xs text-zinc-400 font-medium">
+                  Desde:
+                </label>
+                <input
+                  id="order-filter-start"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs py-1 px-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer"
+                />
               </div>
-            )}
+              <div className="flex items-center gap-1.5 px-2">
+                <label htmlFor="order-filter-end" className="text-xs text-zinc-400 font-medium">
+                  Hasta:
+                </label>
+                <input
+                  id="order-filter-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="text-xs py-1 px-2 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer"
+                />
+              </div>
+            </div>
+          )}
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 hover:underline cursor-pointer font-medium ml-auto"
+            >
+              <X size={13} />
+              <span>Limpiar filtros</span>
+            </button>
+          )}
+        </div>
+
+        {/* Fila 3: Controles de Vista, Densidad y Paginación (sin Agrupar) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-zinc-800/80 text-xs text-zinc-400">
+          <div className="flex items-center gap-2">
+            <span>
+              Mostrando <strong className="text-zinc-100">{paginatedOrders.length}</strong> de{" "}
+              <strong className="text-zinc-100">{filteredOrders.length}</strong> pedidos
+              {filteredOrders.length < orders.length && ` (filtrado de ${orders.length} totales)`}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Expandir / Colapsar nivel 2 de pedidos */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Expandir / Colapsar todos los pedidos */}
             <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setExpandedOrderIds(paginatedOrders.map((o) => o.id))}
-                className="px-2 py-1 rounded bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                title="Desplegar resumen de prendas y entrega en todas las filas"
+                className="px-2.5 py-1 rounded-md bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                title="Desplegar resumen de prendas y entrega en todas las filas visibles"
               >
                 + Ver detalles
               </button>
               <button
                 type="button"
                 onClick={() => setExpandedOrderIds([])}
-                className="px-2 py-1 rounded bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                title="Ocultar detalles desplegados"
+                className="px-2.5 py-1 rounded-md bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                title="Colapsar detalles de todas las filas"
               >
                 - Vista compacta
               </button>
             </div>
 
-            {/* Selector de densidad visual */}
-            <div
-              role="group"
-              aria-label="Densidad de lista de pedidos"
-              className="inline-flex rounded-lg bg-zinc-950 p-0.5 border border-zinc-800"
-            >
+            {/* Densidad */}
+            <div className="inline-flex rounded-lg bg-zinc-950 p-0.5 border border-zinc-800">
               <button
                 type="button"
                 onClick={() => setDensity("comfortable")}
                 aria-pressed={density === "comfortable"}
-                className={`px-2 py-1 rounded-md text-xs transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                   density === "comfortable"
-                    ? "bg-zinc-800 text-zinc-100 font-semibold"
+                    ? "bg-amber-300 text-zinc-950 font-bold"
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
@@ -779,40 +683,17 @@ export function OrdersManagerClient({
                 type="button"
                 onClick={() => setDensity("compact")}
                 aria-pressed={density === "compact"}
-                className={`px-2 py-1 rounded-md text-xs transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                   density === "compact"
-                    ? "bg-zinc-800 text-zinc-100 font-semibold"
+                    ? "bg-amber-300 text-zinc-950 font-bold"
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
                 Compacta
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* Resumen de Resultados y Limpiar Filtros */}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-400 pt-1">
-          <span>
-            Mostrando{" "}
-            <strong className="text-zinc-200">{paginatedOrders.length}</strong> de{" "}
-            <strong className="text-zinc-200">{filteredOrders.length}</strong> pedidos
-            {filteredOrders.length < orders.length &&
-              ` (filtrado de ${orders.length} totales)`}
-          </span>
-
-          <div className="flex items-center gap-3">
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={handleClearFilters}
-                className="inline-flex items-center gap-1 text-xs text-amber-300 hover:text-amber-200 hover:underline cursor-pointer font-medium"
-              >
-                <X size={13} />
-                <span>Limpiar filtros</span>
-              </button>
-            )}
-
+            {/* Selector de Filas por página */}
             <div className="flex items-center gap-1.5">
               <label htmlFor="orders-page-size" className="text-zinc-400">
                 Filas:
@@ -824,7 +705,7 @@ export function OrdersManagerClient({
                   setPageSize(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="rounded-md bg-zinc-950 border border-zinc-800 px-2 py-0.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-400 cursor-pointer"
+                className="rounded-md bg-zinc-950 border border-zinc-800 px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-amber-400 cursor-pointer"
               >
                 <option value={15}>15</option>
                 <option value={20}>20</option>
@@ -836,7 +717,7 @@ export function OrdersManagerClient({
         </div>
       </div>
 
-      {/* Lista Jerárquica de Pedidos */}
+      {/* Lista de Pedidos (sin agrupación redundante) */}
       {filteredOrders.length === 0 ? (
         <div className="p-12 text-center rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-3">
           <ShoppingBag size={32} className="mx-auto text-zinc-600" />
@@ -857,70 +738,8 @@ export function OrdersManagerClient({
           )}
         </div>
       ) : (
-        <div className="space-y-4">
-          {groupedOrders.map((group) => {
-            const isCollapsed = collapsedGroupIds.includes(group.id);
-            const groupTotalCents = group.orders.reduce(
-              (acc, o) => acc + (o.status !== "CANCELLED" ? o.totalCents : 0),
-              0
-            );
-            const groupPendingCount = group.orders.filter(
-              (o) => o.status === "PENDING"
-            ).length;
-
-            return (
-              <section
-                key={group.id}
-                aria-label={group.title}
-                className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden"
-              >
-                {/* Cabecera colapsable del Grupo (Nivel 1) */}
-                {groupBy !== "none" && (
-                  <button
-                    type="button"
-                    onClick={() => toggleGroupCollapse(group.id)}
-                    aria-expanded={!isCollapsed}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-zinc-900/90 hover:bg-zinc-800/80 transition-colors border-b border-zinc-800/80 text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400 focus-visible:outline-none"
-                  >
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <span
-                        aria-hidden="true"
-                        className="text-amber-300 text-xs font-mono w-4 text-center"
-                      >
-                        {isCollapsed ? "▸" : "▾"}
-                      </span>
-                      <h2 className="text-sm font-bold text-zinc-100 tracking-wide">
-                        {group.title}
-                      </h2>
-                      <span className="px-2 py-0.5 text-xs rounded-full bg-zinc-800 text-zinc-300 font-medium font-mono">
-                        {group.orders.length}{" "}
-                        {group.orders.length === 1 ? "pedido" : "pedidos"}
-                      </span>
-                      {groupPendingCount > 0 && (
-                        <span className="px-2 py-0.5 text-[11px] rounded-full bg-amber-950/80 text-amber-300 border border-amber-700/50 font-medium">
-                          {groupPendingCount} por confirmar
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="font-mono text-zinc-300 hidden sm:inline">
-                        Subtotal grupo:{" "}
-                        <strong className="text-amber-300">
-                          {formatPriceARS(groupTotalCents)}
-                        </strong>
-                      </span>
-                      <span className="text-zinc-400">
-                        {isCollapsed ? "Mostrar" : "Ocultar"}
-                      </span>
-                    </div>
-                  </button>
-                )}
-
-                {/* Filas de Pedidos del Grupo */}
-                {!isCollapsed && (
-                  <div className="divide-y divide-zinc-800/80">
-                    {group.orders.map((order) => {
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl overflow-hidden divide-y divide-zinc-800/80 shadow-xs">
+          {paginatedOrders.map((order) => {
                       const config =
                         STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING;
                       const Icon = config.icon;
@@ -1158,8 +977,8 @@ export function OrdersManagerClient({
                                 </p>
                               </div>
 
-                              {/* Acciones Directas: WhatsApp y Ficha Completa */}
-                              <div className="flex items-center gap-1.5">
+                              {/* Acciones Directas: WhatsApp Chat de Alta Legibilidad y Ficha Completa */}
+                              <div className="flex items-center gap-2">
                                 <a
                                   href={getWhatsAppLink(
                                     order,
@@ -1171,15 +990,17 @@ export function OrdersManagerClient({
                                   )}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  title={`Contactar a ${order.customerName} por WhatsApp`}
-                                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-800/70 text-emerald-300 transition-colors"
+                                  title={`Abrir chat de WhatsApp con ${order.customerName}`}
+                                  aria-label={`Abrir chat de WhatsApp con ${order.customerName}`}
+                                  className="inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none shrink-0 cursor-pointer"
                                 >
-                                  <MessageCircle size={14} />
+                                  <MessageCircle size={15} className="fill-white" />
+                                  <span className="font-semibold text-xs">Chat</span>
                                 </a>
 
                                 <Link
                                   href={`/admin/ordenes/${order.id}`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-amber-300 text-zinc-100 hover:text-zinc-950 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-amber-300 text-zinc-100 hover:text-zinc-950 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none shrink-0"
                                 >
                                   <span>Ver ficha</span>
                                   <ArrowRight size={13} />
@@ -1306,11 +1127,6 @@ export function OrdersManagerClient({
                         </div>
                       );
                     })}
-                  </div>
-                )}
-              </section>
-            );
-          })}
         </div>
       )}
 
