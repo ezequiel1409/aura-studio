@@ -13,6 +13,7 @@ import {
   validateStatusTransition,
 } from "../domain/product/rules";
 import {
+  CatalogFacets,
   CreateProductInput,
   ListProductsFilter,
   PaginatedResult,
@@ -140,17 +141,20 @@ export async function createProduct(
     rawText: input.rawText, // texto crudo original garantizado
     title,
     priceCents,
+    compareAtPriceCents: input.compareAtPriceCents ?? null,
     currency,
     size,
     categoryId,
     status: initialStatus,
     isFeatured: Boolean(input.isFeatured),
     allowReturn: input.allowReturn !== undefined ? Boolean(input.allowReturn) : true,
+    publishedAt: input.publishedAt ?? now,
     soldOutAt: initialSoldOutAt,
     reservedUntil: null,
     manualFields,
     createdAt: now,
     updatedAt: now,
+    attributes: input.attributes,
     colors: colorsData.map((c, idx) => ({
       name: c.name,
       hexCode: c.hexCode || null,
@@ -177,6 +181,28 @@ export async function createProduct(
   return created;
 }
 
+async function resolveCategoryIdsWithSubcategories(
+  filter: ListProductsFilter,
+  categoryRepo: ICategoryRepository
+): Promise<number[] | undefined> {
+  const inputCatIds = new Set<number>();
+  if (filter.categoryId) inputCatIds.add(filter.categoryId);
+  if (filter.categoryIds && filter.categoryIds.length > 0) {
+    for (const id of filter.categoryIds) inputCatIds.add(id);
+  }
+  if (inputCatIds.size === 0) return undefined;
+
+  const expandedIds = new Set<number>();
+  for (const catId of inputCatIds) {
+    expandedIds.add(catId);
+    const subcategories = await categoryRepo.findSubcategories(catId);
+    for (const sub of subcategories) {
+      expandedIds.add(sub.id);
+    }
+  }
+  return Array.from(expandedIds);
+}
+
 /**
  * BR-16, BR-21, BR-23, BR-24
  * Lista productos con filtros, orden y paginación.
@@ -187,23 +213,32 @@ export async function listProducts(
   deps: ProductServiceDeps
 ): Promise<PaginatedResult<Product>> {
   const { productRepo, categoryRepo } = deps;
-
-  let categoryIdsToInclude: number[] | undefined = undefined;
-
-  if (filter.categoryId) {
-    const subcategories = await categoryRepo.findSubcategories(filter.categoryId);
-    if (subcategories.length > 0) {
-      // BR-16: Padre incluye hijas
-      categoryIdsToInclude = [
-        filter.categoryId,
-        ...subcategories.map((s) => s.id),
-      ];
-    } else {
-      categoryIdsToInclude = [filter.categoryId];
-    }
-  }
-
+  const categoryIdsToInclude = await resolveCategoryIdsWithSubcategories(filter, categoryRepo);
   return productRepo.list(filter, categoryIdsToInclude);
+}
+
+/**
+ * Obtiene facetas y contadores de opciones en el servidor para la barra lateral de filtros.
+ */
+export async function getCatalogFacets(
+  filter: ListProductsFilter,
+  deps: ProductServiceDeps
+): Promise<CatalogFacets> {
+  const { productRepo, categoryRepo } = deps;
+  const categoryIdsToInclude = await resolveCategoryIdsWithSubcategories(filter, categoryRepo);
+  if (typeof productRepo.getFacets === "function") {
+    return productRepo.getFacets(filter, categoryIdsToInclude);
+  }
+  return {
+    categories: [],
+    sizes: [],
+    colors: [],
+    attributes: {},
+    onSaleCount: 0,
+    availableCount: 0,
+    minPriceCents: null,
+    maxPriceCents: null,
+  };
 }
 
 /**
@@ -412,16 +447,19 @@ export async function updateProduct(
     rawText,
     title,
     priceCents,
+    compareAtPriceCents: input.compareAtPriceCents,
     currency,
     size,
     categoryId,
     status: targetStatus,
     isFeatured: input.isFeatured !== undefined ? Boolean(input.isFeatured) : undefined,
     allowReturn: input.allowReturn !== undefined ? Boolean(input.allowReturn) : undefined,
+    publishedAt: input.publishedAt,
     soldOutAt,
     reservedUntil,
     manualFields: Array.from(manualFields),
     updatedAt: now,
+    attributes: input.attributes,
     colors: colorsData,
     photos: photosData,
   });
@@ -568,4 +606,17 @@ export const listGarments = listProducts;
 export const changeStatus = changeProductStatus;
 export const updateGarment = updateProduct;
 export const deleteGarment = deleteProduct;
+
+export class ProductService {
+  constructor(private readonly deps: ProductServiceDeps) {}
+
+  async listProducts(filter: ListProductsFilter): Promise<PaginatedResult<Product>> {
+    return listProducts(filter, this.deps);
+  }
+
+  async getCatalogFacets(filter: ListProductsFilter): Promise<CatalogFacets> {
+    return getCatalogFacets(filter, this.deps);
+  }
+}
+
 

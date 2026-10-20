@@ -1,11 +1,141 @@
 import { ISettingsRepository } from "../domain/ports/repositories.port";
 import { ValidationError } from "../domain/errors";
+import {
+  DEFAULT_STORE_LOCATION,
+  DEFAULT_STORE_SCHEDULE,
+  StoreLocationConfig,
+  StoreScheduleConfig,
+} from "../lib/schedule/store-schedule";
 
 export interface SettingsServiceDeps {
   settingsRepo?: ISettingsRepository;
 }
 
 export type HeroMode = "editorial" | "featured_carousel" | "custom_banner";
+
+export interface AnnouncementMessage {
+  id: string;
+  text: string;
+  href?: string | null;
+  startsAt?: number | string | null;
+  endsAt?: number | string | null;
+}
+
+export interface AnnouncementBarConfig {
+  enabled: boolean;
+  messages: AnnouncementMessage[];
+  items?: AnnouncementMessage[];
+  intervalSeconds?: number;
+}
+
+export type HomeBlockId =
+  | "hero_banner"
+  | "hero"
+  | "bank_promotions"
+  | "bank_promos"
+  | "featured_sections"
+  | "new_arrivals"
+  | "featured_products"
+  | "sale_block"
+  | "sale"
+  | "trust_bar"
+  | "trust"
+  | "drops_newsletter"
+  | "drops";
+
+export interface HomeBlockItemConfig {
+  id: HomeBlockId;
+  label: string;
+  enabled: boolean;
+  position: number;
+}
+
+export interface TrustBarItem {
+  title: string;
+  description: string;
+}
+
+export interface HomeBlocksConfig {
+  blocks: HomeBlockItemConfig[];
+  newArrivalsDays: number;
+  featuredSectionSlugs: string[];
+  trustItems: TrustBarItem[];
+}
+
+export interface CatalogFilterVisibility {
+  key: string;
+  label: string;
+  enabled: boolean;
+  position: number;
+}
+
+export interface CatalogConfig {
+  pageSize: 12 | 16 | 24;
+  visibleFilters: CatalogFilterVisibility[];
+  enabledFilters?: string[];
+  filterLabels?: Record<string, string>;
+}
+
+export type CatalogSettingsConfig = CatalogConfig;
+
+export const DEFAULT_ANNOUNCEMENT_BAR: AnnouncementBarConfig = {
+  enabled: true,
+  messages: [
+    {
+      id: "ann-promos",
+      text: "Hasta 3 cuotas sin interés y reintegros con bancos seleccionados",
+      href: "/promociones",
+    },
+    {
+      id: "ann-shipping",
+      text: "Envío bonificado desde $85.000 · Retiro sin cargo en showroom",
+      href: "/catalogo",
+    },
+  ],
+};
+
+export const DEFAULT_HOME_BLOCKS: HomeBlocksConfig = {
+  blocks: [
+    { id: "hero_banner", label: "Banner principal (Carrusel)", enabled: true, position: 0 },
+    { id: "bank_promotions", label: "Promociones bancarias", enabled: true, position: 1 },
+    { id: "featured_sections", label: "Secciones destacadas", enabled: true, position: 2 },
+    { id: "new_arrivals", label: "Recién llegados", enabled: true, position: 3 },
+    { id: "featured_products", label: "Destacados", enabled: true, position: 4 },
+    { id: "sale_block", label: "Sale y descuentos", enabled: true, position: 5 },
+    { id: "trust_bar", label: "Bloque de confianza", enabled: true, position: 6 },
+    { id: "drops_newsletter", label: "Aviso de próximos drops", enabled: true, position: 7 },
+  ],
+  newArrivalsDays: 30,
+  featuredSectionSlugs: ["mujer", "hombre", "sale"],
+  trustItems: [
+    {
+      title: "Envíos y retiro en el local",
+      description: "Despachos a todo el país y retiro sin cargo en showroom.",
+    },
+    {
+      title: "Cambios garantizados",
+      description: "Cambios simples dentro de los 15 días corridos de tu compra.",
+    },
+    {
+      title: "Medios de pago y promos",
+      description: "Transferencia con descuento, tarjetas y promociones bancarias.",
+    },
+  ],
+};
+
+export const DEFAULT_CATALOG_CONFIG: CatalogConfig = {
+  pageSize: 12,
+  visibleFilters: [
+    { key: "categories", label: "Categorías", enabled: true, position: 0 },
+    { key: "para", label: "Para", enabled: true, position: 1 },
+    { key: "sizes", label: "Talle", enabled: true, position: 2 },
+    { key: "colors", label: "Color", enabled: true, position: 3 },
+    { key: "price", label: "Precio", enabled: true, position: 4 },
+    { key: "availability", label: "Disponibilidad", enabled: true, position: 5 },
+    { key: "onSale", label: "En oferta", enabled: true, position: 6 },
+    { key: "material", label: "Material", enabled: true, position: 7 },
+  ],
+};
 
 export interface ShowroomSettings {
   whatsappNumber: string;
@@ -36,6 +166,12 @@ export interface ShowroomSettings {
   cashEnabled: boolean;
   cashNotes?: string | null;
   whatsappPaymentEnabled: boolean;
+  // Nuevas configuraciones de Vidriera, Catálogo, Local y Horarios
+  announcementBar: AnnouncementBarConfig;
+  homeBlocks: HomeBlocksConfig;
+  catalogConfig: CatalogConfig;
+  storeLocation: StoreLocationConfig;
+  storeSchedule: StoreScheduleConfig;
 }
 
 export interface UpdateShowroomSettingsInput {
@@ -66,6 +202,11 @@ export interface UpdateShowroomSettingsInput {
   cashEnabled?: boolean;
   cashNotes?: string | null;
   whatsappPaymentEnabled?: boolean;
+  announcementBar?: AnnouncementBarConfig;
+  homeBlocks?: HomeBlocksConfig;
+  catalogConfig?: CatalogConfig;
+  storeLocation?: StoreLocationConfig;
+  storeSchedule?: StoreScheduleConfig;
 }
 
 const DEFAULT_WHATSAPP_NUMBER = "+5491100000000";
@@ -77,6 +218,14 @@ const DEFAULT_THEME_PALETTE = "lino";
 const DEFAULT_THEME_FONT = "cormorant";
 const DEFAULT_TRANSFER_DISCOUNT_PERCENT = 10;
 
+function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw || !raw.trim()) return fallback;
+  try {
+    return { ...fallback, ...JSON.parse(raw) };
+  } catch {
+    return fallback;
+  }
+}
 
 /**
  * Obtiene la configuración del showroom desde la base de datos sin deploy.
@@ -114,6 +263,11 @@ export async function getShowroomSettings(
   let storedCashEnabled: string | null = null;
   let storedCashNotes: string | null = null;
   let storedWhatsappPaymentEnabled: string | null = null;
+  let storedAnnouncementBar: string | null = null;
+  let storedHomeBlocks: string | null = null;
+  let storedCatalogConfig: string | null = null;
+  let storedStoreLocation: string | null = null;
+  let storedStoreSchedule: string | null = null;
 
   if (settingsRepo) {
     if (typeof settingsRepo.getAll === "function") {
@@ -145,6 +299,11 @@ export async function getShowroomSettings(
       storedCashEnabled = all["cash_enabled"] ?? null;
       storedCashNotes = all["cash_notes"] ?? null;
       storedWhatsappPaymentEnabled = all["whatsapp_payment_enabled"] ?? null;
+      storedAnnouncementBar = all["announcement_bar_json"] ?? null;
+      storedHomeBlocks = all["home_blocks_json"] ?? null;
+      storedCatalogConfig = all["catalog_config_json"] ?? null;
+      storedStoreLocation = all["store_location_json"] ?? null;
+      storedStoreSchedule = all["store_schedule_json"] ?? null;
     } else {
       [
         storedWhatsapp,
@@ -174,6 +333,11 @@ export async function getShowroomSettings(
         storedCashEnabled,
         storedCashNotes,
         storedWhatsappPaymentEnabled,
+        storedAnnouncementBar,
+        storedHomeBlocks,
+        storedCatalogConfig,
+        storedStoreLocation,
+        storedStoreSchedule,
       ] = await Promise.all([
         settingsRepo.get("whatsapp_number"),
         settingsRepo.get("showroom_name"),
@@ -202,6 +366,11 @@ export async function getShowroomSettings(
         settingsRepo.get("cash_enabled"),
         settingsRepo.get("cash_notes"),
         settingsRepo.get("whatsapp_payment_enabled"),
+        settingsRepo.get("announcement_bar_json"),
+        settingsRepo.get("home_blocks_json"),
+        settingsRepo.get("catalog_config_json"),
+        settingsRepo.get("store_location_json"),
+        settingsRepo.get("store_schedule_json"),
       ]);
     }
   }
@@ -217,6 +386,24 @@ export async function getShowroomSettings(
       ? (storedHeroMode as HeroMode)
       : DEFAULT_HERO_MODE;
 
+  const storeLocation = safeJsonParse<StoreLocationConfig>(
+    storedStoreLocation,
+    DEFAULT_STORE_LOCATION
+  );
+
+  // Si address fue configurado previamente pero store_location_json no, sincronizar streetAddress
+  const legacyAddress = storedAddress && storedAddress.trim() ? storedAddress.trim() : null;
+  if (legacyAddress && !storedStoreLocation) {
+    storeLocation.streetAddress = legacyAddress;
+  }
+
+  const fullFormattedAddress = storeLocation.attendsPublic
+    ? [storeLocation.streetAddress, storeLocation.locality, storeLocation.province]
+        .map((s) => (s || "").trim())
+        .filter(Boolean)
+        .join(", ")
+    : null;
+
   return {
     whatsappNumber: storedWhatsapp || process.env.WHATSAPP_NUMBER || DEFAULT_WHATSAPP_NUMBER,
     showroomName: storedName || DEFAULT_SHOWROOM_NAME,
@@ -224,7 +411,7 @@ export async function getShowroomSettings(
     logoUrl: storedLogo && storedLogo.trim() ? storedLogo.trim() : null,
     instagramHandle: storedInstagram && storedInstagram.trim() ? storedInstagram.trim() : null,
     tiktokHandle: storedTiktok && storedTiktok.trim() ? storedTiktok.trim() : null,
-    address: storedAddress && storedAddress.trim() ? storedAddress.trim() : null,
+    address: legacyAddress || fullFormattedAddress,
     dataFiscalUrl: storedDataFiscal && storedDataFiscal.trim() ? storedDataFiscal.trim() : null,
     reservationHours: !Number.isNaN(parsedHours) && parsedHours > 0 ? parsedHours : DEFAULT_RESERVATION_HOURS,
     heroMode: validHeroMode,
@@ -248,6 +435,43 @@ export async function getShowroomSettings(
     cashEnabled: storedCashEnabled !== "0",
     cashNotes: storedCashNotes && storedCashNotes.trim() ? storedCashNotes.trim() : null,
     whatsappPaymentEnabled: storedWhatsappPaymentEnabled !== "0",
+    // Nuevas configuraciones
+    announcementBar: (() => {
+      const parsed = safeJsonParse<AnnouncementBarConfig>(
+        storedAnnouncementBar,
+        DEFAULT_ANNOUNCEMENT_BAR
+      );
+      return {
+        ...parsed,
+        messages: parsed.messages || parsed.items || DEFAULT_ANNOUNCEMENT_BAR.messages,
+        items: parsed.items || parsed.messages || DEFAULT_ANNOUNCEMENT_BAR.messages,
+      };
+    })(),
+    homeBlocks: safeJsonParse<HomeBlocksConfig>(
+      storedHomeBlocks,
+      DEFAULT_HOME_BLOCKS
+    ),
+    catalogConfig: (() => {
+      const parsed = safeJsonParse<CatalogConfig>(
+        storedCatalogConfig,
+        DEFAULT_CATALOG_CONFIG
+      );
+      const visible = parsed.visibleFilters || DEFAULT_CATALOG_CONFIG.visibleFilters;
+      const enabledFilters =
+        parsed.enabledFilters && parsed.enabledFilters.length > 0
+          ? parsed.enabledFilters
+          : visible.filter((f) => f.enabled).map((f) => f.key);
+      return {
+        ...parsed,
+        visibleFilters: visible,
+        enabledFilters,
+      };
+    })(),
+    storeLocation,
+    storeSchedule: safeJsonParse<StoreScheduleConfig>(
+      storedStoreSchedule,
+      DEFAULT_STORE_SCHEDULE
+    ),
   };
 }
 
@@ -268,7 +492,6 @@ export async function updateShowroomSettings(
     if (!trimmedWhatsapp) {
       throw new ValidationError("El número de WhatsApp no puede estar vacío.");
     }
-    // Formato básico de dígitos y signo más
     if (!/^\+?[0-9]{8,18}$/.test(trimmedWhatsapp.replace(/\s+/g, ""))) {
       throw new ValidationError("El número de WhatsApp debe contener entre 8 y 18 dígitos numéricos.");
     }
@@ -392,6 +615,69 @@ export async function updateShowroomSettings(
     await settingsRepo.set("whatsapp_payment_enabled", input.whatsappPaymentEnabled ? "1" : "0");
   }
 
+  // Nuevas configuraciones JSON
+  if (input.announcementBar !== undefined) {
+    await settingsRepo.set("announcement_bar_json", JSON.stringify(input.announcementBar));
+  }
+
+  if (input.homeBlocks !== undefined) {
+    await settingsRepo.set("home_blocks_json", JSON.stringify(input.homeBlocks));
+  }
+
+  if (input.catalogConfig !== undefined) {
+    const validPageSizes = [12, 16, 24];
+    const pageSize = validPageSizes.includes(Number(input.catalogConfig.pageSize))
+      ? (Number(input.catalogConfig.pageSize) as 12 | 16 | 24)
+      : 12;
+    await settingsRepo.set(
+      "catalog_config_json",
+      JSON.stringify({
+        ...input.catalogConfig,
+        pageSize,
+      })
+    );
+  }
+
+  if (input.storeLocation !== undefined) {
+    await settingsRepo.set("store_location_json", JSON.stringify(input.storeLocation));
+    // Sincronizar address plano para compatibilidad
+    const formatted = input.storeLocation.attendsPublic
+      ? [
+          input.storeLocation.streetAddress,
+          input.storeLocation.locality,
+          input.storeLocation.province,
+        ]
+          .map((s) => (s || "").trim())
+          .filter(Boolean)
+          .join(", ")
+      : "";
+    await settingsRepo.set("address", formatted);
+  }
+
+  if (input.storeSchedule !== undefined) {
+    await settingsRepo.set("store_schedule_json", JSON.stringify(input.storeSchedule));
+  }
+
   return getShowroomSettings(deps);
+}
+
+export class SettingsService {
+  private readonly settingsRepo?: ISettingsRepository;
+
+  constructor(depsOrRepo?: ISettingsRepository | SettingsServiceDeps) {
+    if (depsOrRepo && "settingsRepo" in depsOrRepo) {
+      this.settingsRepo = depsOrRepo.settingsRepo;
+    } else {
+      this.settingsRepo = depsOrRepo as ISettingsRepository | undefined;
+    }
+  }
+
+  async getSettings(): Promise<ShowroomSettings> {
+    return getShowroomSettings({ settingsRepo: this.settingsRepo });
+  }
+
+  async updateSettings(input: UpdateShowroomSettingsInput): Promise<ShowroomSettings> {
+    return updateShowroomSettings(input, { settingsRepo: this.settingsRepo });
+  }
 }
 

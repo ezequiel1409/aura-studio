@@ -61,6 +61,11 @@ export async function POST(req: NextRequest) {
         cashEnabled: body.cashEnabled !== undefined ? Boolean(body.cashEnabled) : undefined,
         cashNotes: body.cashNotes,
         whatsappPaymentEnabled: body.whatsappPaymentEnabled !== undefined ? Boolean(body.whatsappPaymentEnabled) : undefined,
+        announcementBar: body.announcementBar,
+        homeBlocks: body.homeBlocks,
+        catalogConfig: body.catalogConfig,
+        storeLocation: body.storeLocation,
+        storeSchedule: body.storeSchedule,
       },
       deps
     );
