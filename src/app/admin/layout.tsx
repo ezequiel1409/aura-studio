@@ -3,6 +3,7 @@ import { AdminHeader } from "../../components/admin/AdminHeader";
 import { AdminLayoutFrame } from "../../components/admin/AdminLayoutFrame";
 import { AdminSessionMonitor } from "../../components/admin/AdminSessionMonitor";
 import { AdminThemeInitializer } from "../../components/admin/AdminThemeInitializer";
+import { AdminNavProvider } from "../../components/admin/navigation/AdminNavContext";
 
 export const metadata: Metadata = {
   title: "Panel de Control",
@@ -39,8 +40,10 @@ export default function AdminLayout({
       >
         Saltar al contenido principal
       </a>
-      <AdminHeader />
-      <AdminLayoutFrame>{children}</AdminLayoutFrame>
+      <AdminNavProvider>
+        <AdminHeader />
+        <AdminLayoutFrame>{children}</AdminLayoutFrame>
+      </AdminNavProvider>
       {/* Monitor de expiración de sesión y renovación en 1 clic (BR-10, BR-37) */}
       <AdminSessionMonitor />
     </div>

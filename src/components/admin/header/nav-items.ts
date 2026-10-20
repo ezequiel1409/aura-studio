@@ -1,5 +1,6 @@
 import {
   Compass,
+  FileSpreadsheet,
   FolderTree,
   Landmark,
   LayoutDashboard,
@@ -10,6 +11,7 @@ import {
   PlusCircle,
   Settings,
   Settings2,
+  ShieldCheck,
   ShoppingBag,
   Store,
   Tag,
@@ -24,6 +26,7 @@ export interface AdminSubNavItem {
   icon: LucideIcon;
   exact?: boolean;
   tabParam?: string;
+  matchPrefix?: string[];
 }
 
 export interface AdminNavItem {
@@ -41,8 +44,8 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
   {
     id: "dashboard",
     href: "/admin",
-    label: "Resumen",
-    mobileLabel: "Resumen",
+    label: "Inicio",
+    mobileLabel: "Inicio",
     icon: LayoutDashboard,
   },
   {
@@ -59,13 +62,31 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
     label: "Productos",
     mobileLabel: "Productos",
     icon: Package,
-    matchPrefix: ["/admin/productos", "/admin/categorias", "/admin/secciones"],
+    matchPrefix: [
+      "/admin/productos",
+      "/admin/categorias",
+      "/admin/secciones",
+    ],
     subItems: [
       {
         href: "/admin/productos",
-        label: "Productos y Stock",
+        label: "Productos y stock",
         description: "Listado, precios y estados",
         icon: Package,
+        exact: true,
+      },
+      {
+        href: "/admin/productos/nuevo",
+        label: "Cargar producto",
+        description: "Alta guiada de nueva pieza",
+        icon: PlusCircle,
+        exact: true,
+      },
+      {
+        href: "/admin/productos/importar",
+        label: "Importar desde plantilla",
+        description: "Carga masiva por CSV/Excel",
+        icon: FileSpreadsheet,
         exact: true,
       },
       {
@@ -77,31 +98,49 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
       },
       {
         href: "/admin/secciones",
-        label: "Secciones y Filtros",
-        description: "MUJER, HOMBRE, SALE y atributos",
+        label: "Secciones, Atributos y Filtros",
+        description: "Menú, atributos de rubro y catálogo",
         icon: Compass,
-        exact: true,
-      },
-      {
-        href: "/admin/productos/nuevo",
-        label: "+ Cargar Producto",
-        description: "Alta rápida de nueva pieza",
-        icon: PlusCircle,
-        exact: true,
+        matchPrefix: ["/admin/secciones"],
       },
     ],
   },
   {
-    id: "discounts",
-    href: "/admin/descuentos",
-    label: "Promos y Cupones",
-    mobileLabel: "Promos",
-    icon: Tag,
-    matchPrefix: ["/admin/descuentos", "/admin/promociones"],
+    id: "store",
+    href: "/admin/tienda/negocio",
+    label: "Tienda",
+    mobileLabel: "Tienda",
+    icon: Store,
+    matchPrefix: [
+      "/admin/tienda",
+      "/admin/promociones",
+      "/admin/descuentos",
+    ],
     subItems: [
       {
+        href: "/admin/tienda/negocio",
+        label: "Negocio",
+        description: "Identidad, rubro y pie de página",
+        icon: PanelTop,
+        exact: true,
+      },
+      {
+        href: "/admin/tienda/portada",
+        label: "Portada y apariencia",
+        description: "Banners y paleta con contraste AA",
+        icon: LayoutTemplate,
+        exact: true,
+      },
+      {
+        href: "/admin/tienda/contacto",
+        label: "Contacto y redes",
+        description: "Horarios, WhatsApp y ubicación",
+        icon: MapPin,
+        exact: true,
+      },
+      {
         href: "/admin/promociones",
-        label: "Promociones Bancarias",
+        label: "Promociones bancarias",
         description: "Bancos, beneficios y legales",
         icon: Landmark,
         exact: true,
@@ -115,66 +154,34 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
       },
     ],
   },
-
-  {
-    id: "store",
-    href: "/admin/configuracion",
-    label: "Tienda",
-    mobileLabel: "Tienda",
-    icon: Store,
-    matchPrefix: ["/admin/configuracion"],
-    subItems: [
-      {
-        href: "/admin/configuracion?seccion=top",
-        label: "Identidad y Rubro",
-        description: "Nombre, logo y tipo de negocio",
-        icon: PanelTop,
-        tabParam: "top",
-      },
-      {
-        href: "/admin/configuracion?seccion=main",
-        label: "Portada y Colores",
-        description: "Banners y paleta con contraste AA",
-        icon: LayoutTemplate,
-        tabParam: "main",
-      },
-      {
-        href: "/admin/configuracion?seccion=footer",
-        label: "Contacto y Redes",
-        description: "WhatsApp, dirección y datos fiscales",
-        icon: MapPin,
-        tabParam: "footer",
-      },
-      {
-        href: "/admin/configuracion?seccion=general",
-        label: "Políticas e Inventario",
-        description: "Reglas de reserva y cambios",
-        icon: Settings2,
-        tabParam: "general",
-      },
-    ],
-  },
   {
     id: "settings",
-    href: "/admin/usuarios",
+    href: "/admin/configuracion?seccion=general",
     label: "Configuración",
     mobileLabel: "Ajustes",
     icon: Settings,
-    matchPrefix: ["/admin/usuarios"],
+    matchPrefix: ["/admin/configuracion", "/admin/usuarios"],
     subItems: [
       {
+        href: "/admin/configuracion?seccion=general",
+        label: "Reservas e inventario",
+        description: "Tiempos de reserva y stock",
+        icon: Settings2,
+        tabParam: "general",
+      },
+      {
         href: "/admin/usuarios",
-        label: "Equipo y Accesos",
+        label: "Equipo y permisos",
         description: "Administradores y roles",
         icon: Users,
         exact: true,
       },
       {
-        href: "/admin/configuracion?seccion=general",
-        label: "Reservas e Inventario",
-        description: "Tiempos de reserva automática",
-        icon: Settings2,
-        tabParam: "general",
+        href: "/admin/configuracion?seccion=politicas",
+        label: "Políticas",
+        description: "Cambios, devoluciones y términos",
+        icon: ShieldCheck,
+        tabParam: "politicas",
       },
     ],
   },
@@ -199,6 +206,40 @@ export function isAdminNavItemActive(pathname: string, item: AdminNavItem): bool
   return pathname === item.href;
 }
 
+export function isSubNavItemActive(
+  pathname: string,
+  searchParamsString: string | null,
+  subItem: AdminSubNavItem
+): boolean {
+  if (subItem.tabParam) {
+    const params = new URLSearchParams(searchParamsString || "");
+    const currentTab = params.get("seccion");
+    if (subItem.tabParam === "general") {
+      return (
+        pathname === "/admin/configuracion" &&
+        (!currentTab || currentTab === "general")
+      );
+    }
+    return (
+      pathname === "/admin/configuracion" && currentTab === subItem.tabParam
+    );
+  }
+
+  if (subItem.exact) {
+    return pathname === subItem.href;
+  }
+
+  if (subItem.matchPrefix) {
+    return subItem.matchPrefix.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    );
+  }
+
+  return pathname === subItem.href || pathname.startsWith(`${subItem.href}/`);
+}
+
 export function getActiveNavGroup(pathname: string): AdminNavItem | undefined {
-  return ADMIN_PRIMARY_NAV_ITEMS.find((item) => isAdminNavItemActive(pathname, item));
+  return ADMIN_PRIMARY_NAV_ITEMS.find((item) =>
+    isAdminNavItemActive(pathname, item)
+  );
 }

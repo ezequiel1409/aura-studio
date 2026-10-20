@@ -5,9 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { ArrowUpRight, LogOut, Menu, PlusCircle, Search, X } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { AdminThemeToggle } from "./AdminThemeToggle";
-import { AdminSidebar } from "./header/AdminSidebar";
+import { AdminMainSidebar } from "./navigation/AdminMainSidebar";
+import { AdminSecondarySidebar } from "./navigation/AdminSecondarySidebar";
 import { AdminMobileDrawer } from "./header/AdminMobileDrawer";
 import { AdminUserMenuPopover } from "./header/AdminUserMenuPopover";
+import { useAdminNav } from "./navigation/AdminNavContext";
 
 interface SessionUser {
   userId?: number;
@@ -27,10 +29,16 @@ export function AdminHeader({
   const pathname = usePathname();
   const router = useRouter();
 
+  const {
+    isCollapsed,
+    isMobileDrawerOpen,
+    setIsMobileDrawerOpen,
+    hasSecondary,
+  } = useAdminNav();
+
   const [brandName, setBrandName] = useState(initialBrandName || "Aura Studio");
   const [, setStoreType] = useState(initialStoreType || "Showroom");
   const [loggingOut, setLoggingOut] = useState(false);
-  const [isNavOpen, setIsNavOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(null);
@@ -58,7 +66,7 @@ export function AdminHeader({
     }
   }, []);
 
-  // Cargar sesión solo 1 vez al montar (o tras login)
+  // Cargar sesión solo 1 vez al montar
   useEffect(() => {
     const isAuthRoute =
       pathname === "/admin/login" ||
@@ -75,7 +83,7 @@ export function AdminHeader({
     }
   }, [pathname, fetchSession]);
 
-  // Cargar nombre de tienda solo 1 vez si no vino por props
+  // Cargar nombre de tienda si no vino por props
   useEffect(() => {
     if (!hasLoadedBrandRef.current) {
       hasLoadedBrandRef.current = true;
@@ -91,18 +99,12 @@ export function AdminHeader({
     }
   }, [initialBrandName, initialStoreType]);
 
-  // Cerrar menús al cambiar de ruta
-  useEffect(() => {
-    setIsNavOpen(false);
-    setIsUserMenuOpen(false);
-  }, [pathname]);
-
-  // Teclas rápidas: Escape para cerrar menús, '/' para enfocar buscador
+  // Teclas rápidas: Escape para cerrar menús, '/' para buscador
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsUserMenuOpen(false);
-        setIsNavOpen(false);
+        setIsMobileDrawerOpen(false);
       } else if (
         e.key === "/" &&
         document.activeElement?.tagName !== "INPUT" &&
@@ -114,7 +116,7 @@ export function AdminHeader({
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [setIsMobileDrawerOpen]);
 
   // No renderizar barra en páginas de login y recuperación
   if (
@@ -157,23 +159,26 @@ export function AdminHeader({
     e.preventDefault();
     const query = searchQuery.trim();
     if (!query) return;
-
-    if (query.startsWith("#") || /^\d+$/.test(query)) {
-      // Búsqueda por número/código
-      router.push(`/admin/productos?q=${encodeURIComponent(query)}`);
-    } else {
-      router.push(`/admin/productos?q=${encodeURIComponent(query)}`);
-    }
+    router.push(`/admin/productos?q=${encodeURIComponent(query)}`);
   };
 
   const userInitial = user?.email ? user.email.charAt(0).toUpperCase() : "A";
   const userRoleDisplay =
     user?.role === "SUPER_ADMIN" ? "Superadmin" : "Administrador";
 
+  // Cálculo de padding dinámico según estado de colapso y presencia de sidebar secundaria
+  const headerDesktopPaddingClass = isCollapsed
+    ? hasSecondary
+      ? "md:pl-[284px]"
+      : "md:pl-16"
+    : hasSecondary
+    ? "md:pl-[460px]"
+    : "md:pl-60";
+
   return (
     <>
-      {/* 1. Barra Lateral Fija para Escritorio (md:w-64) */}
-      <AdminSidebar
+      {/* 1. Doble Sidebar para Escritorio (ADM-01) */}
+      <AdminMainSidebar
         pathname={pathname}
         brandName={brandName}
         user={user}
@@ -183,20 +188,32 @@ export function AdminHeader({
         onLogout={handleLogout}
       />
 
-      {/* 2. Barra Superior Mínima (md:pl-64 para compensar sidebar) */}
-      <header className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 text-zinc-100 admin-header transition-colors md:pl-64">
+      <AdminSecondarySidebar />
+
+      {/* 2. Barra Superior Mínima */}
+      <header
+        className={`sticky top-0 z-30 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 text-zinc-100 admin-header transition-all duration-200 ${headerDesktopPaddingClass}`}
+      >
         <div className="w-full px-4 md:px-6 h-16 flex items-center justify-between gap-3">
           {/* Lado Izquierdo Móvil: Botón Hamburguesa & Marca */}
           <div className="flex items-center gap-2.5 md:hidden">
             <button
               type="button"
-              onClick={() => setIsNavOpen(!isNavOpen)}
-              aria-expanded={isNavOpen}
+              onClick={() => setIsMobileDrawerOpen(!isMobileDrawerOpen)}
+              aria-expanded={isMobileDrawerOpen}
               aria-controls="admin-collapsible-nav"
-              aria-label={isNavOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+              aria-label={
+                isMobileDrawerOpen
+                  ? "Cerrar menú de navegación"
+                  : "Abrir menú de navegación"
+              }
               className="p-2.5 rounded-xl text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors cursor-pointer"
             >
-              {isNavOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
+              {isMobileDrawerOpen ? (
+                <X size={18} aria-hidden="true" />
+              ) : (
+                <Menu size={18} aria-hidden="true" />
+              )}
             </button>
 
             <Link
@@ -206,9 +223,6 @@ export function AdminHeader({
             >
               {brandName}
             </Link>
-            <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
-              Admin
-            </span>
           </div>
 
           {/* Lado Izquierdo Escritorio: Buscador Global */}
@@ -219,83 +233,76 @@ export function AdminHeader({
             <div className="relative w-full">
               <Search
                 size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
                 aria-hidden="true"
               />
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Buscar por nombre, #código o pedido... (/)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                aria-label="Búsqueda rápida en el panel"
-                className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-colors"
+                placeholder="Buscar productos o pedidos... (Presioná /)"
+                aria-label="Buscar en el catálogo y pedidos"
+                className="w-full pl-8 pr-8 py-1.5 rounded-xl bg-zinc-900/80 border border-zinc-800 text-xs text-zinc-100 placeholder-zinc-500 focus:bg-zinc-900 focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400 focus:outline-none transition-all"
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Limpiar búsqueda"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              )}
             </div>
           </form>
 
-          {/* Lado Derecho: + Nuevo, Tema, Ver tienda, Salir, Avatar */}
-          <div className="flex items-center gap-2">
+          {/* Lado Derecho: Acciones Rápidas, Enlace Tienda, Tema y Usuario */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Botón Ver Tienda Pública */}
             <Link
-              href="/admin/productos/nuevo"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-zinc-950 px-3 py-1.5 rounded-xl bg-amber-300 hover:bg-amber-200 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-            >
-              <PlusCircle size={14} aria-hidden="true" />
-              <span>+ Nuevo</span>
-            </Link>
-
-            <AdminThemeToggle />
-
-            <a
               href="/"
               target="_blank"
               rel="noreferrer"
               aria-label="Abrir catálogo público de la tienda en una pestaña nueva"
-              className="flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-zinc-100 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-              title="Ver catálogo público en una nueva pestaña"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+              title="Abrir tienda pública en nueva pestaña"
             >
-              <span className="hidden md:inline">Ver tienda</span>
-              <ArrowUpRight size={14} aria-hidden="true" />
-            </a>
+              <span className="hidden sm:inline">Ver tienda</span>
+              <ArrowUpRight size={13} aria-hidden="true" />
+            </Link>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              aria-label={loggingOut ? "Cerrando sesión..." : "Cerrar sesión de administración"}
-              className="hidden md:flex items-center gap-1.5 text-xs font-semibold text-zinc-300 hover:text-rose-300 px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-rose-950/40 hover:border-rose-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none disabled:opacity-50 cursor-pointer"
-              title="Cerrar sesión"
-            >
-              <LogOut size={14} aria-hidden="true" />
-              <span>{loggingOut ? "Saliendo..." : "Salir"}</span>
-            </button>
+            {/* Alternador de Tema Oscuro/Claro */}
+            <AdminThemeToggle />
 
+            {/* Menú de Usuario Popover */}
             <AdminUserMenuPopover
-              isOpen={isUserMenuOpen}
               brandName={brandName}
+              isOpen={isUserMenuOpen}
+              onToggle={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              onClose={() => setIsUserMenuOpen(false)}
               userEmail={user?.email}
               userInitial={userInitial}
               userRoleDisplay={userRoleDisplay}
               expiresInSeconds={expiresInSeconds}
               renewingSession={renewingSession}
-              loggingOut={loggingOut}
-              onToggle={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              onClose={() => setIsUserMenuOpen(false)}
               onRenewSession={handleRenewSession}
+              loggingOut={loggingOut}
               onLogout={handleLogout}
             />
           </div>
         </div>
 
-        {/* Menú Móvil Desplegable */}
+        {/* 3. Menú Móvil Desplegable */}
         <AdminMobileDrawer
-          isOpen={isNavOpen}
+          isOpen={isMobileDrawerOpen}
           pathname={pathname}
           userEmail={user?.email}
           userInitial={userInitial}
           userRoleDisplay={userRoleDisplay}
           loggingOut={loggingOut}
-          onClose={() => setIsNavOpen(false)}
+          onClose={() => setIsMobileDrawerOpen(false)}
           onLogout={handleLogout}
         />
       </header>
