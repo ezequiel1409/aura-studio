@@ -560,3 +560,4 @@ export function ProductImportClient({ categories }: ProductImportClientProps) {
     </div>
   );
 }
+

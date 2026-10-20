@@ -17,3 +17,4 @@ export default async function AdminProductsImportPage() {
 
   return <ProductImportClient categories={categories} />;
 }
+

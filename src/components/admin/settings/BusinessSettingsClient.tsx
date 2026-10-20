@@ -388,3 +388,4 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
     </div>
   );
 }
+

@@ -18,3 +18,4 @@ export default async function AdminTiendaNegocioPage() {
 
   return <BusinessSettingsClient initialSettings={settings} />;
 }
+

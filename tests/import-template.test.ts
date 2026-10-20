@@ -86,3 +86,4 @@ describe("ADM-04: Plantilla e Importación Masiva de Productos", () => {
     expect(item.errors.some((e) => e.column === "categoria" && e.severity === "WARNING")).toBe(true);
   });
 });
+

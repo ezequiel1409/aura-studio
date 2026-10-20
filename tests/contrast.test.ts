@@ -25,3 +25,4 @@ describe("ADM-06: Validador de Contraste WCAG 2.2", () => {
     expect(result.isCompliantAA).toBe(true);
   });
 });
+

@@ -18,3 +18,4 @@ export default async function AdminTiendaContactoPage() {
 
   return <SettingsClient initialSettings={settings} initialTab="footer" />;
 }
+
