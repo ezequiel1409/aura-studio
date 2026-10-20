@@ -1,5 +1,6 @@
 import { Category } from "../category/types";
 import {
+  CatalogFacets,
   ListProductsFilter,
   PaginatedResult,
   Product,
@@ -13,6 +14,21 @@ import {
   PasswordResetToken,
 } from "../auth/types";
 import { Coupon, CouponRedemption } from "../coupon/types";
+import {
+  NavigationSection,
+  ProductAttributeDefinition,
+  UpsertAttributeDefinitionInput,
+  UpsertNavigationSectionInput,
+} from "../navigation/types";
+import {
+  Bank,
+  BannerPlacement,
+  HomeBanner,
+  Promotion,
+  UpsertBankInput,
+  UpsertHomeBannerInput,
+  UpsertPromotionInput,
+} from "../promotion/types";
 
 export interface CreateProductColorRepoData {
   name: string;
@@ -30,17 +46,20 @@ export interface CreateProductRepoData {
   rawText: string;
   title: string | null;
   priceCents: number | null;
+  compareAtPriceCents?: number | null;
   currency: string;
   size?: string | null;
   categoryId: number;
   status: ProductStatus;
   isFeatured?: boolean;
   allowReturn?: boolean;
+  publishedAt?: number | null;
   soldOutAt: number | null;
   reservedUntil: number | null;
   manualFields: string[];
   createdAt: number;
   updatedAt: number;
+  attributes?: Record<string, string[]>;
   colors?: CreateProductColorRepoData[];
   photos?: Array<{
     keyThumb: string;
@@ -67,6 +86,7 @@ export interface IProductRepository {
     }
   ): Promise<Product>;
   list(filter: ListProductsFilter, categoryIdsToInclude?: number[]): Promise<PaginatedResult<Product>>;
+  getFacets?(filter: ListProductsFilter, categoryIdsToInclude?: number[]): Promise<CatalogFacets>;
   countByCategoryId(categoryId: number): Promise<number>;
   getSummaryCounts(uncategorizedCategoryId: number, now?: number): Promise<BackofficeSummaryCounts>;
   delete(id: number): Promise<void>;
@@ -254,5 +274,36 @@ export interface ICouponRepository {
   }): Promise<CouponRedemption>;
 }
 
+export interface INavigationRepository {
+  listSections(options?: { visibleOnly?: boolean }): Promise<NavigationSection[]>;
+  findSectionBySlug(slug: string): Promise<NavigationSection | null>;
+  findSectionById(id: number): Promise<NavigationSection | null>;
+  upsertSection(input: UpsertNavigationSectionInput): Promise<NavigationSection>;
+  deleteSection(id: number): Promise<void>;
+  reorderSections(orderedIds: number[]): Promise<void>;
+
+  listAttributeDefinitions(options?: { filterableOnly?: boolean }): Promise<ProductAttributeDefinition[]>;
+  upsertAttributeDefinition(input: UpsertAttributeDefinitionInput): Promise<ProductAttributeDefinition>;
+  deleteAttributeDefinition(id: number): Promise<void>;
+}
+
+export interface IPromotionRepository {
+  listBanks(options?: { activeOnly?: boolean }): Promise<Bank[]>;
+  findBankById(id: number): Promise<Bank | null>;
+  upsertBank(input: UpsertBankInput): Promise<Bank>;
+  deleteBank(id: number): Promise<void>;
+
+  listPromotions(options?: { activeOnly?: boolean; now?: number }): Promise<Promotion[]>;
+  findPromotionBySlug(slug: string): Promise<Promotion | null>;
+  findPromotionById(id: number): Promise<Promotion | null>;
+  upsertPromotion(input: UpsertPromotionInput): Promise<Promotion>;
+  deletePromotion(id: number): Promise<void>;
+
+  listHomeBanners(options?: { placement?: BannerPlacement; activeOnly?: boolean; now?: number }): Promise<HomeBanner[]>;
+  upsertHomeBanner(input: UpsertHomeBannerInput): Promise<HomeBanner>;
+  deleteHomeBanner(id: number): Promise<void>;
+}
+
 export * from "./email.port";
+
 

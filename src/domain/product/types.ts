@@ -40,12 +40,14 @@ export interface Product {
   rawText: string;
   title: string | null;
   priceCents: number | null;
+  compareAtPriceCents?: number | null;
   currency: string;
   size?: string | null;
   categoryId: number;
   status: ProductStatus;
   isFeatured: boolean;
   allowReturn: boolean;
+  publishedAt?: number | null;
   soldOutAt: number | null;
   reservedUntil: number | null;
   manualFields: string[];
@@ -54,6 +56,7 @@ export interface Product {
   colors?: ProductColor[];
   photos?: ProductPhoto[];
   stats?: ProductStats;
+  attributes?: Record<string, string[]>;
 }
 
 export type StatusSource = "web" | "telegram" | "system";
@@ -85,11 +88,14 @@ export interface CreateProductInput {
   rawText: string;
   title?: string | null;
   priceCents?: number | null;
+  compareAtPriceCents?: number | null;
   currency?: string;
   size?: string | null;
   categoryId?: number;
   isFeatured?: boolean;
   allowReturn?: boolean;
+  publishedAt?: number | null;
+  attributes?: Record<string, string[]>;
   colors?: CreateColorInput[];
   photos?: Array<{
     keyThumb: string;
@@ -104,12 +110,15 @@ export interface UpdateProductInput {
   rawText?: string;
   title?: string | null;
   priceCents?: number | null;
+  compareAtPriceCents?: number | null;
   currency?: string;
   size?: string | null;
   categoryId?: number;
   status?: ProductStatus;
   isFeatured?: boolean;
   allowReturn?: boolean;
+  publishedAt?: number | null;
+  attributes?: Record<string, string[]>;
   colors?: CreateColorInput[];
   photos?: Array<{
     keyThumb: string;
@@ -120,16 +129,55 @@ export interface UpdateProductInput {
   source?: StatusSource;
 }
 
-export type ProductSortOption = "newest" | "price_asc" | "price_desc";
+export type ProductSortOption =
+  | "newest"
+  | "featured"
+  | "price_asc"
+  | "price_desc"
+  | "relevance";
 
 export interface ListProductsFilter {
   status?: ProductStatus;
   categoryId?: number;
+  categoryIds?: number[];
   search?: string;
   sortBy?: ProductSortOption;
   isFeatured?: boolean;
+  onlyAvailable?: boolean;
+  onlyOnSale?: boolean;
+  publishedAfter?: number;
+  minPriceCents?: number;
+  maxPriceCents?: number;
+  sizes?: string[];
+  colors?: string[];
+  attributes?: Record<string, string[]>;
+  productIds?: number[];
   page?: number;
   pageSize?: number;
+}
+
+export interface CatalogFacetOption {
+  value: string;
+  label: string;
+  count: number;
+  hexCode?: string | null;
+}
+
+export interface CatalogFacets {
+  categories: Array<{
+    id: number;
+    name: string;
+    slug: string;
+    parentId: number | null;
+    count: number;
+  }>;
+  sizes: Array<{ size: string; count: number }>;
+  colors: Array<{ name: string; hexCode: string | null; count: number }>;
+  attributes: Record<string, Array<{ value: string; count: number }>>;
+  onSaleCount: number;
+  availableCount: number;
+  minPriceCents: number | null;
+  maxPriceCents: number | null;
 }
 
 export interface PaginatedResult<T> {
@@ -139,4 +187,5 @@ export interface PaginatedResult<T> {
   pageSize: number;
   totalPages: number;
 }
+
 

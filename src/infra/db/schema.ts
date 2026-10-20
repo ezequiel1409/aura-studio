@@ -32,6 +32,7 @@ export const products = sqliteTable(
     rawText: text("raw_text").notNull(),
     title: text("title"),
     priceCents: integer("price_cents"),
+    compareAtPriceCents: integer("compare_at_price_cents"),
     currency: text("currency").notNull().default("ARS"),
     size: text("size"),
     categoryId: integer("category_id")
@@ -42,6 +43,7 @@ export const products = sqliteTable(
       .default("AVAILABLE"),
     isFeatured: integer("is_featured").notNull().default(0),
     allowReturn: integer("allow_return").notNull().default(1),
+    publishedAt: integer("published_at"),
     soldOutAt: integer("sold_out_at"),
     reservedUntil: integer("reserved_until"),
     manualFields: text("manual_fields").notNull().default("[]"),
@@ -50,8 +52,10 @@ export const products = sqliteTable(
   },
   (table) => [
     index("products_status_created_at_idx").on(table.status, table.createdAt),
+    index("products_status_published_at_idx").on(table.status, table.publishedAt),
     index("products_category_id_status_idx").on(table.categoryId, table.status),
     index("products_price_cents_idx").on(table.priceCents),
+    index("products_sale_idx").on(table.status, table.compareAtPriceCents, table.priceCents),
     index("products_sold_out_at_idx").on(table.soldOutAt),
     index("products_is_featured_idx").on(table.isFeatured),
   ]
@@ -485,4 +489,166 @@ export const orderClaims = sqliteTable(
     index("order_claims_status_idx").on(table.status),
   ]
 );
+
+/**
+ * Definición de atributos configurables por rubro (ej. "Para", "Material", "Marca")
+ */
+export const productAttributeDefinitions = sqliteTable(
+  "product_attribute_definitions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    slug: text("slug").notNull().unique(),
+    name: text("name").notNull(),
+    optionsJson: text("options_json").notNull().default("[]"),
+    isFilterable: integer("is_filterable").notNull().default(1),
+    position: integer("position").notNull().default(0),
+  },
+  (table) => [
+    index("product_attr_defs_slug_idx").on(table.slug),
+    index("product_attr_defs_position_idx").on(table.position),
+  ]
+);
+
+/**
+ * Valores de atributos por producto indexados para filtrado y conteo en servidor
+ */
+export const productAttributeValues = sqliteTable(
+  "product_attribute_values",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    attributeSlug: text("attribute_slug").notNull(),
+    value: text("value").notNull(),
+  },
+  (table) => [
+    index("product_attr_slug_val_idx").on(table.attributeSlug, table.value, table.productId),
+    index("product_attr_product_id_idx").on(table.productId),
+  ]
+);
+
+/**
+ * Secciones de navegación editables con reglas de colección (ej. HOMBRE, MUJER, SALE, RECIÉN LLEGADOS)
+ */
+export const navigationSections = sqliteTable(
+  "navigation_sections",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    seoTitle: text("seo_title"),
+    seoDescription: text("seo_description"),
+    ruleType: text("rule_type", {
+      enum: [
+        "ATTRIBUTE",
+        "CATEGORY",
+        "DISCOUNT",
+        "SALE",
+        "RECENT",
+        "RECENCY",
+        "FEATURED",
+        "MANUAL",
+      ],
+    }).notNull(),
+    ruleConfigJson: text("rule_config_json").notNull().default("{}"),
+    accentColor: text("accent_color"),
+    badgeText: text("badge_text"),
+    coverImageUrl: text("cover_image_url"),
+    subcategoriesJson: text("subcategories_json").notNull().default("[]"),
+    position: integer("position").notNull().default(0),
+    isVisible: integer("is_visible").notNull().default(1),
+  },
+  (table) => [
+    index("nav_sections_slug_idx").on(table.slug),
+    index("nav_sections_visible_pos_idx").on(table.isVisible, table.position),
+  ]
+);
+
+/**
+ * Catálogo de bancos y billeteras reutilizables en promociones
+ */
+export const banks = sqliteTable(
+  "banks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    logoUrl: text("logo_url").notNull(),
+    brandColor: text("brand_color").notNull().default("#1c1917"),
+    officialUrl: text("official_url"),
+    isActive: integer("is_active").notNull().default(1),
+  },
+  (table) => [
+    index("banks_slug_idx").on(table.slug),
+    index("banks_is_active_idx").on(table.isActive),
+  ]
+);
+
+/**
+ * Promociones bancarias y propias del comercio (informativas en Etapa 1)
+ */
+export const promotions = sqliteTable(
+  "promotions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    type: text("type", { enum: ["BANK", "STORE"] }).notNull().default("BANK"),
+    bankId: integer("bank_id").references(() => banks.id, { onDelete: "restrict" }),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    benefitSummary: text("benefit_summary").notNull(),
+    benefitType: text("benefit_type", {
+      enum: ["INSTALLMENTS", "DISCOUNT", "CASHBACK", "BOTH"],
+    }).notNull(),
+    capCents: integer("cap_cents"),
+    validDaysJson: text("valid_days_json").notNull().default("[]"),
+    paymentMethodsJson: text("payment_methods_json").notNull().default("[]"),
+    termsAndConditions: text("terms_and_conditions").notNull(),
+    officialBankUrl: text("official_bank_url"),
+    showInHomeBanner: integer("show_in_home_banner").notNull().default(0),
+    startsAt: integer("starts_at").notNull(),
+    endsAt: integer("ends_at").notNull(),
+    position: integer("position").notNull().default(0),
+    isActive: integer("is_active").notNull().default(1),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    index("promotions_slug_idx").on(table.slug),
+    index("promotions_active_dates_idx").on(table.isActive, table.startsAt, table.endsAt),
+    index("promotions_bank_id_idx").on(table.bankId),
+  ]
+);
+
+/**
+ * Banners programables con imagen diferenciada para escritorio y celular
+ */
+export const homeBanners = sqliteTable(
+  "home_banners",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    placement: text("placement", {
+      enum: ["HOME_HERO", "PROMOTIONS_HERO", "SALE_BANNER"],
+    })
+      .notNull()
+      .default("HOME_HERO"),
+    desktopImageUrl: text("desktop_image_url").notNull(),
+    mobileImageUrl: text("mobile_image_url").notNull(),
+    title: text("title").notNull(),
+    subtitle: text("subtitle"),
+    ctaLabel: text("cta_label").notNull(),
+    ctaHref: text("cta_href").notNull(),
+    promotionId: integer("promotion_id").references(() => promotions.id, {
+      onDelete: "set null",
+    }),
+    startsAt: integer("starts_at"),
+    endsAt: integer("ends_at"),
+    position: integer("position").notNull().default(0),
+    isActive: integer("is_active").notNull().default(1),
+  },
+  (table) => [
+    index("home_banners_placement_active_idx").on(table.placement, table.isActive, table.position),
+  ]
+);
+
 

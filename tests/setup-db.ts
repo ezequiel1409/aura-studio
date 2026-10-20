@@ -19,6 +19,8 @@ import {
   DrizzleCommerceRepository,
   DrizzleCouponRepository,
   DrizzleOrderClaimRepository,
+  DrizzleNavigationRepository,
+  DrizzlePromotionRepository,
 } from "../src/infra/db";
 import { GlobalAppDeps } from "../src/infra/db/connection";
 
@@ -55,6 +57,8 @@ export function createTestEnvironment() {
   const commerceRepo = new DrizzleCommerceRepository(db);
   const couponRepo = new DrizzleCouponRepository(db);
   const orderClaimRepo = new DrizzleOrderClaimRepository(db);
+  const navigationRepo = new DrizzleNavigationRepository(db);
+  const promotionRepo = new DrizzlePromotionRepository(db);
 
   const deps: GlobalAppDeps = {
     productRepo,
@@ -71,6 +75,8 @@ export function createTestEnvironment() {
     commerceRepo,
     couponRepo,
     orderClaimRepo,
+    navigationRepo,
+    promotionRepo,
     db,
   };
 
