@@ -9,7 +9,9 @@ import {
   counters,
   settings,
   commerces,
+  banks,
 } from "./schema";
+import { DEFAULT_ARGENTINE_BANKS } from "../../domain/promotion/default-banks";
 
 export interface SeedOptions {
   whatsappNumber?: string;
@@ -208,5 +210,18 @@ export async function seedDatabase(db: DbClient, options: SeedOptions = {}): Pro
       updatedAt: now,
     });
   }
+  // 8. Catálogo predeterminado de bancos y billeteras de Argentina
+  for (const preset of DEFAULT_ARGENTINE_BANKS) {
+    await db
+      .insert(banks)
+      .values({
+        name: preset.name,
+        slug: preset.slug,
+        logoUrl: preset.logoUrl ?? "",
+        brandColor: preset.brandColor,
+        officialUrl: preset.officialUrl ?? null,
+        isActive: 1,
+      })
+      .onConflictDoNothing();
+  }
 }
-

@@ -990,7 +990,7 @@ export function CartPageClient({
                             setCouponInput(e.target.value.toUpperCase());
                             setCouponError(null);
                           }}
-                          placeholder="EJ: BIENVENIDA10"
+                          placeholder="Ingresa tu código de descuento"
                           className="flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-base sm:text-xs font-mono font-bold uppercase text-stone-900 placeholder-stone-400 focus-visible:outline-2 focus-visible:outline-stone-900"
                         />
                         <button

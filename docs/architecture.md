@@ -1,5 +1,20 @@
 # Reglas de Arquitectura
 
+## Principios de Desarrollo Mandatorios
+
+Toda nueva función, componente, refactorización o modificación de código debe ser analizada obligatoriamente bajo estos 8 principios:
+
+1. **No mantener compatibilidad hacia atrás.** Lo obsoleto, bórralo directamente; no añadas capas de compatibilidad, no escribas migraciones de retrocompatibilidad, no dejes fallbacks.
+2. **Elige la implementación más simple que satisfaga la necesidad actual.** Nada de abstracciones preventivas, nada de capas de configuración innecesarias.
+3. **Divide el sistema en capas largas.** Primero haz funcionar una versión mínima de extremo a extremo, luego añade cosas encima. Nunca desmanteles algo que ya funciona por complejidad incompleta.
+4. **Mantén los componentes modulares, con separación de responsabilidades.**
+5. **Prioriza bibliotecas maduras y mantenidas por alguien.** Sin razón explícita, no las reescribas tú mismo.
+6. **Primero revisa qué pueden hacer las dependencias ya existentes en el proyecto, antes de añadir paquetes nuevos o escribir tú mismo.** No asumas de entrada que no hay nada en las bibliotecas.
+7. **Toma decisiones de arquitectura a largo plazo.** No aceptes soluciones temporales del tipo "primero así, luego cambiamos".
+8. **Mira primero cómo resuelven el mismo problema los productos maduros, usa patrones ya validados, no inventes desde cero.**
+
+---
+
 ## Estructura de Directorios
 
 ```text
@@ -11,7 +26,7 @@ src/
   infra/
     db/             → schema Drizzle, repositorios
     storage/        → adaptador R2 (interfaz StoragePort)
-    payments/       → adaptadores ( mercadopago después)
+    payments/       → adaptadores (mercadopago, etc.)
     auth/
   lib/              → utilidades (parser de texto, sanitización, formato ARS)
 ```
@@ -22,7 +37,7 @@ src/
 - **AR-02**: Toda entrada (panel web, Telegram, cron) pasa por los mismos services. Nunca hay lógica de negocio en un route handler.
 - **AR-03**: Acceso a DB y storage solo mediante interfaces (puertos), para poder cambiar el proveedor.
 - **AR-04**: Variables de entorno validadas con Zod al arrancar. Sin secretos en el repo.
-- **AR-05**: Todo cambio de schema va con migración versionada.
+- **AR-05**: Cambios de schema limpios y sin compatibilidad hacia atrás. Lo obsoleto se elimina directamente; sin capas de compatibilidad, tablas transitorias ni fallbacks.
 - **AR-06**: Toda regla `BR-xx` crítica tiene al menos un test.
 - **AR-07**: Telemetría y analítica desacopladas de la lectura. El registro de métricas públicas (vistas de ficha, vistas de categoría, clics en WhatsApp) nunca bloquea el renderizado ni la entrega de páginas cacheadas. Se procesa de forma asíncrona mediante un endpoint ligero (`/api/analytics/track` o `navigator.sendBeacon`) con debouncing para no saturar escrituras en D1.
 - **AR-08**: Agregado de Producto: `Product` es la raíz del agregado (Aggregate Root) y encapsula sus colores (`ProductColor`) y los talles con stock de cada color (`ProductColorSize`). El estado general del producto y su ciclo de vida (`AVAILABLE`, `SOLD_OUT`) se calculan a partir de la disponibilidad agregada de su stock.
@@ -67,6 +82,3 @@ src/
 - **AR-19**: Aislamiento Multi-Comercio y Tenancy en Clean Architecture:
   - Todas las consultas, mutaciones y operaciones de persistencia en D1 / Drizzle deben estar restringidas por el contexto del comercio (`commerceId`).
   - Las configuraciones de marca, temas, pasarelas activas, cuentas bancarias y tarifas de envío se resuelven en tiempo de ejecución según el comercio activo, garantizando la venta y despliegue del software como un producto marca blanca multi-cliente.
-
-
-

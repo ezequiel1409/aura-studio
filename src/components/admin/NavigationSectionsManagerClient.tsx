@@ -173,6 +173,23 @@ export function NavigationSectionsManagerClient({
   const handleSaveSection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!secName.trim()) return;
+
+    if (secRuleType === "ATTRIBUTE" && attributes.length === 0) {
+      setFeedback({
+        type: "error",
+        text: "Antes de guardar una sección por atributo, debés definir al menos un atributo en la pestaña 'Atributos del Rubro'.",
+      });
+      return;
+    }
+
+    if (secRuleType === "ATTRIBUTE" && attributes.length === 0) {
+      setFeedback({
+        type: "error",
+        text: "Antes de guardar una sección por atributo, debés definir al menos un atributo en la pestaña 'Atributos del Rubro'.",
+      });
+      return;
+    }
+
     setSaving(true);
     setFeedback(null);
 
@@ -241,6 +258,14 @@ export function NavigationSectionsManagerClient({
     if (!window.confirm("¿Seguro que deseás eliminar esta sección del menú?")) {
       return;
     }
+    if (secRuleType === "ATTRIBUTE" && attributes.length === 0) {
+      setFeedback({
+        type: "error",
+        text: "Antes de guardar una sección por atributo, debés definir al menos un atributo en la pestaña 'Atributos del Rubro'.",
+      });
+      return;
+    }
+
     setSaving(true);
     setFeedback(null);
     try {
@@ -260,6 +285,14 @@ export function NavigationSectionsManagerClient({
   const handleSaveAttribute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!attrLabel.trim() || !attrOptionsText.trim()) return;
+    if (secRuleType === "ATTRIBUTE" && attributes.length === 0) {
+      setFeedback({
+        type: "error",
+        text: "Antes de guardar una sección por atributo, debés definir al menos un atributo en la pestaña 'Atributos del Rubro'.",
+      });
+      return;
+    }
+
     setSaving(true);
     setFeedback(null);
 
@@ -268,13 +301,14 @@ export function NavigationSectionsManagerClient({
         .split(",")
         .map((o) => o.trim())
         .filter(Boolean);
-      const res = await fetch("/api/admin/navigation", {
+      const res = await fetch("/api/admin/attributes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          entity: "attribute",
-          key: attrKey.trim() || attrLabel.trim(),
+          name: attrLabel.trim(),
           label: attrLabel.trim(),
+          slug: attrKey.trim() || attrLabel.trim(),
+          key: attrKey.trim() || attrLabel.trim(),
           options,
           isFilterable: attrFilterable,
           position: attributes.length + 1,
@@ -294,6 +328,12 @@ export function NavigationSectionsManagerClient({
         }
         return [...prev, data.attribute];
       });
+      if (attributes.length === 0) {
+        setSecAttrKey(data.attribute.key);
+        if (data.attribute.options?.[0]) {
+          setSecAttrValue(data.attribute.options[0]);
+        }
+      }
       setAttrKey("");
       setAttrLabel("");
       setAttrOptionsText("");
@@ -315,7 +355,7 @@ export function NavigationSectionsManagerClient({
     if (!window.confirm("¿Seguro que deseás eliminar este atributo del rubro?")) {
       return;
     }
-    const res = await fetch(`/api/admin/navigation?entity=attribute&id=${id}`, {
+    const res = await fetch(`/api/admin/attributes?id=${id}`, {
       method: "DELETE",
     });
     if (res.ok) {
@@ -325,6 +365,14 @@ export function NavigationSectionsManagerClient({
   };
 
   const handleSaveCatalogConfig = async () => {
+    if (secRuleType === "ATTRIBUTE" && attributes.length === 0) {
+      setFeedback({
+        type: "error",
+        text: "Antes de guardar una sección por atributo, debés definir al menos un atributo en la pestaña 'Atributos del Rubro'.",
+      });
+      return;
+    }
+
     setSaving(true);
     setFeedback(null);
     try {
@@ -533,6 +581,29 @@ export function NavigationSectionsManagerClient({
           {/* TAB 1: SECCIONES DE NAVEGACIÓN */}
           {activeTab === "secciones" && (
             <div className="space-y-6">
+              {attributes.length === 0 && (
+                <div className="p-4 rounded-2xl bg-amber-950/40 border border-amber-800/80 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <Sparkles className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-amber-300">
+                        Paso previo recomendado: Atributos del Rubro
+                      </p>
+                      <p className="text-[11px] text-amber-200/90 mt-0.5">
+                        Antes de crear secciones automáticas (ej: &ldquo;Para: Mujer / Hombre&rdquo;), definí primero los atributos de tu catálogo para que estén disponibles como reglas y filtros.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("atributos")}
+                    className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs shrink-0 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>Cargar Atributos</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              )}
               {/* Formulario Crear/Editar */}
               <form
                 onSubmit={handleSaveSection}
@@ -616,7 +687,26 @@ export function NavigationSectionsManagerClient({
                 </div>
 
                 {secRuleType === "ATTRIBUTE" && (
-                  <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-zinc-950 border border-zinc-800">
+                  attributes.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-800/80 text-xs space-y-2">
+                      <div className="flex items-center gap-2 text-amber-300 font-bold">
+                        <AlertTriangle size={15} className="shrink-0 text-amber-400" />
+                        <span>Aún no cargaste atributos del rubro</span>
+                      </div>
+                      <p className="text-[11px] text-zinc-300">
+                        Para vincular una sección a un atributo (ej: Para = Mujer, Material = Lino), primero tenés que dar de alta los atributos en la pestaña &ldquo;Atributos del Rubro&rdquo;.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("atributos")}
+                        className="px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-bold inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Sparkles size={13} />
+                        <span>Ir a cargar Atributos del Rubro</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-zinc-950 border border-zinc-800">
                     <div className="space-y-1">
                       <label
                         htmlFor="sec-attr-key"
@@ -676,6 +766,7 @@ export function NavigationSectionsManagerClient({
                       )}
                     </div>
                   </div>
+                  )
                 )}
 
                 {secRuleType === "RECENCY" && (

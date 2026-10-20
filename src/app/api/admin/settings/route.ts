@@ -37,6 +37,9 @@ export async function POST(req: NextRequest) {
         whatsappNumber: body.whatsappNumber,
         showroomName: body.showroomName,
         storeType: body.storeType,
+        aboutText: body.aboutText,
+        businessVertical: body.businessVertical,
+        businessDescriptor: body.businessDescriptor,
         logoUrl: body.logoUrl,
         instagramHandle: body.instagramHandle,
         tiktokHandle: body.tiktokHandle,
@@ -76,3 +79,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }
+
+export const PUT = POST;

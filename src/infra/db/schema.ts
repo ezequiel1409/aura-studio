@@ -574,7 +574,7 @@ export const banks = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
-    logoUrl: text("logo_url").notNull(),
+    logoUrl: text("logo_url").notNull().default(""),
     brandColor: text("brand_color").notNull().default("#1c1917"),
     officialUrl: text("official_url"),
     isActive: integer("is_active").notNull().default(1),

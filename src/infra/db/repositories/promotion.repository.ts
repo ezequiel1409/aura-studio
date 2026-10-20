@@ -14,6 +14,7 @@ import {
 import { IPromotionRepository } from "../../../domain/ports/repositories.port";
 import { DbClient } from "../client";
 import { banks, homeBanners, promotions } from "../schema";
+import { DEFAULT_ARGENTINE_BANKS } from "../../../domain/promotion/default-banks";
 
 function slugify(value: string): string {
   return value
@@ -29,13 +30,41 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
 
   async listBanks(options?: { activeOnly?: boolean }): Promise<Bank[]> {
     try {
-      const rows = options?.activeOnly
+      let rows = options?.activeOnly
         ? await this.db
             .select()
             .from(banks)
             .where(eq(banks.isActive, 1))
             .orderBy(asc(banks.name))
         : await this.db.select().from(banks).orderBy(asc(banks.name));
+
+      if (rows.length < DEFAULT_ARGENTINE_BANKS.length) {
+        for (const preset of DEFAULT_ARGENTINE_BANKS) {
+          try {
+            await this.db
+              .insert(banks)
+              .values({
+                name: preset.name,
+                slug: preset.slug,
+                logoUrl: preset.logoUrl ?? "",
+                brandColor: preset.brandColor,
+                officialUrl: preset.officialUrl ?? null,
+                isActive: 1,
+              })
+              .onConflictDoNothing();
+          } catch {
+            // omit conflict
+          }
+        }
+
+        rows = options?.activeOnly
+          ? await this.db
+              .select()
+              .from(banks)
+              .where(eq(banks.isActive, 1))
+              .orderBy(asc(banks.name))
+          : await this.db.select().from(banks).orderBy(asc(banks.name));
+      }
 
       return rows.map((r) => this.mapBank(r));
     } catch {

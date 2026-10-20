@@ -38,18 +38,32 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    const queryId = searchParams.get("id");
     const body = await req.json();
     const deps = getProductServiceDeps();
 
-    if (body.action === "upsert_attribute") {
+    if (body.action === "upsert_attribute" || body.entity === "attribute") {
+      const name = (body.name || body.label || "").trim();
+      let options: string[] = [];
+      if (Array.isArray(body.options)) {
+        options = body.options.map((o: unknown) => String(o).trim()).filter(Boolean);
+      } else if (typeof body.options === "string") {
+        options = body.options
+          .split(",")
+          .map((o: string) => o.trim())
+          .filter(Boolean);
+      }
+
       const attribute = await upsertAttributeDefinition(
         {
-          id: body.id,
-          slug: body.slug,
-          name: body.name,
-          options: body.options || [],
-          isFilterable: body.isFilterable,
-          position: body.position,
+          id: body.id ? Number(body.id) : undefined,
+          slug: (body.slug || body.key || name).trim(),
+          name,
+          options,
+          isFilterable:
+            body.isFilterable !== undefined ? Boolean(body.isFilterable) : true,
+          position: body.position !== undefined ? Number(body.position) : undefined,
         },
         deps
       );
@@ -65,9 +79,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, sections });
     }
 
+    const resolvedId = queryId ? Number(queryId) : body.id ? Number(body.id) : undefined;
+
     const section = await upsertNavigationSection(
       {
-        id: body.id,
+        id: resolvedId,
         name: body.name,
         slug: body.slug,
         seoTitle: body.seoTitle,
@@ -77,6 +93,8 @@ export async function POST(req: NextRequest) {
         accentColor: body.accentColor,
         badgeText: body.badgeText,
         coverImageUrl: body.coverImageUrl,
+        bannerImageUrl: body.bannerImageUrl,
+        showInHomeMosaic: body.showInHomeMosaic,
         subcategoryIds: body.subcategoryIds || [],
         position: body.position,
         isVisible: body.isVisible,
@@ -93,6 +111,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export const PUT = POST;
+
 export async function DELETE(req: NextRequest) {
   const isAuth = await isAuthenticatedAdmin(req);
   if (!isAuth) {
@@ -102,7 +122,10 @@ export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = Number(searchParams.get("id"));
-    const target = searchParams.get("target") || "section";
+    const target =
+      searchParams.get("target") ||
+      searchParams.get("entity") ||
+      "section";
     if (!id || Number.isNaN(id)) {
       return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
     }
