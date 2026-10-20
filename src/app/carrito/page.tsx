@@ -71,6 +71,8 @@ export default async function CarritoPage() {
       <main className="flex-1">
         <CartPageClient
           showroomAddress={settings.address}
+          storeLocation={settings.storeLocation}
+          storeSchedule={settings.storeSchedule}
           brandName={brandName}
           whatsappNumber={settings.whatsappNumber}
         />
@@ -85,6 +87,8 @@ export default async function CarritoPage() {
         tiktokHandle={settings.tiktokHandle}
         address={settings.address}
         dataFiscalUrl={settings.dataFiscalUrl}
+        storeLocation={settings.storeLocation}
+        storeSchedule={settings.storeSchedule}
         variant="minimal"
       />
     </div>

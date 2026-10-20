@@ -35,10 +35,21 @@ import { formatPrice } from "../../lib/format/currency";
 import { CartStepper, CheckoutStep } from "./CartStepper";
 import { DeliveryMethod } from "../../domain/order/types";
 import { PaymentMethod, PaymentPreferenceResult } from "../../domain/payment/types";
-
+import {
+  buildGoogleMapsSearchUrl,
+  DAY_LABELS,
+  DAY_ORDER,
+  DEFAULT_STORE_LOCATION,
+  DEFAULT_STORE_SCHEDULE,
+  formatDayRanges,
+  StoreLocationConfig,
+  StoreScheduleConfig,
+} from "../../lib/schedule/store-schedule";
 
 interface CartPageClientProps {
   showroomAddress?: string | null;
+  storeLocation?: StoreLocationConfig;
+  storeSchedule?: StoreScheduleConfig;
   whatsappNumber?: string;
   brandName?: string;
 }
@@ -51,6 +62,8 @@ const SHIPPING_COSTS: Record<DeliveryMethod, number> = {
 
 export function CartPageClient({
   showroomAddress,
+  storeLocation = DEFAULT_STORE_LOCATION,
+  storeSchedule = DEFAULT_STORE_SCHEDULE,
   brandName = "Aura Studio",
   whatsappNumber = "+5491100000000",
 }: CartPageClientProps) {
@@ -1126,10 +1139,59 @@ export function CartPageClient({
                     </div>
 
                     {deliveryMethod === "PICKUP" && (
-                      <div className="mt-3 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700">
-                        <p className="font-semibold text-stone-900">Dirección del Showroom:</p>
-                        <p className="mt-0.5">{showroomAddress || "Gorriti 4800, Palermo Soho, Ciudad Autónoma de Buenos Aires"}</p>
-                        <p className="text-[11px] text-stone-500 mt-1">Horario: Mar a Sáb de 14:00 a 19:30 hs previa coordinación.</p>
+                      <div className="mt-3 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700 space-y-2">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-stone-900">Dirección de Retiro:</p>
+                            <p className="mt-0.5">
+                              {showroomAddress ||
+                                [
+                                  storeLocation.streetAddress,
+                                  storeLocation.locality,
+                                  storeLocation.province,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                            </p>
+                          </div>
+                          <a
+                            href={buildGoogleMapsSearchUrl(storeLocation)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-800 hover:bg-stone-50"
+                          >
+                            <MapPin className="h-3.5 w-3.5 text-[#926a3c]" />
+                            <span>Cómo llegar</span>
+                            <ExternalLink className="h-3 w-3 opacity-60" />
+                          </a>
+                        </div>
+
+                        <div className="border-t border-[#e7e2da] pt-2">
+                          <p className="font-semibold text-stone-900 mb-1">
+                            Horarios de retiro en el local:
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
+                            {DAY_ORDER.map((dayKey) => {
+                              const sourceList = storeSchedule.separatePickupHours
+                                ? storeSchedule.pickupHours
+                                : storeSchedule.openingHours;
+                              const dayItem = sourceList.find((d) => d.day === dayKey);
+                              return (
+                                <div key={dayKey} className="flex justify-between">
+                                  <span className="text-stone-500">{DAY_LABELS[dayKey]}:</span>
+                                  <span className="font-medium text-stone-800">
+                                    {dayItem ? formatDayRanges(dayItem) : "Cerrado"}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {storeSchedule.note && (
+                            <p className="text-[11px] text-stone-500 mt-1.5 italic">
+                              {storeSchedule.note}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
