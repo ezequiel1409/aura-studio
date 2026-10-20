@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { isServerAdminAuthenticated } from "../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
 import { getShowroomSettings } from "../../../../services/settings.service";
-import { SettingsClient } from "../../../../components/admin/SettingsClient";
+import { ContactSettingsClient } from "../../../../components/admin/settings/ContactSettingsClient";
 
 export default async function AdminTiendaContactoPage() {
   await connection();
@@ -16,6 +16,5 @@ export default async function AdminTiendaContactoPage() {
   const deps = getProductServiceDeps();
   const settings = await getShowroomSettings(deps);
 
-  return <SettingsClient initialSettings={settings} initialTab="footer" />;
+  return <ContactSettingsClient initialSettings={settings} />;
 }
-

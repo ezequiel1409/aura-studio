@@ -107,7 +107,6 @@ export function OrdersManagerClient({
   const [pageSize, setPageSize] = useState<number>(20);
 
   const [updatingId, setUpdatingId] = useState<number | null>(null);
-  const [updatingPaymentId, setUpdatingPaymentId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -150,53 +149,6 @@ export function OrdersManagerClient({
     }
   };
 
-  // Confirmar o revertir cobro inline
-  const handlePaymentStatusToggle = async (order: Order) => {
-    const nextPaymentStatus = order.paymentStatus === "PAID" ? "PENDING" : "PAID";
-    const previousOrders = [...orders];
-    setUpdatingPaymentId(order.id);
-    setErrorMessage(null);
-
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === order.id
-          ? {
-              ...o,
-              paymentStatus: nextPaymentStatus,
-              status:
-                nextPaymentStatus === "PAID" && o.status === "PENDING" ? "PAID" : o.status,
-            }
-          : o
-      )
-    );
-
-    try {
-      const res = await fetch(`/api/admin/orders/${order.id}/payment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentStatus: nextPaymentStatus }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "No se pudo actualizar el estado de cobro");
-      }
-
-      if (data.order) {
-        setOrders((prev) => prev.map((o) => (o.id === order.id ? data.order : o)));
-      }
-      setToastMessage(
-        nextPaymentStatus === "PAID"
-          ? `Cobro registrado para ${formatOrderCode(order.code)}`
-          : `Cobro revertido a pendiente para ${formatOrderCode(order.code)}`
-      );
-      setTimeout(() => setToastMessage(null), 3000);
-    } catch (err: unknown) {
-      setOrders(previousOrders);
-      setErrorMessage(err instanceof Error ? err.message : "Error al actualizar cobro");
-    } finally {
-      setUpdatingPaymentId(null);
-    }
-  };
 
   // Conteo de pedidos por pestaña
   const counts = useMemo(() => {
@@ -745,7 +697,6 @@ export function OrdersManagerClient({
                       const Icon = config.icon;
                       const isExpanded = expandedOrderIds.includes(order.id);
                       const isUpdating = updatingId === order.id;
-                      const isUpdatingPay = updatingPaymentId === order.id;
                       const orderCodeLabel = formatOrderCode(order.code);
 
                       return (
@@ -808,33 +759,6 @@ export function OrdersManagerClient({
                                     <span>{config.label}</span>
                                   </span>
 
-                                  {/* Botón rápido de estado de cobro */}
-                                  <button
-                                    type="button"
-                                    disabled={isUpdatingPay}
-                                    onClick={() => handlePaymentStatusToggle(order)}
-                                    title={
-                                      order.paymentStatus === "PAID"
-                                        ? "Clic para revertir a Por Cobrar"
-                                        : "Clic para confirmar cobro rápido"
-                                    }
-                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer disabled:opacity-50 ${
-                                      order.paymentStatus === "PAID"
-                                        ? "bg-emerald-950/80 text-emerald-300 border-emerald-800/80 hover:bg-emerald-900/80"
-                                        : "bg-amber-950/80 text-amber-300 border-amber-800/80 hover:bg-amber-900/80"
-                                    }`}
-                                  >
-                                    {isUpdatingPay ? (
-                                      <Loader2 size={10} className="animate-spin" />
-                                    ) : order.paymentStatus === "PAID" ? (
-                                      <Check size={10} />
-                                    ) : null}
-                                    <span>
-                                      {order.paymentStatus === "PAID"
-                                        ? "Cobrado"
-                                        : "Por Cobrar"}
-                                    </span>
-                                  </button>
 
                                   {order.paymentMethod && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-800 text-zinc-300 border border-zinc-700">
@@ -871,15 +795,7 @@ export function OrdersManagerClient({
                                 </div>
 
                                 <p className="text-xs text-zinc-400 flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono">{order.customerPhone}</span>
-                                  {order.customerDni && (
-                                    <>
-                                      <span>·</span>
-                                      <span className="font-mono text-zinc-300">
-                                        DNI {order.customerDni}
-                                      </span>
-                                    </>
-                                  )}
+                                  <span className="font-mono text-zinc-300">{order.customerPhone}</span>
                                   <span>·</span>
                                   <span className="inline-flex items-center gap-1 text-zinc-300">
                                     {order.deliveryMethod === "PICKUP" ? (
@@ -899,14 +815,6 @@ export function OrdersManagerClient({
                                       </>
                                     )}
                                   </span>
-                                  {order.couponCode && (
-                                    <>
-                                      <span>·</span>
-                                      <span className="font-mono text-amber-300 bg-amber-950/60 px-1.5 py-0.2 rounded text-[10px] border border-amber-800/60">
-                                        Cupón {order.couponCode}
-                                      </span>
-                                    </>
-                                  )}
                                   <span>·</span>
                                   <span>
                                     {order.items?.length || 1}{" "}

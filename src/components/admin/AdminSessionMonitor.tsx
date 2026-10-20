@@ -41,26 +41,13 @@ export function AdminSessionMonitor() {
     pathname === "/admin/recuperar" ||
     pathname.startsWith("/admin/restablecer");
 
-  // Verificar sesión en montaje y cada 60 segundos (sin disparar fetch adicional en cada clic de menú)
+  // Verificar sesión únicamente en montaje (sin polling infinito redundante en segundo plano)
   useEffect(() => {
     if (isAuthPage) {
       return;
     }
 
     checkSession();
-    const interval = setInterval(checkSession, 60 * 1000);
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        checkSession();
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
   }, [isAuthPage, checkSession]);
 
   // Temporizador local por segundo para conteo fluido

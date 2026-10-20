@@ -20,10 +20,7 @@ import {
   StoreScheduleConfig,
 } from "../../lib/schedule/store-schedule";
 import { THEME_PALETTES } from "../../lib/theme/palettes";
-import {
-  SettingsSectionTabs,
-  SettingsTabId,
-} from "./settings/SettingsSectionTabs";
+export type SettingsTabId = "top" | "main" | "footer" | "payments" | "general";
 import { TopHeaderSettingsSection } from "./settings/TopHeaderSettingsSection";
 import { MainContentSettingsSection } from "./settings/MainContentSettingsSection";
 import { FooterSettingsSection } from "./settings/FooterSettingsSection";
@@ -339,23 +336,42 @@ export function SettingsClient({
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5 pb-20">
-      {/* Cabecera de Configuración */}
-      <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 md:p-6 backdrop-blur-sm">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-amber-300">
-          Personalización por Secciones
-        </span>
-        <h1 className="font-serif text-2xl md:text-3xl font-bold text-zinc-100 mt-1">
-          Configuración de la Tienda
-        </h1>
-        <p className="text-xs text-zinc-400 mt-1">
-          Seleccioná la sección de la tienda que querés editar: Identidad, Portada y Vidriera,
-          Ubicación y Horarios, Métodos de Pago o Políticas Generales.
-        </p>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+      {/* Cabecera Limpia sin tarjetas redundantes */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">
+            {activeTab === "top"
+              ? "Identidad y Negocio"
+              : activeTab === "main"
+              ? "Portada y Apariencia"
+              : activeTab === "footer"
+              ? "Contacto, Showroom y Redes"
+              : activeTab === "payments"
+              ? "Medios de Pago"
+              : "Reservas, Inventario y Políticas"}
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            {activeTab === "general"
+              ? "Ajustes de tiempo de reserva para carritos y stock del sistema."
+              : "Configuración específica de la tienda."}
+          </p>
+        </div>
 
-      {/* Pestañas de Secciones */}
-      <SettingsSectionTabs activeTab={activeTab} onSelectTab={setActiveTab} />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-zinc-950 hover:bg-amber-300 transition-colors cursor-pointer disabled:opacity-50 shadow-sm shrink-0"
+        >
+          {saving ? (
+            <Loader2 size={15} className="animate-spin" />
+          ) : (
+            <Save size={15} />
+          )}
+          <span>{saving ? "Guardando..." : "Guardar Cambios"}</span>
+        </button>
+      </div>
 
       {/* Formulario Modular (5 secciones pre-montadas para cambio de pestaña instantáneo en 0ms) */}
       <form onSubmit={handleSave} className="space-y-5">
