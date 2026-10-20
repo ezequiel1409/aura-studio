@@ -141,6 +141,9 @@ export interface ShowroomSettings {
   whatsappNumber: string;
   showroomName: string;
   storeType?: string;
+  aboutText?: string | null;
+  businessVertical?: string | null;
+  businessDescriptor?: string | null;
   logoUrl?: string | null;
   instagramHandle?: string | null;
   tiktokHandle?: string | null;
@@ -178,6 +181,9 @@ export interface UpdateShowroomSettingsInput {
   whatsappNumber?: string;
   showroomName?: string;
   storeType?: string;
+  aboutText?: string | null;
+  businessVertical?: string | null;
+  businessDescriptor?: string | null;
   logoUrl?: string | null;
   instagramHandle?: string | null;
   tiktokHandle?: string | null;
@@ -239,6 +245,9 @@ export async function getShowroomSettings(
   let storedWhatsapp: string | null = null;
   let storedName: string | null = null;
   let storedStoreType: string | null = null;
+  let storedAboutText: string | null = null;
+  let storedBusinessVertical: string | null = null;
+  let storedBusinessDescriptor: string | null = null;
   let storedHours: string | null = null;
   let storedLogo: string | null = null;
   let storedInstagram: string | null = null;
@@ -275,6 +284,9 @@ export async function getShowroomSettings(
       storedWhatsapp = all["whatsapp_number"] ?? null;
       storedName = all["showroom_name"] ?? null;
       storedStoreType = all["store_type"] ?? null;
+      storedAboutText = all["about_text"] ?? null;
+      storedBusinessVertical = all["business_vertical"] ?? null;
+      storedBusinessDescriptor = all["business_descriptor"] ?? null;
       storedHours = all["reservation_hours"] ?? null;
       storedLogo = all["logo_url"] ?? null;
       storedInstagram = all["instagram_handle"] ?? null;
@@ -309,6 +321,9 @@ export async function getShowroomSettings(
         storedWhatsapp,
         storedName,
         storedStoreType,
+        storedAboutText,
+        storedBusinessVertical,
+        storedBusinessDescriptor,
         storedHours,
         storedLogo,
         storedInstagram,
@@ -342,6 +357,9 @@ export async function getShowroomSettings(
         settingsRepo.get("whatsapp_number"),
         settingsRepo.get("showroom_name"),
         settingsRepo.get("store_type"),
+        settingsRepo.get("about_text"),
+        settingsRepo.get("business_vertical"),
+        settingsRepo.get("business_descriptor"),
         settingsRepo.get("reservation_hours"),
         settingsRepo.get("logo_url"),
         settingsRepo.get("instagram_handle"),
@@ -408,6 +426,9 @@ export async function getShowroomSettings(
     whatsappNumber: storedWhatsapp || process.env.WHATSAPP_NUMBER || DEFAULT_WHATSAPP_NUMBER,
     showroomName: storedName || DEFAULT_SHOWROOM_NAME,
     storeType: storedStoreType && storedStoreType.trim() ? storedStoreType.trim() : DEFAULT_STORE_TYPE,
+    aboutText: storedAboutText && storedAboutText.trim() ? storedAboutText.trim() : null,
+    businessVertical: storedBusinessVertical && storedBusinessVertical.trim() ? storedBusinessVertical.trim() : "indumentaria",
+    businessDescriptor: storedBusinessDescriptor && storedBusinessDescriptor.trim() ? storedBusinessDescriptor.trim() : null,
     logoUrl: storedLogo && storedLogo.trim() ? storedLogo.trim() : null,
     instagramHandle: storedInstagram && storedInstagram.trim() ? storedInstagram.trim() : null,
     tiktokHandle: storedTiktok && storedTiktok.trim() ? storedTiktok.trim() : null,
@@ -508,6 +529,26 @@ export async function updateShowroomSettings(
 
   if (input.storeType !== undefined) {
     await settingsRepo.set("store_type", input.storeType.trim() || DEFAULT_STORE_TYPE);
+  }
+
+  if (input.aboutText !== undefined) {
+    const trimmedAbout = input.aboutText ? input.aboutText.trim() : "";
+    if (trimmedAbout.length > 160) {
+      throw new ValidationError("El texto 'Acerca de la tienda' no puede superar los 160 caracteres.");
+    }
+    await settingsRepo.set("about_text", trimmedAbout);
+  }
+
+  if (input.businessVertical !== undefined) {
+    await settingsRepo.set("business_vertical", input.businessVertical ? input.businessVertical.trim() : "indumentaria");
+  }
+
+  if (input.businessDescriptor !== undefined) {
+    const trimmedDesc = input.businessDescriptor ? input.businessDescriptor.trim() : "";
+    if (trimmedDesc.length > 40) {
+      throw new ValidationError("El descriptor de negocio no puede superar los 40 caracteres.");
+    }
+    await settingsRepo.set("business_descriptor", trimmedDesc);
   }
 
   if (input.logoUrl !== undefined) {

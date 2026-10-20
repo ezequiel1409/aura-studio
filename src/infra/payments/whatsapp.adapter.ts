@@ -37,7 +37,10 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
         sizePart = isUnico ? " en talle único" : ` en talle ${item.selectedSize}`;
       }
     }
-    const rawMessage = `¡Hola! Me gustaría consultar por el producto ${item.formattedCode}${titlePart}${colorPart}${sizePart} de ${brand}. ¿Sigue disponible?`;
+    const cleanCode = item.formattedCode.startsWith("#")
+      ? item.formattedCode
+      : `#${item.formattedCode}`;
+    const rawMessage = `¡Hola! Me gustaría consultar por el producto ${cleanCode}${titlePart}${colorPart}${sizePart} de ${brand}. ¿Sigue disponible?`;
 
     const encodedMessage = encodeURIComponent(rawMessage);
     const whatsappUrl = `https://wa.me/${number}?text=${encodedMessage}`;

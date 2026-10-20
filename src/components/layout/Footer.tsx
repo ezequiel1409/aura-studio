@@ -14,17 +14,17 @@ import { NavigationSection } from "../../domain/navigation/types";
 import {
   buildGoogleMapsSearchUrl,
   computeStoreOpenStatus,
-  DAY_LABELS,
-  DAY_ORDER,
   DEFAULT_STORE_LOCATION,
   DEFAULT_STORE_SCHEDULE,
-  formatDayRanges,
+  formatStoreScheduleSummary,
   StoreLocationConfig,
   StoreScheduleConfig,
 } from "../../lib/schedule/store-schedule";
 
 export interface FooterProps {
   brandName?: string;
+  businessDescriptor?: string | null;
+  aboutText?: string | null;
   logoUrl?: string | null;
   whatsappNumber?: string | null;
   instagramHandle?: string | null;
@@ -39,6 +39,8 @@ export interface FooterProps {
 
 export function Footer({
   brandName = "Aura Studio",
+  businessDescriptor,
+  aboutText,
   logoUrl,
   whatsappNumber,
   instagramHandle,
@@ -91,6 +93,10 @@ export function Footer({
 
   const openStatus = computeStoreOpenStatus(resolvedSchedule);
   const mapsUrl = buildGoogleMapsSearchUrl(resolvedLocation);
+  const scheduleSummary = formatStoreScheduleSummary(
+    resolvedSchedule,
+    resolvedLocation
+  );
 
   // Variante mínima (para checkout y carrito)
   if (variant === "minimal") {
@@ -186,18 +192,22 @@ export function Footer({
               />
             ) : (
               <div>
-                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c]">
-                  Showroom & Archivo
-                </span>
+                {businessDescriptor && businessDescriptor.trim() && (
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c] block">
+                    {businessDescriptor.trim()}
+                  </span>
+                )}
                 <h3 className="font-serif text-xl font-normal text-stone-900 tracking-wider uppercase mt-0.5">
                   {brandName}
                 </h3>
               </div>
             )}
 
-            <p className="text-xs text-stone-600 leading-relaxed">
-              Curaduría de prendas seleccionadas, atención personalizada y envíos a todo el país.
-            </p>
+            {aboutText && aboutText.trim() && (
+              <p className="text-xs text-stone-600 leading-relaxed">
+                {aboutText.trim()}
+              </p>
+            )}
 
             <div className="flex flex-col gap-2 pt-1">
               {whatsappHref && (
@@ -292,13 +302,23 @@ export function Footer({
                 </Link>
               </li>
               <li>
-                <span>Envíos a domicilio y retiro en el local</span>
+                <Link
+                  href="/terminos"
+                  className="hover:text-stone-900 hover:underline underline-offset-4 transition-colors"
+                >
+                  Envíos a domicilio y retiros
+                </Link>
               </li>
               <li>
-                <span>Cambios y devoluciones dentro de los 30 días</span>
+                <Link
+                  href="/terminos"
+                  className="hover:text-stone-900 hover:underline underline-offset-4 transition-colors"
+                >
+                  Cambios y devoluciones (15 días)
+                </Link>
               </li>
               <li>
-                <span>Medios de pago: tarjetas, transferencia y efectivo</span>
+                <span>Medios de pago: transferencia, Mercado Pago y efectivo</span>
               </li>
               <li>
                 <Link
@@ -311,7 +331,7 @@ export function Footer({
             </ul>
           </div>
 
-          {/* Columna 4: Local, Google Maps y Horarios de Atención y Retiro */}
+          {/* Columna 4: Local, Google Maps y Horarios de Atención y Retiro (ADM-07) */}
           <div className="space-y-3">
             <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c]">
               Ubicación y Horarios
@@ -379,42 +399,28 @@ export function Footer({
                   </span>
                 </div>
 
-                {/* Tabla accesible de horarios de atención con día actual destacado */}
-                <div className="pt-1">
-                  <table
-                    aria-label="Horarios de atención por día de la semana"
-                    className="w-full text-[11px] border-collapse"
-                  >
-                    <tbody>
-                      {DAY_ORDER.map((dayKey) => {
-                        const dayRow = resolvedSchedule.openingHours.find(
-                          (d) => d.day === dayKey
-                        );
-                        const isToday = dayKey === openStatus.todayKey;
-                        return (
-                          <tr
-                            key={dayKey}
-                            className={
-                              isToday
-                                ? "font-bold text-stone-950 bg-[#faf8f5]"
-                                : "text-stone-600"
-                            }
-                          >
-                            <th
-                              scope="row"
-                              className="py-0.5 pr-2 text-left font-inherit"
-                            >
-                              {DAY_LABELS[dayKey]}
-                              {isToday ? " (Hoy)" : ""}
-                            </th>
-                            <td className="py-0.5 text-right font-mono">
-                              {formatDayRanges(dayRow)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                {/* Horarios de atención y retiros agrupados (ADM-07) */}
+                <div
+                  aria-label="Horarios de atención por día de la semana"
+                  className="pt-1 space-y-1 text-[11px]"
+                >
+                  {scheduleSummary.attendanceLines.map((line, idx) => (
+                    <p key={`att-${idx}`} className="font-medium text-stone-800">
+                      {line}
+                    </p>
+                  ))}
+                  {scheduleSummary.pickupLines.map((line, idx) => (
+                    <p
+                      key={`pick-${idx}`}
+                      className="font-medium text-stone-700 flex items-center gap-1.5 pt-0.5"
+                    >
+                      <PackageCheck
+                        className="h-3.5 w-3.5 text-stone-500 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span>{line}</span>
+                    </p>
+                  ))}
                 </div>
 
                 {resolvedSchedule.note && (
@@ -422,19 +428,12 @@ export function Footer({
                     {resolvedSchedule.note}
                   </p>
                 )}
-
-                {resolvedSchedule.separatePickupHours && (
-                  <p className="flex items-center gap-1.5 text-[11px] font-medium text-stone-700 pt-1">
-                    <PackageCheck className="h-3.5 w-3.5 text-stone-500" aria-hidden="true" />
-                    <span>Horario especial de retiro disponible en el checkout.</span>
-                  </p>
-                )}
               </>
             )}
           </div>
         </div>
 
-        {/* Franja Inferior Legal: Derechos, Defensa del Consumidor, Botón de Arrepentimiento y Data Fiscal */}
+        {/* Franja Inferior Legal: Términos y Condiciones, Arrepentimiento y Data Fiscal (ADM-09) */}
         <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-stone-500 text-[11px]">
           <p>
             © {new Date().getFullYear()} {brandName}. Todos los derechos
@@ -443,10 +442,17 @@ export function Footer({
 
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
+              href="/terminos"
+              className="hover:text-stone-900 transition-colors font-medium"
+            >
+              Términos y Condiciones
+            </Link>
+
+            <Link
               href="/promociones"
               className="hover:text-stone-900 transition-colors"
             >
-              Términos de promociones
+              Promociones bancarias
             </Link>
 
             <a
@@ -461,29 +467,25 @@ export function Footer({
 
             <Link
               href="/arrepentimiento"
-              className="inline-flex items-center gap-1 hover:text-rose-700 transition-colors font-medium"
+              className="inline-flex items-center gap-1 text-stone-600 hover:text-rose-700 transition-colors"
             >
-              <RotateCcw className="h-3.5 w-3.5 text-stone-400" aria-hidden="true" />
+              <RotateCcw className="h-3 w-3" aria-hidden="true" />
               <span>Botón de arrepentimiento</span>
             </Link>
 
-            {dataFiscalUrl && (
+            {dataFiscalUrl ? (
               <a
                 href={dataFiscalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-blue-800 hover:text-blue-950 font-medium"
+                className="inline-flex items-center gap-1 text-stone-400 hover:text-stone-600 transition-colors"
+                title="Formulario 960/D - Data Fiscal AFIP/ARCA"
               >
-                <ShieldCheck className="h-3.5 w-3.5 text-blue-700" aria-hidden="true" />
-                <span>Data Fiscal (AFIP)</span>
+                <ShieldCheck className="h-3.5 w-3.5 text-stone-400" aria-hidden="true" />
+                <span>Data Fiscal</span>
               </a>
-            )}
+            ) : null}
           </div>
-
-          <p className="tracking-wide">
-            Creado por{" "}
-            <strong className="font-semibold text-stone-700">Altum</strong>
-          </p>
         </div>
       </div>
     </footer>

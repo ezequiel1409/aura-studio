@@ -57,6 +57,8 @@ export default async function PromotionsPage() {
 
       <Footer
         brandName={brandName}
+        businessDescriptor={settings.businessDescriptor}
+        aboutText={settings.aboutText}
         logoUrl={settings.logoUrl}
         whatsappNumber={settings.whatsappNumber}
         instagramHandle={settings.instagramHandle}

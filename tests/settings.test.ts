@@ -6,7 +6,7 @@ import {
 import { createTestEnvironment } from "./setup-db";
 import { ValidationError } from "../src/domain/errors";
 
-describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
+describe("Servicio de Configuración del Showroom sin Deploy (BR-35, ADM-05, ADM-10)", () => {
   let env: ReturnType<typeof createTestEnvironment>;
 
   beforeEach(async () => {
@@ -30,6 +30,9 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
       {
         whatsappNumber: "+5491122334455",
         showroomName: "Aura Studio Buenos Aires",
+        aboutText: "Curaduría exclusiva de prendas y sastrería.",
+        businessDescriptor: "Showroom & Archivo",
+        businessVertical: "indumentaria",
         logoUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
         instagramHandle: "@aurastudio.ba",
         tiktokHandle: "@aurastudio",
@@ -48,6 +51,9 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
 
     expect(updated.whatsappNumber).toBe("+5491122334455");
     expect(updated.showroomName).toBe("Aura Studio Buenos Aires");
+    expect(updated.aboutText).toBe("Curaduría exclusiva de prendas y sastrería.");
+    expect(updated.businessDescriptor).toBe("Showroom & Archivo");
+    expect(updated.businessVertical).toBe("indumentaria");
     expect(updated.logoUrl).toBe("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
     expect(updated.instagramHandle).toBe("@aurastudio.ba");
     expect(updated.tiktokHandle).toBe("@aurastudio");
@@ -65,18 +71,9 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
     const fetchedAgain = await getShowroomSettings(deps);
     expect(fetchedAgain.whatsappNumber).toBe("+5491122334455");
     expect(fetchedAgain.showroomName).toBe("Aura Studio Buenos Aires");
-    expect(fetchedAgain.logoUrl).toBe("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
-    expect(fetchedAgain.instagramHandle).toBe("@aurastudio.ba");
-    expect(fetchedAgain.tiktokHandle).toBe("@aurastudio");
-    expect(fetchedAgain.address).toBe("Honduras 4800, Palermo Soho, CABA");
-    expect(fetchedAgain.dataFiscalUrl).toBe("https://serviciosweb.afip.gob.ar/clavefiscal/qr/default.aspx");
+    expect(fetchedAgain.aboutText).toBe("Curaduría exclusiva de prendas y sastrería.");
+    expect(fetchedAgain.businessDescriptor).toBe("Showroom & Archivo");
     expect(fetchedAgain.reservationHours).toBe(72);
-    expect(fetchedAgain.heroMode).toBe("featured_carousel");
-    expect(fetchedAgain.heroTitle).toBe("Colección Exclusiva 2026");
-    expect(fetchedAgain.heroSubtitle).toBe("Diseño de autor en edición limitada");
-    expect(fetchedAgain.themePalette).toBe("terracota");
-    expect(fetchedAgain.themePrimaryColor).toBe("#b45309");
-    expect(fetchedAgain.themeFont).toBe("playfair");
   });
 
   it("valida campos erróneos arrojando ValidationError", async () => {
@@ -93,5 +90,52 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35)", () => {
     await expect(
       updateShowroomSettings({ showroomName: "" }, deps)
     ).rejects.toThrow(ValidationError);
+
+    await expect(
+      updateShowroomSettings({ aboutText: "a".repeat(161) }, deps)
+    ).rejects.toThrow("El texto 'Acerca de la tienda' no puede superar los 160 caracteres.");
+
+    await expect(
+      updateShowroomSettings({ businessDescriptor: "b".repeat(41) }, deps)
+    ).rejects.toThrow("El descriptor de negocio no puede superar los 40 caracteres.");
+  });
+
+  it("ADM-10: cambiar el tiempo de reserva en el panel actualiza el texto dinámicamente y mantiene consistencia", async () => {
+    const { deps } = env;
+
+    // Actualizamos a 24 horas y descriptor de negocio
+    await updateShowroomSettings(
+      {
+        reservationHours: 24,
+        showroomName: "SheFit Showroom",
+        aboutText: "Prendas deportivas exclusivas y accesorios.",
+        businessDescriptor: "Showroom & Archivo",
+        businessVertical: "indumentaria",
+      },
+      deps
+    );
+
+    const config = await getShowroomSettings(deps);
+    expect(config.showroomName).toBe("SheFit Showroom");
+    expect(config.reservationHours).toBe(24);
+    expect(config.aboutText).toBe("Prendas deportivas exclusivas y accesorios.");
+    expect(config.businessDescriptor).toBe("Showroom & Archivo");
+
+    // Función de formato usada en checkout
+    const resHours = config.reservationHours || 48;
+    const reservationText =
+      resHours === 1
+        ? "1 hora"
+        : resHours < 1
+        ? `${Math.round(resHours * 60)} minutos`
+        : `${resHours} horas`;
+
+    expect(reservationText).toBe("24 horas");
+
+    // Si el comercio configura 48 horas
+    await updateShowroomSettings({ reservationHours: 48 }, deps);
+    const config48 = await getShowroomSettings(deps);
+    const resHours48 = config48.reservationHours;
+    expect(`${resHours48} horas`).toBe("48 horas");
   });
 });

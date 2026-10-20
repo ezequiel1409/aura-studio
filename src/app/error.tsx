@@ -14,8 +14,12 @@ export default function GlobalErrorPage({
   reset?: () => void;
 }) {
   useEffect(() => {
-    // Loguear error para monitoreo
-    console.error("Error global en tienda:", error);
+    // Loguear error para monitoreo con código de referencia
+    console.error(
+      "Error global en tienda:",
+      error?.message || error,
+      error?.digest ? `(Digest: ${error.digest})` : ""
+    );
   }, [error]);
 
   const handleRetry = () => {
@@ -23,6 +27,8 @@ export default function GlobalErrorPage({
       retry();
     } else if (typeof reset === "function") {
       reset();
+    } else if (typeof window !== "undefined") {
+      window.location.reload();
     }
   };
 
@@ -73,4 +79,3 @@ export default function GlobalErrorPage({
     </div>
   );
 }
-

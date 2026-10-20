@@ -52,6 +52,7 @@ interface CartPageClientProps {
   storeSchedule?: StoreScheduleConfig;
   whatsappNumber?: string;
   brandName?: string;
+  reservationHours?: number;
 }
 
 const SHIPPING_COSTS: Record<DeliveryMethod, number> = {
@@ -66,7 +67,16 @@ export function CartPageClient({
   storeSchedule = DEFAULT_STORE_SCHEDULE,
   brandName = "Aura Studio",
   whatsappNumber = "+5491100000000",
+  reservationHours = 48,
 }: CartPageClientProps) {
+  const resHours = reservationHours || 48;
+  const reservationText =
+    resHours === 1
+      ? "1 hora"
+      : resHours < 1
+      ? `${Math.round(resHours * 60)} minutos`
+      : `${resHours} horas`;
+
   const {
     items,
     updateQuantity,
@@ -1646,7 +1656,15 @@ export function CartPageClient({
                     className="mt-0.5 accent-stone-900"
                   />
                   <span>
-                    Acepto los términos de compra, política de reserva de piezas únicas por 30 minutos y condiciones de cambio (15 días con etiqueta).
+                    Acepto los{" "}
+                    <Link
+                      href="/terminos"
+                      target="_blank"
+                      className="underline font-semibold text-stone-900 hover:text-stone-700"
+                    >
+                      términos de compra
+                    </Link>
+                    , política de reserva de piezas por {reservationText} y condiciones de cambio (15 días con etiqueta).
                   </span>
                 </label>
               </div>

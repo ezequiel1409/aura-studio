@@ -93,6 +93,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         />
         <Footer
           brandName={brandName}
+          businessDescriptor={data.settings.businessDescriptor}
+          aboutText={data.settings.aboutText}
           logoUrl={data.settings.logoUrl}
           whatsappNumber={data.settings.whatsappNumber}
           instagramHandle={data.settings.instagramHandle}
@@ -278,9 +280,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         brandName={brandName}
       />
 
-      {/* Footer de 4 columnas con ubicación y horarios */}
+      {/* Footer de 4 columnas con ubicación y horarios (ADM-05, ADM-07, ADM-08) */}
       <Footer
         brandName={brandName}
+        businessDescriptor={settings.businessDescriptor}
+        aboutText={settings.aboutText}
         logoUrl={settings.logoUrl}
         whatsappNumber={settings.whatsappNumber}
         instagramHandle={settings.instagramHandle}

@@ -362,11 +362,13 @@ export function ProductOrderSection({
         </span>
       </button>
 
-      {/* Botón de consulta directa por WhatsApp si no tiene precio cargado (BR-23) */}
+      {/* Botón de consulta directa por WhatsApp si no tiene precio cargado (BR-23, ADM-08) */}
       {isNoPrice && (
         <a
           href={`https://wa.me/${(whatsappNumber || "").replace(/\D/g, "")}?text=${encodeURIComponent(
-            `¡Hola! Me gustaría consultar el precio del producto ${formattedCode} (${title || "Prenda"}) de ${brandName || "Aura Studio"}. ¿Cuál es su valor?`
+            `¡Hola! Me gustaría consultar el precio del producto ${
+              formattedCode.startsWith("#") ? formattedCode : `#${formattedCode}`
+            }${title ? ` (${title})` : ""} de ${brandName || "la tienda"}. ¿Cuál es su valor?`
           )}`}
           target="_blank"
           rel="noopener noreferrer"
@@ -377,11 +379,13 @@ export function ProductOrderSection({
         </a>
       )}
 
-      {/* Botón secundario: Consultar por WhatsApp */}
+      {/* Botón secundario: Consultar por WhatsApp (ADM-08) */}
       {showWhatsAppInquiry && !isNoPrice && (
         <a
           href={`https://wa.me/${(whatsappNumber || "+5491100000000").replace(/\D/g, "")}?text=${encodeURIComponent(
-            `¡Hola! Me gustaría consultar por la pieza ${title || "exclusiva"} (${formattedCode}) de ${brandName || "Aura Studio"}. ¿Sigue disponible?`
+            `¡Hola! Me gustaría consultar por el producto ${
+              formattedCode.startsWith("#") ? formattedCode : `#${formattedCode}`
+            }${title ? ` (${title})` : ""} de ${brandName || "la tienda"}. ¿Sigue disponible?`
           )}`}
           target="_blank"
           rel="noopener noreferrer"

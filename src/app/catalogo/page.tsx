@@ -71,6 +71,8 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
 
       <Footer
         brandName={brandName}
+        businessDescriptor={data.settings.businessDescriptor}
+        aboutText={data.settings.aboutText}
         logoUrl={data.settings.logoUrl}
         whatsappNumber={data.settings.whatsappNumber}
         instagramHandle={data.settings.instagramHandle}

@@ -375,12 +375,16 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
       {/* Footer con información de la tienda, redes y data fiscal */}
       <Footer
         brandName={brandName}
+        businessDescriptor={settings.businessDescriptor}
+        aboutText={settings.aboutText}
         logoUrl={settings.logoUrl}
         whatsappNumber={settings.whatsappNumber}
         instagramHandle={settings.instagramHandle}
         tiktokHandle={settings.tiktokHandle}
         address={settings.address}
         dataFiscalUrl={settings.dataFiscalUrl}
+        storeLocation={settings.storeLocation}
+        storeSchedule={settings.storeSchedule}
       />
 
       {/* Toast accesible de confirmación de bolsa de compras */}

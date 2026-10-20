@@ -75,6 +75,7 @@ export default async function CarritoPage() {
           storeSchedule={settings.storeSchedule}
           brandName={brandName}
           whatsappNumber={settings.whatsappNumber}
+          reservationHours={settings.reservationHours}
         />
       </main>
 

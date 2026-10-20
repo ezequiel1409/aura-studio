@@ -117,6 +117,204 @@ export function formatDayRanges(dayItem?: DaySchedule | null): string {
   return dayItem.ranges.map((r) => `${r.open} a ${r.close}`).join(" / ");
 }
 
+/**
+ * Formatea una hora HH:MM a formato amigable en español:
+ * "09:00" -> "9"
+ * "14:00" -> "14"
+ * "09:30" -> "9:30"
+ * "19:30" -> "19:30"
+ */
+export function formatTimeHour(time: string): string {
+  const [hStr, mStr] = (time || "00:00").split(":");
+  const h = parseInt(hStr || "0", 10);
+  const m = parseInt(mStr || "0", 10);
+  if (m === 0) {
+    return `${h}`;
+  }
+  return `${h}:${mStr.padStart(2, "0")}`;
+}
+
+/**
+ * Convierte un array de rangos horarios en texto amigable:
+ * 1 rango: "de 9 a 18 hs"
+ * 2 rangos: "de 9 a 13 y de 16 a 20 hs"
+ */
+export function formatRangesText(ranges: ScheduleTimeRange[]): string {
+  if (!ranges || ranges.length === 0) return "Cerrado";
+  const formattedRanges = ranges.map(
+    (r) => `de ${formatTimeHour(r.open)} a ${formatTimeHour(r.close)}`
+  );
+  if (formattedRanges.length === 1) {
+    return `${formattedRanges[0]} hs`;
+  }
+  if (formattedRanges.length === 2) {
+    return `${formattedRanges[0]} y ${formattedRanges[1]} hs`;
+  }
+  return `${formattedRanges.slice(0, -1).join(", ")} y ${
+    formattedRanges[formattedRanges.length - 1]
+  } hs`;
+}
+
+const DAY_NAMES_PLURAL: Record<DayOfWeek, string> = {
+  monday: "Lunes",
+  tuesday: "Martes",
+  wednesday: "Miércoles",
+  thursday: "Jueves",
+  friday: "Viernes",
+  saturday: "Sábados",
+  sunday: "Domingos",
+};
+
+/**
+ * Formatea un listado de días (consecutivos o no) en texto amigable:
+ * - 7 días: "Todos los días"
+ * - lunes a viernes: "Lunes a viernes"
+ * - sábados y domingos: "Sábados y domingos"
+ * - lunes, miércoles y viernes: "Lunes, miércoles y viernes"
+ * - sábados: "Sábados"
+ */
+export function formatDayGroup(days: DayOfWeek[]): string {
+  if (days.length === 0) return "";
+  if (days.length === 7) return "Todos los días";
+
+  const indices = days.map((d) => DAY_ORDER.indexOf(d)).sort((a, b) => a - b);
+  const isConsecutive =
+    indices.every((val, i) => i === 0 || val === indices[i - 1] + 1) &&
+    indices.length >= 3;
+
+  if (isConsecutive) {
+    const firstDay = DAY_ORDER[indices[0]];
+    const lastDay = DAY_ORDER[indices[indices.length - 1]];
+    return `${DAY_NAMES_PLURAL[firstDay]} a ${DAY_NAMES_PLURAL[lastDay].toLowerCase()}`;
+  }
+
+  const names = days.map((d, i) =>
+    i === 0 ? DAY_NAMES_PLURAL[d] : DAY_NAMES_PLURAL[d].toLowerCase()
+  );
+
+  if (names.length === 1) {
+    return names[0];
+  }
+  if (names.length === 2) {
+    return `${names[0]} y ${names[1]}`;
+  }
+  return `${names.slice(0, -1).join(", ")} y ${names[names.length - 1]}`;
+}
+
+export interface FormattedScheduleSummary {
+  attendanceLines: string[];
+  pickupLines: string[];
+  fullText: string;
+  inlineText: string;
+  isOnlineOnly: boolean;
+}
+
+/**
+ * Agrupa días de un listado de horarios (DaySchedule[]) y devuelve líneas formateadas.
+ */
+function groupDaySchedules(daySchedules: DaySchedule[]): string[] {
+  const openDays = daySchedules.filter(
+    (d) => d.isOpen && d.ranges && d.ranges.length > 0
+  );
+  if (openDays.length === 0) {
+    return [];
+  }
+
+  // Agrupamos por firma de horarios
+  const signatureMap = new Map<
+    string,
+    { days: DayOfWeek[]; ranges: ScheduleTimeRange[] }
+  >();
+
+  for (const dayItem of openDays) {
+    const sig = dayItem.ranges.map((r) => `${r.open}-${r.close}`).join("|");
+    if (!signatureMap.has(sig)) {
+      signatureMap.set(sig, { days: [dayItem.day], ranges: dayItem.ranges });
+    } else {
+      signatureMap.get(sig)!.days.push(dayItem.day);
+    }
+  }
+
+  const results: string[] = [];
+  for (const group of signatureMap.values()) {
+    const dayLabel = formatDayGroup(group.days);
+    const rangeLabel = formatRangesText(group.ranges);
+    results.push(`${dayLabel} ${rangeLabel}`);
+  }
+
+  return results;
+}
+
+/**
+ * Formateador unificado de horarios agrupados para Footer, Home y Checkout (ADM-07).
+ */
+export function formatStoreScheduleSummary(
+  schedule?: StoreScheduleConfig | null,
+  location?: StoreLocationConfig | null
+): FormattedScheduleSummary {
+  const attendsPublic = location?.attendsPublic ?? true;
+  if (!attendsPublic) {
+    return {
+      attendanceLines: ["Solo tienda online"],
+      pickupLines: [],
+      fullText: "Solo tienda online",
+      inlineText: "Solo tienda online",
+      isOnlineOnly: true,
+    };
+  }
+
+  const openingDays = schedule?.openingHours || DEFAULT_DAYS;
+  const attendanceLines = groupDaySchedules(openingDays);
+
+  if (attendanceLines.length === 0) {
+    const isByAppointment =
+      schedule?.note?.toLowerCase().includes("cita previa") || false;
+    const fallbackText = isByAppointment
+      ? "Atención solo con cita previa"
+      : "Solo tienda online";
+    return {
+      attendanceLines: [fallbackText],
+      pickupLines: [],
+      fullText: fallbackText,
+      inlineText: fallbackText,
+      isOnlineOnly: !isByAppointment,
+    };
+  }
+
+  let pickupLines: string[] = [];
+  if (schedule?.separatePickupHours && schedule.pickupHours) {
+    const rawPickupLines = groupDaySchedules(schedule.pickupHours);
+    // Verificamos si los horarios de retiro difieren de los de atención
+    const attJoined = attendanceLines.join("|");
+    const pickJoined = rawPickupLines.join("|");
+    if (pickJoined && pickJoined !== attJoined) {
+      pickupLines = rawPickupLines.map((line) => {
+        const lowerLine = line.charAt(0).toLowerCase() + line.slice(1);
+        return `Retiros: ${lowerLine}`;
+      });
+    }
+  }
+
+  const attendanceText = attendanceLines.join(" · ");
+  const pickupText = pickupLines.join(" · ");
+
+  let fullText = attendanceText;
+  if (pickupLines.length > 0) {
+    fullText = `Atención: ${attendanceText.charAt(0).toLowerCase() + attendanceText.slice(1)}\n${pickupText}`;
+  }
+
+  const inlineText =
+    pickupLines.length > 0 ? `${attendanceText} · ${pickupText}` : attendanceText;
+
+  return {
+    attendanceLines,
+    pickupLines,
+    fullText,
+    inlineText,
+    isOnlineOnly: false,
+  };
+}
+
 function parseMinutes(hhmm: string): number {
   const [hStr, mStr] = (hhmm || "00:00").split(":");
   const h = parseInt(hStr || "0", 10);
