@@ -35,12 +35,14 @@ import {
   X,
 } from "lucide-react";
 import { Category } from "../../domain/category/types";
+import { ProductAttributeDefinition } from "../../domain/navigation/types";
 import { parseProductText, parseSizesList } from "../../lib/parser/product-parser";
 import { compressImageInBrowser } from "../../lib/images/compress";
 import { formatPriceARS } from "../../lib/format/currency";
 
 interface NewProductClientProps {
   categories: Category[];
+  attributeDefinitions?: ProductAttributeDefinition[];
 }
 
 interface ColorState {
@@ -68,7 +70,10 @@ export interface FormErrorState {
   details?: string;
 }
 
-export function NewProductClient({ categories: initialCategories }: NewProductClientProps) {
+export function NewProductClient({
+  categories: initialCategories,
+  attributeDefinitions = [],
+}: NewProductClientProps) {
   const [categoriesList, setCategoriesList] = useState<Category[]>(initialCategories);
 
   // 1. Fotos
@@ -80,6 +85,7 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
   const [title, setTitle] = useState("");
   const [rawText, setRawText] = useState("");
   const [pricePesos, setPricePesos] = useState<string>("");
+  const [compareAtPricePesos, setCompareAtPricePesos] = useState<string>("");
   const [isConsultPrice, setIsConsultPrice] = useState(false);
   const [isSinglePiece, setIsSinglePiece] = useState(true);
 
@@ -92,6 +98,11 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
   const [initialStatus, setInitialStatus] = useState<"AVAILABLE" | "RESERVED">("AVAILABLE");
   const [isFeatured, setIsFeatured] = useState(false);
   const [allowReturn, setAllowReturn] = useState(true);
+  const [publishedAtDate, setPublishedAtDate] = useState<string>(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
+
 
   // Creación rápida de categoría en línea
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -331,18 +342,32 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
           ? Math.round(parseFloat(pricePesos.replace(/,/g, ".")) * 100)
           : null;
 
+      const compareAtPriceCents =
+        !isConsultPrice && compareAtPricePesos.trim()
+          ? Math.round(parseFloat(compareAtPricePesos.replace(/,/g, ".")) * 100)
+          : null;
+
       const finalStatus = statusOverride || initialStatus;
+      const cleanAttributes: Record<string, string> = {};
+      for (const [k, v] of Object.entries(attributes)) {
+        if (v && v.trim()) {
+          cleanAttributes[k] = v.trim();
+        }
+      }
 
       const payload = {
         clientSubmissionId,
         rawText: rawText.trim() || trimmedTitle,
         title: trimmedTitle,
         priceCents,
+        compareAtPriceCents,
         currency: "ARS",
         categoryId: selectedCategoryId,
         status: finalStatus,
         isFeatured,
         allowReturn,
+        publishedAt: publishedAtDate ? `${publishedAtDate}T12:00:00.000Z` : undefined,
+        attributes: cleanAttributes,
         colors: colors.map((c, cIdx) => ({
           name: c.name.trim() || "Único",
           position: cIdx,
@@ -381,8 +406,10 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
         setTitle("");
         setRawText("");
         setPricePesos("");
+        setCompareAtPricePesos("");
         setIsConsultPrice(false);
         setPhotos([]);
+        setAttributes({});
         setColors([
           {
             id: `col-${Date.now()}`,
@@ -393,6 +420,7 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
         setClientSubmissionId(`sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
         alert(`¡Pieza #${data.product.code} publicada con éxito! Podés continuar cargando la siguiente.`);
       } else {
+
         setPublishedProduct({
           id: data.product.id,
           code: data.product.code,
@@ -762,11 +790,11 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
               />
             </div>
 
-            {/* Precio y Switch "Consultar precio" */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            {/* Precio, Precio anterior (Sale) y Switch "Consultar precio" */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
               <div className="space-y-1.5">
                 <label htmlFor="product-price" className="block text-xs font-bold text-zinc-200">
-                  Precio (ARS)
+                  Precio actual (ARS)
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-500">
@@ -785,6 +813,27 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
                 </div>
               </div>
 
+              <div className="space-y-1.5">
+                <label htmlFor="product-compare-price" className="block text-xs font-bold text-zinc-200">
+                  Precio anterior (Sale)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-500">
+                    $
+                  </span>
+                  <input
+                    id="product-compare-price"
+                    type="text"
+                    inputMode="decimal"
+                    disabled={isConsultPrice}
+                    value={compareAtPricePesos}
+                    onChange={(e) => setCompareAtPricePesos(e.target.value)}
+                    placeholder="Opcional (ej: 60000)"
+                    className="w-full pl-7 pr-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 disabled:opacity-50 transition-colors"
+                  />
+                </div>
+              </div>
+
               <div className="flex items-center justify-between sm:justify-end gap-3 pt-5">
                 <label htmlFor="consult-price-toggle" className="text-xs font-medium text-zinc-300 cursor-pointer">
                   Mostrar &ldquo;Consultar precio&rdquo;
@@ -795,7 +844,10 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
                   checked={isConsultPrice}
                   onChange={(e) => {
                     setIsConsultPrice(e.target.checked);
-                    if (e.target.checked) setPricePesos("");
+                    if (e.target.checked) {
+                      setPricePesos("");
+                      setCompareAtPricePesos("");
+                    }
                   }}
                   className="w-4 h-4 rounded-md accent-amber-400 cursor-pointer"
                 />
@@ -838,7 +890,7 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
             >
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-zinc-200">
-                  Más opciones (Categoría, Talles, Variantes, Destacado)
+                  Más opciones (Categoría, Atributos, Talles, Variantes, Destacado)
                 </span>
                 <span className="text-[11px] text-zinc-400">
                   {isMoreOptionsOpen ? "Ocultar" : "Personalizar"}
@@ -897,6 +949,54 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
                       ))}
                     </select>
                   )}
+                </div>
+
+                {/* Atributos Configurables del Rubro (Para, Material, etc.) y Fecha de Publicación */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-zinc-800/80">
+                  {attributeDefinitions.map((def) => (
+                    <div key={def.key} className="space-y-1">
+                      <label
+                        htmlFor={`attr-${def.key}`}
+                        className="block text-xs font-bold text-zinc-200"
+                      >
+                        {def.label}
+                      </label>
+                      <select
+                        id={`attr-${def.key}`}
+                        value={attributes[def.key] || ""}
+                        onChange={(e) =>
+                          setAttributes((prev) => ({
+                            ...prev,
+                            [def.key]: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                      >
+                        <option value="">Sin especificar</option>
+                        {def.options.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+
+                  <div className="space-y-1">
+                    <label
+                      htmlFor="product-published-at"
+                      className="block text-xs font-bold text-zinc-200"
+                    >
+                      Fecha de publicación
+                    </label>
+                    <input
+                      id="product-published-at"
+                      type="date"
+                      value={publishedAtDate}
+                      onChange={(e) => setPublishedAtDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
                 </div>
 
                 {/* Plantillas Rápidas de Talles */}
@@ -1046,6 +1146,7 @@ export function NewProductClient({ categories: initialCategories }: NewProductCl
               </div>
             )}
           </section>
+
         </div>
 
         {/* Columna Derecha: Vista Previa Interactiva en Vivo (5 columnas sticky) */}

@@ -3,7 +3,22 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, Save } from "lucide-react";
-import { HeroMode, ShowroomSettings } from "../../services/settings.service";
+import {
+  AnnouncementBarConfig,
+  CatalogConfig,
+  DEFAULT_ANNOUNCEMENT_BAR,
+  DEFAULT_CATALOG_CONFIG,
+  DEFAULT_HOME_BLOCKS,
+  HeroMode,
+  HomeBlocksConfig,
+  ShowroomSettings,
+} from "../../services/settings.service";
+import {
+  DEFAULT_STORE_LOCATION,
+  DEFAULT_STORE_SCHEDULE,
+  StoreLocationConfig,
+  StoreScheduleConfig,
+} from "../../lib/schedule/store-schedule";
 import { THEME_PALETTES } from "../../lib/theme/palettes";
 import {
   SettingsSectionTabs,
@@ -16,7 +31,16 @@ import { GeneralSystemSettingsSection } from "./settings/GeneralSystemSettingsSe
 import { PaymentsSettingsSection } from "./settings/PaymentsSettingsSection";
 
 interface SettingsClientProps {
-  initialSettings: ShowroomSettings;
+  initialSettings: Omit<
+    ShowroomSettings,
+    "announcementBar" | "homeBlocks" | "catalogConfig" | "storeLocation" | "storeSchedule"
+  > &
+    Partial<
+      Pick<
+        ShowroomSettings,
+        "announcementBar" | "homeBlocks" | "catalogConfig" | "storeLocation" | "storeSchedule"
+      >
+    >;
   initialTab?: SettingsTabId;
 }
 
@@ -46,7 +70,7 @@ export function SettingsClient({
   const [storeType, setStoreType] = useState(initialSettings.storeType || "Showroom");
   const [logoUrl, setLogoUrl] = useState<string>(initialSettings.logoUrl || "");
 
-  // 2. Contenido Principal (Portada Hero y Paleta de Colores)
+  // 2. Contenido Principal (Portada Hero, Vidriera, Catálogo y Paleta de Colores)
   const [heroMode, setHeroMode] = useState<HeroMode>(
     initialSettings.heroMode || "featured_carousel"
   );
@@ -64,8 +88,17 @@ export function SettingsClient({
   const [themeFont, setThemeFont] = useState<string>(
     initialSettings.themeFont || "cormorant"
   );
+  const [announcementBar, setAnnouncementBar] = useState<AnnouncementBarConfig>(
+    initialSettings.announcementBar || DEFAULT_ANNOUNCEMENT_BAR
+  );
+  const [homeBlocks, setHomeBlocks] = useState<HomeBlocksConfig>(
+    initialSettings.homeBlocks || DEFAULT_HOME_BLOCKS
+  );
+  const [catalogConfig, setCatalogConfig] = useState<CatalogConfig>(
+    initialSettings.catalogConfig || DEFAULT_CATALOG_CONFIG
+  );
 
-  // 3. Pie de Página (Contacto, Redes, Dirección y AFIP)
+  // 3. Pie de Página (Contacto, Redes, Dirección, Horarios y AFIP)
   const [whatsappNumber, setWhatsappNumber] = useState(initialSettings.whatsappNumber);
   const [instagramHandle, setInstagramHandle] = useState<string>(
     initialSettings.instagramHandle || ""
@@ -73,6 +106,12 @@ export function SettingsClient({
   const [tiktokHandle, setTiktokHandle] = useState<string>(initialSettings.tiktokHandle || "");
   const [address, setAddress] = useState<string>(initialSettings.address || "");
   const [dataFiscalUrl, setDataFiscalUrl] = useState<string>(initialSettings.dataFiscalUrl || "");
+  const [storeLocation, setStoreLocation] = useState<StoreLocationConfig>(
+    initialSettings.storeLocation || DEFAULT_STORE_LOCATION
+  );
+  const [storeSchedule, setStoreSchedule] = useState<StoreScheduleConfig>(
+    initialSettings.storeSchedule || DEFAULT_STORE_SCHEDULE
+  );
 
   // 4. Configuraciones Generales
   const [reservationHours, setReservationHours] = useState<number>(
@@ -194,6 +233,11 @@ export function SettingsClient({
           cashEnabled,
           cashNotes: cashNotes.trim(),
           whatsappPaymentEnabled,
+          announcementBar,
+          homeBlocks,
+          catalogConfig,
+          storeLocation,
+          storeSchedule,
         }),
       });
 
@@ -242,7 +286,17 @@ export function SettingsClient({
     transferDiscountPercent !== (initialSettings.transferDiscountPercent ?? 10) ||
     cashEnabled !== (initialSettings.cashEnabled ?? true) ||
     cashNotes !== (initialSettings.cashNotes || "") ||
-    whatsappPaymentEnabled !== (initialSettings.whatsappPaymentEnabled ?? true);
+    whatsappPaymentEnabled !== (initialSettings.whatsappPaymentEnabled ?? true) ||
+    JSON.stringify(announcementBar) !==
+      JSON.stringify(initialSettings.announcementBar || DEFAULT_ANNOUNCEMENT_BAR) ||
+    JSON.stringify(homeBlocks) !==
+      JSON.stringify(initialSettings.homeBlocks || DEFAULT_HOME_BLOCKS) ||
+    JSON.stringify(catalogConfig) !==
+      JSON.stringify(initialSettings.catalogConfig || DEFAULT_CATALOG_CONFIG) ||
+    JSON.stringify(storeLocation) !==
+      JSON.stringify(initialSettings.storeLocation || DEFAULT_STORE_LOCATION) ||
+    JSON.stringify(storeSchedule) !==
+      JSON.stringify(initialSettings.storeSchedule || DEFAULT_STORE_SCHEDULE);
 
   const handleDiscardChanges = () => {
     setShowroomName(initialSettings.showroomName);
@@ -259,11 +313,16 @@ export function SettingsClient({
         "#926a3c"
     );
     setThemeFont(initialSettings.themeFont || "cormorant");
+    setAnnouncementBar(initialSettings.announcementBar || DEFAULT_ANNOUNCEMENT_BAR);
+    setHomeBlocks(initialSettings.homeBlocks || DEFAULT_HOME_BLOCKS);
+    setCatalogConfig(initialSettings.catalogConfig || DEFAULT_CATALOG_CONFIG);
     setWhatsappNumber(initialSettings.whatsappNumber);
     setInstagramHandle(initialSettings.instagramHandle || "");
     setTiktokHandle(initialSettings.tiktokHandle || "");
     setAddress(initialSettings.address || "");
     setDataFiscalUrl(initialSettings.dataFiscalUrl || "");
+    setStoreLocation(initialSettings.storeLocation || DEFAULT_STORE_LOCATION);
+    setStoreSchedule(initialSettings.storeSchedule || DEFAULT_STORE_SCHEDULE);
     setReservationHours(initialSettings.reservationHours || 48);
     setMercadopagoEnabled(initialSettings.mercadopagoEnabled ?? false);
     setTransferEnabled(initialSettings.transferEnabled ?? true);
@@ -290,8 +349,8 @@ export function SettingsClient({
           Configuración de la Tienda
         </h1>
         <p className="text-xs text-zinc-400 mt-1">
-          Seleccioná la sección de la tienda que querés editar: Identidad, Portada, Contacto,
-          Métodos de Pago o Políticas Generales.
+          Seleccioná la sección de la tienda que querés editar: Identidad, Portada y Vidriera,
+          Ubicación y Horarios, Métodos de Pago o Políticas Generales.
         </p>
       </div>
 
@@ -323,6 +382,9 @@ export function SettingsClient({
             themePalette={themePalette}
             themePrimaryColor={themePrimaryColor}
             themeFont={themeFont}
+            announcementBar={announcementBar}
+            homeBlocks={homeBlocks}
+            catalogConfig={catalogConfig}
             onHeroModeChange={setHeroMode}
             onHeroTitleChange={setHeroTitle}
             onHeroSubtitleChange={setHeroSubtitle}
@@ -330,6 +392,9 @@ export function SettingsClient({
             onSelectPreset={handleSelectPreset}
             onCustomColorChange={handleCustomColorChange}
             onThemeFontChange={setThemeFont}
+            onAnnouncementBarChange={setAnnouncementBar}
+            onHomeBlocksChange={setHomeBlocks}
+            onCatalogConfigChange={setCatalogConfig}
           />
         </div>
 
@@ -340,11 +405,15 @@ export function SettingsClient({
             tiktokHandle={tiktokHandle}
             address={address}
             dataFiscalUrl={dataFiscalUrl}
+            storeLocation={storeLocation}
+            storeSchedule={storeSchedule}
             onWhatsappNumberChange={setWhatsappNumber}
             onInstagramHandleChange={setInstagramHandle}
             onTiktokHandleChange={setTiktokHandle}
             onAddressChange={setAddress}
             onDataFiscalUrlChange={setDataFiscalUrl}
+            onStoreLocationChange={setStoreLocation}
+            onStoreScheduleChange={setStoreSchedule}
           />
         </div>
 

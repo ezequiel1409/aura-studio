@@ -1,7 +1,28 @@
 "use client";
 
-import { Image as ImageIcon, LayoutTemplate, Palette, Sparkles, Type } from "lucide-react";
-import { HeroMode } from "../../../services/settings.service";
+import {
+  ArrowDown,
+  ArrowUp,
+  Image as ImageIcon,
+  LayoutGrid,
+  LayoutTemplate,
+  Megaphone,
+  Palette,
+  Plus,
+  SlidersHorizontal,
+  Sparkles,
+  Trash2,
+  Type,
+} from "lucide-react";
+import {
+  AnnouncementBarConfig,
+  CatalogConfig,
+  DEFAULT_ANNOUNCEMENT_BAR,
+  DEFAULT_CATALOG_CONFIG,
+  DEFAULT_HOME_BLOCKS,
+  HeroMode,
+  HomeBlocksConfig,
+} from "../../../services/settings.service";
 import { THEME_PALETTES, hexToRgb, rgbToHex } from "../../../lib/theme/palettes";
 import { THEME_FONTS } from "../../../lib/theme/fonts";
 
@@ -13,6 +34,9 @@ interface MainContentSettingsSectionProps {
   themePalette: string;
   themePrimaryColor: string;
   themeFont: string;
+  announcementBar?: AnnouncementBarConfig;
+  homeBlocks?: HomeBlocksConfig;
+  catalogConfig?: CatalogConfig;
   onHeroModeChange: (mode: HeroMode) => void;
   onHeroTitleChange: (val: string) => void;
   onHeroSubtitleChange: (val: string) => void;
@@ -20,6 +44,9 @@ interface MainContentSettingsSectionProps {
   onSelectPreset: (paletteId: string) => void;
   onCustomColorChange: (hex: string) => void;
   onThemeFontChange: (fontId: string) => void;
+  onAnnouncementBarChange?: (val: AnnouncementBarConfig) => void;
+  onHomeBlocksChange?: (val: HomeBlocksConfig) => void;
+  onCatalogConfigChange?: (val: CatalogConfig) => void;
 }
 
 export function MainContentSettingsSection({
@@ -30,6 +57,9 @@ export function MainContentSettingsSection({
   themePalette,
   themePrimaryColor,
   themeFont,
+  announcementBar = DEFAULT_ANNOUNCEMENT_BAR,
+  homeBlocks = DEFAULT_HOME_BLOCKS,
+  catalogConfig = DEFAULT_CATALOG_CONFIG,
   onHeroModeChange,
   onHeroTitleChange,
   onHeroSubtitleChange,
@@ -37,6 +67,9 @@ export function MainContentSettingsSection({
   onSelectPreset,
   onCustomColorChange,
   onThemeFontChange,
+  onAnnouncementBarChange,
+  onHomeBlocksChange,
+  onCatalogConfigChange,
 }: MainContentSettingsSectionProps) {
   const currentRgb = hexToRgb(themePrimaryColor) || { r: 146, g: 106, b: 60 };
 
@@ -56,6 +89,30 @@ export function MainContentSettingsSection({
     onCustomColorChange(hex);
   };
 
+  const sortedBlocks = [...(homeBlocks.blocks || DEFAULT_HOME_BLOCKS.blocks)].sort(
+    (a, b) => a.position - b.position
+  );
+
+  const handleToggleHomeBlock = (id: string) => {
+    if (!onHomeBlocksChange) return;
+    const nextBlocks = sortedBlocks.map((b) =>
+      b.id === id ? { ...b, enabled: !b.enabled } : b
+    );
+    onHomeBlocksChange({ ...homeBlocks, blocks: nextBlocks });
+  };
+
+  const handleMoveHomeBlock = (index: number, direction: -1 | 1) => {
+    if (!onHomeBlocksChange) return;
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= sortedBlocks.length) return;
+    const next = [...sortedBlocks];
+    const temp = next[index];
+    next[index] = next[targetIndex];
+    next[targetIndex] = temp;
+    const normalized = next.map((b, idx) => ({ ...b, position: idx }));
+    onHomeBlocksChange({ ...homeBlocks, blocks: normalized });
+  };
+
   return (
     <div
       id="settings-panel-main"
@@ -63,7 +120,235 @@ export function MainContentSettingsSection({
       aria-labelledby="settings-tab-main"
       className="space-y-5"
     >
-      {/* Bloque 1: Portada y Hero del Catálogo (Home) */}
+      {/* Bloque 0: Barra de Anuncios Superior */}
+      <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Megaphone size={16} className="text-amber-400" aria-hidden="true" />
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                Barra de Anuncios Rotativa (36–40 px)
+              </h2>
+              <p className="text-[11px] text-zinc-400">
+                Avisos cortos arriba del header: promos bancarias, envío gratis o retiro en local.
+              </p>
+            </div>
+          </div>
+
+          <label className="inline-flex items-center gap-2 text-xs text-zinc-200 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={announcementBar.enabled}
+              onChange={(e) =>
+                onAnnouncementBarChange?.({
+                  ...announcementBar,
+                  enabled: e.target.checked,
+                })
+              }
+              className="rounded border-zinc-700 text-amber-400 focus:ring-amber-400"
+            />
+            <span>Activa</span>
+          </label>
+        </div>
+
+        {announcementBar.enabled && (
+          <div className="space-y-2.5 pt-2 border-t border-zinc-800/80">
+            {(announcementBar.messages || []).map((msg, idx) => (
+              <div
+                key={msg.id || idx}
+                className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-2.5"
+              >
+                <div className="sm:col-span-7">
+                  <input
+                    type="text"
+                    value={msg.text}
+                    onChange={(e) => {
+                      const next = [...announcementBar.messages];
+                      next[idx] = { ...msg, text: e.target.value };
+                      onAnnouncementBarChange?.({ ...announcementBar, messages: next });
+                    }}
+                    placeholder="Ej: 3 cuotas sin interés con bancos seleccionados"
+                    aria-label={`Texto del anuncio ${idx + 1}`}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div className="sm:col-span-4">
+                  <input
+                    type="text"
+                    value={msg.href || ""}
+                    onChange={(e) => {
+                      const next = [...announcementBar.messages];
+                      next[idx] = { ...msg, href: e.target.value };
+                      onAnnouncementBarChange?.({ ...announcementBar, messages: next });
+                    }}
+                    placeholder="/promociones o /catalogo"
+                    aria-label={`Enlace del anuncio ${idx + 1}`}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs font-mono text-zinc-200 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+                <div className="sm:col-span-1 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = announcementBar.messages.filter((_, i) => i !== idx);
+                      onAnnouncementBarChange?.({ ...announcementBar, messages: next });
+                    }}
+                    aria-label={`Eliminar anuncio ${idx + 1}`}
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => {
+                const next = [
+                  ...(announcementBar.messages || []),
+                  {
+                    id: `ann-${Date.now()}`,
+                    text: "Envío bonificado desde $85.000",
+                    href: "/catalogo",
+                  },
+                ];
+                onAnnouncementBarChange?.({ ...announcementBar, messages: next });
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition-colors cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>Agregar mensaje</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bloque 1: Bloques de la Vidriera (Home Rediseñada) */}
+      <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <LayoutGrid size={16} className="text-amber-400" aria-hidden="true" />
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+              Bloques de la Vidriera (Home)
+            </h2>
+            <p className="text-[11px] text-zinc-400">
+              Activá, ocultá u ordená los bloques de tu página de inicio. Los bloques sin contenido se ocultan solos.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {sortedBlocks.map((block, index) => (
+            <div
+              key={block.id}
+              className="flex items-center justify-between gap-3 bg-zinc-950/60 border border-zinc-800/80 rounded-xl px-3.5 py-2.5"
+            >
+              <label className="flex items-center gap-2.5 text-xs font-medium text-zinc-100 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={block.enabled}
+                  onChange={() => handleToggleHomeBlock(block.id)}
+                  className="rounded border-zinc-700 text-amber-400 focus:ring-amber-400"
+                />
+                <span>{block.label}</span>
+              </label>
+
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={index === 0}
+                  onClick={() => handleMoveHomeBlock(index, -1)}
+                  aria-label={`Subir bloque ${block.label}`}
+                  className="p-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:text-zinc-100 disabled:opacity-30 cursor-pointer"
+                >
+                  <ArrowUp size={13} />
+                </button>
+                <button
+                  type="button"
+                  disabled={index === sortedBlocks.length - 1}
+                  onClick={() => handleMoveHomeBlock(index, 1)}
+                  aria-label={`Bajar bloque ${block.label}`}
+                  className="p-1.5 rounded-lg border border-zinc-800 text-zinc-400 hover:text-zinc-100 disabled:opacity-30 cursor-pointer"
+                >
+                  <ArrowDown size={13} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="pt-2 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <label htmlFor="newArrivalsDaysInput" className="text-xs font-medium text-zinc-300 block">
+              Ventana de &ldquo;Recién llegados&rdquo; (días de antigüedad)
+            </label>
+            <p className="text-[11px] text-zinc-400">
+              Por defecto: últimos 30 días desde la fecha de publicación del producto.
+            </p>
+          </div>
+          <input
+            id="newArrivalsDaysInput"
+            type="number"
+            min={1}
+            max={365}
+            value={homeBlocks.newArrivalsDays || 30}
+            onChange={(e) =>
+              onHomeBlocksChange?.({
+                ...homeBlocks,
+                newArrivalsDays: Math.max(1, parseInt(e.target.value, 10) || 30),
+              })
+            }
+            className="w-24 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs font-mono text-zinc-100 focus:outline-none focus:border-amber-400"
+          />
+        </div>
+      </div>
+
+      {/* Bloque 1.5: Configuración del Catálogo (Tamaño de tanda y Filtros) */}
+      <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal size={16} className="text-amber-400" aria-hidden="true" />
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+              Catálogo y Paginación por Tandas
+            </h2>
+            <p className="text-[11px] text-zinc-400">
+              Configurá cuántos productos se cargan por tanda (12 se reparte exacto en 2, 3 y 4 columnas).
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs text-zinc-300 font-medium">Tamaño de tanda por página:</span>
+          <div className="inline-flex rounded-xl border border-zinc-800 bg-zinc-950 p-1 gap-1">
+            {([12, 16, 24] as const).map((size) => {
+              const active = (catalogConfig.pageSize || 12) === size;
+              return (
+                <button
+                  key={size}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onCatalogConfigChange?.({
+                      ...catalogConfig,
+                      pageSize: size,
+                    })
+                  }
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    active
+                      ? "bg-amber-300 text-zinc-950"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {size} productos {size === 12 ? "(Recomendado)" : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Bloque 2: Portada y Hero del Catálogo (Home) */}
       <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-2">
           <LayoutTemplate size={16} className="text-amber-400" aria-hidden="true" />
@@ -198,7 +483,7 @@ export function MainContentSettingsSection({
         )}
       </div>
 
-      {/* Bloque 2: Paleta de Colores de la Tienda */}
+      {/* Bloque 3: Paleta de Colores de la Tienda */}
       <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Palette size={16} className="text-amber-400" aria-hidden="true" />
@@ -345,7 +630,7 @@ export function MainContentSettingsSection({
         </div>
       </div>
 
-      {/* Bloque 3: Tipografía de la Marca (Estilo de Fuente y Títulos) */}
+      {/* Bloque 4: Tipografía de la Marca (Estilo de Fuente y Títulos) */}
       <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Type size={16} className="text-amber-400" aria-hidden="true" />

@@ -31,7 +31,17 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     notFound();
   }
 
-  const categories = await deps.categoryRepo.listAll();
+  const [categories, attributeDefinitions] = await Promise.all([
+    deps.categoryRepo.listAll(),
+    deps.navigationRepo.listAttributeDefinitions(),
+  ]);
 
-  return <EditProductClient product={product} categories={categories} />;
+  return (
+    <EditProductClient
+      product={product}
+      categories={categories}
+      attributeDefinitions={attributeDefinitions}
+    />
+  );
 }
+

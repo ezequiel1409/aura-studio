@@ -19,6 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import { Category } from "../../domain/category/types";
+import { ProductAttributeDefinition } from "../../domain/navigation/types";
 import { Product, ProductStatus } from "../../domain/product/types";
 import { compressImageInBrowser } from "../../lib/images/compress";
 import { parseProductText } from "../../lib/parser/product-parser";
@@ -27,6 +28,7 @@ import { ConfirmDeleteProductModal } from "./ConfirmDeleteProductModal";
 interface EditProductClientProps {
   product: Product;
   categories: Category[];
+  attributeDefinitions?: ProductAttributeDefinition[];
 }
 
 interface ColorState {
@@ -50,6 +52,7 @@ interface PhotoState {
 export function EditProductClient({
   product,
   categories,
+  attributeDefinitions = [],
 }: EditProductClientProps) {
   const router = useRouter();
 
@@ -61,12 +64,33 @@ export function EditProductClient({
   const [pricePesos, setPricePesos] = useState<string>(
     product.priceCents !== null ? String(product.priceCents / 100) : ""
   );
+  const [compareAtPricePesos, setCompareAtPricePesos] = useState<string>(
+    product.compareAtPriceCents && product.compareAtPriceCents > 0
+      ? String(product.compareAtPriceCents / 100)
+      : ""
+  );
   const [selectedCategoryId, setSelectedCategoryId] = useState<number>(
     product.categoryId
   );
   const [status, setStatus] = useState<ProductStatus>(product.status);
   const [isFeatured, setIsFeatured] = useState<boolean>(product.isFeatured ?? false);
   const [allowReturn, setAllowReturn] = useState<boolean>(product.allowReturn ?? true);
+  const [publishedAtDate, setPublishedAtDate] = useState<string>(() => {
+    const raw = product.publishedAt || product.createdAt;
+    if (!raw) return new Date().toISOString().slice(0, 10);
+    if (typeof raw === "number") {
+      return new Date(raw).toISOString().slice(0, 10);
+    }
+    return String(raw).slice(0, 10);
+  });
+  const [attributes, setAttributes] = useState<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(product.attributes || {})) {
+      out[k] = Array.isArray(v) ? v[0] || "" : String(v || "");
+    }
+    return out;
+  });
+
 
   // Variantes de color y talles (BR-20, BR-33)
   const [colors, setColors] = useState<ColorState[]>(() => {
@@ -291,14 +315,32 @@ export function EditProductClient({
         }
       }
 
+      let compareAtPriceCents: number | null = null;
+      if (compareAtPricePesos.trim()) {
+        const parsedCompare = parseFloat(compareAtPricePesos.replace(/,/g, "."));
+        if (!Number.isNaN(parsedCompare) && parsedCompare > 0) {
+          compareAtPriceCents = Math.round(parsedCompare * 100);
+        }
+      }
+
+      const cleanAttributes: Record<string, string> = {};
+      for (const [k, v] of Object.entries(attributes)) {
+        if (v && v.trim()) {
+          cleanAttributes[k] = v.trim();
+        }
+      }
+
       const payload = {
         rawText,
         title: title.trim() || null,
         priceCents,
+        compareAtPriceCents,
         categoryId: selectedCategoryId,
         status,
         isFeatured,
         allowReturn,
+        publishedAt: publishedAtDate ? `${publishedAtDate}T12:00:00.000Z` : undefined,
+        attributes: cleanAttributes,
         colors: colors.map((c, cIdx) => ({
           name: c.name.trim() || "Único",
           hexCode: c.hexCode || null,
@@ -456,6 +498,24 @@ export function EditProductClient({
               </div>
             </div>
 
+            {/* Precio Anterior (Sale) */}
+            <div className="space-y-1.5">
+              <label htmlFor="edit-compare-price" className="text-xs text-zinc-400">
+                Precio Anterior / Sale (ARS)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-2.5 text-sm text-zinc-500" aria-hidden="true">$</span>
+                <input
+                  id="edit-compare-price"
+                  type="text"
+                  value={compareAtPricePesos}
+                  onChange={(e) => setCompareAtPricePesos(e.target.value)}
+                  placeholder="Opcional para Sale (ej: 60000)"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3.5 py-2.5 text-sm font-mono text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
+                />
+              </div>
+            </div>
+
             {/* Categoría */}
             <div className="space-y-1.5">
               <label htmlFor="edit-category" className="text-xs text-zinc-400">
@@ -474,6 +534,48 @@ export function EditProductClient({
                 ))}
               </select>
             </div>
+
+            {/* Fecha de Publicación */}
+            <div className="space-y-1.5">
+              <label htmlFor="edit-published-at" className="text-xs text-zinc-400">
+                Fecha de Publicación (Recién llegados)
+              </label>
+              <input
+                id="edit-published-at"
+                type="date"
+                value={publishedAtDate}
+                onChange={(e) => setPublishedAtDate(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
+              />
+            </div>
+
+            {/* Atributos Configurables del Rubro */}
+            {attributeDefinitions.map((def) => (
+              <div key={def.key} className="space-y-1.5">
+                <label htmlFor={`edit-attr-${def.key}`} className="text-xs text-zinc-400">
+                  {def.label}
+                </label>
+                <select
+                  id={`edit-attr-${def.key}`}
+                  value={attributes[def.key] || ""}
+                  onChange={(e) =>
+                    setAttributes((prev) => ({
+                      ...prev,
+                      [def.key]: e.target.value,
+                    }))
+                  }
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
+                >
+                  <option value="">Sin especificar</option>
+                  {def.options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+
 
             {/* Estado */}
             <div className="space-y-1.5 sm:col-span-2">

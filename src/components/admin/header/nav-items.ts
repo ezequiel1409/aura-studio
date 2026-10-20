@@ -1,5 +1,7 @@
 import {
+  Compass,
   FolderTree,
+  Landmark,
   LayoutDashboard,
   LayoutTemplate,
   MapPin,
@@ -57,7 +59,7 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
     label: "Productos",
     mobileLabel: "Productos",
     icon: Package,
-    matchPrefix: ["/admin/productos", "/admin/categorias"],
+    matchPrefix: ["/admin/productos", "/admin/categorias", "/admin/secciones"],
     subItems: [
       {
         href: "/admin/productos",
@@ -74,6 +76,13 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
         exact: true,
       },
       {
+        href: "/admin/secciones",
+        label: "Secciones y Filtros",
+        description: "MUJER, HOMBRE, SALE y atributos",
+        icon: Compass,
+        exact: true,
+      },
+      {
         href: "/admin/productos/nuevo",
         label: "+ Cargar Producto",
         description: "Alta rápida de nueva pieza",
@@ -85,11 +94,28 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
   {
     id: "discounts",
     href: "/admin/descuentos",
-    label: "Descuentos",
-    mobileLabel: "Descuentos",
+    label: "Promos y Cupones",
+    mobileLabel: "Promos",
     icon: Tag,
-    matchPrefix: ["/admin/descuentos"],
+    matchPrefix: ["/admin/descuentos", "/admin/promociones"],
+    subItems: [
+      {
+        href: "/admin/promociones",
+        label: "Promociones Bancarias",
+        description: "Bancos, beneficios y legales",
+        icon: Landmark,
+        exact: true,
+      },
+      {
+        href: "/admin/descuentos",
+        label: "Cupones y Descuentos",
+        description: "Reglas propias de carrito",
+        icon: Tag,
+        exact: true,
+      },
+    ],
   },
+
   {
     id: "store",
     href: "/admin/configuracion",
