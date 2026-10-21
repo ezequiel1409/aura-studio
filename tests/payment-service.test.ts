@@ -193,7 +193,7 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     expect(settings.cashNotes).toBe("Abonar en caja de showroom");
   });
 
-  it("persiste y habilita Payway, Getnet, MODO, Google Pay y credenciales de Mercado Pago", async () => {
+  it("persiste y habilita Payway, Getnet, MODO, Google Pay y Mercado Pago con arquitectura server-side", async () => {
     const { updateShowroomSettings, getShowroomSettings } = await import("../src/services/settings.service");
     const stored: Record<string, string> = {};
     const mockDeps = {
@@ -209,39 +209,28 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     await updateShowroomSettings(
       {
         mercadopagoEnabled: true,
-        mercadopagoAccessToken: "APP_USR-custom-token-123",
-        mercadopagoPublicKey: "APP_USR-pub-key-456",
-        mercadopagoConnectedAccount: "comercio@aurastudio.com",
         paywayEnabled: true,
-        paywayApiKey: "pk_payway_999",
-        paywayMerchantId: "15002498",
         paywayCuotaSimpleEnabled: true,
+        paywayEnvironment: "production",
         getnetEnabled: true,
-        getnetClientId: "client_getnet_777",
-        getnetSellerId: "seller_444",
+        getnetEnvironment: "production",
         modoEnabled: true,
-        modoMerchantId: "modo_888",
-        modoTerminalId: "TERM-01",
         googlePayEnabled: true,
-        googlePayMerchantId: "BCR2DN6T...",
       },
       mockDeps
     );
 
     const settings = await getShowroomSettings(mockDeps);
-    expect(settings.mercadopagoAccessToken).toBe("APP_USR-custom-token-123");
-    expect(settings.mercadopagoConnectedAccount).toBe("comercio@aurastudio.com");
+    expect(settings.mercadopagoEnabled).toBe(true);
     expect(settings.paywayEnabled).toBe(true);
-    expect(settings.paywayApiKey).toBe("pk_payway_999");
     expect(settings.paywayCuotaSimpleEnabled).toBe(true);
+    expect(settings.paywayEnvironment).toBe("production");
     expect(settings.getnetEnabled).toBe(true);
-    expect(settings.getnetClientId).toBe("client_getnet_777");
+    expect(settings.getnetEnvironment).toBe("production");
     expect(settings.modoEnabled).toBe(true);
-    expect(settings.modoMerchantId).toBe("modo_888");
     expect(settings.googlePayEnabled).toBe(true);
-    expect(settings.googlePayMerchantId).toBe("BCR2DN6T...");
 
-    // Verificar que getAvailablePaymentMethods incluye todos los nuevos procesadores
+    // Verificar que getAvailablePaymentMethods incluye todos los procesadores
     const methods = await getAvailablePaymentMethods(mockDeps);
     expect(methods.some((m) => m.method === "PAYWAY")).toBe(true);
     expect(methods.some((m) => m.method === "GETNET")).toBe(true);
@@ -277,5 +266,63 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     );
     expect(gpayPref.method).toBe("GOOGLEPAY");
     expect(gpayPref.instructions).toContain("Google Pay");
+  });
+
+  it("GET /api/admin/payments/status reporta estado de entorno y token enmascarado sin filtrar secretos", async () => {
+    const { GET } = await import("../src/app/api/admin/payments/status/route");
+    const { NextRequest } = await import("next/server");
+    const { createSessionToken } = await import("../src/infra/auth/session");
+    const { getEnv } = await import("../src/lib/env");
+
+    const token = await createSessionToken(
+      getEnv().SESSION_SECRET,
+      { email: "admin@aurastudio.com", role: "SUPER_ADMIN" },
+      3600
+    );
+
+    const req = new NextRequest("http://localhost:3000/api/admin/payments/status", {
+      headers: {
+        cookie: `aura_admin_token=${token}`,
+      },
+    });
+
+    const res = await GET(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(data.mercadopago).toBeDefined();
+    expect(data.mercadopago.environment).toBeDefined();
+    // No debe contener tokens completos sin enmascarar
+    if (data.mercadopago.tokenMasked) {
+      expect(data.mercadopago.tokenMasked).toContain("••••••••");
+    }
+  });
+
+  it("POST /api/admin/payments/status ejecuta diagnóstico de servidor", async () => {
+    const { POST } = await import("../src/app/api/admin/payments/status/route");
+    const { NextRequest } = await import("next/server");
+    const { createSessionToken } = await import("../src/infra/auth/session");
+    const { getEnv } = await import("../src/lib/env");
+
+    const token = await createSessionToken(
+      getEnv().SESSION_SECRET,
+      { email: "admin@aurastudio.com", role: "SUPER_ADMIN" },
+      3600
+    );
+
+    const req = new NextRequest("http://localhost:3000/api/admin/payments/status", {
+      method: "POST",
+      headers: {
+        cookie: `aura_admin_token=${token}`,
+      },
+    });
+
+    const res = await POST(req);
+    const data = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(data.ok).toBe(true);
+    expect(data.status).toBeDefined();
   });
 });

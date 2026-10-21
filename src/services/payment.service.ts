@@ -26,18 +26,17 @@ export async function getAvailablePaymentMethods(
 
   const methods: PaymentMethodConfig[] = [];
 
-  // 1. Mercado Pago
-  const mpHasToken =
-    Boolean(settings.mercadopagoAccessToken) ||
+  // 1. Mercado Pago (Servidor Seguro / Cloudflare Secrets)
+  const mpConfigured =
     Boolean(env.MP_ACCESS_TOKEN) ||
     env.NODE_ENV !== "production";
-  if (settings.mercadopagoEnabled && mpHasToken) {
+  if (settings.mercadopagoEnabled && mpConfigured) {
     methods.push({
       method: "MERCADOPAGO",
       name: "Mercado Pago",
       description: "Tarjetas de crédito, débito, dinero en cuenta o cuotas.",
       enabled: true,
-      badge: settings.mercadopagoConnectedAccount ? "Sincronizado" : "Inmediato",
+      badge: "Inmediato",
     });
   }
 
@@ -139,8 +138,8 @@ export async function createOrderPaymentPreference(
 
   if (method === "MERCADOPAGO") {
     const adapter = new MercadoPagoPaymentAdapter({
-      accessToken: settings.mercadopagoAccessToken || env.MP_ACCESS_TOKEN,
-      publicKey: settings.mercadopagoPublicKey || env.MP_PUBLIC_KEY,
+      accessToken: env.MP_ACCESS_TOKEN,
+      publicKey: env.MP_PUBLIC_KEY,
       baseUrl: options?.baseUrl,
     });
 

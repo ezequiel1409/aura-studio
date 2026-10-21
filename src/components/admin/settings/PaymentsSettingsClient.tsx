@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   AlertCircle,
-  Building2,
   CheckCircle2,
-  CreditCard,
   Loader2,
   Save,
-  Wallet,
 } from "lucide-react";
 import { ShowroomSettings } from "../../../services/settings.service";
 import { PaymentsSettingsSection } from "./PaymentsSettingsSection";
@@ -23,15 +20,6 @@ export function PaymentsSettingsClient({
   // 1. Mercado Pago
   const [mercadopagoEnabled, setMercadopagoEnabled] = useState(
     initialSettings.mercadopagoEnabled ?? false
-  );
-  const [mercadopagoAccessToken, setMercadopagoAccessToken] = useState(
-    initialSettings.mercadopagoAccessToken || ""
-  );
-  const [mercadopagoPublicKey, setMercadopagoPublicKey] = useState(
-    initialSettings.mercadopagoPublicKey || ""
-  );
-  const [mercadopagoConnectedAccount, setMercadopagoConnectedAccount] = useState(
-    initialSettings.mercadopagoConnectedAccount || ""
   );
 
   // 2. Transferencia Bancaria
@@ -61,12 +49,6 @@ export function PaymentsSettingsClient({
   const [paywayEnabled, setPaywayEnabled] = useState(
     initialSettings.paywayEnabled ?? false
   );
-  const [paywayApiKey, setPaywayApiKey] = useState(
-    initialSettings.paywayApiKey || ""
-  );
-  const [paywayMerchantId, setPaywayMerchantId] = useState(
-    initialSettings.paywayMerchantId || ""
-  );
   const [paywayEnvironment, setPaywayEnvironment] = useState<"sandbox" | "production">(
     initialSettings.paywayEnvironment || "sandbox"
   );
@@ -78,15 +60,6 @@ export function PaymentsSettingsClient({
   const [getnetEnabled, setGetnetEnabled] = useState(
     initialSettings.getnetEnabled ?? false
   );
-  const [getnetClientId, setGetnetClientId] = useState(
-    initialSettings.getnetClientId || ""
-  );
-  const [getnetClientSecret, setGetnetClientSecret] = useState(
-    initialSettings.getnetClientSecret || ""
-  );
-  const [getnetSellerId, setGetnetSellerId] = useState(
-    initialSettings.getnetSellerId || ""
-  );
   const [getnetEnvironment, setGetnetEnvironment] = useState<"sandbox" | "production">(
     initialSettings.getnetEnvironment || "sandbox"
   );
@@ -95,19 +68,10 @@ export function PaymentsSettingsClient({
   const [modoEnabled, setModoEnabled] = useState(
     initialSettings.modoEnabled ?? false
   );
-  const [modoMerchantId, setModoMerchantId] = useState(
-    initialSettings.modoMerchantId || ""
-  );
-  const [modoTerminalId, setModoTerminalId] = useState(
-    initialSettings.modoTerminalId || ""
-  );
 
   // 6. Google Pay
   const [googlePayEnabled, setGooglePayEnabled] = useState(
     initialSettings.googlePayEnabled ?? false
-  );
-  const [googlePayMerchantId, setGooglePayMerchantId] = useState(
-    initialSettings.googlePayMerchantId || ""
   );
 
   // 7. Efectivo & WhatsApp
@@ -125,27 +89,6 @@ export function PaymentsSettingsClient({
     text: string;
   } | null>(null);
 
-  // Detectar respuesta de Mercado Pago OAuth al regresar
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("status") === "mp_connected") {
-      setFeedback({
-        type: "ok",
-        text: "¡Cuenta de Mercado Pago sincronizada exitosamente con tu tienda Aura!",
-      });
-      setMercadopagoEnabled(true);
-      // Limpiar query param para evitar repetir aviso
-      window.history.replaceState({}, "", window.location.pathname);
-    } else if (params.get("error")) {
-      setFeedback({
-        type: "error",
-        text: decodeURIComponent(params.get("error") || "Error en la conexión con Mercado Pago."),
-      });
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, []);
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -153,13 +96,10 @@ export function PaymentsSettingsClient({
 
     try {
       const res = await fetch("/api/admin/settings", {
-        method: "PUT",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mercadopagoEnabled,
-          mercadopagoAccessToken: mercadopagoAccessToken.trim(),
-          mercadopagoPublicKey: mercadopagoPublicKey.trim(),
-          mercadopagoConnectedAccount: mercadopagoConnectedAccount.trim(),
           transferEnabled,
           transferBankName: transferBankName.trim(),
           transferAccountHolder: transferAccountHolder.trim(),
@@ -168,20 +108,12 @@ export function PaymentsSettingsClient({
           transferCuit: transferCuit.trim(),
           transferDiscountPercent,
           paywayEnabled,
-          paywayApiKey: paywayApiKey.trim(),
-          paywayMerchantId: paywayMerchantId.trim(),
           paywayEnvironment,
           paywayCuotaSimpleEnabled,
           getnetEnabled,
-          getnetClientId: getnetClientId.trim(),
-          getnetClientSecret: getnetClientSecret.trim(),
-          getnetSellerId: getnetSellerId.trim(),
           getnetEnvironment,
           modoEnabled,
-          modoMerchantId: modoMerchantId.trim(),
-          modoTerminalId: modoTerminalId.trim(),
           googlePayEnabled,
-          googlePayMerchantId: googlePayMerchantId.trim(),
           cashEnabled,
           cashNotes: cashNotes.trim(),
           whatsappPaymentEnabled,
@@ -195,7 +127,7 @@ export function PaymentsSettingsClient({
 
       setFeedback({
         type: "ok",
-        text: "Medios de pago y procesadores actualizados correctamente. Ya impactan en el carrito y checkout.",
+        text: "Medios de pago y opciones comerciales actualizadas correctamente. Ya impactan en el carrito y checkout.",
       });
     } catch (err: unknown) {
       setFeedback({
@@ -220,8 +152,8 @@ export function PaymentsSettingsClient({
         <h1 className="text-xl sm:text-2xl font-serif font-light text-zinc-100 mt-1">
           Medios de Pago y Cobro
         </h1>
-        <p className="text-xs text-zinc-400 mt-1">
-          Configurá las formas de cobro para tus clientes con secciones colapsables dedicadas: Mercado Pago (con OAuth 2.0 y claves directas), Transferencia bancaria (con descuento automático), Payway (Prisma / Cuota Simple), Getnet (Santander), MODO (QR bancario interoperable), Google Pay y Efectivo.
+        <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+          Configurá las pasarelas activas para tus clientes en el checkout. La arquitectura opera con credenciales encriptadas en servidor (Cloudflare Secrets) y datos bancarios públicos directos para transferencia sin comisión.
         </p>
       </div>
 
@@ -248,12 +180,6 @@ export function PaymentsSettingsClient({
         <PaymentsSettingsSection
           mercadopagoEnabled={mercadopagoEnabled}
           onMercadopagoEnabledChange={setMercadopagoEnabled}
-          mercadopagoAccessToken={mercadopagoAccessToken}
-          onMercadopagoAccessTokenChange={setMercadopagoAccessToken}
-          mercadopagoPublicKey={mercadopagoPublicKey}
-          onMercadopagoPublicKeyChange={setMercadopagoPublicKey}
-          mercadopagoConnectedAccount={mercadopagoConnectedAccount}
-          onDisconnectMercadoPago={() => setMercadopagoConnectedAccount("")}
           transferEnabled={transferEnabled}
           onTransferEnabledChange={setTransferEnabled}
           transferBankName={transferBankName}
@@ -270,34 +196,18 @@ export function PaymentsSettingsClient({
           onTransferDiscountPercentChange={setTransferDiscountPercent}
           paywayEnabled={paywayEnabled}
           onPaywayEnabledChange={setPaywayEnabled}
-          paywayApiKey={paywayApiKey}
-          onPaywayApiKeyChange={setPaywayApiKey}
-          paywayMerchantId={paywayMerchantId}
-          onPaywayMerchantIdChange={setPaywayMerchantId}
           paywayEnvironment={paywayEnvironment}
           onPaywayEnvironmentChange={setPaywayEnvironment}
           paywayCuotaSimpleEnabled={paywayCuotaSimpleEnabled}
           onPaywayCuotaSimpleEnabledChange={setPaywayCuotaSimpleEnabled}
           getnetEnabled={getnetEnabled}
           onGetnetEnabledChange={setGetnetEnabled}
-          getnetClientId={getnetClientId}
-          onGetnetClientIdChange={setGetnetClientId}
-          getnetClientSecret={getnetClientSecret}
-          onGetnetClientSecretChange={setGetnetClientSecret}
-          getnetSellerId={getnetSellerId}
-          onGetnetSellerIdChange={setGetnetSellerId}
           getnetEnvironment={getnetEnvironment}
           onGetnetEnvironmentChange={setGetnetEnvironment}
           modoEnabled={modoEnabled}
           onModoEnabledChange={setModoEnabled}
-          modoMerchantId={modoMerchantId}
-          onModoMerchantIdChange={setModoMerchantId}
-          modoTerminalId={modoTerminalId}
-          onModoTerminalIdChange={setModoTerminalId}
           googlePayEnabled={googlePayEnabled}
           onGooglePayEnabledChange={setGooglePayEnabled}
-          googlePayMerchantId={googlePayMerchantId}
-          onGooglePayMerchantIdChange={setGooglePayMerchantId}
           cashEnabled={cashEnabled}
           onCashEnabledChange={setCashEnabled}
           cashNotes={cashNotes}
