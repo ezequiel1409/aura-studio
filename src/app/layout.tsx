@@ -71,6 +71,7 @@ export default async function RootLayout({
       themeHeaderBgColor: null,
       themeFooterBgColor: null,
       themeFont: "cormorant",
+      contentWidth: "standard",
     };
   }
 
@@ -87,6 +88,7 @@ export default async function RootLayout({
           headerBgColor={settings.themeHeaderBgColor}
           footerBgColor={settings.themeFooterBgColor}
           fontId={settings.themeFont}
+          contentWidth={settings.contentWidth}
         />
       </head>
       <body className="min-h-full flex flex-col bg-[#faf8f5] text-[#1c1917] selection:bg-[#926a3c]/20">

@@ -156,6 +156,51 @@ Conforme a la Ley Nacional de Defensa del Consumidor N° 24.240 y la Res. 424/20
 5. Promociones Bancarias y Descuentos
 Los beneficios, cuotas sin interés y reintegros con entidades bancarias se rigen por las condiciones particulares publicadas en la sección de Promociones Bancarias, sujetas a vigencia y topes de reintegro establecidos por cada entidad emisora.`;
 
+export type StoreContentWidth = "compact" | "standard" | "wide" | "full";
+
+export const DEFAULT_STORE_CONTENT_WIDTH: StoreContentWidth = "standard";
+
+export interface StoreContentWidthOption {
+  id: StoreContentWidth;
+  label: string;
+  shortLabel: string;
+  description: string;
+  maxWidthCss: string;
+  recommended?: boolean;
+}
+
+export const STORE_CONTENT_WIDTHS: Record<StoreContentWidth, StoreContentWidthOption> = {
+  standard: {
+    id: "standard",
+    label: "Estándar Editorial (1280px)",
+    shortLabel: "Estándar (1280px)",
+    description: "Recomendado. Equilibrio óptimo entre fotografía y lectura fluida según estándares de accesibilidad WCAG.",
+    maxWidthCss: "1280px",
+    recommended: true,
+  },
+  wide: {
+    id: "wide",
+    label: "Amplio / Inmersivo (1536px)",
+    shortLabel: "Amplio (1536px)",
+    description: "Mayor presencia visual en pantallas de alta resolución con márgenes elegantes.",
+    maxWidthCss: "1536px",
+  },
+  full: {
+    id: "full",
+    label: "Ancho Completo Fluido (100%)",
+    shortLabel: "Ancho Completo (100%)",
+    description: "Aprovecha todo el ancho del monitor de borde a borde con padding de seguridad lateral.",
+    maxWidthCss: "100%",
+  },
+  compact: {
+    id: "compact",
+    label: "Compacto / Boutique (1080px)",
+    shortLabel: "Compacto (1080px)",
+    description: "Lookbook centrado estilo revista editorial, íntimo y enfocado para piezas exclusivas.",
+    maxWidthCss: "1080px",
+  },
+};
+
 export interface ShowroomSettings {
   whatsappNumber: string;
   showroomName: string;
@@ -180,6 +225,7 @@ export interface ShowroomSettings {
   themeHeaderBgColor?: string | null;
   themeFooterBgColor?: string | null;
   themeFont: string;
+  contentWidth?: StoreContentWidth;
   customTermsText?: string | null;
   // Métodos de pago (BR-47)
   mercadopagoEnabled: boolean;
@@ -225,6 +271,7 @@ export interface UpdateShowroomSettingsInput {
   themeHeaderBgColor?: string | null;
   themeFooterBgColor?: string | null;
   themeFont?: string | null;
+  contentWidth?: StoreContentWidth | null;
   customTermsText?: string | null;
   mercadopagoEnabled?: boolean;
   transferEnabled?: boolean;
@@ -294,6 +341,7 @@ export async function getShowroomSettings(
   let storedThemeHeaderBgColor: string | null = null;
   let storedThemeFooterBgColor: string | null = null;
   let storedThemeFont: string | null = null;
+  let storedContentWidth: string | null = null;
   let storedCustomTermsText: string | null = null;
   let storedMercadopagoEnabled: string | null = null;
   let storedTransferEnabled: string | null = null;
@@ -338,6 +386,7 @@ export async function getShowroomSettings(
       storedThemeHeaderBgColor = all["theme_header_bg_color"] ?? null;
       storedThemeFooterBgColor = all["theme_footer_bg_color"] ?? null;
       storedThemeFont = all["theme_font"] ?? null;
+      storedContentWidth = all["content_width"] ?? null;
       storedCustomTermsText = all["custom_terms_text"] ?? null;
       storedMercadopagoEnabled = all["mercadopago_enabled"] ?? null;
       storedTransferEnabled = all["transfer_enabled"] ?? null;
@@ -380,6 +429,7 @@ export async function getShowroomSettings(
         storedThemeHeaderBgColor,
         storedThemeFooterBgColor,
         storedThemeFont,
+        storedContentWidth,
         storedCustomTermsText,
         storedMercadopagoEnabled,
         storedTransferEnabled,
@@ -421,6 +471,7 @@ export async function getShowroomSettings(
         settingsRepo.get("theme_header_bg_color"),
         settingsRepo.get("theme_footer_bg_color"),
         settingsRepo.get("theme_font"),
+        settingsRepo.get("content_width"),
         settingsRepo.get("custom_terms_text"),
         settingsRepo.get("mercadopago_enabled"),
         settingsRepo.get("transfer_enabled"),
@@ -495,6 +546,7 @@ export async function getShowroomSettings(
     themeHeaderBgColor: storedThemeHeaderBgColor && storedThemeHeaderBgColor.trim() ? storedThemeHeaderBgColor.trim() : null,
     themeFooterBgColor: storedThemeFooterBgColor && storedThemeFooterBgColor.trim() ? storedThemeFooterBgColor.trim() : null,
     themeFont: storedThemeFont && storedThemeFont.trim() ? storedThemeFont.trim() : DEFAULT_THEME_FONT,
+    contentWidth: (storedContentWidth === "compact" || storedContentWidth === "wide" || storedContentWidth === "full" ? storedContentWidth : "standard") as StoreContentWidth,
     customTermsText: storedCustomTermsText && storedCustomTermsText.trim() ? storedCustomTermsText.trim() : null,
     // Métodos de pago
     mercadopagoEnabled: storedMercadopagoEnabled !== "0",
@@ -679,6 +731,16 @@ export async function updateShowroomSettings(
 
   if (input.themeFont !== undefined) {
     await settingsRepo.set("theme_font", input.themeFont ? input.themeFont.trim() : DEFAULT_THEME_FONT);
+  }
+
+  if (input.contentWidth !== undefined) {
+    const validWidth =
+      input.contentWidth === "compact" ||
+      input.contentWidth === "wide" ||
+      input.contentWidth === "full"
+        ? input.contentWidth
+        : DEFAULT_STORE_CONTENT_WIDTH;
+    await settingsRepo.set("content_width", validWidth);
   }
 
   // Métodos de pago (BR-47)

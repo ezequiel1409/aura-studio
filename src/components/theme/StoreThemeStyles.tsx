@@ -1,5 +1,6 @@
 import { resolveStoreTheme, hexToRgb } from "../../lib/theme/palettes";
 import { resolveStoreFont } from "../../lib/theme/fonts";
+import { StoreContentWidth, STORE_CONTENT_WIDTHS } from "../../services/settings.service";
 
 interface StoreThemeStylesProps {
   paletteId?: string | null;
@@ -9,6 +10,7 @@ interface StoreThemeStylesProps {
   headerBgColor?: string | null;
   footerBgColor?: string | null;
   fontId?: string | null;
+  contentWidth?: StoreContentWidth | string | null;
 }
 
 /**
@@ -35,12 +37,16 @@ export function StoreThemeStyles({
   headerBgColor,
   footerBgColor,
   fontId,
+  contentWidth,
 }: StoreThemeStylesProps) {
   const theme = resolveStoreTheme(paletteId, primaryColor, bgColor, surfaceColor);
   const font = resolveStoreFont(fontId);
   const accentContrast = getContrastColor(theme.accent);
   const headerContrast = getContrastColor(headerBgColor || theme.bg);
   const footerContrast = getContrastColor(footerBgColor || theme.surface);
+  const effectiveWidth = (contentWidth as StoreContentWidth) || "standard";
+  const widthConfig = STORE_CONTENT_WIDTHS[effectiveWidth] || STORE_CONTENT_WIDTHS.standard;
+  const widthCss = widthConfig.maxWidthCss;
 
   return (
     <style
@@ -57,6 +63,7 @@ export function StoreThemeStyles({
           --store-header-contrast: ${headerContrast};
           --store-footer-bg: ${footerBgColor || theme.surface};
           --store-footer-contrast: ${footerContrast};
+          --store-max-width: ${widthCss};
 
           --bg: ${theme.bg};
           --surface: ${theme.surface};
@@ -186,6 +193,22 @@ export function StoreThemeStyles({
         body:not(:has(#admin-layout-root)) .text-\\[\\#926a3c\\] {
           color: var(--store-accent) !important;
         }
+
+
+        /* 10. Control de ancho y espaciado de contenido (Container / Page Width) */
+        body:not(:has(#admin-layout-root)) .max-w-7xl,
+        body:not(:has(#admin-layout-root)) .max-w-6xl {
+          max-width: var(--store-max-width) !important;
+        }
+
+        ${effectiveWidth === "full" ? `
+        body:not(:has(#admin-layout-root)) header[role="banner"] > div,
+        body:not(:has(#admin-layout-root)) footer[role="contentinfo"] > div {
+          max-width: 100% !important;
+          padding-left: max(1rem, env(safe-area-inset-left)) !important;
+          padding-right: max(1rem, env(safe-area-inset-right)) !important;
+        }
+        ` : ""}
 
         /* Selección de texto */
         body:not(:has(#admin-layout-root)) ::selection {

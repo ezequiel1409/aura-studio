@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
         themeHeaderBgColor: body.themeHeaderBgColor,
         themeFooterBgColor: body.themeFooterBgColor,
         themeFont: body.themeFont,
+        contentWidth: body.contentWidth,
         customTermsText: body.customTermsText,
         mercadopagoEnabled: body.mercadopagoEnabled !== undefined ? Boolean(body.mercadopagoEnabled) : undefined,
         transferEnabled: body.transferEnabled !== undefined ? Boolean(body.transferEnabled) : undefined,

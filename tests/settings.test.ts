@@ -189,4 +189,51 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35, ADM-05, ADM
     expect(rgb).toEqual({ r: 146, g: 106, b: 60 });
     expect(rgbToHex(146, 106, 60)).toBe("#926a3c");
   });
+
+  it("permite personalizar el ancho de contenido de la tienda (contentWidth) con presets accesibles (WCAG)", async () => {
+    const { deps } = env;
+    const { STORE_CONTENT_WIDTHS, DEFAULT_STORE_CONTENT_WIDTH } = await import(
+      "../src/services/settings.service"
+    );
+
+    // Por defecto es standard (1280px / 7xl)
+    const initial = await getShowroomSettings(deps);
+    expect(initial.contentWidth).toBe(DEFAULT_STORE_CONTENT_WIDTH);
+    expect(STORE_CONTENT_WIDTHS[initial.contentWidth!].maxWidthCss).toBe("1280px");
+
+    // Guardar opción 'wide' (1536px / 2xl)
+    const updatedWide = await updateShowroomSettings(
+      { contentWidth: "wide" },
+      deps
+    );
+    expect(updatedWide.contentWidth).toBe("wide");
+    expect(STORE_CONTENT_WIDTHS[updatedWide.contentWidth!].maxWidthCss).toBe("1536px");
+
+    // Guardar opción 'full' (100% fluido)
+    const updatedFull = await updateShowroomSettings(
+      { contentWidth: "full" },
+      deps
+    );
+    expect(updatedFull.contentWidth).toBe("full");
+    expect(STORE_CONTENT_WIDTHS[updatedFull.contentWidth!].maxWidthCss).toBe("100%");
+
+    // Guardar opción 'compact' (1080px / 5xl)
+    const updatedCompact = await updateShowroomSettings(
+      { contentWidth: "compact" },
+      deps
+    );
+    expect(updatedCompact.contentWidth).toBe("compact");
+    expect(STORE_CONTENT_WIDTHS[updatedCompact.contentWidth!].maxWidthCss).toBe("1080px");
+
+    // Releer desde DB
+    const reloaded = await getShowroomSettings(deps);
+    expect(reloaded.contentWidth).toBe("compact");
+
+    // Fallback seguro si viene un valor desconocido
+    const fallbackTest = await updateShowroomSettings(
+      { contentWidth: "invalid-layout" as any },
+      deps
+    );
+    expect(fallbackTest.contentWidth).toBe(DEFAULT_STORE_CONTENT_WIDTH);
+  });
 });

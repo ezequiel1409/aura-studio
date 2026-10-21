@@ -13,6 +13,7 @@ import {
   Laptop,
   Layers,
   Loader2,
+  Maximize2,
   Moon,
   Palette,
   Plus,
@@ -27,7 +28,7 @@ import {
   Upload,
 } from "lucide-react";
 import { HomeBanner, Promotion } from "../../../domain/promotion/types";
-import { ShowroomSettings } from "../../../services/settings.service";
+import { ShowroomSettings, StoreContentWidth, STORE_CONTENT_WIDTHS, DEFAULT_STORE_CONTENT_WIDTH } from "../../../services/settings.service";
 import { THEME_PALETTES, ThemePalette, hexToRgb, normalizeHexColor } from "../../../lib/theme/palettes";
 import { THEME_FONTS } from "../../../lib/theme/fonts";
 import { calculateContrastRatio } from "../../../lib/theme/contrast";
@@ -161,6 +162,9 @@ export function AppearanceSettingsClient({
   const [themeHeaderBgColor, setThemeHeaderBgColor] = useState(initialSettings.themeHeaderBgColor || "");
   const [themeFooterBgColor, setThemeFooterBgColor] = useState(initialSettings.themeFooterBgColor || "");
   const [themeFont, setThemeFont] = useState(initialSettings.themeFont || "cormorant");
+  const [contentWidth, setContentWidth] = useState<StoreContentWidth>(
+    initialSettings.contentWidth || DEFAULT_STORE_CONTENT_WIDTH
+  );
 
   // Estado de Vista Previa (Escritorio vs Celular, Claro vs Oscuro)
   const [previewViewport, setPreviewViewport] = useState<"desktop" | "mobile">("desktop");
@@ -580,7 +584,84 @@ export function AppearanceSettingsClient({
                 </div>
               </div>
 
-              {/* Callout para desarrollo de tipografía exclusiva */}
+  
+            {/* Control de Ancho y Espaciado de la Tienda (Layout Width & Spacing) */}
+            <div className="space-y-3 pt-3 border-t border-zinc-800">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+                    <Maximize2 size={14} className="text-amber-400" />
+                    <span>Ancho y Espaciado del Contenido de la Tienda (Layout)</span>
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Definí la amplitud con la que se distribuyen las piezas y bloques en el navegador.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {Object.values(STORE_CONTENT_WIDTHS).map((opt) => {
+                  const isSelected = contentWidth === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setContentWidth(opt.id)}
+                      className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? "border-amber-400 bg-amber-400/10 ring-1 ring-amber-400"
+                          : "border-zinc-800 hover:border-zinc-700 bg-zinc-950/70"
+                      }`}
+                    >
+                      <div>
+                        {/* Mini diagrama visual de proporciones del layout */}
+                        <div className="w-full h-10 rounded-lg bg-zinc-900 border border-zinc-800 p-1.5 mb-2.5 flex items-center justify-center">
+                          <div
+                            className={`h-full rounded bg-amber-400/30 border border-amber-400/60 transition-all ${
+                              opt.id === "compact"
+                                ? "w-1/2"
+                                : opt.id === "standard"
+                                ? "w-2/3"
+                                : opt.id === "wide"
+                                ? "w-5/6"
+                                : "w-full"
+                            }`}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-xs font-bold text-zinc-100">
+                            {opt.shortLabel}
+                          </span>
+                          {isSelected && <Check size={14} className="text-amber-400 shrink-0" />}
+                        </div>
+
+                        {opt.recommended && (
+                          <span className="inline-block text-[9px] font-bold uppercase tracking-wider text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full mb-1.5">
+                            Recomendado WCAG
+                          </span>
+                        )}
+
+                        <p className="text-[11px] text-zinc-400 leading-snug">
+                          {opt.description}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 text-[10px] font-mono text-zinc-500">
+                        Max: {opt.maxWidthCss}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Nota de accesibilidad sobre ancho de línea y ergonomía de lectura */}
+              <div className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800 text-[11px] text-zinc-400 leading-relaxed">
+                <strong className="text-zinc-200">Estrategia de Accesibilidad (WCAG 2.1 - Criterio 1.4.8):</strong> El ancho <em className="text-zinc-200 font-medium">Estándar Editorial (1280px)</em> mantiene los bloques de texto dentro del rango óptimo de 60 a 80 caracteres por línea para una lectura descansada. Si seleccionás <em className="text-zinc-200 font-medium">Ancho Completo (100%)</em> o <em className="text-zinc-200 font-medium">Amplio</em>, el sistema extiende la grilla de productos a los extremos pero mantiene márgenes laterales de seguridad automáticos y columnas de lectura acotadas para no perder legibilidad en monitores 4K y ultrawide.
+              </div>
+            </div>
+
+            {/* Callout para desarrollo de tipografía exclusiva */}
               <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-400/5 border border-amber-400/20 text-xs text-zinc-300">
                 <Sparkles size={16} className="text-amber-400 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
@@ -654,7 +735,10 @@ export function AppearanceSettingsClient({
                 <span>Vista Previa de la Home</span>
               </span>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline-block text-[10px] font-mono text-zinc-400 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-800">
+                  {STORE_CONTENT_WIDTHS[contentWidth]?.shortLabel || "Estándar"}
+                </span>
                 {/* Selector Dispositivo */}
                 <div className="flex items-center bg-zinc-950 rounded-lg p-0.5 border border-zinc-800">
                   <button
@@ -706,11 +790,25 @@ export function AppearanceSettingsClient({
               </div>
 
               {/* Header simulado */}
-              <div className="px-4 py-2.5 border-b border-[#e7e2da] flex items-center justify-between" style={{ backgroundColor: themeHeaderBgColor || activePalette.surface }}>
-                <span className="font-serif font-bold uppercase tracking-wider text-stone-900 text-xs">
-                  {initialSettings.showroomName || "Aura Studio"}
-                </span>
-                <span className="text-[10px] text-stone-500">Bolsa (0)</span>
+              <div className="border-b border-[#e7e2da] transition-all" style={{ backgroundColor: themeHeaderBgColor || activePalette.surface }}>
+                <div
+                  className={`px-4 py-2.5 flex items-center justify-between transition-all duration-300 ${
+                    previewViewport === "desktop"
+                      ? contentWidth === "compact"
+                        ? "max-w-[78%] mx-auto"
+                        : contentWidth === "standard"
+                        ? "max-w-[88%] mx-auto"
+                        : contentWidth === "wide"
+                        ? "max-w-[96%] mx-auto"
+                        : "w-full"
+                      : "w-full"
+                  }`}
+                >
+                  <span className="font-serif font-bold uppercase tracking-wider text-stone-900 text-xs">
+                    {initialSettings.showroomName || "Aura Studio"}
+                  </span>
+                  <span className="text-[10px] text-stone-500">Bolsa (0)</span>
+                </div>
               </div>
 
               {/* Hero Banner en vivo */}
@@ -744,19 +842,33 @@ export function AppearanceSettingsClient({
               </div>
 
               {/* Bloque Promociones Bancarias Simulado */}
-              <div className="p-4 space-y-2 bg-white/70">
-                <div className="flex items-center justify-between text-[11px] font-semibold text-stone-800">
-                  <span>Promociones Bancarias</span>
-                  <span className="text-[10px] text-stone-500">Ver todas →</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <div className="p-2 rounded-lg border border-[#e7e2da] bg-white">
-                    <p className="font-bold text-stone-900">Banco Galicia</p>
-                    <p className="text-stone-500">3 cuotas sin interés</p>
+              <div className="bg-white/70 transition-all">
+                <div
+                  className={`p-4 space-y-2 transition-all duration-300 ${
+                    previewViewport === "desktop"
+                      ? contentWidth === "compact"
+                        ? "max-w-[78%] mx-auto"
+                        : contentWidth === "standard"
+                        ? "max-w-[88%] mx-auto"
+                        : contentWidth === "wide"
+                        ? "max-w-[96%] mx-auto"
+                        : "w-full"
+                      : "w-full"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-stone-800">
+                    <span>Promociones Bancarias</span>
+                    <span className="text-[10px] text-stone-500">Ver todas →</span>
                   </div>
-                  <div className="p-2 rounded-lg border border-[#e7e2da] bg-white">
-                    <p className="font-bold text-stone-900">Banco Santander</p>
-                    <p className="text-stone-500">20% de reintegro</p>
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div className="p-2 rounded-lg border border-[#e7e2da] bg-white">
+                      <p className="font-bold text-stone-900">Banco Galicia</p>
+                      <p className="text-stone-500">3 cuotas sin interés</p>
+                    </div>
+                    <div className="p-2 rounded-lg border border-[#e7e2da] bg-white">
+                      <p className="font-bold text-stone-900">Banco Santander</p>
+                      <p className="text-stone-500">20% de reintegro</p>
+                    </div>
                   </div>
                 </div>
               </div>
