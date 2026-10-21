@@ -30,7 +30,7 @@ export function NewPiecesAlertSection() {
   return (
     <section
       aria-label="Aviso de nuevas piezas"
-      className="my-16 sm:my-20 rounded-2xl border border-[#e7e2da] bg-stone-900 text-white p-6 sm:p-10 shadow-sm relative overflow-hidden"
+      className="my-8 sm:my-10 rounded-2xl border border-[#e7e2da] bg-stone-900 text-white p-5 sm:p-7 shadow-sm relative overflow-hidden"
     >
       <div className="absolute -right-10 -bottom-10 h-64 w-64 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
 

@@ -58,6 +58,10 @@ export function AppearanceSettingsClient({
   const [themePrimaryColor, setThemePrimaryColor] = useState(
     initialSettings.themePrimaryColor || THEME_PALETTES[initialSettings.themePalette || "lino"]?.accent || "#926a3c"
   );
+  const [themeBgColor, setThemeBgColor] = useState(initialSettings.themeBgColor || "");
+  const [themeSurfaceColor, setThemeSurfaceColor] = useState(initialSettings.themeSurfaceColor || "");
+  const [themeHeaderBgColor, setThemeHeaderBgColor] = useState(initialSettings.themeHeaderBgColor || "");
+  const [themeFooterBgColor, setThemeFooterBgColor] = useState(initialSettings.themeFooterBgColor || "");
   const [themeFont, setThemeFont] = useState(initialSettings.themeFont || "cormorant");
 
   // Estado de Vista Previa (Escritorio vs Celular, Claro vs Oscuro)
@@ -82,7 +86,20 @@ export function AppearanceSettingsClient({
     if (pal) {
       setThemePalette(palId);
       setThemePrimaryColor(pal.accent);
+      setThemeBgColor(pal.bg);
+      setThemeSurfaceColor(pal.surface);
+      setThemeHeaderBgColor(pal.bg);
+      setThemeFooterBgColor(pal.surface);
     }
+  };
+
+  const handleResetColorsToPalette = () => {
+    const pal = THEME_PALETTES[themePalette] || THEME_PALETTES.lino;
+    setThemePrimaryColor(pal.accent);
+    setThemeBgColor("");
+    setThemeSurfaceColor("");
+    setThemeHeaderBgColor("");
+    setThemeFooterBgColor("");
   };
 
   const handleToggleBannerActive = (bannerId: number) => {
@@ -116,6 +133,10 @@ export function AppearanceSettingsClient({
           heroBannerUrl,
           themePalette,
           themePrimaryColor,
+          themeBgColor: themeBgColor.trim() || null,
+          themeSurfaceColor: themeSurfaceColor.trim() || null,
+          themeHeaderBgColor: themeHeaderBgColor.trim() || null,
+          themeFooterBgColor: themeFooterBgColor.trim() || null,
           themeFont,
         }),
       });
@@ -357,52 +378,176 @@ export function AppearanceSettingsClient({
               </div>
             </div>
 
-            {/* Color Primario / Acento personalizado */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="accent-color-input"
-                  className="block text-xs font-medium text-zinc-300 mb-1"
+            {/* Personalización Total de Colores (Fondo, Cabecera, Contenido, Footer y Acento) */}
+            <div className="space-y-3 pt-2 border-t border-zinc-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-200">
+                    Personalización Integral de Colores
+                  </h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Ajustá el fondo, la cabecera, las tarjetas y los botones según la identidad de tu marca.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleResetColorsToPalette}
+                  className="text-[11px] font-semibold text-amber-300 hover:underline cursor-pointer"
                 >
-                  Color de Acento / Botones
-                </label>
-                <div className="flex items-center gap-2.5">
-                  <input
-                    id="accent-color-picker"
-                    type="color"
-                    value={themePrimaryColor}
-                    onChange={(e) => setThemePrimaryColor(e.target.value)}
-                    className="h-10 w-12 rounded-lg border border-zinc-700 bg-zinc-950 p-1 cursor-pointer"
-                  />
-                  <input
-                    id="accent-color-input"
-                    type="text"
-                    value={themePrimaryColor}
-                    onChange={(e) => setThemePrimaryColor(e.target.value)}
-                    className="flex-1 rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-sm text-zinc-100 font-mono text-xs focus:border-amber-400 focus:outline-none"
-                  />
+                  Restablecer a valores de paleta
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* 1. Color de Acento / Botones */}
+                <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-1.5">
+                  <label htmlFor="accent-color-input" className="block text-xs font-medium text-zinc-300">
+                    Acento / Botones de compra
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="accent-color-picker"
+                      type="color"
+                      value={themePrimaryColor}
+                      onChange={(e) => setThemePrimaryColor(e.target.value)}
+                      className="h-8 w-10 rounded border border-zinc-700 bg-zinc-900 p-0.5 cursor-pointer"
+                    />
+                    <input
+                      id="accent-color-input"
+                      type="text"
+                      value={themePrimaryColor}
+                      onChange={(e) => setThemePrimaryColor(e.target.value)}
+                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-100 font-mono focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Color de Fondo de Página */}
+                <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-1.5">
+                  <label htmlFor="bg-color-input" className="block text-xs font-medium text-zinc-300">
+                    Fondo de la Página
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="bg-color-picker"
+                      type="color"
+                      value={themeBgColor || activePalette.bg}
+                      onChange={(e) => setThemeBgColor(e.target.value)}
+                      className="h-8 w-10 rounded border border-zinc-700 bg-zinc-900 p-0.5 cursor-pointer"
+                    />
+                    <input
+                      id="bg-color-input"
+                      type="text"
+                      placeholder={activePalette.bg}
+                      value={themeBgColor}
+                      onChange={(e) => setThemeBgColor(e.target.value)}
+                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-100 font-mono placeholder:text-zinc-500 focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Color de Cabecera (Header) */}
+                <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-1.5">
+                  <label htmlFor="header-bg-input" className="block text-xs font-medium text-zinc-300">
+                    Fondo de Cabecera (Header)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="header-bg-picker"
+                      type="color"
+                      value={themeHeaderBgColor || activePalette.bg}
+                      onChange={(e) => setThemeHeaderBgColor(e.target.value)}
+                      className="h-8 w-10 rounded border border-zinc-700 bg-zinc-900 p-0.5 cursor-pointer"
+                    />
+                    <input
+                      id="header-bg-input"
+                      type="text"
+                      placeholder={activePalette.bg}
+                      value={themeHeaderBgColor}
+                      onChange={(e) => setThemeHeaderBgColor(e.target.value)}
+                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-100 font-mono placeholder:text-zinc-500 focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Color de Superficie / Tarjetas */}
+                <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-1.5">
+                  <label htmlFor="surface-color-input" className="block text-xs font-medium text-zinc-300">
+                    Superficie / Tarjetas
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="surface-color-picker"
+                      type="color"
+                      value={themeSurfaceColor || activePalette.surface}
+                      onChange={(e) => setThemeSurfaceColor(e.target.value)}
+                      className="h-8 w-10 rounded border border-zinc-700 bg-zinc-900 p-0.5 cursor-pointer"
+                    />
+                    <input
+                      id="surface-color-input"
+                      type="text"
+                      placeholder={activePalette.surface}
+                      value={themeSurfaceColor}
+                      onChange={(e) => setThemeSurfaceColor(e.target.value)}
+                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-100 font-mono placeholder:text-zinc-500 focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Color de Pie de Página (Footer) */}
+                <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-1.5">
+                  <label htmlFor="footer-bg-input" className="block text-xs font-medium text-zinc-300">
+                    Fondo de Pie de Página (Footer)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="footer-bg-picker"
+                      type="color"
+                      value={themeFooterBgColor || activePalette.surface}
+                      onChange={(e) => setThemeFooterBgColor(e.target.value)}
+                      className="h-8 w-10 rounded border border-zinc-700 bg-zinc-900 p-0.5 cursor-pointer"
+                    />
+                    <input
+                      id="footer-bg-input"
+                      type="text"
+                      placeholder={activePalette.surface}
+                      value={themeFooterBgColor}
+                      onChange={(e) => setThemeFooterBgColor(e.target.value)}
+                      className="flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-100 font-mono placeholder:text-zinc-500 focus:border-amber-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 6. Selector de Tipografía */}
+                <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800 space-y-1.5">
+                  <label htmlFor="font-select" className="block text-xs font-medium text-zinc-300">
+                    Tipografía de Títulos
+                  </label>
+                  <select
+                    id="font-select"
+                    value={themeFont}
+                    onChange={(e) => setThemeFont(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-100 focus:border-amber-400 focus:outline-none cursor-pointer"
+                  >
+                    <option value="cormorant">Cormorant Garamond (Editorial Clásico)</option>
+                    <option value="playfair">Playfair Display (Alta Costura)</option>
+                    <option value="dm_serif">DM Serif Display (Moderno y Rotundo)</option>
+                    <option value="montserrat">Montserrat (Contemporáneo Geométrico)</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Tipografía */}
-              <div>
-                <label
-                  htmlFor="font-select"
-                  className="block text-xs font-medium text-zinc-300 mb-1"
-                >
-                  Tipografía de Títulos
-                </label>
-                <select
-                  id="font-select"
-                  value={themeFont}
-                  onChange={(e) => setThemeFont(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:outline-none cursor-pointer"
-                >
-                  <option value="cormorant">Cormorant Garamond (Editorial Clásico)</option>
-                  <option value="playfair">Playfair Display (Alta Costura)</option>
-                  <option value="dm_serif">DM Serif Display (Moderno y Rotundo)</option>
-                  <option value="montserrat">Montserrat (Contemporáneo Geométrico)</option>
-                </select>
+              {/* Callout para desarrollo de tipografía exclusiva */}
+              <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-400/5 border border-amber-400/20 text-xs text-zinc-300">
+                <Sparkles size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-amber-300">
+                    ¿Tu marca utiliza una tipografía exclusiva?
+                  </p>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    Las fuentes predefinidas garantizan velocidad editorial instantánea. Si tu comercio requiere incorporar una fuente corporativa con licencia (.woff2 o Adobe Fonts), podés solicitar un desarrollo específico a nuestro equipo de diseño.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -505,7 +650,7 @@ export function AppearanceSettingsClient({
                   : "w-full text-xs"
               }`}
               style={{
-                backgroundColor: activePalette.bg,
+                backgroundColor: themeBgColor || activePalette.bg,
                 color: activePalette.text,
               }}
             >
@@ -518,7 +663,7 @@ export function AppearanceSettingsClient({
               </div>
 
               {/* Header simulado */}
-              <div className="px-4 py-2.5 bg-white border-b border-[#e7e2da] flex items-center justify-between">
+              <div className="px-4 py-2.5 border-b border-[#e7e2da] flex items-center justify-between" style={{ backgroundColor: themeHeaderBgColor || activePalette.surface }}>
                 <span className="font-serif font-bold uppercase tracking-wider text-stone-900 text-xs">
                   {initialSettings.showroomName || "Aura Studio"}
                 </span>

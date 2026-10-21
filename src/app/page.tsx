@@ -54,6 +54,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <StoreThemeStyles
           paletteId={data.settings.themePalette}
           primaryColor={data.settings.themePrimaryColor}
+          bgColor={data.settings.themeBgColor}
+          surfaceColor={data.settings.themeSurfaceColor}
+          headerBgColor={data.settings.themeHeaderBgColor}
+          footerBgColor={data.settings.themeFooterBgColor}
           fontId={data.settings.themeFont}
         />
         <Header
@@ -178,6 +182,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <StoreThemeStyles
         paletteId={settings.themePalette}
         primaryColor={settings.themePrimaryColor}
+        bgColor={settings.themeBgColor}
+        surfaceColor={settings.themeSurfaceColor}
+        headerBgColor={settings.themeHeaderBgColor}
+        footerBgColor={settings.themeFooterBgColor}
         fontId={settings.themeFont}
       />
 

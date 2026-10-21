@@ -4,13 +4,18 @@ import { resolveStoreFont } from "../../lib/theme/fonts";
 interface StoreThemeStylesProps {
   paletteId?: string | null;
   primaryColor?: string | null;
+  bgColor?: string | null;
+  surfaceColor?: string | null;
+  headerBgColor?: string | null;
+  footerBgColor?: string | null;
   fontId?: string | null;
 }
 
 /**
- * Calcula un color de texto accesible (blanco o casi negro) con alto contraste para el color de acento
+ * Calcula un color de texto accesible (blanco o casi negro) con alto contraste para un fondo dado
  */
-function getContrastColor(hex: string): string {
+function getContrastColor(hex?: string | null): string {
+  if (!hex) return "#ffffff";
   const rgb = hexToRgb(hex);
   if (!rgb) return "#ffffff";
   const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
@@ -19,13 +24,23 @@ function getContrastColor(hex: string): string {
 
 /**
  * Inyecta variables CSS dinámicas y reglas de tema para la tienda pública
- * basadas en la paleta y la tipografía configuradas en el Backoffice (sin re-deploy).
+ * basadas en la paleta, colores y tipografía configuradas en el Backoffice (sin re-deploy).
  * Protege el backoffice (#admin-layout-root) para no alterar el panel administrativo.
  */
-export function StoreThemeStyles({ paletteId, primaryColor, fontId }: StoreThemeStylesProps) {
-  const theme = resolveStoreTheme(paletteId, primaryColor);
+export function StoreThemeStyles({
+  paletteId,
+  primaryColor,
+  bgColor,
+  surfaceColor,
+  headerBgColor,
+  footerBgColor,
+  fontId,
+}: StoreThemeStylesProps) {
+  const theme = resolveStoreTheme(paletteId, primaryColor, bgColor, surfaceColor);
   const font = resolveStoreFont(fontId);
-  const contrastColor = getContrastColor(theme.accent);
+  const accentContrast = getContrastColor(theme.accent);
+  const headerContrast = getContrastColor(headerBgColor || theme.bg);
+  const footerContrast = getContrastColor(footerBgColor || theme.surface);
 
   return (
     <style
@@ -35,9 +50,13 @@ export function StoreThemeStyles({ paletteId, primaryColor, fontId }: StoreTheme
           --store-bg: ${theme.bg};
           --store-surface: ${theme.surface};
           --store-accent: ${theme.accent};
-          --store-accent-contrast: ${contrastColor};
+          --store-accent-contrast: ${accentContrast};
           --store-text: ${theme.text};
           --store-border: ${theme.border};
+          --store-header-bg: ${headerBgColor || theme.bg};
+          --store-header-contrast: ${headerContrast};
+          --store-footer-bg: ${footerBgColor || theme.surface};
+          --store-footer-contrast: ${footerContrast};
 
           --bg: ${theme.bg};
           --surface: ${theme.surface};
@@ -72,6 +91,7 @@ export function StoreThemeStyles({ paletteId, primaryColor, fontId }: StoreTheme
 
         /* 3. Reemplazo reactivo de utilidades de fondo de tienda */
         body:not(:has(#admin-layout-root)) .bg-\\[\\#faf8f5\\],
+        body:not(:has(#admin-layout-root)) .bg-\\[\\#faf8f5\\]\\/95,
         body:not(:has(#admin-layout-root)) .bg-\\[\\#faf8f5\\]\\/90,
         body:not(:has(#admin-layout-root)) .bg-\\[\\#faf8f5\\]\\/80,
         body:not(:has(#admin-layout-root)) .bg-\\[\\#faf8f5\\]\\/70,
@@ -79,19 +99,55 @@ export function StoreThemeStyles({ paletteId, primaryColor, fontId }: StoreTheme
           background-color: var(--store-bg) !important;
         }
 
-        /* 4. Reemplazo reactivo de utilidades de texto de tienda */
+        /* 4. Superficies y tarjetas de productos personalizables */
+        ${
+          surfaceColor
+            ? `
+        body:not(:has(#admin-layout-root)) .bg-white,
+        body:not(:has(#admin-layout-root)) .store-card {
+          background-color: var(--store-surface) !important;
+        }
+        `
+            : ""
+        }
+
+        /* 5. Cabecera (Header) personalizable */
+        ${
+          headerBgColor
+            ? `
+        body:not(:has(#admin-layout-root)) header[role="banner"],
+        body:not(:has(#admin-layout-root)) .store-header {
+          background-color: var(--store-header-bg) !important;
+        }
+        `
+            : ""
+        }
+
+        /* 6. Pie de página (Footer) personalizable */
+        ${
+          footerBgColor
+            ? `
+        body:not(:has(#admin-layout-root)) footer[role="contentinfo"],
+        body:not(:has(#admin-layout-root)) .store-footer {
+          background-color: var(--store-footer-bg) !important;
+        }
+        `
+            : ""
+        }
+
+        /* 7. Reemplazo reactivo de utilidades de texto de tienda */
         body:not(:has(#admin-layout-root)) .text-\\[\\#1c1917\\] {
           color: var(--store-text) !important;
         }
 
-        /* 5. Reemplazo reactivo de bordes de tienda */
+        /* 8. Reemplazo reactivo de bordes de tienda */
         body:not(:has(#admin-layout-root)) .border-\\[\\#e7e2da\\],
         body:not(:has(#admin-layout-root)) .border-\\[\\#e7e2da\\]\\/70,
         body:not(:has(#admin-layout-root)) .border-\\[\\#e7e2da\\]\\/60 {
           border-color: var(--store-border) !important;
         }
 
-        /* 6. Botones principales, llamados a la acción (CTA) y acentos de marca seleccionados por el comercio */
+        /* 9. Botones principales, llamados a la acción (CTA) y acentos de marca seleccionados por el comercio */
         body:not(:has(#admin-layout-root)) .bg-stone-900,
         body:not(:has(#admin-layout-root)) button.bg-stone-900,
         body:not(:has(#admin-layout-root)) a.bg-stone-900,

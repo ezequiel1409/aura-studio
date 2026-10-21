@@ -209,17 +209,18 @@ export function Footer({
               </p>
             )}
 
-            <div className="flex flex-col gap-2 pt-1">
+            {/* Redes sociales y WhatsApp en la misma fila con iconos accesibles */}
+            <div className="flex items-center gap-2 pt-2 flex-wrap">
               {whatsappHref && (
                 <a
                   href={whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`Contactar por WhatsApp al ${whatsappNumber || ""}`}
-                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#155e42] hover:bg-[#0f4631] text-white font-medium text-xs shadow-xs transition-all w-fit focus-visible:outline-2 focus-visible:outline-[#155e42]"
+                  title={`WhatsApp: ${whatsappNumber}`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#155e42] hover:bg-[#0f4631] text-white transition-all shadow-2xs hover:scale-105 focus-visible:outline-2 focus-visible:outline-[#155e42]"
                 >
                   <WhatsAppLogo className="h-4 w-4 text-white" />
-                  <span>WhatsApp: {whatsappNumber}</span>
                 </a>
               )}
 
@@ -229,10 +230,10 @@ export function Footer({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`Seguir en Instagram a @${cleanInstagram}`}
-                  className="inline-flex items-center gap-2 text-stone-700 hover:text-stone-950 transition-colors w-fit"
+                  title={`Instagram: @${cleanInstagram}`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8d2c7] bg-white text-stone-700 hover:text-white hover:bg-gradient-to-tr hover:from-[#f09433] hover:via-[#dc2743] hover:to-[#bc1888] hover:border-transparent transition-all shadow-2xs hover:scale-105"
                 >
-                  <InstagramIcon className="h-4 w-4 text-[#E4405F]" />
-                  <span>Instagram: @{cleanInstagram}</span>
+                  <InstagramIcon className="h-4 w-4" />
                 </a>
               )}
 
@@ -242,10 +243,10 @@ export function Footer({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={`Seguir en TikTok a @${cleanTiktok}`}
-                  className="inline-flex items-center gap-2 text-stone-700 hover:text-stone-950 transition-colors w-fit"
+                  title={`TikTok: @${cleanTiktok}`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8d2c7] bg-white text-stone-800 hover:text-white hover:bg-black hover:border-black transition-all shadow-2xs hover:scale-105"
                 >
-                  <TikTokIcon className="h-4 w-4 text-stone-800" />
-                  <span>TikTok: @{cleanTiktok}</span>
+                  <TikTokIcon className="h-4 w-4" />
                 </a>
               )}
             </div>

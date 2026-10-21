@@ -46,6 +46,10 @@ export default async function TerminosPage() {
       <StoreThemeStyles
         paletteId={settings.themePalette}
         primaryColor={settings.themePrimaryColor}
+        bgColor={settings.themeBgColor}
+        surfaceColor={settings.themeSurfaceColor}
+        headerBgColor={settings.themeHeaderBgColor}
+        footerBgColor={settings.themeFooterBgColor}
         fontId={settings.themeFont}
       />
 
@@ -114,69 +118,77 @@ export default async function TerminosPage() {
 
         {/* Cláusulas Detalladas */}
         <div className="space-y-8 text-xs sm:text-sm text-stone-700 leading-relaxed bg-white rounded-3xl border border-[#e7e2da] p-6 sm:p-10 shadow-xs">
-          <section className="space-y-3">
-            <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
-              1. Condiciones Generales y Disponibilidad
-            </h2>
-            <p>
-              El acceso y uso de la tienda online de <strong>{brandName}</strong> implica la aceptación plena de los presentes Términos y Condiciones. Nuestras prendas y piezas son seleccionadas de forma exclusiva y cuentan con inventario limitado o de ejemplar único.
-            </p>
-            <p>
-              En caso de que una pieza seleccionada se agote de manera simultánea durante el proceso de compra, se notificará de inmediato al cliente para ofrecer una alternativa equivalente o la restitución inmediata del importe abonado.
-            </p>
-          </section>
+          {settings.customTermsText && settings.customTermsText.trim() ? (
+            <div className="whitespace-pre-line space-y-4 font-sans text-stone-800 text-sm leading-relaxed">
+              {settings.customTermsText.trim()}
+            </div>
+          ) : (
+            <>
+              <section className="space-y-3">
+                <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
+                  1. Condiciones Generales y Disponibilidad
+                </h2>
+                <p>
+                  El acceso y uso de la tienda online de <strong>{brandName}</strong> implica la aceptación plena de los presentes Términos y Condiciones. Nuestras prendas y piezas son seleccionadas de forma exclusiva y cuentan con inventario limitado o de ejemplar único.
+                </p>
+                <p>
+                  En caso de que una pieza seleccionada se agote de manera simultánea durante el proceso de compra, se notificará de inmediato al cliente para ofrecer una alternativa equivalente o la restitución inmediata del importe abonado.
+                </p>
+              </section>
 
-          <section className="space-y-3">
-            <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
-              2. Política de Reserva y Pago
-            </h2>
-            <p>
-              Al completar una solicitud de pedido mediante transferencia bancaria o WhatsApp, la prenda queda reservada a nombre del comprador por un plazo máximo de <strong>{reservationText}</strong>.
-            </p>
-            <p>
-              Transcurrido este plazo sin que se haya acreditado el pago ni enviado el comprobante correspondiente, la reserva caducará automáticamente y la pieza volverá a estar disponible para la venta general en el showroom.
-            </p>
-          </section>
+              <section className="space-y-3">
+                <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
+                  2. Política de Reserva y Pago
+                </h2>
+                <p>
+                  Al completar una solicitud de pedido mediante transferencia bancaria o WhatsApp, la prenda queda reservada a nombre del comprador por un plazo máximo de <strong>{reservationText}</strong>.
+                </p>
+                <p>
+                  Transcurrido este plazo sin que se haya acreditado el pago ni enviado el comprobante correspondiente, la reserva caducará automáticamente y la pieza volverá a estar disponible para la venta general en el showroom.
+                </p>
+              </section>
 
-          <section className="space-y-3">
-            <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
-              3. Envíos y Retiro en el Local
-            </h2>
-            <p>
-              Realizamos envíos a todo el territorio argentino a través de correo privado y mensajería express. Los costos de envío y plazos estimados de entrega se informan con precisión en la bolsa de compras antes de confirmar el pedido.
-            </p>
-            <p>
-              Los retiros en el local se realizan sin costo adicional en los horarios de atención y retiro habilitados, previa confirmación por WhatsApp o notificación de pedido listo.
-            </p>
-          </section>
+              <section className="space-y-3">
+                <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
+                  3. Envíos y Retiro en el Local
+                </h2>
+                <p>
+                  Realizamos envíos a todo el territorio argentino a través de correo privado y mensajería express. Los costos de envío y plazos estimados de entrega se informan con precisión en la bolsa de compras antes de confirmar el pedido.
+                </p>
+                <p>
+                  Los retiros en el local se realizan sin costo adicional en los horarios de atención y retiro habilitados, previa confirmación por WhatsApp o notificación de pedido listo.
+                </p>
+              </section>
 
-          <section className="space-y-3">
-            <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
-              4. Cambios, Devoluciones y Botón de Arrepentimiento
-            </h2>
-            <p>
-              Se aceptan cambios dentro de los 15 (quince) días corridos desde la fecha de recepción o retiro de la compra, siempre que la prenda se encuentre en perfecto estado de conservación, sin uso y con sus etiquetas originales colocadas.
-            </p>
-            <p>
-              Conforme a la Ley Nacional de Defensa del Consumidor N° 24.240 y la Resolución 424/2020 de la Secretaría de Comercio Interior, los clientes disponen del <strong>Botón de Arrepentimiento</strong> disponible en el pie de página para revocar la compra dentro de los 10 días corridos de recibido el producto.
-            </p>
-          </section>
+              <section className="space-y-3">
+                <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
+                  4. Cambios, Devoluciones y Botón de Arrepentimiento
+                </h2>
+                <p>
+                  Se aceptan cambios dentro de los 15 (quince) días corridos desde la fecha de recepción o retiro de la compra, siempre que la prenda se encuentre en perfecto estado de conservación, sin uso y con sus etiquetas originales colocadas.
+                </p>
+                <p>
+                  Conforme a la Ley Nacional de Defensa del Consumidor N° 24.240 y la Resolución 424/2020 de la Secretaría de Comercio Interior, los clientes disponen del <strong>Botón de Arrepentimiento</strong> disponible en el pie de página para revocar la compra dentro de los 10 días corridos de recibido el producto.
+                </p>
+              </section>
 
-          <section className="space-y-3">
-            <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
-              5. Promociones Bancarias y Descuentos
-            </h2>
-            <p>
-              Los beneficios, cuotas sin interés y reintegros con entidades bancarias se rigen por las condiciones particulares publicadas en nuestra sección de{" "}
-              <Link
-                href="/promociones"
-                className="font-semibold text-stone-900 underline underline-offset-4"
-              >
-                Promociones Bancarias
-              </Link>
-              , sujetas a vigencia y topes de reintegro establecidos por cada entidad emisora.
-            </p>
-          </section>
+              <section className="space-y-3">
+                <h2 className="font-serif text-xl font-medium text-stone-900 border-b border-[#f0ece1] pb-2">
+                  5. Promociones Bancarias y Descuentos
+                </h2>
+                <p>
+                  Los beneficios, cuotas sin interés y reintegros con entidades bancarias se rigen por las condiciones particulares publicadas en nuestra sección de{" "}
+                  <Link
+                    href="/promociones"
+                    className="font-semibold text-stone-900 underline underline-offset-4"
+                  >
+                    Promociones Bancarias
+                  </Link>
+                  , sujetas a vigencia y topes de reintegro establecidos por cada entidad emisora.
+                </p>
+              </section>
+            </>
+          )}
         </div>
       </main>
 

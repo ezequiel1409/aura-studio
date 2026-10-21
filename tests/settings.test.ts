@@ -138,4 +138,33 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35, ADM-05, ADM
     const resHours48 = config48.reservationHours;
     expect(`${resHours48} horas`).toBe("48 horas");
   });
+
+  it("permite personalizar integralmente los colores (fondo, superficie, header, footer) y términos legales", async () => {
+    const { deps } = env;
+
+    const updated = await updateShowroomSettings(
+      {
+        themeBgColor: "#121214",
+        themeSurfaceColor: "#1a1a1e",
+        themeHeaderBgColor: "#09090b",
+        themeFooterBgColor: "#09090b",
+        customTermsText: "Cláusula 1: Envíos personalizados y compras protegidas por Aura.",
+      },
+      deps
+    );
+
+    expect(updated.themeBgColor).toBe("#121214");
+    expect(updated.themeSurfaceColor).toBe("#1a1a1e");
+    expect(updated.themeHeaderBgColor).toBe("#09090b");
+    expect(updated.themeFooterBgColor).toBe("#09090b");
+    expect(updated.customTermsText).toBe("Cláusula 1: Envíos personalizados y compras protegidas por Aura.");
+
+    // Al releer desde la base de datos
+    const reloaded = await getShowroomSettings(deps);
+    expect(reloaded.themeBgColor).toBe("#121214");
+    expect(reloaded.themeSurfaceColor).toBe("#1a1a1e");
+    expect(reloaded.themeHeaderBgColor).toBe("#09090b");
+    expect(reloaded.themeFooterBgColor).toBe("#09090b");
+    expect(reloaded.customTermsText).toBe("Cláusula 1: Envíos personalizados y compras protegidas por Aura.");
+  });
 });

@@ -9,6 +9,7 @@ import {
   DEFAULT_ANNOUNCEMENT_BAR,
   DEFAULT_CATALOG_CONFIG,
   DEFAULT_HOME_BLOCKS,
+  DEFAULT_SUGGESTED_TERMS,
   HeroMode,
   HomeBlocksConfig,
   ShowroomSettings,
@@ -20,7 +21,7 @@ import {
   StoreScheduleConfig,
 } from "../../lib/schedule/store-schedule";
 import { THEME_PALETTES } from "../../lib/theme/palettes";
-export type SettingsTabId = "top" | "main" | "footer" | "payments" | "general";
+export type SettingsTabId = "top" | "main" | "footer" | "payments" | "general" | "politicas";
 import { TopHeaderSettingsSection } from "./settings/TopHeaderSettingsSection";
 import { MainContentSettingsSection } from "./settings/MainContentSettingsSection";
 import { FooterSettingsSection } from "./settings/FooterSettingsSection";
@@ -41,7 +42,7 @@ interface SettingsClientProps {
   initialTab?: SettingsTabId;
 }
 
-const VALID_TABS: SettingsTabId[] = ["top", "main", "footer", "payments", "general"];
+const VALID_TABS: SettingsTabId[] = ["top", "main", "footer", "payments", "general", "politicas"];
 
 export function SettingsClient({
   initialSettings,
@@ -113,6 +114,9 @@ export function SettingsClient({
   // 4. Configuraciones Generales
   const [reservationHours, setReservationHours] = useState<number>(
     initialSettings.reservationHours || 48
+  );
+  const [customTermsText, setCustomTermsText] = useState<string>(
+    initialSettings.customTermsText || ""
   );
 
   // 5. Métodos de Pago (BR-47)
@@ -212,6 +216,7 @@ export function SettingsClient({
           address: address.trim(),
           dataFiscalUrl: dataFiscalUrl.trim(),
           reservationHours,
+          customTermsText: customTermsText.trim() || null,
           heroMode,
           heroTitle: heroTitle.trim(),
           heroSubtitle: heroSubtitle.trim(),
@@ -349,11 +354,15 @@ export function SettingsClient({
               ? "Contacto, Showroom y Redes"
               : activeTab === "payments"
               ? "Medios de Pago"
+              : activeTab === "politicas"
+              ? "Políticas de Tienda y Términos"
               : "Reservas, Inventario y Políticas"}
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
             {activeTab === "general"
               ? "Ajustes de tiempo de reserva para carritos y stock del sistema."
+              : activeTab === "politicas"
+              ? "Términos y condiciones legales, políticas de cambios y plazos de devolución."
               : "Configuración específica de la tienda."}
           </p>
         </div>
@@ -458,6 +467,46 @@ export function SettingsClient({
             whatsappPaymentEnabled={whatsappPaymentEnabled}
             onWhatsappPaymentEnabledChange={setWhatsappPaymentEnabled}
           />
+        </div>
+
+        <div hidden={activeTab !== "politicas"}>
+          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+                  Términos y Condiciones Generales (Página /terminos)
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Texto legal publicado para tus clientes. Podés usar las sugerencias predefinidas o personalizar cada cláusula a medida.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCustomTermsText(DEFAULT_SUGGESTED_TERMS)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-400/50 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
+              >
+                <span>Cargar términos sugeridos por defecto</span>
+              </button>
+            </div>
+
+            <textarea
+              rows={14}
+              value={customTermsText}
+              onChange={(e) => setCustomTermsText(e.target.value)}
+              placeholder="Si dejás este campo vacío, la página de términos utilizará automáticamente las sugerencias legales completas del sistema..."
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 text-xs text-zinc-100 placeholder-zinc-500 font-sans focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400 leading-relaxed"
+            />
+
+            <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 text-xs text-zinc-400 space-y-1">
+              <p className="font-semibold text-zinc-300">Puntos clave recomendados en la legislación argentina:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-zinc-400">
+                <li>Botón de Arrepentimiento conforme a Ley N° 24.240 (10 días corridos para revocar compra online).</li>
+                <li>Política de cambios y estado de las prendas (15 a 30 días corridos con etiqueta y sin uso).</li>
+                <li>Condiciones de retiro en showroom y despacho por correo/mensajería.</li>
+              </ul>
+            </div>
+          </div>
         </div>
 
         <div hidden={activeTab !== "general"}>

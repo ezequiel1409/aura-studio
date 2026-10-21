@@ -66,6 +66,10 @@ export default async function RootLayout({
     settings = {
       themePalette: "lino",
       themePrimaryColor: null,
+      themeBgColor: null,
+      themeSurfaceColor: null,
+      themeHeaderBgColor: null,
+      themeFooterBgColor: null,
       themeFont: "cormorant",
     };
   }
@@ -78,6 +82,10 @@ export default async function RootLayout({
         <StoreThemeStyles
           paletteId={settings.themePalette}
           primaryColor={settings.themePrimaryColor}
+          bgColor={settings.themeBgColor}
+          surfaceColor={settings.themeSurfaceColor}
+          headerBgColor={settings.themeHeaderBgColor}
+          footerBgColor={settings.themeFooterBgColor}
           fontId={settings.themeFont}
         />
       </head>

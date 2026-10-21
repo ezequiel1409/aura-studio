@@ -108,35 +108,36 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
- * Resuelve la paleta efectiva para la tienda pública
+ * Resuelve la paleta efectiva para la tienda pública permitiendo personalización
+ * total de colores de acento, fondo y superficie.
  */
 export function resolveStoreTheme(
   paletteId?: string | null,
-  customPrimaryColor?: string | null
+  customPrimaryColor?: string | null,
+  customBgColor?: string | null,
+  customSurfaceColor?: string | null
 ): ThemePalette {
   const preset = paletteId && THEME_PALETTES[paletteId] ? THEME_PALETTES[paletteId] : THEME_PALETTES.lino;
+  const theme: ThemePalette = { ...preset };
 
   if (paletteId === "custom" && customPrimaryColor && /^#[0-9a-fA-F]{3,6}$/.test(customPrimaryColor.trim())) {
-    return {
-      id: "custom",
-      name: "Personalizado",
-      description: "Paleta personalizada con acento de marca a medida",
-      bg: "#faf8f5",
-      surface: "#ffffff",
-      accent: customPrimaryColor.trim(),
-      text: "#1c1917",
-      border: "#e7e2da",
-    };
+    theme.id = "custom";
+    theme.name = "Personalizado";
+    theme.description = "Paleta personalizada con acento de marca a medida";
+    theme.accent = customPrimaryColor.trim();
+  } else if (customPrimaryColor && /^#[0-9a-fA-F]{3,6}$/.test(customPrimaryColor.trim()) && customPrimaryColor.trim() !== preset.accent) {
+    theme.accent = customPrimaryColor.trim();
   }
 
-  // Si se definió un color primario personalizado y es válido, sobreescribir el accent del preset
-  if (customPrimaryColor && /^#[0-9a-fA-F]{3,6}$/.test(customPrimaryColor.trim()) && customPrimaryColor.trim() !== preset.accent) {
-    return {
-      ...preset,
-      accent: customPrimaryColor.trim(),
-    };
+  // Personalización opcional del fondo de página
+  if (customBgColor && /^#[0-9a-fA-F]{3,6}$/.test(customBgColor.trim())) {
+    theme.bg = customBgColor.trim();
   }
 
-  return preset;
+  // Personalización opcional de la superficie / tarjetas
+  if (customSurfaceColor && /^#[0-9a-fA-F]{3,6}$/.test(customSurfaceColor.trim())) {
+    theme.surface = customSurfaceColor.trim();
+  }
+
+  return theme;
 }
-

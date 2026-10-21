@@ -137,6 +137,25 @@ export const DEFAULT_CATALOG_CONFIG: CatalogConfig = {
   ],
 };
 
+export const DEFAULT_SUGGESTED_TERMS = `1. Condiciones Generales y Disponibilidad
+El acceso y uso de la tienda online implica la aceptación plena de los presentes Términos y Condiciones. Nuestras piezas son seleccionadas de forma exclusiva y cuentan con inventario limitado o de ejemplar único.
+En caso de que una pieza seleccionada se agote de manera simultánea durante el proceso de compra, se notificará de inmediato al cliente para coordinar una alternativa equivalente o la restitución del importe abonado.
+
+2. Política de Reserva y Pago
+Al completar una solicitud de pedido mediante transferencia bancaria o WhatsApp, la prenda queda reservada por el plazo establecido para coordinar el pago o retiro.
+Transcurrido este plazo sin acreditación del pago ni comprobante correspondiente, la reserva caduca automáticamente y la pieza vuelve a estar disponible para la venta general.
+
+3. Envíos y Retiro en el Local
+Realizamos envíos a todo el territorio a través de correo privado y mensajería express. Los costos de envío y plazos estimados de entrega se informan con precisión antes de confirmar el pedido.
+Los retiros en el local se realizan sin costo adicional en los horarios habilitados, previa confirmación por WhatsApp o notificación de pedido listo.
+
+4. Cambios, Devoluciones y Botón de Arrepentimiento
+Se aceptan cambios dentro de los 15 (quince) días corridos desde la fecha de recepción o retiro de la compra, siempre que la prenda se encuentre en perfecto estado de conservación, sin uso y con sus etiquetas originales.
+Conforme a la Ley Nacional de Defensa del Consumidor N° 24.240 y la Res. 424/2020 SCI, los clientes disponen del Botón de Arrepentimiento para revocar la compra dentro de los 10 días corridos de recibido el producto.
+
+5. Promociones Bancarias y Descuentos
+Los beneficios, cuotas sin interés y reintegros con entidades bancarias se rigen por las condiciones particulares publicadas en la sección de Promociones Bancarias, sujetas a vigencia y topes de reintegro establecidos por cada entidad emisora.`;
+
 export interface ShowroomSettings {
   whatsappNumber: string;
   showroomName: string;
@@ -156,7 +175,12 @@ export interface ShowroomSettings {
   heroBannerUrl?: string | null;
   themePalette: string;
   themePrimaryColor?: string | null;
+  themeBgColor?: string | null;
+  themeSurfaceColor?: string | null;
+  themeHeaderBgColor?: string | null;
+  themeFooterBgColor?: string | null;
   themeFont: string;
+  customTermsText?: string | null;
   // Métodos de pago (BR-47)
   mercadopagoEnabled: boolean;
   transferEnabled: boolean;
@@ -196,7 +220,12 @@ export interface UpdateShowroomSettingsInput {
   heroBannerUrl?: string | null;
   themePalette?: string;
   themePrimaryColor?: string | null;
+  themeBgColor?: string | null;
+  themeSurfaceColor?: string | null;
+  themeHeaderBgColor?: string | null;
+  themeFooterBgColor?: string | null;
   themeFont?: string | null;
+  customTermsText?: string | null;
   mercadopagoEnabled?: boolean;
   transferEnabled?: boolean;
   transferBankName?: string | null;
@@ -260,7 +289,12 @@ export async function getShowroomSettings(
   let storedHeroBannerUrl: string | null = null;
   let storedThemePalette: string | null = null;
   let storedThemePrimaryColor: string | null = null;
+  let storedThemeBgColor: string | null = null;
+  let storedThemeSurfaceColor: string | null = null;
+  let storedThemeHeaderBgColor: string | null = null;
+  let storedThemeFooterBgColor: string | null = null;
   let storedThemeFont: string | null = null;
+  let storedCustomTermsText: string | null = null;
   let storedMercadopagoEnabled: string | null = null;
   let storedTransferEnabled: string | null = null;
   let storedTransferBankName: string | null = null;
@@ -299,7 +333,12 @@ export async function getShowroomSettings(
       storedHeroBannerUrl = all["hero_banner_url"] ?? null;
       storedThemePalette = all["theme_palette"] ?? null;
       storedThemePrimaryColor = all["theme_primary_color"] ?? null;
+      storedThemeBgColor = all["theme_bg_color"] ?? null;
+      storedThemeSurfaceColor = all["theme_surface_color"] ?? null;
+      storedThemeHeaderBgColor = all["theme_header_bg_color"] ?? null;
+      storedThemeFooterBgColor = all["theme_footer_bg_color"] ?? null;
       storedThemeFont = all["theme_font"] ?? null;
+      storedCustomTermsText = all["custom_terms_text"] ?? null;
       storedMercadopagoEnabled = all["mercadopago_enabled"] ?? null;
       storedTransferEnabled = all["transfer_enabled"] ?? null;
       storedTransferBankName = all["transfer_bank_name"] ?? null;
@@ -336,7 +375,12 @@ export async function getShowroomSettings(
         storedHeroBannerUrl,
         storedThemePalette,
         storedThemePrimaryColor,
+        storedThemeBgColor,
+        storedThemeSurfaceColor,
+        storedThemeHeaderBgColor,
+        storedThemeFooterBgColor,
         storedThemeFont,
+        storedCustomTermsText,
         storedMercadopagoEnabled,
         storedTransferEnabled,
         storedTransferBankName,
@@ -372,7 +416,12 @@ export async function getShowroomSettings(
         settingsRepo.get("hero_banner_url"),
         settingsRepo.get("theme_palette"),
         settingsRepo.get("theme_primary_color"),
+        settingsRepo.get("theme_bg_color"),
+        settingsRepo.get("theme_surface_color"),
+        settingsRepo.get("theme_header_bg_color"),
+        settingsRepo.get("theme_footer_bg_color"),
         settingsRepo.get("theme_font"),
+        settingsRepo.get("custom_terms_text"),
         settingsRepo.get("mercadopago_enabled"),
         settingsRepo.get("transfer_enabled"),
         settingsRepo.get("transfer_bank_name"),
@@ -441,7 +490,12 @@ export async function getShowroomSettings(
     heroBannerUrl: storedHeroBannerUrl && storedHeroBannerUrl.trim() ? storedHeroBannerUrl.trim() : null,
     themePalette: storedThemePalette && storedThemePalette.trim() ? storedThemePalette.trim() : DEFAULT_THEME_PALETTE,
     themePrimaryColor: storedThemePrimaryColor && storedThemePrimaryColor.trim() ? storedThemePrimaryColor.trim() : null,
+    themeBgColor: storedThemeBgColor && storedThemeBgColor.trim() ? storedThemeBgColor.trim() : null,
+    themeSurfaceColor: storedThemeSurfaceColor && storedThemeSurfaceColor.trim() ? storedThemeSurfaceColor.trim() : null,
+    themeHeaderBgColor: storedThemeHeaderBgColor && storedThemeHeaderBgColor.trim() ? storedThemeHeaderBgColor.trim() : null,
+    themeFooterBgColor: storedThemeFooterBgColor && storedThemeFooterBgColor.trim() ? storedThemeFooterBgColor.trim() : null,
     themeFont: storedThemeFont && storedThemeFont.trim() ? storedThemeFont.trim() : DEFAULT_THEME_FONT,
+    customTermsText: storedCustomTermsText && storedCustomTermsText.trim() ? storedCustomTermsText.trim() : null,
     // Métodos de pago
     mercadopagoEnabled: storedMercadopagoEnabled !== "0",
     transferEnabled: storedTransferEnabled !== "0",
@@ -601,6 +655,26 @@ export async function updateShowroomSettings(
 
   if (input.themePrimaryColor !== undefined) {
     await settingsRepo.set("theme_primary_color", input.themePrimaryColor ? input.themePrimaryColor.trim() : "");
+  }
+
+  if (input.themeBgColor !== undefined) {
+    await settingsRepo.set("theme_bg_color", input.themeBgColor ? input.themeBgColor.trim() : "");
+  }
+
+  if (input.themeSurfaceColor !== undefined) {
+    await settingsRepo.set("theme_surface_color", input.themeSurfaceColor ? input.themeSurfaceColor.trim() : "");
+  }
+
+  if (input.themeHeaderBgColor !== undefined) {
+    await settingsRepo.set("theme_header_bg_color", input.themeHeaderBgColor ? input.themeHeaderBgColor.trim() : "");
+  }
+
+  if (input.themeFooterBgColor !== undefined) {
+    await settingsRepo.set("theme_footer_bg_color", input.themeFooterBgColor ? input.themeFooterBgColor.trim() : "");
+  }
+
+  if (input.customTermsText !== undefined) {
+    await settingsRepo.set("custom_terms_text", input.customTermsText ? input.customTermsText.trim() : "");
   }
 
   if (input.themeFont !== undefined) {
