@@ -92,9 +92,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Extraer llave de idempotencia desde cabeceras HTTP o cuerpo para prevenir duplicados
+    const headerIdempotency =
+      req.headers.get("x-idempotency-key") || req.headers.get("idempotency-key");
+    if (!body.idempotencyKey && headerIdempotency) {
+      body.idempotencyKey = headerIdempotency;
+    }
+
     body.baseUrl = req.nextUrl.origin;
     const result = await createOrder(body, deps);
-    return NextResponse.json(result);
+    return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     if (error instanceof ProductNotFoundError || error instanceof OrderNotFoundError) {
       return NextResponse.json({ error: error.message }, { status: 404 });

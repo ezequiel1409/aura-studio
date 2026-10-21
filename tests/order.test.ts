@@ -1,7 +1,15 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestEnvironment } from "./setup-db";
 import { createProduct } from "../src/services/product.service";
-import { createOrder, getOrderByCode, getOrderById, updateOrderStatus, listOrders } from "../src/services/order.service";
+import {
+  createOrder,
+  getOrderByCode,
+  getOrderById,
+  updateOrderStatus,
+  listOrders,
+  clearOrderSubmissionsCache,
+} from "../src/services/order.service";
+import * as paymentService from "../src/services/payment.service";
 import { WhatsAppPaymentAdapter } from "../src/infra/payments/whatsapp.adapter";
 import { validateCreateOrderInput, formatOrderCode, parseOrderCode } from "../src/domain/order/rules";
 import { ValidationError } from "../src/domain/errors";
@@ -10,6 +18,8 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
   let env: ReturnType<typeof createTestEnvironment>;
 
   beforeEach(async () => {
+    vi.restoreAllMocks();
+    clearOrderSubmissionsCache();
     env = createTestEnvironment();
     await env.seed();
   });
@@ -612,6 +622,170 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
 
       const byCode = await getOrderByCode(order.code, env.deps);
       expect(byCode.customerDni).toBe("40123456");
+    });
+  });
+
+  describe("Idempotencia y Rollback Transaccional en Creación de Órdenes", () => {
+    it("previene la duplicación de órdenes y doble descuento de stock al reintentar con la misma llave de idempotencia", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Pantalón Sastrero $45.000",
+          colors: [{ name: "Negro", position: 0, sizes: [{ size: "L", stock: 10 }] }],
+        },
+        env.deps
+      );
+
+      const input = {
+        idempotencyKey: "test_idem_unique_key_001",
+        customerName: "Lucía Méndez",
+        customerPhone: "1144556677",
+        customerEmail: "lucia@example.com",
+        customerDni: "38111222",
+        deliveryMethod: "PICKUP" as const,
+        paymentMethod: "TRANSFER" as const,
+        items: [
+          {
+            productId: product.id,
+            productCode: product.code,
+            productTitle: product.title ?? "Pantalón Sastrero",
+            colorName: "Negro",
+            size: "L",
+            quantity: 2,
+            unitPriceCents: 4500000,
+          },
+        ],
+      };
+
+      // 1. Primer envío
+      const res1 = await createOrder(input, env.deps);
+      expect(res1.order.id).toBeGreaterThan(0);
+      expect(res1.order.code).toBeGreaterThan(0);
+
+      // El stock debe haber bajado de 10 a 8
+      let updatedProduct = await env.deps.productRepo.findById(product.id);
+      expect(updatedProduct!.colors![0].sizes[0].stock).toBe(8);
+
+      // 2. Segundo envío con la misma llave de idempotencia
+      const res2 = await createOrder(input, env.deps);
+
+      // Debe devolver exactamente la misma orden existente
+      expect(res2.order.id).toBe(res1.order.id);
+      expect(res2.order.code).toBe(res1.order.code);
+
+      // El stock NO debe volver a descontarse (debe permanecer en 8, no en 6)
+      updatedProduct = await env.deps.productRepo.findById(product.id);
+      expect(updatedProduct!.colors![0].sizes[0].stock).toBe(8);
+
+      // En la base de datos sólo existe 1 orden
+      const allOrders = await env.deps.orderRepo.list();
+      expect(allOrders.length).toBe(1);
+    });
+
+    it("resuelve peticiones concurrentes idénticas en vuelo sin duplicar stock ni órdenes", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Blusa Seda $35.000",
+          colors: [{ name: "Blanco", position: 0, sizes: [{ size: "S", stock: 5 }] }],
+        },
+        env.deps
+      );
+
+      const input = {
+        idempotencyKey: "test_concurrent_key_002",
+        customerName: "Mariana Costa",
+        customerPhone: "1199887766",
+        customerEmail: "mariana@example.com",
+        customerDni: "39888777",
+        deliveryMethod: "PICKUP" as const,
+        paymentMethod: "TRANSFER" as const,
+        items: [
+          {
+            productId: product.id,
+            productCode: product.code,
+            productTitle: product.title ?? "Blusa Seda",
+            colorName: "Blanco",
+            size: "S",
+            quantity: 1,
+            unitPriceCents: 3500000,
+          },
+        ],
+      };
+
+      // Disparar dos peticiones en paralelo
+      const [resA, resB] = await Promise.all([
+        createOrder(input, env.deps),
+        createOrder(input, env.deps),
+      ]);
+
+      expect(resA.order.id).toBe(resB.order.id);
+      expect(resA.order.code).toBe(resB.order.code);
+
+      const updatedProduct = await env.deps.productRepo.findById(product.id);
+      expect(updatedProduct!.colors![0].sizes[0].stock).toBe(4);
+
+      const allOrders = await env.deps.orderRepo.list();
+      expect(allOrders.length).toBe(1);
+    });
+
+    it("ejecuta rollback transaccional automático (restaura stock y cancela orden) si la pasarela de pago falla", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Vestido Gala $60.000",
+          colors: [{ name: "Rojo", position: 0, sizes: [{ size: "M", stock: 5 }] }],
+        },
+        env.deps
+      );
+
+      // Simular falla en la comunicación con la pasarela de pago
+      vi.spyOn(paymentService, "createOrderPaymentPreference").mockRejectedValueOnce(
+        new Error("Conexión rechazada por timeout en API de cobro")
+      );
+
+      const input = {
+        idempotencyKey: "test_rollback_key_003",
+        customerName: "Sofía Rossi",
+        customerPhone: "1155667788",
+        customerEmail: "sofia@example.com",
+        customerDni: "37444555",
+        deliveryMethod: "PICKUP" as const,
+        paymentMethod: "MERCADOPAGO" as const,
+        items: [
+          {
+            productId: product.id,
+            productCode: product.code,
+            productTitle: product.title ?? "Vestido Gala",
+            colorName: "Rojo",
+            size: "M",
+            quantity: 2,
+            unitPriceCents: 6000000,
+          },
+        ],
+      };
+
+      // Debe lanzar ValidationError informando el rollback
+      await expect(createOrder(input, env.deps)).rejects.toThrow(
+        /No se pudo completar el proceso de cobro.*Tu stock fue restaurado y la orden cancelada/i
+      );
+
+      // ROLLBACK 1: El inventario fue restaurado a 5 unidades intactas
+      const restoredProduct = await env.deps.productRepo.findById(product.id);
+      expect(restoredProduct!.colors![0].sizes[0].stock).toBe(5);
+
+      // ROLLBACK 2: La orden creada quedó marcada como CANCELLED y REJECTED
+      const allOrders = await env.deps.orderRepo.list();
+      expect(allOrders.length).toBe(1);
+      expect(allOrders[0].status).toBe("CANCELLED");
+      expect(allOrders[0].paymentStatus).toBe("REJECTED");
+
+      // ROLLBACK 3: La llave de idempotencia fue liberada para permitir un nuevo intento
+      // Ahora sin mock de falla, la reintentación debe operar con éxito
+      const retryResult = await createOrder(input, env.deps);
+      expect(retryResult.order.id).toBeGreaterThan(0);
+      expect(retryResult.order.status).toBe("PENDING");
+
+      // Stock debitado 5 - 2 = 3
+      const productAfterRetry = await env.deps.productRepo.findById(product.id);
+      expect(productAfterRetry!.colors![0].sizes[0].stock).toBe(3);
     });
   });
 });

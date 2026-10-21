@@ -49,19 +49,10 @@ export function PaymentsSettingsClient({
   const [paywayEnabled, setPaywayEnabled] = useState(
     initialSettings.paywayEnabled ?? false
   );
-  const [paywayEnvironment, setPaywayEnvironment] = useState<"sandbox" | "production">(
-    initialSettings.paywayEnvironment || "sandbox"
-  );
-  const [paywayCuotaSimpleEnabled, setPaywayCuotaSimpleEnabled] = useState(
-    initialSettings.paywayCuotaSimpleEnabled ?? true
-  );
 
   // 4. Getnet (Santander)
   const [getnetEnabled, setGetnetEnabled] = useState(
     initialSettings.getnetEnabled ?? false
-  );
-  const [getnetEnvironment, setGetnetEnvironment] = useState<"sandbox" | "production">(
-    initialSettings.getnetEnvironment || "sandbox"
   );
 
   // 5. MODO (Billetera Bancaria)
@@ -108,10 +99,7 @@ export function PaymentsSettingsClient({
           transferCuit: transferCuit.trim(),
           transferDiscountPercent,
           paywayEnabled,
-          paywayEnvironment,
-          paywayCuotaSimpleEnabled,
           getnetEnabled,
-          getnetEnvironment,
           modoEnabled,
           googlePayEnabled,
           cashEnabled,
@@ -196,14 +184,8 @@ export function PaymentsSettingsClient({
           onTransferDiscountPercentChange={setTransferDiscountPercent}
           paywayEnabled={paywayEnabled}
           onPaywayEnabledChange={setPaywayEnabled}
-          paywayEnvironment={paywayEnvironment}
-          onPaywayEnvironmentChange={setPaywayEnvironment}
-          paywayCuotaSimpleEnabled={paywayCuotaSimpleEnabled}
-          onPaywayCuotaSimpleEnabledChange={setPaywayCuotaSimpleEnabled}
           getnetEnabled={getnetEnabled}
           onGetnetEnabledChange={setGetnetEnabled}
-          getnetEnvironment={getnetEnvironment}
-          onGetnetEnvironmentChange={setGetnetEnvironment}
           modoEnabled={modoEnabled}
           onModoEnabledChange={setModoEnabled}
           googlePayEnabled={googlePayEnabled}

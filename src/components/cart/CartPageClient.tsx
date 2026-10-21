@@ -391,10 +391,16 @@ export function CartPageClient({
     setIsSubmitting(true);
 
     try {
+      const idempotencyKey = `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
       const response = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
         body: JSON.stringify({
+          idempotencyKey,
           customerName: customerName.trim(),
           customerDni: customerDni.replace(/\D/g, "") || customer?.dni || "",
           customerPhone: customerPhone.trim(),
@@ -1522,8 +1528,9 @@ export function CartPageClient({
                   </h2>
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={handleReturnToCartStep}
-                    className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer"
+                    className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer disabled:opacity-50"
                   >
                     Editar bolsa
                   </button>
@@ -1569,7 +1576,11 @@ export function CartPageClient({
                       return (
                         <label
                           key={m.method}
-                          className={`flex items-start gap-3 p-3.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                          className={`flex items-start gap-3 p-3.5 rounded-xl border text-xs transition-all ${
+                            isSubmitting
+                              ? "opacity-60 pointer-events-none cursor-not-allowed"
+                              : "cursor-pointer"
+                          } ${
                             isSelected
                               ? "border-stone-900 bg-stone-50/70 shadow-2xs ring-1 ring-stone-900"
                               : "border-[#e7e2da] hover:border-stone-300 bg-white"
@@ -1580,6 +1591,7 @@ export function CartPageClient({
                             name="paymentMethod"
                             value={m.method}
                             checked={isSelected}
+                            disabled={isSubmitting}
                             onChange={() => setSelectedPaymentMethod(m.method)}
                             className="mt-0.5 accent-stone-900"
                           />
@@ -1658,8 +1670,9 @@ export function CartPageClient({
                   <input
                     type="checkbox"
                     checked={acceptTerms}
+                    disabled={isSubmitting}
                     onChange={(e) => setAcceptTerms(e.target.checked)}
-                    className="mt-0.5 accent-stone-900"
+                    className="mt-0.5 accent-stone-900 disabled:opacity-50"
                   />
                   <span>
                     Acepto los{" "}
@@ -1675,6 +1688,25 @@ export function CartPageClient({
                 </label>
               </div>
 
+              {/* Aviso dinámico de procesamiento en tiempo real */}
+              {isSubmitting && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-950 animate-pulse"
+                >
+                  <Loader2 className="h-5 w-5 animate-spin text-amber-700 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-amber-950">
+                      Procesando tu pedido de forma segura...
+                    </p>
+                    <p className="text-amber-800 text-[11px] leading-relaxed">
+                      Estamos reservando el stock de tus prendas y conectando con el servicio de cobro. Por favor no cierres ni recargues esta ventana.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {errorMessage && (
                 <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
                   <AlertCircle className="h-4 w-4 shrink-0" />
@@ -1686,11 +1718,12 @@ export function CartPageClient({
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#e7e2da] pt-5">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => {
                     setSelectedPaymentMethod("TRANSFER");
                     setCurrentStep("shipping");
                   }}
-                  className="w-full sm:w-auto inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer"
+                  className="w-full sm:w-auto inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer disabled:opacity-50"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span>Editar datos</span>

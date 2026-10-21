@@ -75,6 +75,7 @@ export interface CreateOrderInput {
   customerId?: number | null;
   commerceId?: number | null;
   baseUrl?: string;
+  idempotencyKey?: string | null;
   notes?: string | null;
   items: CreateOrderItemInput[];
 }

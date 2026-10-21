@@ -41,6 +41,7 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   couponCode: string | null;
   customerId: number | null;
   commerceId: number | null;
+  idempotencyKey?: string | null;
   notes: string | null;
 } {
   const customerName = input.customerName?.trim();
@@ -116,6 +117,7 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
     couponCode: input.couponCode?.trim().toUpperCase() || null,
     customerId: input.customerId ?? null,
     commerceId: input.commerceId ?? null,
+    idempotencyKey: input.idempotencyKey?.trim() || null,
     notes: input.notes?.trim() || null,
   };
 }
