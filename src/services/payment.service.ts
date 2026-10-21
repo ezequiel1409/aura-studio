@@ -1,3 +1,20 @@
+/**
+ * =========================================================================================
+ * GUÍA TÉCNICA PARA DESARROLLADORES: PASARELAS DE PAGO Y SECRETOS (FINTECH / PCI-DSS)
+ * =========================================================================================
+ * Todas las pasarelas que procesan pagos con tarjeta o billeteras operan exclusivamente con
+ * credenciales encriptadas en el entorno del servidor (Cloudflare Workers Secrets / .env.local).
+ * 
+ * Por seguridad financiera, el panel del usuario final nunca solicita ni muestra tokens o claves.
+ *
+ * Para activar cada pasarela de forma segura en producción (Cloudflare):
+ * - Mercado Pago:   npx wrangler secret put MP_ACCESS_TOKEN
+ *                   npx wrangler secret put MP_WEBHOOK_SECRET
+ * - Payway Prisma:  npx wrangler secret put PAYWAY_API_KEY
+ * - Getnet:         npx wrangler secret put GETNET_CLIENT_SECRET
+ * =========================================================================================
+ */
+
 import { OrderNotFoundError, ValidationError } from "../domain/errors";
 import { Order } from "../domain/order/types";
 import {

@@ -147,13 +147,13 @@ export function PaymentsSettingsClient({
       {/* Encabezado */}
       <div>
         <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-400">
-          Tienda › Medios de Pago & Pasarelas
+          Tienda › Formas de Cobro
         </span>
         <h1 className="text-xl sm:text-2xl font-serif font-light text-zinc-100 mt-1">
           Medios de Pago y Cobro
         </h1>
         <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-          Configurá las pasarelas activas para tus clientes en el checkout. La arquitectura opera con credenciales encriptadas en servidor (Cloudflare Secrets) y datos bancarios públicos directos para transferencia sin comisión.
+          Elegí y configurá las formas de pago que verán tus clientes al momento de finalizar su compra en la tienda.
         </p>
       </div>
 
