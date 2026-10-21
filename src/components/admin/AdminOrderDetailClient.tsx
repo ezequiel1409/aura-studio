@@ -17,6 +17,8 @@ import {
   MessageCircle,
   Package,
   Printer,
+  QrCode,
+  Wallet,
   RotateCcw,
   ShoppingBag,
   Store,
@@ -46,6 +48,10 @@ const PAYMENT_METHOD_CONFIG: Record<
   CASH: { label: "Efectivo", icon: Banknote, color: "text-emerald-400" },
   WHATSAPP: { label: "WhatsApp Directo", icon: MessageCircle, color: "text-[#25D366]" },
   STRIPE: { label: "Stripe", icon: CreditCard, color: "text-indigo-400" },
+  PAYWAY: { label: "Payway (Prisma)", icon: CreditCard, color: "text-indigo-400" },
+  GETNET: { label: "Getnet (Santander)", icon: CreditCard, color: "text-rose-400" },
+  MODO: { label: "MODO (QR / Bancos)", icon: QrCode, color: "text-teal-400" },
+  GOOGLEPAY: { label: "Google Pay", icon: Wallet, color: "text-amber-400" },
 };
 
 const PAYMENT_STATUS_CONFIG: Record<

@@ -27,14 +27,63 @@ export async function getAvailablePaymentMethods(
   const methods: PaymentMethodConfig[] = [];
 
   // 1. Mercado Pago
-  const mpHasToken = Boolean(env.MP_ACCESS_TOKEN) || env.NODE_ENV !== "production";
+  const mpHasToken =
+    Boolean(settings.mercadopagoAccessToken) ||
+    Boolean(env.MP_ACCESS_TOKEN) ||
+    env.NODE_ENV !== "production";
   if (settings.mercadopagoEnabled && mpHasToken) {
     methods.push({
       method: "MERCADOPAGO",
       name: "Mercado Pago",
       description: "Tarjetas de crédito, débito, dinero en cuenta o cuotas.",
       enabled: true,
-      badge: "Inmediato",
+      badge: settings.mercadopagoConnectedAccount ? "Sincronizado" : "Inmediato",
+    });
+  }
+
+  // 1.b Payway (Prisma Medios de Pago)
+  if (settings.paywayEnabled) {
+    methods.push({
+      method: "PAYWAY",
+      name: "Payway (Prisma)",
+      description: settings.paywayCuotaSimpleEnabled
+        ? "Tarjetas de crédito bancarias con Cuota Simple, débito y prepagas."
+        : "Tarjetas de crédito y débito bancarias con acreditación segura.",
+      enabled: true,
+      badge: settings.paywayCuotaSimpleEnabled ? "Cuota Simple" : "Tarjetas",
+    });
+  }
+
+  // 1.c Getnet (Santander)
+  if (settings.getnetEnabled) {
+    methods.push({
+      method: "GETNET",
+      name: "Getnet (Santander)",
+      description: "Pagá con tarjetas Visa, Mastercard y promociones exclusivas Santander.",
+      enabled: true,
+      badge: "Santander",
+    });
+  }
+
+  // 1.d MODO (Billetera Bancaria)
+  if (settings.modoEnabled) {
+    methods.push({
+      method: "MODO",
+      name: "MODO (App Bancaria & QR)",
+      description: "Pagá escaneando el código QR con la app de tu banco o MODO con reintegros.",
+      enabled: true,
+      badge: "QR Interoperable",
+    });
+  }
+
+  // 1.e Google Pay
+  if (settings.googlePayEnabled) {
+    methods.push({
+      method: "GOOGLEPAY",
+      name: "Google Pay",
+      description: "Pago rápido y seguro en 1 clic con biometría y tus tarjetas de Google.",
+      enabled: true,
+      badge: "1 Clic",
     });
   }
 
@@ -90,8 +139,8 @@ export async function createOrderPaymentPreference(
 
   if (method === "MERCADOPAGO") {
     const adapter = new MercadoPagoPaymentAdapter({
-      accessToken: env.MP_ACCESS_TOKEN,
-      publicKey: env.MP_PUBLIC_KEY,
+      accessToken: settings.mercadopagoAccessToken || env.MP_ACCESS_TOKEN,
+      publicKey: settings.mercadopagoPublicKey || env.MP_PUBLIC_KEY,
       baseUrl: options?.baseUrl,
     });
 
@@ -125,6 +174,46 @@ export async function createOrderPaymentPreference(
       instructions: settings.cashNotes,
     });
     return adapter.createPaymentPreference(order);
+  }
+
+  if (method === "PAYWAY") {
+    const formattedCode = `#ORD-${order.code.toString().padStart(3, "0")}`;
+    return {
+      method: "PAYWAY",
+      status: "PENDING",
+      instructions: `Redirigiendo a Payway para abonar ${formattedCode} con tarjetas bancarias y planes Cuota Simple...`,
+      paymentUrl: `${options?.baseUrl || ""}/carrito?step=payment_success&order_code=${order.code}&provider=payway`,
+    };
+  }
+
+  if (method === "GETNET") {
+    const formattedCode = `#ORD-${order.code.toString().padStart(3, "0")}`;
+    return {
+      method: "GETNET",
+      status: "PENDING",
+      instructions: `Redirigiendo a Getnet (Santander) para procesar el pago de ${formattedCode}...`,
+      paymentUrl: `${options?.baseUrl || ""}/carrito?step=payment_success&order_code=${order.code}&provider=getnet`,
+    };
+  }
+
+  if (method === "MODO") {
+    const formattedCode = `#ORD-${order.code.toString().padStart(3, "0")}`;
+    return {
+      method: "MODO",
+      status: "PENDING",
+      instructions: `Escaneá el código QR con MODO o la app de tu banco para abonar ${formattedCode}.`,
+      paymentUrl: `${options?.baseUrl || ""}/carrito?step=payment_success&order_code=${order.code}&provider=modo`,
+    };
+  }
+
+  if (method === "GOOGLEPAY") {
+    const formattedCode = `#ORD-${order.code.toString().padStart(3, "0")}`;
+    return {
+      method: "GOOGLEPAY",
+      status: "PENDING",
+      instructions: `Pago rápido procesado con Google Pay para ${formattedCode}.`,
+      paymentUrl: `${options?.baseUrl || ""}/carrito?step=payment_success&order_code=${order.code}&provider=googlepay`,
+    };
   }
 
   // Fallback: WhatsApp

@@ -192,4 +192,90 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     expect(settings.transferDiscountPercent).toBe(15);
     expect(settings.cashNotes).toBe("Abonar en caja de showroom");
   });
+
+  it("persiste y habilita Payway, Getnet, MODO, Google Pay y credenciales de Mercado Pago", async () => {
+    const { updateShowroomSettings, getShowroomSettings } = await import("../src/services/settings.service");
+    const stored: Record<string, string> = {};
+    const mockDeps = {
+      settingsRepo: {
+        get: vi.fn(async (key: string) => stored[key] ?? null),
+        getAll: vi.fn(async () => stored),
+        set: vi.fn(async (key: string, val: string) => {
+          stored[key] = val;
+        }),
+      },
+    } as unknown as GlobalAppDeps;
+
+    await updateShowroomSettings(
+      {
+        mercadopagoEnabled: true,
+        mercadopagoAccessToken: "APP_USR-custom-token-123",
+        mercadopagoPublicKey: "APP_USR-pub-key-456",
+        mercadopagoConnectedAccount: "comercio@aurastudio.com",
+        paywayEnabled: true,
+        paywayApiKey: "pk_payway_999",
+        paywayMerchantId: "15002498",
+        paywayCuotaSimpleEnabled: true,
+        getnetEnabled: true,
+        getnetClientId: "client_getnet_777",
+        getnetSellerId: "seller_444",
+        modoEnabled: true,
+        modoMerchantId: "modo_888",
+        modoTerminalId: "TERM-01",
+        googlePayEnabled: true,
+        googlePayMerchantId: "BCR2DN6T...",
+      },
+      mockDeps
+    );
+
+    const settings = await getShowroomSettings(mockDeps);
+    expect(settings.mercadopagoAccessToken).toBe("APP_USR-custom-token-123");
+    expect(settings.mercadopagoConnectedAccount).toBe("comercio@aurastudio.com");
+    expect(settings.paywayEnabled).toBe(true);
+    expect(settings.paywayApiKey).toBe("pk_payway_999");
+    expect(settings.paywayCuotaSimpleEnabled).toBe(true);
+    expect(settings.getnetEnabled).toBe(true);
+    expect(settings.getnetClientId).toBe("client_getnet_777");
+    expect(settings.modoEnabled).toBe(true);
+    expect(settings.modoMerchantId).toBe("modo_888");
+    expect(settings.googlePayEnabled).toBe(true);
+    expect(settings.googlePayMerchantId).toBe("BCR2DN6T...");
+
+    // Verificar que getAvailablePaymentMethods incluye todos los nuevos procesadores
+    const methods = await getAvailablePaymentMethods(mockDeps);
+    expect(methods.some((m) => m.method === "PAYWAY")).toBe(true);
+    expect(methods.some((m) => m.method === "GETNET")).toBe(true);
+    expect(methods.some((m) => m.method === "MODO")).toBe(true);
+    expect(methods.some((m) => m.method === "GOOGLEPAY")).toBe(true);
+    expect(methods.some((m) => m.method === "MERCADOPAGO")).toBe(true);
+
+    // Verificar generación de preferencia para cada uno
+    const paywayPref = await createOrderPaymentPreference(
+      { ...mockOrder, paymentMethod: "PAYWAY" },
+      mockDeps
+    );
+    expect(paywayPref.method).toBe("PAYWAY");
+    expect(paywayPref.instructions).toContain("Payway");
+
+    const getnetPref = await createOrderPaymentPreference(
+      { ...mockOrder, paymentMethod: "GETNET" },
+      mockDeps
+    );
+    expect(getnetPref.method).toBe("GETNET");
+    expect(getnetPref.instructions).toContain("Getnet");
+
+    const modoPref = await createOrderPaymentPreference(
+      { ...mockOrder, paymentMethod: "MODO" },
+      mockDeps
+    );
+    expect(modoPref.method).toBe("MODO");
+    expect(modoPref.instructions).toContain("MODO");
+
+    const gpayPref = await createOrderPaymentPreference(
+      { ...mockOrder, paymentMethod: "GOOGLEPAY" },
+      mockDeps
+    );
+    expect(gpayPref.method).toBe("GOOGLEPAY");
+    expect(gpayPref.instructions).toContain("Google Pay");
+  });
 });

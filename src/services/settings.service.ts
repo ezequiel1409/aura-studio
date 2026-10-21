@@ -229,6 +229,24 @@ export interface ShowroomSettings {
   customTermsText?: string | null;
   // Métodos de pago (BR-47)
   mercadopagoEnabled: boolean;
+  mercadopagoAccessToken?: string | null;
+  mercadopagoPublicKey?: string | null;
+  mercadopagoConnectedAccount?: string | null;
+  paywayEnabled?: boolean;
+  paywayApiKey?: string | null;
+  paywayMerchantId?: string | null;
+  paywayEnvironment?: "sandbox" | "production";
+  paywayCuotaSimpleEnabled?: boolean;
+  getnetEnabled?: boolean;
+  getnetClientId?: string | null;
+  getnetClientSecret?: string | null;
+  getnetSellerId?: string | null;
+  getnetEnvironment?: "sandbox" | "production";
+  modoEnabled?: boolean;
+  modoMerchantId?: string | null;
+  modoTerminalId?: string | null;
+  googlePayEnabled?: boolean;
+  googlePayMerchantId?: string | null;
   transferEnabled: boolean;
   transferBankName?: string | null;
   transferAccountHolder?: string | null;
@@ -274,6 +292,24 @@ export interface UpdateShowroomSettingsInput {
   contentWidth?: StoreContentWidth | null;
   customTermsText?: string | null;
   mercadopagoEnabled?: boolean;
+  mercadopagoAccessToken?: string | null;
+  mercadopagoPublicKey?: string | null;
+  mercadopagoConnectedAccount?: string | null;
+  paywayEnabled?: boolean;
+  paywayApiKey?: string | null;
+  paywayMerchantId?: string | null;
+  paywayEnvironment?: "sandbox" | "production";
+  paywayCuotaSimpleEnabled?: boolean;
+  getnetEnabled?: boolean;
+  getnetClientId?: string | null;
+  getnetClientSecret?: string | null;
+  getnetSellerId?: string | null;
+  getnetEnvironment?: "sandbox" | "production";
+  modoEnabled?: boolean;
+  modoMerchantId?: string | null;
+  modoTerminalId?: string | null;
+  googlePayEnabled?: boolean;
+  googlePayMerchantId?: string | null;
   transferEnabled?: boolean;
   transferBankName?: string | null;
   transferAccountHolder?: string | null;
@@ -344,6 +380,24 @@ export async function getShowroomSettings(
   let storedContentWidth: string | null = null;
   let storedCustomTermsText: string | null = null;
   let storedMercadopagoEnabled: string | null = null;
+  let storedMercadopagoAccessToken: string | null = null;
+  let storedMercadopagoPublicKey: string | null = null;
+  let storedMercadopagoConnectedAccount: string | null = null;
+  let storedPaywayEnabled: string | null = null;
+  let storedPaywayApiKey: string | null = null;
+  let storedPaywayMerchantId: string | null = null;
+  let storedPaywayEnvironment: string | null = null;
+  let storedPaywayCuotaSimpleEnabled: string | null = null;
+  let storedGetnetEnabled: string | null = null;
+  let storedGetnetClientId: string | null = null;
+  let storedGetnetClientSecret: string | null = null;
+  let storedGetnetSellerId: string | null = null;
+  let storedGetnetEnvironment: string | null = null;
+  let storedModoEnabled: string | null = null;
+  let storedModoMerchantId: string | null = null;
+  let storedModoTerminalId: string | null = null;
+  let storedGooglePayEnabled: string | null = null;
+  let storedGooglePayMerchantId: string | null = null;
   let storedTransferEnabled: string | null = null;
   let storedTransferBankName: string | null = null;
   let storedTransferAccountHolder: string | null = null;
@@ -389,6 +443,24 @@ export async function getShowroomSettings(
       storedContentWidth = all["content_width"] ?? null;
       storedCustomTermsText = all["custom_terms_text"] ?? null;
       storedMercadopagoEnabled = all["mercadopago_enabled"] ?? null;
+      storedMercadopagoAccessToken = all["mercadopago_access_token"] ?? null;
+      storedMercadopagoPublicKey = all["mercadopago_public_key"] ?? null;
+      storedMercadopagoConnectedAccount = all["mercadopago_connected_account"] ?? null;
+      storedPaywayEnabled = all["payway_enabled"] ?? null;
+      storedPaywayApiKey = all["payway_api_key"] ?? null;
+      storedPaywayMerchantId = all["payway_merchant_id"] ?? null;
+      storedPaywayEnvironment = all["payway_environment"] ?? null;
+      storedPaywayCuotaSimpleEnabled = all["payway_cuota_simple_enabled"] ?? null;
+      storedGetnetEnabled = all["getnet_enabled"] ?? null;
+      storedGetnetClientId = all["getnet_client_id"] ?? null;
+      storedGetnetClientSecret = all["getnet_client_secret"] ?? null;
+      storedGetnetSellerId = all["getnet_seller_id"] ?? null;
+      storedGetnetEnvironment = all["getnet_environment"] ?? null;
+      storedModoEnabled = all["modo_enabled"] ?? null;
+      storedModoMerchantId = all["modo_merchant_id"] ?? null;
+      storedModoTerminalId = all["modo_terminal_id"] ?? null;
+      storedGooglePayEnabled = all["google_pay_enabled"] ?? null;
+      storedGooglePayMerchantId = all["google_pay_merchant_id"] ?? null;
       storedTransferEnabled = all["transfer_enabled"] ?? null;
       storedTransferBankName = all["transfer_bank_name"] ?? null;
       storedTransferAccountHolder = all["transfer_account_holder"] ?? null;
@@ -432,6 +504,24 @@ export async function getShowroomSettings(
         storedContentWidth,
         storedCustomTermsText,
         storedMercadopagoEnabled,
+        storedMercadopagoAccessToken,
+        storedMercadopagoPublicKey,
+        storedMercadopagoConnectedAccount,
+        storedPaywayEnabled,
+        storedPaywayApiKey,
+        storedPaywayMerchantId,
+        storedPaywayEnvironment,
+        storedPaywayCuotaSimpleEnabled,
+        storedGetnetEnabled,
+        storedGetnetClientId,
+        storedGetnetClientSecret,
+        storedGetnetSellerId,
+        storedGetnetEnvironment,
+        storedModoEnabled,
+        storedModoMerchantId,
+        storedModoTerminalId,
+        storedGooglePayEnabled,
+        storedGooglePayMerchantId,
         storedTransferEnabled,
         storedTransferBankName,
         storedTransferAccountHolder,
@@ -474,6 +564,24 @@ export async function getShowroomSettings(
         settingsRepo.get("content_width"),
         settingsRepo.get("custom_terms_text"),
         settingsRepo.get("mercadopago_enabled"),
+        settingsRepo.get("mercadopago_access_token"),
+        settingsRepo.get("mercadopago_public_key"),
+        settingsRepo.get("mercadopago_connected_account"),
+        settingsRepo.get("payway_enabled"),
+        settingsRepo.get("payway_api_key"),
+        settingsRepo.get("payway_merchant_id"),
+        settingsRepo.get("payway_environment"),
+        settingsRepo.get("payway_cuota_simple_enabled"),
+        settingsRepo.get("getnet_enabled"),
+        settingsRepo.get("getnet_client_id"),
+        settingsRepo.get("getnet_client_secret"),
+        settingsRepo.get("getnet_seller_id"),
+        settingsRepo.get("getnet_environment"),
+        settingsRepo.get("modo_enabled"),
+        settingsRepo.get("modo_merchant_id"),
+        settingsRepo.get("modo_terminal_id"),
+        settingsRepo.get("google_pay_enabled"),
+        settingsRepo.get("google_pay_merchant_id"),
         settingsRepo.get("transfer_enabled"),
         settingsRepo.get("transfer_bank_name"),
         settingsRepo.get("transfer_account_holder"),
@@ -550,6 +658,24 @@ export async function getShowroomSettings(
     customTermsText: storedCustomTermsText && storedCustomTermsText.trim() ? storedCustomTermsText.trim() : null,
     // Métodos de pago
     mercadopagoEnabled: storedMercadopagoEnabled !== "0",
+    mercadopagoAccessToken: storedMercadopagoAccessToken && storedMercadopagoAccessToken.trim() ? storedMercadopagoAccessToken.trim() : null,
+    mercadopagoPublicKey: storedMercadopagoPublicKey && storedMercadopagoPublicKey.trim() ? storedMercadopagoPublicKey.trim() : null,
+    mercadopagoConnectedAccount: storedMercadopagoConnectedAccount && storedMercadopagoConnectedAccount.trim() ? storedMercadopagoConnectedAccount.trim() : null,
+    paywayEnabled: storedPaywayEnabled === "1",
+    paywayApiKey: storedPaywayApiKey && storedPaywayApiKey.trim() ? storedPaywayApiKey.trim() : null,
+    paywayMerchantId: storedPaywayMerchantId && storedPaywayMerchantId.trim() ? storedPaywayMerchantId.trim() : null,
+    paywayEnvironment: (storedPaywayEnvironment === "production" ? "production" : "sandbox") as "sandbox" | "production",
+    paywayCuotaSimpleEnabled: storedPaywayCuotaSimpleEnabled !== "0",
+    getnetEnabled: storedGetnetEnabled === "1",
+    getnetClientId: storedGetnetClientId && storedGetnetClientId.trim() ? storedGetnetClientId.trim() : null,
+    getnetClientSecret: storedGetnetClientSecret && storedGetnetClientSecret.trim() ? storedGetnetClientSecret.trim() : null,
+    getnetSellerId: storedGetnetSellerId && storedGetnetSellerId.trim() ? storedGetnetSellerId.trim() : null,
+    getnetEnvironment: (storedGetnetEnvironment === "production" ? "production" : "sandbox") as "sandbox" | "production",
+    modoEnabled: storedModoEnabled === "1",
+    modoMerchantId: storedModoMerchantId && storedModoMerchantId.trim() ? storedModoMerchantId.trim() : null,
+    modoTerminalId: storedModoTerminalId && storedModoTerminalId.trim() ? storedModoTerminalId.trim() : null,
+    googlePayEnabled: storedGooglePayEnabled === "1",
+    googlePayMerchantId: storedGooglePayMerchantId && storedGooglePayMerchantId.trim() ? storedGooglePayMerchantId.trim() : null,
     transferEnabled: storedTransferEnabled !== "0",
     transferBankName: storedTransferBankName && storedTransferBankName.trim() ? storedTransferBankName.trim() : null,
     transferAccountHolder: storedTransferAccountHolder && storedTransferAccountHolder.trim() ? storedTransferAccountHolder.trim() : null,
@@ -746,6 +872,78 @@ export async function updateShowroomSettings(
   // Métodos de pago (BR-47)
   if (input.mercadopagoEnabled !== undefined) {
     await settingsRepo.set("mercadopago_enabled", input.mercadopagoEnabled ? "1" : "0");
+  }
+
+  if (input.mercadopagoAccessToken !== undefined) {
+    await settingsRepo.set("mercadopago_access_token", input.mercadopagoAccessToken ? input.mercadopagoAccessToken.trim() : "");
+  }
+
+  if (input.mercadopagoPublicKey !== undefined) {
+    await settingsRepo.set("mercadopago_public_key", input.mercadopagoPublicKey ? input.mercadopagoPublicKey.trim() : "");
+  }
+
+  if (input.mercadopagoConnectedAccount !== undefined) {
+    await settingsRepo.set("mercadopago_connected_account", input.mercadopagoConnectedAccount ? input.mercadopagoConnectedAccount.trim() : "");
+  }
+
+  if (input.paywayEnabled !== undefined) {
+    await settingsRepo.set("payway_enabled", input.paywayEnabled ? "1" : "0");
+  }
+
+  if (input.paywayApiKey !== undefined) {
+    await settingsRepo.set("payway_api_key", input.paywayApiKey ? input.paywayApiKey.trim() : "");
+  }
+
+  if (input.paywayMerchantId !== undefined) {
+    await settingsRepo.set("payway_merchant_id", input.paywayMerchantId ? input.paywayMerchantId.trim() : "");
+  }
+
+  if (input.paywayEnvironment !== undefined) {
+    await settingsRepo.set("payway_environment", input.paywayEnvironment === "production" ? "production" : "sandbox");
+  }
+
+  if (input.paywayCuotaSimpleEnabled !== undefined) {
+    await settingsRepo.set("payway_cuota_simple_enabled", input.paywayCuotaSimpleEnabled ? "1" : "0");
+  }
+
+  if (input.getnetEnabled !== undefined) {
+    await settingsRepo.set("getnet_enabled", input.getnetEnabled ? "1" : "0");
+  }
+
+  if (input.getnetClientId !== undefined) {
+    await settingsRepo.set("getnet_client_id", input.getnetClientId ? input.getnetClientId.trim() : "");
+  }
+
+  if (input.getnetClientSecret !== undefined) {
+    await settingsRepo.set("getnet_client_secret", input.getnetClientSecret ? input.getnetClientSecret.trim() : "");
+  }
+
+  if (input.getnetSellerId !== undefined) {
+    await settingsRepo.set("getnet_seller_id", input.getnetSellerId ? input.getnetSellerId.trim() : "");
+  }
+
+  if (input.getnetEnvironment !== undefined) {
+    await settingsRepo.set("getnet_environment", input.getnetEnvironment === "production" ? "production" : "sandbox");
+  }
+
+  if (input.modoEnabled !== undefined) {
+    await settingsRepo.set("modo_enabled", input.modoEnabled ? "1" : "0");
+  }
+
+  if (input.modoMerchantId !== undefined) {
+    await settingsRepo.set("modo_merchant_id", input.modoMerchantId ? input.modoMerchantId.trim() : "");
+  }
+
+  if (input.modoTerminalId !== undefined) {
+    await settingsRepo.set("modo_terminal_id", input.modoTerminalId ? input.modoTerminalId.trim() : "");
+  }
+
+  if (input.googlePayEnabled !== undefined) {
+    await settingsRepo.set("google_pay_enabled", input.googlePayEnabled ? "1" : "0");
+  }
+
+  if (input.googlePayMerchantId !== undefined) {
+    await settingsRepo.set("google_pay_merchant_id", input.googlePayMerchantId ? input.googlePayMerchantId.trim() : "");
   }
 
   if (input.transferEnabled !== undefined) {

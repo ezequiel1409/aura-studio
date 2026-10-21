@@ -29,6 +29,8 @@ import {
   X,
   Banknote,
   ExternalLink,
+  QrCode,
+  Wallet,
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { formatPrice } from "../../lib/format/currency";
@@ -1585,6 +1587,10 @@ export function CartPageClient({
                             <div className="flex items-center gap-1.5 font-medium text-stone-900">
                               {m.method === "TRANSFER" && <Building2 className="h-4 w-4 text-[#926a3c] shrink-0" />}
                               {m.method === "MERCADOPAGO" && <CreditCard className="h-4 w-4 text-sky-600 shrink-0" />}
+                              {m.method === "PAYWAY" && <CreditCard className="h-4 w-4 text-indigo-600 shrink-0" />}
+                              {m.method === "GETNET" && <CreditCard className="h-4 w-4 text-rose-600 shrink-0" />}
+                              {m.method === "MODO" && <QrCode className="h-4 w-4 text-teal-600 shrink-0" />}
+                              {m.method === "GOOGLEPAY" && <Wallet className="h-4 w-4 text-amber-500 shrink-0" />}
                               {m.method === "CASH" && <Banknote className="h-4 w-4 text-emerald-600 shrink-0" />}
                               {m.method === "WHATSAPP" && <MessageCircle className="h-4 w-4 text-[#25D366] shrink-0" />}
                               <span className="truncate">{m.name}</span>
@@ -1705,6 +1711,26 @@ export function CartPageClient({
                     <>
                       <CreditCard className="h-4 w-4 text-sky-400" />
                       <span>Continuar a Mercado Pago</span>
+                    </>
+                  ) : selectedPaymentMethod === "PAYWAY" ? (
+                    <>
+                      <CreditCard className="h-4 w-4 text-indigo-400" />
+                      <span>Continuar a Payway (Cuota Simple)</span>
+                    </>
+                  ) : selectedPaymentMethod === "GETNET" ? (
+                    <>
+                      <CreditCard className="h-4 w-4 text-rose-400" />
+                      <span>Continuar a Getnet (Santander)</span>
+                    </>
+                  ) : selectedPaymentMethod === "MODO" ? (
+                    <>
+                      <QrCode className="h-4 w-4 text-teal-400" />
+                      <span>Pagar con MODO / App Bancaria</span>
+                    </>
+                  ) : selectedPaymentMethod === "GOOGLEPAY" ? (
+                    <>
+                      <Wallet className="h-4 w-4 text-amber-400" />
+                      <span>Pagar con Google Pay</span>
                     </>
                   ) : selectedPaymentMethod === "TRANSFER" ? (
                     <>

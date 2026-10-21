@@ -1,4 +1,13 @@
-export type PaymentMethod = "MERCADOPAGO" | "TRANSFER" | "CASH" | "STRIPE" | "WHATSAPP";
+export type PaymentMethod =
+  | "MERCADOPAGO"
+  | "PAYWAY"
+  | "GETNET"
+  | "MODO"
+  | "GOOGLEPAY"
+  | "TRANSFER"
+  | "CASH"
+  | "STRIPE"
+  | "WHATSAPP";
 
 export type PaymentStatus = "PENDING" | "AUTHORIZED" | "PAID" | "REJECTED" | "REFUNDED";
 

@@ -268,7 +268,17 @@ export const orders = sqliteTable(
       .notNull()
       .default("PENDING"),
     paymentMethod: text("payment_method", {
-      enum: ["MERCADOPAGO", "TRANSFER", "CASH", "STRIPE", "WHATSAPP"],
+      enum: [
+        "MERCADOPAGO",
+        "PAYWAY",
+        "GETNET",
+        "MODO",
+        "GOOGLEPAY",
+        "TRANSFER",
+        "CASH",
+        "STRIPE",
+        "WHATSAPP",
+      ],
     })
       .notNull()
       .default("WHATSAPP"),
