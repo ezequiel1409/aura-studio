@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, Save } from "lucide-react";
+import { CheckCircle2, Loader2, Save, Link2, Bold, Heading, List, Eye, Edit3, Sparkles, ExternalLink } from "lucide-react";
 import {
   AnnouncementBarConfig,
   CatalogConfig,
@@ -21,6 +21,7 @@ import {
   StoreScheduleConfig,
 } from "../../lib/schedule/store-schedule";
 import { THEME_PALETTES } from "../../lib/theme/palettes";
+import { TermsContentRenderer } from "../legal/TermsContentRenderer";
 export type SettingsTabId = "top" | "main" | "footer" | "payments" | "general" | "politicas";
 import { TopHeaderSettingsSection } from "./settings/TopHeaderSettingsSection";
 import { MainContentSettingsSection } from "./settings/MainContentSettingsSection";
@@ -118,6 +119,7 @@ export function SettingsClient({
   const [customTermsText, setCustomTermsText] = useState<string>(
     initialSettings.customTermsText || ""
   );
+  const [termsViewMode, setTermsViewMode] = useState<"edit" | "preview">("edit");
 
   // 5. Métodos de Pago (BR-47)
   const [mercadopagoEnabled, setMercadopagoEnabled] = useState<boolean>(
@@ -471,39 +473,233 @@ export function SettingsClient({
 
         <div hidden={activeTab !== "politicas"}>
           <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
               <div>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-                  Términos y Condiciones Generales (Página /terminos)
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+                  <Sparkles size={14} className="text-amber-400" />
+                  <span>Términos y Condiciones Generales (Página /terminos)</span>
                 </h2>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Texto legal publicado para tus clientes. Podés usar las sugerencias predefinidas o personalizar cada cláusula a medida.
+                  Texto legal publicado para tus clientes con soporte completo de hipervínculos interactivos, promociones bancarias y cláusulas personalizadas.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setCustomTermsText(DEFAULT_SUGGESTED_TERMS)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-400/50 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 text-xs font-semibold transition-colors cursor-pointer self-start sm:self-auto"
-              >
-                <span>Cargar términos sugeridos por defecto</span>
-              </button>
+              {/* Selector de Modo: Editar / Vista Previa */}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div className="flex items-center bg-zinc-950 rounded-xl p-1 border border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setTermsViewMode("edit")}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      termsViewMode === "edit"
+                        ? "bg-amber-400 text-zinc-950 shadow-xs"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <Edit3 size={13} />
+                    <span>Editar Texto</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTermsViewMode("preview")}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      termsViewMode === "preview"
+                        ? "bg-amber-400 text-zinc-950 shadow-xs"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    <Eye size={13} />
+                    <span>Vista Previa en Vivo</span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setCustomTermsText(DEFAULT_SUGGESTED_TERMS)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-400/40 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 text-xs font-semibold transition-colors cursor-pointer"
+                  title="Carga la plantilla legal completa con hipervínculos a Promociones Bancarias y Arrepentimiento"
+                >
+                  <Sparkles size={13} />
+                  <span>Cargar sugerencias legales</span>
+                </button>
+              </div>
             </div>
 
-            <textarea
-              rows={14}
-              value={customTermsText}
-              onChange={(e) => setCustomTermsText(e.target.value)}
-              placeholder="Si dejás este campo vacío, la página de términos utilizará automáticamente las sugerencias legales completas del sistema..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 text-xs text-zinc-100 placeholder-zinc-500 font-sans focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400 leading-relaxed"
-            />
+            {termsViewMode === "edit" ? (
+              <div className="space-y-3">
+                {/* Toolbar de Hipervínculos y Formato Rápido */}
+                <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs">
+                  <span className="text-[10px] font-mono uppercase text-zinc-500 font-bold px-1.5">
+                    Insertar Hipervínculo:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomTermsText((prev) =>
+                        prev
+                          ? `${prev} [Promociones Bancarias](/promociones)`
+                          : "[Promociones Bancarias](/promociones)"
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 text-[11px] font-medium transition-colors cursor-pointer"
+                  >
+                    + Promociones Bancarias
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomTermsText((prev) =>
+                        prev
+                          ? `${prev} [Botón de Arrepentimiento](/arrepentimiento)`
+                          : "[Botón de Arrepentimiento](/arrepentimiento)"
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 text-[11px] font-medium transition-colors cursor-pointer"
+                  >
+                    + Botón de Arrepentimiento
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomTermsText((prev) =>
+                        prev ? `${prev} [Catálogo de Piezas](/catalogo)` : "[Catálogo de Piezas](/catalogo)"
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 text-[11px] font-medium transition-colors cursor-pointer"
+                  >
+                    + Catálogo
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomTermsText((prev) =>
+                        prev
+                          ? `${prev} [WhatsApp Oficial](${
+                              whatsappNumber
+                                ? `https://wa.me/${whatsappNumber.replace(/\D/g, "")}`
+                                : "https://wa.me/5491100000000"
+                            })`
+                          : "[WhatsApp Oficial](https://wa.me/5491100000000)"
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 text-[11px] font-medium transition-colors cursor-pointer"
+                  >
+                    + WhatsApp
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomTermsText((prev) =>
+                        prev
+                          ? `${prev} [Texto del enlace](https://tusitio.com)`
+                          : "[Texto del enlace](https://tusitio.com)"
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-medium transition-colors cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <Link2 size={12} />
+                    <span>Enlace Libre [texto](url)</span>
+                  </button>
+
+                  <span className="text-[10px] font-mono uppercase text-zinc-500 font-bold px-1.5 ml-auto">
+                    Formato:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomTermsText((prev) =>
+                        prev ? `${prev} **texto destacado**` : "**texto destacado**"
+                      )
+                    }
+                    className="px-2 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 text-[11px] font-bold transition-colors cursor-pointer"
+                    title="Negrita"
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomTermsText((prev) =>
+                        prev ? `${prev}\n\n## N. Nombre de Cláusula\n` : "## 1. Nombre de Cláusula\n"
+                      )
+                    }
+                    className="px-2 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 text-[11px] font-medium transition-colors cursor-pointer"
+                    title="Título de Cláusula"
+                  >
+                    H2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomTermsText((prev) =>
+                        prev ? `${prev}\n- Ítem de lista` : "- Ítem de lista"
+                      )
+                    }
+                    className="px-2 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/80 text-[11px] font-medium transition-colors cursor-pointer"
+                    title="Lista con viñetas"
+                  >
+                    • Lista
+                  </button>
+                </div>
+
+                <textarea
+                  rows={14}
+                  value={customTermsText}
+                  onChange={(e) => setCustomTermsText(e.target.value)}
+                  placeholder="Redactá tus términos legales o usá el botón 'Cargar sugerencias legales' para comenzar con hipervínculos predefinidos..."
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-xs text-zinc-100 placeholder-zinc-500 font-mono focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400 leading-relaxed"
+                />
+
+                <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                  <span>
+                    Sintaxis compatible: <code className="text-zinc-300">[Texto](https://...)</code>, <code className="text-zinc-300">[Texto](/ruta-interna)</code>, <code className="text-zinc-300">**negrita**</code> y <code className="text-zinc-300">## Títulos</code>.
+                  </span>
+                  {customTermsText && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomTermsText("")}
+                      className="text-zinc-400 hover:text-rose-400 underline cursor-pointer"
+                    >
+                      Restablecer al texto legal estándar
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* VISTA PREVIA EN VIVO */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>Así verán y navegarán tus clientes las cláusulas e hipervínculos:</span>
+                  <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded-full">
+                    Interactiva con clics activos
+                  </span>
+                </div>
+
+                <div className="rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-8 text-stone-900 shadow-md">
+                  <TermsContentRenderer
+                    content={customTermsText.trim() ? customTermsText : DEFAULT_SUGGESTED_TERMS}
+                    brandName={showroomName}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="p-3.5 rounded-xl bg-zinc-950/60 border border-zinc-800 text-xs text-zinc-400 space-y-1">
               <p className="font-semibold text-zinc-300">Puntos clave recomendados en la legislación argentina:</p>
               <ul className="list-disc list-inside space-y-0.5 text-[11px] text-zinc-400">
-                <li>Botón de Arrepentimiento conforme a Ley N° 24.240 (10 días corridos para revocar compra online).</li>
-                <li>Política de cambios y estado de las prendas (15 a 30 días corridos con etiqueta y sin uso).</li>
-                <li>Condiciones de retiro en showroom y despacho por correo/mensajería.</li>
+                <li>
+                  <strong>Promociones Bancarias:</strong> Enlace a <code className="text-amber-300">/promociones</code> para detallar vigencias, topes de reintegro y entidades bancarias.
+                </li>
+                <li>
+                  <strong>Botón de Arrepentimiento:</strong> Enlace a <code className="text-amber-300">/arrepentimiento</code> conforme a Ley N° 24.240 y Res. 424/2020 SCI.
+                </li>
+                <li>
+                  <strong>Políticas de reserva y retiro:</strong> Plazo máximo configurado en la tienda ({reservationHours}hs) y horarios del local.
+                </li>
               </ul>
             </div>
           </div>

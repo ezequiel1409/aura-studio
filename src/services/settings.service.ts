@@ -138,23 +138,23 @@ export const DEFAULT_CATALOG_CONFIG: CatalogConfig = {
 };
 
 export const DEFAULT_SUGGESTED_TERMS = `1. Condiciones Generales y Disponibilidad
-El acceso y uso de la tienda online implica la aceptación plena de los presentes Términos y Condiciones. Nuestras piezas son seleccionadas de forma exclusiva y cuentan con inventario limitado o de ejemplar único.
+El acceso y uso de la tienda online implica la aceptación plena de los presentes Términos y Condiciones. Nuestras piezas del [Catálogo](/catalogo) son seleccionadas de forma exclusiva y cuentan con inventario limitado o de ejemplar único.
 En caso de que una pieza seleccionada se agote de manera simultánea durante el proceso de compra, se notificará de inmediato al cliente para coordinar una alternativa equivalente o la restitución del importe abonado.
 
 2. Política de Reserva y Pago
-Al completar una solicitud de pedido mediante transferencia bancaria o WhatsApp, la prenda queda reservada por el plazo establecido para coordinar el pago o retiro.
+Al completar una solicitud de pedido mediante transferencia bancaria, [Mercado Pago](/carrito) o coordinación humana, la prenda queda reservada por el plazo establecido para coordinar el pago o retiro.
 Transcurrido este plazo sin acreditación del pago ni comprobante correspondiente, la reserva caduca automáticamente y la pieza vuelve a estar disponible para la venta general.
 
 3. Envíos y Retiro en el Local
-Realizamos envíos a todo el territorio a través de correo privado y mensajería express. Los costos de envío y plazos estimados de entrega se informan con precisión antes de confirmar el pedido.
-Los retiros en el local se realizan sin costo adicional en los horarios habilitados, previa confirmación por WhatsApp o notificación de pedido listo.
+Realizamos envíos a todo el territorio a través de correo privado y mensajería express. Los costos de envío y plazos estimados de entrega se informan con precisión en la bolsa de compras antes de confirmar el pedido.
+Los retiros en el local se realizan sin costo adicional en los horarios habilitados de atención, previa confirmación por WhatsApp o notificación de pedido listo.
 
 4. Cambios, Devoluciones y Botón de Arrepentimiento
 Se aceptan cambios dentro de los 15 (quince) días corridos desde la fecha de recepción o retiro de la compra, siempre que la prenda se encuentre en perfecto estado de conservación, sin uso y con sus etiquetas originales.
-Conforme a la Ley Nacional de Defensa del Consumidor N° 24.240 y la Res. 424/2020 SCI, los clientes disponen del Botón de Arrepentimiento para revocar la compra dentro de los 10 días corridos de recibido el producto.
+Conforme a la Ley Nacional de Defensa del Consumidor N° 24.240 y la Res. 424/2020 SCI, los clientes disponen del [Botón de Arrepentimiento](/arrepentimiento) para revocar la compra de forma ágil y 100% online dentro de los 10 días corridos de recibido el producto.
 
 5. Promociones Bancarias y Descuentos
-Los beneficios, cuotas sin interés y reintegros con entidades bancarias se rigen por las condiciones particulares publicadas en la sección de Promociones Bancarias, sujetas a vigencia y topes de reintegro establecidos por cada entidad emisora.`;
+Los beneficios, cuotas sin interés y reintegros con entidades bancarias (Banco Galicia, Santander, BBVA, Macro, Nación y MODO) se rigen por las condiciones particulares publicadas en nuestra sección oficial de [Promociones Bancarias](/promociones), sujetas a vigencia, días habilitados y topes de reintegro establecidos por cada entidad emisora.`;
 
 export type StoreContentWidth = "compact" | "standard" | "wide" | "full";
 
