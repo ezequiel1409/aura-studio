@@ -108,6 +108,28 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
+ * Normaliza cualquier entrada de color a un formato hexadecimal válido #RRGGBB (7 caracteres)
+ * para garantizar compatibilidad con <input type="color"> y evitar errores en el navegador.
+ */
+export function normalizeHexColor(hex: string | null | undefined, fallback: string = "#926a3c"): string {
+  if (!hex) return fallback;
+  const clean = hex.trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(clean)) {
+    return clean;
+  }
+  if (/^#[0-9A-Fa-f]{3}$/.test(clean)) {
+    return `#${clean[1]}${clean[1]}${clean[2]}${clean[2]}${clean[3]}${clean[3]}`;
+  }
+  if (/^[0-9A-Fa-f]{6}$/.test(clean)) {
+    return `#${clean}`;
+  }
+  if (/^[0-9A-Fa-f]{3}$/.test(clean)) {
+    return `#${clean[0]}${clean[0]}${clean[1]}${clean[1]}${clean[2]}${clean[2]}`;
+  }
+  return fallback;
+}
+
+/**
  * Resuelve la paleta efectiva para la tienda pública permitiendo personalización
  * total de colores de acento, fondo y superficie.
  */

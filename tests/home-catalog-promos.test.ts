@@ -285,6 +285,8 @@ describe("Home, Catálogo Estilo Panel, Promociones Bancarias y Footer (Fases 1-
       expect(html).toContain("Ver en Google Maps");
       expect(html).toContain('aria-label="Horarios de atención por día de la semana"');
       expect(html).toContain("Promociones bancarias");
+      expect(html).toContain("/images/data-fiscal.png");
+      expect(html).toContain('alt="Data Fiscal AFIP - Formulario 960/D"');
       expect(html).toContain("application/ld+json");
       expect(html).toContain("ClothingStore");
     });

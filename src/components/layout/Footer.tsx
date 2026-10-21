@@ -435,11 +435,36 @@ export function Footer({
         </div>
 
         {/* Franja Inferior Legal: Términos y Condiciones, Arrepentimiento y Data Fiscal (ADM-09) */}
-        <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-4 text-stone-500 text-[11px]">
-          <p>
-            © {new Date().getFullYear()} {brandName}. Todos los derechos
-            reservados.
-          </p>
+        <div className="pt-8 border-t border-[#e7e2da] flex flex-col md:flex-row items-center justify-between gap-6 text-stone-500 text-[11px]">
+          <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+            {/* Placa Oficial AFIP Formulario 960 (Data Fiscal) - Destacada y de alta visibilidad */}
+            <a
+              href={dataFiscalUrl || "https://serviciosweb.afip.gob.ar/clavefiscal/qr/mobile/ver.aspx"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block shrink-0 transition-transform duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-stone-800 rounded-lg p-0.5"
+              aria-label="Ver Formulario 960 Data Fiscal AFIP"
+              title="Formulario 960/D - Data Fiscal AFIP / ARCA"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/data-fiscal.png"
+                alt="Data Fiscal AFIP - Formulario 960/D"
+                width={80}
+                height={110}
+                className="h-24 sm:h-28 w-auto object-contain rounded shadow-xs border border-stone-200 bg-white"
+              />
+            </a>
+
+            <div>
+              <p className="font-medium text-stone-700">
+                © {new Date().getFullYear()} {brandName}. Todos los derechos reservados.
+              </p>
+              <p className="text-[10px] text-stone-400 mt-0.5">
+                Comercio adherido al régimen de transparencia fiscal (AFIP / ARCA - Res. Gral. 3377).
+              </p>
+            </div>
+          </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
@@ -473,19 +498,6 @@ export function Footer({
               <RotateCcw className="h-3 w-3" aria-hidden="true" />
               <span>Botón de arrepentimiento</span>
             </Link>
-
-            {dataFiscalUrl ? (
-              <a
-                href={dataFiscalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-stone-400 hover:text-stone-600 transition-colors"
-                title="Formulario 960/D - Data Fiscal AFIP/ARCA"
-              >
-                <ShieldCheck className="h-3.5 w-3.5 text-stone-400" aria-hidden="true" />
-                <span>Data Fiscal</span>
-              </a>
-            ) : null}
           </div>
         </div>
       </div>

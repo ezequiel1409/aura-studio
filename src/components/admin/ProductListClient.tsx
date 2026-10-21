@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -62,6 +62,14 @@ export function ProductListClient({
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [currentTime] = useState(() => Date.now());
+
+  // Destrucción de suscripciones y limpieza de memoria estilo Angular (ngOnDestroy)
+  useEffect(() => {
+    return () => {
+      setOpenMenuProductId(null);
+      setEditingPriceId(null);
+    };
+  }, []);
 
   // Jerarquización: Modo de agrupación (Categoría por defecto para máxima claridad)
   const [groupBy, setGroupBy] = useState<GroupByMode>("category");
@@ -985,13 +993,18 @@ export function ProductListClient({
                               )}
                             </button>
 
-                            {/* Foto miniatura con badge de código */}
-                            <div className={`relative ${density === "compact" ? "w-10 h-12" : "w-12 h-14 sm:w-14 sm:h-16"} rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 shrink-0`}>
+                            {/* Foto miniatura con badge de código (Clic navega directamente a editar) */}
+                            <Link
+                              href={`/admin/productos/${p.code}/editar`}
+                              prefetch={false}
+                              className={`relative block ${density === "compact" ? "w-10 h-12" : "w-12 h-14 sm:w-14 sm:h-16"} rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 shrink-0 group/thumb hover:border-amber-400/80 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400`}
+                              title={`Editar ficha ${codeFormatted}`}
+                            >
                               {thumbUrl ? (
                                 <img
                                   src={thumbUrl}
                                   alt={p.title || codeFormatted}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover transition-transform group-hover/thumb:scale-105"
                                 />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-zinc-500">
@@ -1001,17 +1014,19 @@ export function ProductListClient({
                               <span className="absolute bottom-0.5 left-0.5 right-0.5 text-center text-[9px] font-mono font-bold bg-zinc-950/90 text-amber-200 rounded">
                                 {codeFormatted}
                               </span>
-                            </div>
+                            </Link>
 
                             {/* Información central completa */}
                             <div className="flex-1 min-w-0 pr-1">
                               <div className="flex items-center gap-1.5">
-                                <h3
-                                  className="text-xs sm:text-sm font-bold text-zinc-100 truncate"
-                                  title={p.title || codeFormatted}
+                                <Link
+                                  href={`/admin/productos/${p.code}/editar`}
+                                  prefetch={false}
+                                  className="text-xs sm:text-sm font-bold text-zinc-100 hover:text-amber-300 transition-colors truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded"
+                                  title={`Editar ${p.title || codeFormatted}`}
                                 >
                                   {p.title || "Producto sin título"}
-                                </h3>
+                                </Link>
                                 {p.isFeatured && (
                                   <span
                                     className="shrink-0 p-0.5 text-amber-400"
@@ -1177,8 +1192,18 @@ export function ProductListClient({
                               <Trash2 size={16} aria-hidden="true" />
                             </button>
 
-                            {/* Menú de Acciones Unificado `···` */}
-                            <div className="relative shrink-0">
+                            {/* Botón directo de edición rápida + Menú de Acciones Unificado */}
+                            <div className="relative shrink-0 flex items-center gap-0.5">
+                              <Link
+                                href={`/admin/productos/${p.code}/editar`}
+                                prefetch={false}
+                                className="p-2 rounded-lg text-zinc-400 hover:text-amber-200 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
+                                title={`Editar ficha ${codeFormatted}`}
+                                aria-label={`Editar ficha ${codeFormatted}`}
+                              >
+                                <Edit2 size={15} aria-hidden="true" />
+                              </Link>
+
                               <button
                                 type="button"
                                 onClick={() =>

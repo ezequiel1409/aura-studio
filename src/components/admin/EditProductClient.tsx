@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -55,6 +55,19 @@ export function EditProductClient({
   attributeDefinitions = [],
 }: EditProductClientProps) {
   const router = useRouter();
+  const isMountedRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Destrucción limpia de memoria al estilo Angular (ngOnDestroy)
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Estado del texto crudo (BR-33)
   const [rawText, setRawText] = useState(product.rawText || "");
@@ -357,10 +370,12 @@ export function EditProductClient({
         })),
       };
 
+      abortControllerRef.current = new AbortController();
       const res = await fetch(`/api/admin/products/${product.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: abortControllerRef.current.signal,
       });
 
       const data = await res.json();
@@ -368,8 +383,9 @@ export function EditProductClient({
         throw new Error(data.error || "No se pudo actualizar el producto.");
       }
 
+      if (!isMountedRef.current) return;
       setSavedSuccess(true);
-      router.refresh();
+      // Evitamos router.refresh() para eliminar recargas innecesarias y navegar como SPA pura
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al guardar";
       setErrorMessage(msg);
@@ -951,10 +967,19 @@ export function EditProductClient({
           <div
             role="status"
             aria-live="polite"
-            className="flex items-center gap-2 p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs"
+            className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs animate-in fade-in"
           >
-            <CheckCircle2 size={16} aria-hidden="true" />
-            <span>Producto actualizado con éxito.</span>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} aria-hidden="true" />
+              <span>Producto actualizado con éxito en el catálogo.</span>
+            </div>
+            <Link
+              href="/admin/productos"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            >
+              <span>Volver a la lista de productos</span>
+              <ArrowLeft size={13} className="rotate-180" aria-hidden="true" />
+            </Link>
           </div>
         )}
 
@@ -1003,10 +1028,7 @@ export function EditProductClient({
         <ConfirmDeleteProductModal
           product={product}
           onClose={() => setShowDeleteModal(false)}
-          onDeleted={() => {
-            router.push("/admin/productos");
-            router.refresh();
-          }}
+          onDeleted={() => { router.push("/admin/productos"); }}
         />
       )}
     </div>

@@ -79,6 +79,11 @@ export function RouteLoadingIndicator() {
           return;
         }
 
+        // No superponer spinner de storefront dentro del panel administrativo
+        if (url.pathname.startsWith('/admin')) {
+          return;
+        }
+
         // Si el enlace apunta exactamente a la URL actual (pathname + search), no iniciar navegación
         const currentFullUrl = window.location.pathname + window.location.search;
         const targetFullUrl = url.pathname + url.search;

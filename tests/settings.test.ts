@@ -167,4 +167,26 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35, ADM-05, ADM
     expect(reloaded.themeFooterBgColor).toBe("#09090b");
     expect(reloaded.customTermsText).toBe("Cláusula 1: Envíos personalizados y compras protegidas por Aura.");
   });
+
+  it("normaliza colores hexadecimales para asegurar compatibilidad con paleta RGB y color picker nativo", async () => {
+    const { normalizeHexColor, hexToRgb, rgbToHex } = await import("../src/lib/theme/palettes");
+
+    // 6 dígitos estándar
+    expect(normalizeHexColor("#926a3c")).toBe("#926a3c");
+    // Shorthand 3 dígitos
+    expect(normalizeHexColor("#fff")).toBe("#ffffff");
+    expect(normalizeHexColor("#123")).toBe("#112233");
+    // Sin hash
+    expect(normalizeHexColor("926a3c")).toBe("#926a3c");
+    expect(normalizeHexColor("fff")).toBe("#ffffff");
+    // Inválidos caen en fallback sin romper
+    expect(normalizeHexColor("", "#faf8f5")).toBe("#faf8f5");
+    expect(normalizeHexColor(null, "#ffffff")).toBe("#ffffff");
+    expect(normalizeHexColor("invalid-color", "#926a3c")).toBe("#926a3c");
+
+    // Sincronía RGB bidireccional
+    const rgb = hexToRgb("#926a3c");
+    expect(rgb).toEqual({ r: 146, g: 106, b: 60 });
+    expect(rgbToHex(146, 106, 60)).toBe("#926a3c");
+  });
 });
