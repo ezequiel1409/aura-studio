@@ -426,26 +426,16 @@ export function PaymentsSettingsSection({
 
           <div className="flex items-center gap-2.5 ml-auto">
             <label
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
-                isMpReady
-                  ? "bg-zinc-950/70 border-zinc-800 cursor-pointer"
-                  : "bg-zinc-900/40 border-zinc-800/60 opacity-60 cursor-not-allowed"
-              }`}
-              title={
-                !isMpReady
-                  ? "Para habilitar Mercado Pago, tu desarrollador debe activar la cuenta en el servidor de forma segura."
-                  : ""
-              }
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border bg-zinc-950/70 border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors"
             >
               <input
                 type="checkbox"
-                disabled={!isMpReady}
-                checked={mercadopagoEnabled && isMpReady}
+                checked={mercadopagoEnabled}
                 onChange={(e) => onMercadopagoEnabledChange(e.target.checked)}
-                className="h-4 w-4 rounded accent-sky-400 cursor-pointer disabled:cursor-not-allowed"
+                className="h-4 w-4 rounded accent-sky-400 cursor-pointer"
               />
               <span className="text-xs font-semibold text-zinc-200">
-                {mercadopagoEnabled && isMpReady ? "Habilitado" : "Deshabilitado"}
+                {mercadopagoEnabled ? "Habilitado" : "Deshabilitado"}
               </span>
             </label>
 
@@ -488,10 +478,10 @@ export function PaymentsSettingsSection({
               <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-bold text-zinc-300">
                   <HelpCircle size={15} className="text-amber-400" />
-                  <span>¿Cómo activar Mercado Pago en tu tienda?</span>
+                  <span>Configuración de Mercado Pago en el servidor</span>
                 </div>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Para proteger tu dinero y la seguridad de tus clientes, la vinculación con Mercado Pago se realiza de manera segura en el servidor. Pedile a tu equipo de desarrollo o soporte que active tu cuenta de Mercado Pago para empezar a cobrar con tarjetas.
+                  Para procesar cobros reales con Mercado Pago, configurá la credencial <code className="text-amber-300 font-mono text-[11px] bg-zinc-950 px-1 py-0.5 rounded">MP_ACCESS_TOKEN</code> en el servidor. Podés prender o apagar este medio de cobro en tu tienda cuando lo desees con el switch superior.
                 </p>
               </div>
             )}

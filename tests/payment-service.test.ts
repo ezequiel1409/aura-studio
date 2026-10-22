@@ -102,6 +102,20 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     expect(transferMethod?.badge).toBe("10% OFF");
   });
 
+  it("getAvailablePaymentMethods excluye Mercado Pago si está deshabilitado en backoffice (mercadopago_enabled === '0')", async () => {
+    const deps = createMockDeps();
+    (deps.settingsRepo!.getAll as any).mockResolvedValueOnce({
+      mercadopago_enabled: "0",
+      transfer_enabled: "1",
+      cash_enabled: "1",
+      whatsapp_payment_enabled: "1",
+    });
+
+    const methods = await getAvailablePaymentMethods(deps);
+    expect(methods.some((m) => m.method === "MERCADOPAGO")).toBe(false);
+    expect(methods.some((m) => m.method === "TRANSFER")).toBe(true);
+  });
+
   it("createOrderPaymentPreference genera instrucciones y datos para TRANSFER", async () => {
     const deps = createMockDeps();
     const preference = await createOrderPaymentPreference(mockOrder, deps);

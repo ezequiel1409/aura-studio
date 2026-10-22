@@ -38,6 +38,7 @@ import {
 import { useCartStore } from "../../stores/cart.store";
 import { formatPrice } from "../../lib/format/currency";
 import { CartStepper, CheckoutStep } from "./CartStepper";
+import { PaymentProcessorIcon } from "./PaymentProcessorIcon";
 import { DeliveryMethod } from "../../domain/order/types";
 import { PaymentMethod, PaymentPreferenceResult } from "../../domain/payment/types";
 import {
@@ -153,7 +154,10 @@ export function CartPageClient({
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("TRANSFER");
+  const defaultInitialMethod = (initialPaymentMethods && initialPaymentMethods.length > 0)
+    ? initialPaymentMethods[0].method
+    : "TRANSFER";
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(defaultInitialMethod);
   const [transferReceiptFile, setTransferReceiptFile] = useState<File | null>(null);
   const [transferReceiptBase64, setTransferReceiptBase64] = useState<string | null>(null);
   const [receiptFileError, setReceiptFileError] = useState<string | null>(null);
@@ -169,17 +173,11 @@ export function CartPageClient({
     enabled: boolean;
     discountPercent?: number;
     badge?: string;
-  }>>(initialPaymentMethods ?? [
-    {
-      method: "TRANSFER",
-      name: "Transferencia Bancaria",
-      description: "Aboná por CBU/CVU o Alias con 10% de descuento automático.",
-      enabled: true,
-      discountPercent: 10,
-      badge: "10% OFF",
-    },
-  ]);
+  }>>(initialPaymentMethods ?? []);
   const enabledPaymentMethods = paymentMethods.filter((m) => m.enabled !== false);
+  const effectivePaymentMethod: PaymentMethod = enabledPaymentMethods.some((m) => m.method === selectedPaymentMethod)
+    ? selectedPaymentMethod
+    : (enabledPaymentMethods[0]?.method || selectedPaymentMethod || "TRANSFER");
   const [bankDetails, setBankDetails] = useState<{
     bankName?: string | null;
     accountHolder?: string | null;
@@ -188,6 +186,7 @@ export function CartPageClient({
     cuit?: string | null;
     discountPercent?: number;
   } | null>(initialBankDetails ?? null);
+  const [cashNotes, setCashNotes] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Términos y condiciones en Revisión (Paso 3)
@@ -274,6 +273,9 @@ export function CartPageClient({
           if (data.bankDetails) {
             setBankDetails(data.bankDetails);
           }
+          if (data.cashNotes) {
+            setCashNotes(data.cashNotes);
+          }
           const valid = data.methods.filter((m: { enabled?: boolean }) => m.enabled !== false);
           if (valid.length > 0 && !valid.some((m: { method: PaymentMethod }) => m.method === selectedPaymentMethod)) {
             setSelectedPaymentMethod(valid[0].method);
@@ -322,9 +324,9 @@ export function CartPageClient({
   const discountCents = appliedCoupon ? appliedCoupon.discountCents : 0;
 
   // Bonificación por método de pago (ej: 10% OFF en transferencia, aplicable en Paso 3)
-  const activeMethod = paymentMethods.find((m) => m.method === selectedPaymentMethod);
+  const activeMethod = paymentMethods.find((m) => m.method === effectivePaymentMethod);
   const transferDiscountPercent =
-    selectedPaymentMethod === "TRANSFER"
+    effectivePaymentMethod === "TRANSFER"
       ? (activeMethod?.discountPercent ?? bankDetails?.discountPercent ?? 10)
       : 0;
   const paymentDiscountCents =
@@ -578,7 +580,7 @@ export function CartPageClient({
           })(),
           shippingCents,
           discountCents,
-          paymentMethod: selectedPaymentMethod,
+          paymentMethod: effectivePaymentMethod,
           paymentDiscountCents,
           couponCode: appliedCoupon?.code || null,
           transferReceiptUrl: transferReceiptBase64 || null,
@@ -600,7 +602,7 @@ export function CartPageClient({
         throw new Error(data.error || "Error al procesar la orden.");
       }
 
-      const confirmedPaymentMethod = selectedPaymentMethod;
+      const confirmedPaymentMethod = effectivePaymentMethod;
 
       setOrderSuccess({
         code: data.order.code,
@@ -612,7 +614,7 @@ export function CartPageClient({
 
       // Limpiar bolsa y reiniciar métodos elegidos para próximas compras
       clearCart();
-      setSelectedPaymentMethod("TRANSFER");
+      setSelectedPaymentMethod(enabledPaymentMethods[0]?.method || "TRANSFER");
       setAppliedCoupon(null);
       setCouponInput("");
       setDeliveryNotes("");
@@ -1314,17 +1316,36 @@ export function CartPageClient({
                   {!ordersPaused && <ArrowRight className="h-4 w-4" />}
                 </button>
 
-                {/* Medios de Pago Aceptados */}
-                <div className="border-t border-[#e7e2da] pt-4 space-y-2">
-                  <span className="block text-[10px] font-semibold tracking-wider uppercase text-stone-500">
-                    Medios de pago coordinados:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5 text-[11px] text-stone-600">
-                    <span className="rounded-md bg-stone-100 px-2 py-0.5 border border-stone-200">Transferencia</span>
-                    <span className="rounded-md bg-stone-100 px-2 py-0.5 border border-stone-200">Mercado Pago</span>
-                    <span className="rounded-md bg-stone-100 px-2 py-0.5 border border-stone-200">Efectivo en Showroom</span>
+                {/* Medios de Pago Aceptados Dinámicos (BR-47) */}
+                {enabledPaymentMethods.length > 0 && (
+                  <div className="border-t border-[#e7e2da] pt-4 space-y-2">
+                    <span className="block text-[10px] font-semibold tracking-wider uppercase text-stone-500">
+                      Medios de pago coordinados:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 text-[11px] text-stone-700">
+                      {enabledPaymentMethods.map((m) => (
+                        <span
+                          key={m.method}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-stone-100/90 px-2.5 py-1 border border-stone-200/80 font-medium text-stone-800"
+                        >
+                          <PaymentProcessorIcon method={m.method} className="h-3.5 w-3.5" />
+                          <span>{m.name}</span>
+                          {m.badge && (
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                                m.method === "TRANSFER"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-sky-100 text-sky-800"
+                              }`}
+                            >
+                              {m.badge}
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="border-t border-[#e7e2da] pt-3 space-y-2 text-[11px] text-stone-500">
                   <div className="flex items-center gap-2">
@@ -1911,7 +1932,7 @@ export function CartPageClient({
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => {
-                      setSelectedPaymentMethod("TRANSFER");
+                      setSelectedPaymentMethod(effectivePaymentMethod);
                       setCurrentStep("shipping");
                     }}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer disabled:opacity-50 self-start sm:self-auto"
@@ -1934,7 +1955,7 @@ export function CartPageClient({
                         type="button"
                         disabled={isSubmitting}
                         onClick={() => {
-                          setSelectedPaymentMethod("TRANSFER");
+                          setSelectedPaymentMethod(effectivePaymentMethod);
                           setCurrentStep("shipping");
                         }}
                         className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer disabled:opacity-50"
@@ -1965,7 +1986,7 @@ export function CartPageClient({
                         type="button"
                         disabled={isSubmitting}
                         onClick={() => {
-                          setSelectedPaymentMethod("TRANSFER");
+                          setSelectedPaymentMethod(effectivePaymentMethod);
                           setCurrentStep("shipping");
                         }}
                         className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer disabled:opacity-50"
@@ -1998,12 +2019,12 @@ export function CartPageClient({
                 </div>
 
                 {/* Selector de Método de Pago (BR-47) - Solo métodos habilitados */}
-                <div className="border-t border-[#e7e2da] pt-5 space-y-3">
+                <div className="border-t border-[#e7e2da] pt-5 space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-stone-900 uppercase tracking-wider text-[11px]">
                       Método de Pago
                     </span>
-                    {transferDiscountPercent > 0 && selectedPaymentMethod === "TRANSFER" && (
+                    {transferDiscountPercent > 0 && effectivePaymentMethod === "TRANSFER" && (
                       <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200/60">
                         {transferDiscountPercent}% OFF con Transferencia
                       </span>
@@ -2013,7 +2034,7 @@ export function CartPageClient({
                   {enabledPaymentMethods.length > 1 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {enabledPaymentMethods.map((m) => {
-                        const isSelected = selectedPaymentMethod === m.method;
+                        const isSelected = effectivePaymentMethod === m.method;
                         return (
                           <label
                             key={m.method}
@@ -2037,15 +2058,8 @@ export function CartPageClient({
                               className="mt-0.5 accent-stone-900"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 font-medium text-stone-900">
-                                {m.method === "TRANSFER" && <Building2 className="h-4 w-4 text-[#926a3c] shrink-0" />}
-                                {m.method === "MERCADOPAGO" && <CreditCard className="h-4 w-4 text-sky-600 shrink-0" />}
-                                {m.method === "PAYWAY" && <CreditCard className="h-4 w-4 text-indigo-600 shrink-0" />}
-                                {m.method === "GETNET" && <CreditCard className="h-4 w-4 text-rose-600 shrink-0" />}
-                                {m.method === "MODO" && <QrCode className="h-4 w-4 text-teal-600 shrink-0" />}
-                                {m.method === "GOOGLEPAY" && <Wallet className="h-4 w-4 text-amber-500 shrink-0" />}
-                                {m.method === "CASH" && <Banknote className="h-4 w-4 text-emerald-600 shrink-0" />}
-                                {m.method === "WHATSAPP" && <MessageCircle className="h-4 w-4 text-[#25D366] shrink-0" />}
+                              <div className="flex items-center gap-2 font-medium text-stone-900">
+                                <PaymentProcessorIcon method={m.method} className="h-4 w-4 shrink-0" />
                                 <span className="truncate">{m.name}</span>
                                 {m.badge && (
                                   <span
@@ -2067,35 +2081,50 @@ export function CartPageClient({
                         );
                       })}
                     </div>
-                  ) : (
+                  ) : enabledPaymentMethods.length === 1 ? (
                     <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3.5 flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <Building2 className="h-4 w-4 text-[#926a3c] shrink-0" />
+                      <div className="flex items-center gap-3">
+                        <PaymentProcessorIcon method={enabledPaymentMethods[0].method} className="h-5 w-5 shrink-0" />
                         <div>
-                          <p className="font-semibold text-xs text-stone-900">
-                            {enabledPaymentMethods[0]?.name || "Transferencia Bancaria"}
-                          </p>
-                          <p className="text-[11px] text-stone-500">
-                            {enabledPaymentMethods[0]?.description || "Aboná por CBU/CVU o Alias directo al showroom."}
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-xs text-stone-900">
+                              {enabledPaymentMethods[0].name}
+                            </p>
+                            {enabledPaymentMethods[0].badge && (
+                              <span
+                                className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                  enabledPaymentMethods[0].method === "TRANSFER"
+                                    ? "text-emerald-700 bg-emerald-100/70"
+                                    : "text-sky-700 bg-sky-100/70"
+                                }`}
+                              >
+                                {enabledPaymentMethods[0].badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-stone-500 mt-0.5">
+                            {enabledPaymentMethods[0].description}
                           </p>
                         </div>
                       </div>
-                      {transferDiscountPercent > 0 && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
-                          {transferDiscountPercent}% OFF
-                        </span>
-                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-xs text-amber-900 space-y-1">
+                      <p className="font-semibold">No hay medios de pago online habilitados</p>
+                      <p className="text-[11px] text-amber-800">
+                        Por favor comunicate con el showroom para coordinar tu compra directamente por WhatsApp.
+                      </p>
                     </div>
                   )}
 
                   {/* Detalle específico de Transferencia Bancaria */}
-                  {selectedPaymentMethod === "TRANSFER" && (
+                  {effectivePaymentMethod === "TRANSFER" && (
                     <div className="rounded-2xl border border-amber-200/90 bg-amber-50/50 p-4 sm:p-5 text-xs space-y-4 animate-in fade-in-50">
                       <div className="flex items-start gap-2.5">
                         <Clock className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
                         <div>
                           <p className="font-semibold text-amber-950">
-                            Reserva por 24 horas & 10% OFF automático
+                            Reserva por 24 horas & {transferDiscountPercent}% OFF automático
                           </p>
                           <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
                             Tus prendas quedan apartadas por <strong>24 horas</strong>. Si no se registra la transferencia en ese plazo, la orden se cancela automáticamente y las prendas vuelven al stock disponible.
@@ -2110,9 +2139,11 @@ export function CartPageClient({
                             <Building2 className="h-4 w-4 text-[#926a3c]" />
                             Datos para la Transferencia
                           </span>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
-                            10% OFF Aplicado
-                          </span>
+                          {transferDiscountPercent > 0 && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                              {transferDiscountPercent}% OFF Aplicado
+                            </span>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2253,6 +2284,99 @@ export function CartPageClient({
                       </div>
                     </div>
                   )}
+
+                  {/* Detalle de Mercado Pago */}
+                  {effectivePaymentMethod === "MERCADOPAGO" && (
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50/50 p-4 sm:p-5 text-xs space-y-2 animate-in fade-in-50">
+                      <div className="flex items-center gap-2 font-semibold text-sky-950">
+                        <PaymentProcessorIcon method="MERCADOPAGO" className="h-4 w-4" />
+                        <span>Pago seguro con Mercado Pago</span>
+                      </div>
+                      <p className="text-[11px] text-sky-900 leading-relaxed">
+                        Al confirmar el pedido, serás redirigido a la pasarela segura de Mercado Pago para abonar de forma inmediata con tarjetas de crédito, débito, dinero en cuenta o cuotas.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Detalle de Efectivo */}
+                  {effectivePaymentMethod === "CASH" && (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5 text-xs space-y-2 animate-in fade-in-50">
+                      <div className="flex items-center gap-2 font-semibold text-emerald-950">
+                        <Banknote className="h-4 w-4 text-emerald-600" />
+                        <span>Pago en efectivo</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-900 leading-relaxed">
+                        Abonás en efectivo al momento de retirar en el showroom o recibir tu compra.
+                      </p>
+                      {cashNotes && (
+                        <p className="text-[11px] text-emerald-800 italic bg-white/70 p-2.5 rounded-lg border border-emerald-200/60">
+                          {cashNotes}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Detalle de Coordinar por WhatsApp */}
+                  {effectivePaymentMethod === "WHATSAPP" && (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 sm:p-5 text-xs space-y-2 animate-in fade-in-50">
+                      <div className="flex items-center gap-2 font-semibold text-emerald-950">
+                        <MessageCircle className="h-4 w-4 text-[#25D366]" />
+                        <span>Atención directa por WhatsApp</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-900 leading-relaxed">
+                        Al confirmar el pedido, te conectaremos directamente por WhatsApp con el equipo del showroom para coordinar el medio de pago que prefieras y los detalles de entrega.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Detalle de Payway / Getnet / MODO / Google Pay */}
+                  {effectivePaymentMethod === "PAYWAY" && (
+                    <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 sm:p-5 text-xs space-y-2 animate-in fade-in-50">
+                      <div className="flex items-center gap-2 font-semibold text-indigo-950">
+                        <CreditCard className="h-4 w-4 text-indigo-600" />
+                        <span>Pago seguro con Payway (Prisma)</span>
+                      </div>
+                      <p className="text-[11px] text-indigo-900 leading-relaxed">
+                        Serás dirigido a la plataforma de Payway para pagar con tarjetas de crédito bancarias (con Cuota Simple) y débito con acreditación segura.
+                      </p>
+                    </div>
+                  )}
+
+                  {effectivePaymentMethod === "GETNET" && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4 sm:p-5 text-xs space-y-2 animate-in fade-in-50">
+                      <div className="flex items-center gap-2 font-semibold text-rose-950">
+                        <CreditCard className="h-4 w-4 text-rose-600" />
+                        <span>Pago con Getnet (Santander)</span>
+                      </div>
+                      <p className="text-[11px] text-rose-900 leading-relaxed">
+                        Aboná con promociones exclusivas de Santander y tarjetas Visa/Mastercard a través de Getnet.
+                      </p>
+                    </div>
+                  )}
+
+                  {effectivePaymentMethod === "MODO" && (
+                    <div className="rounded-2xl border border-teal-200 bg-teal-50/50 p-4 sm:p-5 text-xs space-y-2 animate-in fade-in-50">
+                      <div className="flex items-center gap-2 font-semibold text-teal-950">
+                        <QrCode className="h-4 w-4 text-teal-600" />
+                        <span>Pago con MODO / App Bancaria</span>
+                      </div>
+                      <p className="text-[11px] text-teal-900 leading-relaxed">
+                        Escaneá el código QR desde tu app bancaria o la app de MODO para acceder a reintegros y promociones.
+                      </p>
+                    </div>
+                  )}
+
+                  {effectivePaymentMethod === "GOOGLEPAY" && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5 text-xs space-y-2 animate-in fade-in-50">
+                      <div className="flex items-center gap-2 font-semibold text-amber-950">
+                        <Wallet className="h-4 w-4 text-amber-500" />
+                        <span>Google Pay</span>
+                      </div>
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        Pago rápido y seguro en 1 clic con tus tarjetas guardadas en Google.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2363,7 +2487,7 @@ export function CartPageClient({
                       >
                         términos de compra
                       </Link>
-                      , política de reserva por {selectedPaymentMethod === "TRANSFER" ? "24 horas" : reservationText} y condiciones de cambio (15 días con etiqueta).
+                      , política de reserva por {effectivePaymentMethod === "TRANSFER" ? "24 horas" : reservationText} y condiciones de cambio (15 días con etiqueta).
                     </span>
                   </label>
                 </div>
@@ -2387,37 +2511,37 @@ export function CartPageClient({
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Registrando orden...</span>
                     </>
-                  ) : selectedPaymentMethod === "TRANSFER" ? (
+                  ) : effectivePaymentMethod === "TRANSFER" ? (
                     <>
                       <Building2 className="h-4 w-4 text-[#d4af37]" />
                       <span>Confirmar y ver CBU para transferir</span>
                     </>
-                  ) : selectedPaymentMethod === "MERCADOPAGO" ? (
+                  ) : effectivePaymentMethod === "MERCADOPAGO" ? (
                     <>
-                      <CreditCard className="h-4 w-4 text-sky-400" />
+                      <PaymentProcessorIcon method="MERCADOPAGO" className="h-4 w-4" />
                       <span>Continuar a Mercado Pago</span>
                     </>
-                  ) : selectedPaymentMethod === "PAYWAY" ? (
+                  ) : effectivePaymentMethod === "PAYWAY" ? (
                     <>
                       <CreditCard className="h-4 w-4 text-indigo-400" />
                       <span>Continuar a Payway (Cuota Simple)</span>
                     </>
-                  ) : selectedPaymentMethod === "GETNET" ? (
+                  ) : effectivePaymentMethod === "GETNET" ? (
                     <>
                       <CreditCard className="h-4 w-4 text-rose-400" />
                       <span>Continuar a Getnet (Santander)</span>
                     </>
-                  ) : selectedPaymentMethod === "MODO" ? (
+                  ) : effectivePaymentMethod === "MODO" ? (
                     <>
                       <QrCode className="h-4 w-4 text-teal-400" />
                       <span>Pagar con MODO / App Bancaria</span>
                     </>
-                  ) : selectedPaymentMethod === "GOOGLEPAY" ? (
+                  ) : effectivePaymentMethod === "GOOGLEPAY" ? (
                     <>
                       <Wallet className="h-4 w-4 text-amber-400" />
                       <span>Pagar con Google Pay</span>
                     </>
-                  ) : selectedPaymentMethod === "CASH" ? (
+                  ) : effectivePaymentMethod === "CASH" ? (
                     <>
                       <Banknote className="h-4 w-4 text-emerald-400" />
                       <span>Confirmar pedido (Efectivo)</span>

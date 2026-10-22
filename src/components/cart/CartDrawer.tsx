@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { formatPrice } from "../../lib/format/currency";
+import { PaymentProcessorIcon } from "./PaymentProcessorIcon";
 
 interface CartDrawerProps {
   showroomAddress?: string | null;
@@ -41,6 +42,24 @@ export function CartDrawer({
 
   const titleId = useId();
   const [confirmClearPrompt, setConfirmClearPrompt] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<Array<{
+    method: string;
+    name: string;
+    badge?: string;
+  }>>([]);
+
+  // Consultar métodos de pago activos configurados en el backoffice
+  useEffect(() => {
+    if (!isOpen) return;
+    fetch("/api/payments/methods")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.methods && Array.isArray(data.methods)) {
+          setPaymentMethods(data.methods.filter((m: { enabled?: boolean }) => m.enabled !== false));
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
 
   // Cerrar con Escape y bloquear scroll del body
   useEffect(() => {
@@ -315,18 +334,29 @@ export function CartDrawer({
                 </div>
               </div>
 
-              {/* Medios de Pago Aceptados */}
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-stone-600">
-                <span className="rounded-md bg-emerald-50 text-emerald-800 font-medium px-2 py-0.5 border border-emerald-200">
-                  Transferencia 10% OFF
-                </span>
-                <span className="rounded-md bg-stone-100 px-2 py-0.5 border border-stone-200">
-                  Mercado Pago
-                </span>
-                <span className="rounded-md bg-stone-100 px-2 py-0.5 border border-stone-200">
-                  Efectivo
-                </span>
-              </div>
+              {/* Medios de Pago Aceptados Dinámicos (BR-47) */}
+              {paymentMethods.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-stone-600">
+                  {paymentMethods.map((m) => (
+                    <span
+                      key={m.method}
+                      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 border text-[11px] font-medium ${
+                        m.method === "TRANSFER"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : "bg-stone-100 text-stone-700 border-stone-200"
+                      }`}
+                    >
+                      <PaymentProcessorIcon method={m.method} className="h-3 w-3" />
+                      <span>{m.name}</span>
+                      {m.badge && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider">
+                          {m.badge}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Botones de Acción */}
               <div className="space-y-2 pt-1">
