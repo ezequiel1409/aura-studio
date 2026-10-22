@@ -34,6 +34,16 @@ export interface StoreScheduleConfig {
   exceptions: ScheduleException[];
 }
 
+export type PickupAddressVisibility = "PUBLIC" | "COORDINATE_WHATSAPP";
+
+export interface ShippingZoneConfig {
+  id: string;
+  name: string;
+  costCents: number;
+  estimatedDelivery?: string;
+  enabled: boolean;
+}
+
 export interface StoreLocationConfig {
   attendsPublic: boolean;
   streetAddress: string;
@@ -42,6 +52,19 @@ export interface StoreLocationConfig {
   postalCode: string;
   googleMapsUrl: string | null;
   freeShippingFromCents: number | null;
+  pickupAddressVisibility?: PickupAddressVisibility;
+  pickupEnabled?: boolean;
+  // Correo / Envío a Domicilio
+  homeDeliveryEnabled?: boolean;
+  homeDeliveryCostCents?: number;
+  homeDeliveryEstimatedDays?: string;
+  homeDeliveryFreeThresholdCents?: number | null;
+  homeDeliveryZones?: ShippingZoneConfig[];
+  // Moto Express
+  motorcycleDeliveryEnabled?: boolean;
+  motorcycleDeliveryCostCents?: number;
+  motorcycleDeliveryEstimatedDays?: string;
+  motorcycleZones?: ShippingZoneConfig[];
 }
 
 export const DAY_LABELS: Record<DayOfWeek, string> = {
@@ -100,6 +123,18 @@ export const DEFAULT_STORE_SCHEDULE: StoreScheduleConfig = {
   exceptions: [],
 };
 
+export const DEFAULT_SHIPPING_HOME_ZONES: ShippingZoneConfig[] = [
+  { id: "caba_gba", name: "CABA y Gran Buenos Aires", costCents: 380000, estimatedDelivery: "2 a 3 días hábiles", enabled: true },
+  { id: "interior", name: "Interior del país / Resto de Argentina", costCents: 490000, estimatedDelivery: "4 a 6 días hábiles", enabled: true },
+];
+
+export const DEFAULT_SHIPPING_MOTO_ZONES: ShippingZoneConfig[] = [
+  { id: "caba", name: "CABA (Capital Federal)", costCents: 350000, estimatedDelivery: "En el día", enabled: true },
+  { id: "gba_norte", name: "GBA Zona Norte (Vicente López, San Isidro)", costCents: 450000, estimatedDelivery: "En el día / 24 hs", enabled: true },
+  { id: "gba_oeste", name: "GBA Zona Oeste (Morón, Ramos Mejía)", costCents: 450000, estimatedDelivery: "En el día / 24 hs", enabled: true },
+  { id: "gba_sur", name: "GBA Zona Sur (Avellaneda, Lanús, Quilmes)", costCents: 480000, estimatedDelivery: "En el día / 24 hs", enabled: true },
+];
+
 export const DEFAULT_STORE_LOCATION: StoreLocationConfig = {
   attendsPublic: true,
   streetAddress: "Gurruchaga 1650",
@@ -108,6 +143,17 @@ export const DEFAULT_STORE_LOCATION: StoreLocationConfig = {
   postalCode: "C1414",
   googleMapsUrl: null,
   freeShippingFromCents: 8500000, // $85.000
+  pickupAddressVisibility: "PUBLIC",
+  pickupEnabled: true,
+  homeDeliveryEnabled: false,
+  homeDeliveryCostCents: 450000,
+  homeDeliveryEstimatedDays: "3 a 5 días hábiles",
+  homeDeliveryFreeThresholdCents: null,
+  homeDeliveryZones: DEFAULT_SHIPPING_HOME_ZONES,
+  motorcycleDeliveryEnabled: false,
+  motorcycleDeliveryCostCents: 350000,
+  motorcycleDeliveryEstimatedDays: "En el día",
+  motorcycleZones: DEFAULT_SHIPPING_MOTO_ZONES,
 };
 
 export function formatDayRanges(dayItem?: DaySchedule | null): string {

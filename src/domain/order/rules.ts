@@ -41,6 +41,8 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   couponCode: string | null;
   customerId: number | null;
   commerceId: number | null;
+  transferReceiptUrl?: string | null;
+  transferReceiptUploadedAt?: number | null;
   idempotencyKey?: string | null;
   notes: string | null;
 } {
@@ -100,6 +102,26 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
     paymentMethod = input.paymentMethod;
   }
 
+  let transferReceiptUrl: string | null = null;
+  let transferReceiptUploadedAt: number | null = null;
+  if (input.transferReceiptUrl && input.transferReceiptUrl.trim()) {
+    let clean = input.transferReceiptUrl.trim();
+    if (clean.startsWith("data:")) {
+      if (!clean.startsWith("data:application/pdf;base64,")) {
+        throw new ValidationError("Solo se admiten comprobantes en formato PDF.");
+      }
+      clean = clean.replace("data:application/pdf;base64,", "");
+    }
+    const binarySize = Math.floor((clean.length * 3) / 4);
+    if (binarySize > 10 * 1024 * 1024) {
+      throw new ValidationError("El comprobante PDF supera el tamaño máximo permitido de 10 MB.");
+    }
+    transferReceiptUrl = input.transferReceiptUrl.startsWith("data:")
+      ? input.transferReceiptUrl.trim()
+      : `data:application/pdf;base64,${clean}`;
+    transferReceiptUploadedAt = input.transferReceiptUploadedAt || Math.floor(Date.now() / 1000);
+  }
+
   return {
     customerName,
     customerPhone,
@@ -117,6 +139,8 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
     couponCode: input.couponCode?.trim().toUpperCase() || null,
     customerId: input.customerId ?? null,
     commerceId: input.commerceId ?? null,
+    transferReceiptUrl,
+    transferReceiptUploadedAt,
     idempotencyKey: input.idempotencyKey?.trim() || null,
     notes: input.notes?.trim() || null,
   };

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getProductServiceDeps } from "../../infra/db/connection";
 import { getShowroomSettings } from "../../services/settings.service";
+import { getAvailablePaymentMethods } from "../../services/payment.service";
 import { CartPageClient } from "../../components/cart/CartPageClient";
 import { Footer } from "../../components/layout/Footer";
 import { StoreThemeStyles } from "../../components/theme/StoreThemeStyles";
@@ -14,7 +15,10 @@ export const metadata: Metadata = {
 
 export default async function CarritoPage() {
   const deps = getProductServiceDeps();
-  const settings = await getShowroomSettings(deps);
+  const [settings, availablePaymentMethods] = await Promise.all([
+    getShowroomSettings(deps),
+    getAvailablePaymentMethods(deps),
+  ]);
   const brandName = settings.showroomName || "Aura Studio";
 
   return (
@@ -76,6 +80,19 @@ export default async function CarritoPage() {
           brandName={brandName}
           whatsappNumber={settings.whatsappNumber}
           reservationHours={settings.reservationHours}
+          initialPaymentMethods={availablePaymentMethods}
+          initialBankDetails={
+            settings.transferEnabled
+              ? {
+                  bankName: settings.transferBankName,
+                  accountHolder: settings.transferAccountHolder,
+                  cbu: settings.transferCbu,
+                  alias: settings.transferAlias,
+                  cuit: settings.transferCuit,
+                  discountPercent: settings.transferDiscountPercent,
+                }
+              : null
+          }
         />
       </main>
 

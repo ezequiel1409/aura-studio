@@ -1,6 +1,10 @@
 "use client";
 
-import { Clock, MapPin, MessageCircle, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { Clock,
+  ExternalLink,
+  Truck,
+  Bike,
+  Store, MapPin, MessageCircle, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { InstagramIcon, TikTokIcon } from "../../icons/SocialIcons";
 import {
   DAY_LABELS,
@@ -324,8 +328,92 @@ export function FooterSettingsSection({
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400"
                 />
               </div>
+              <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+                <label className="text-xs font-semibold text-zinc-300 block">
+                  Visibilidad de la Dirección en el Checkout (Retiro en Local):
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <label className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    (storeLocation.pickupAddressVisibility || "PUBLIC") === "PUBLIC"
+                      ? "bg-amber-400/10 border-amber-400/50 text-zinc-100"
+                      : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                  }`}>
+                    <input
+                      type="radio"
+                      name="pickupAddressVisibility"
+                      value="PUBLIC"
+                      checked={(storeLocation.pickupAddressVisibility || "PUBLIC") === "PUBLIC"}
+                      onChange={() =>
+                        onStoreLocationChange?.({
+                          ...storeLocation,
+                          pickupAddressVisibility: "PUBLIC",
+                        })
+                      }
+                      className="mt-0.5 accent-amber-400"
+                    />
+                    <div>
+                      <span className="font-semibold block text-zinc-200">Publicar dirección exacta</span>
+                      <span className="text-[11px] text-zinc-400 block mt-0.5 leading-relaxed">
+                        Muestra la calle, localidad y botón "Cómo llegar" de Google Maps en el checkout.
+                      </span>
+                    </div>
+                  </label>
+
+                  <label className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    storeLocation.pickupAddressVisibility === "COORDINATE_WHATSAPP"
+                      ? "bg-amber-400/10 border-amber-400/50 text-zinc-100"
+                      : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                  }`}>
+                    <input
+                      type="radio"
+                      name="pickupAddressVisibility"
+                      value="COORDINATE_WHATSAPP"
+                      checked={storeLocation.pickupAddressVisibility === "COORDINATE_WHATSAPP"}
+                      onChange={() =>
+                        onStoreLocationChange?.({
+                          ...storeLocation,
+                          pickupAddressVisibility: "COORDINATE_WHATSAPP",
+                        })
+                      }
+                      className="mt-0.5 accent-amber-400"
+                    />
+                    <div>
+                      <span className="font-semibold block text-zinc-200">Coordinar por WhatsApp</span>
+                      <span className="text-[11px] text-zinc-400 block mt-0.5 leading-relaxed">
+                        Showroom privado / cita previa. El comprador verá que la dirección se coordina por WhatsApp tras confirmar.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
           )}
+        </div>
+
+                {/* Acceso a Configuración de Envíos y Métodos de Entrega */}
+        <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400">
+                <Truck size={18} />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-200">
+                  Envíos y Métodos de Entrega
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Retiro en local, envíos por correo, moto mensajería y configuración de zonas con costos.
+                </p>
+              </div>
+            </div>
+            <a
+              href="/admin/tienda/envios"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs uppercase tracking-wider transition-colors shrink-0 shadow-sm"
+            >
+              <span>Configurar envíos</span>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </div>
 
         {/* Bloque 3: Redes Sociales y AFIP */}

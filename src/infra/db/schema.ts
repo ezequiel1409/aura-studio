@@ -295,6 +295,8 @@ export const orders = sqliteTable(
     commerceId: integer("commerce_id").references(() => commerces.id, {
       onDelete: "set null",
     }),
+    transferReceiptUrl: text("transfer_receipt_url"),
+    transferReceiptUploadedAt: integer("transfer_receipt_uploaded_at"),
     notes: text("notes"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),

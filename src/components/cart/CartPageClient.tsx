@@ -14,6 +14,7 @@ import {
   Bike,
   ShieldCheck,
   CheckCircle2,
+  Info,
   AlertCircle,
   Loader2,
   User,
@@ -31,6 +32,8 @@ import {
   ExternalLink,
   QrCode,
   Wallet,
+  FileText,
+  Upload,
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { formatPrice } from "../../lib/format/currency";
@@ -55,6 +58,22 @@ interface CartPageClientProps {
   whatsappNumber?: string;
   brandName?: string;
   reservationHours?: number;
+  initialPaymentMethods?: Array<{
+    method: PaymentMethod;
+    name: string;
+    description: string;
+    enabled: boolean;
+    discountPercent?: number;
+    badge?: string;
+  }>;
+  initialBankDetails?: {
+    bankName?: string | null;
+    accountHolder?: string | null;
+    cbu?: string | null;
+    alias?: string | null;
+    cuit?: string | null;
+    discountPercent?: number;
+  } | null;
 }
 
 const SHIPPING_COSTS: Record<DeliveryMethod, number> = {
@@ -70,6 +89,8 @@ export function CartPageClient({
   brandName = "Aura Studio",
   whatsappNumber = "+5491100000000",
   reservationHours = 48,
+  initialPaymentMethods,
+  initialBankDetails,
 }: CartPageClientProps) {
   const resHours = reservationHours || 48;
   const reservationText =
@@ -90,6 +111,29 @@ export function CartPageClient({
     getSubtotalCents,
   } = useCartStore();
 
+  const isPickupEnabled = storeLocation.pickupEnabled !== false;
+  const isHomeDeliveryEnabled = Boolean(storeLocation.homeDeliveryEnabled);
+  const isMotorcycleDeliveryEnabled = Boolean(storeLocation.motorcycleDeliveryEnabled);
+
+  const activeHomeZones = (storeLocation.homeDeliveryZones || []).filter((z) => z.enabled);
+  const activeMotoZones = (storeLocation.motorcycleZones || []).filter((z) => z.enabled);
+
+  const [selectedHomeZoneId, setSelectedHomeZoneId] = useState<string>(() => {
+    return activeHomeZones[0]?.id || "";
+  });
+  const [selectedMotoZoneId, setSelectedMotoZoneId] = useState<string>(() => {
+    return activeMotoZones[0]?.id || "";
+  });
+
+  const homeDeliveryCost = storeLocation.homeDeliveryCostCents ?? 450000;
+  const motorcycleDeliveryCost = storeLocation.motorcycleDeliveryCostCents ?? 350000;
+
+  const effectiveShippingCosts: Record<DeliveryMethod, number> = {
+    PICKUP: 0,
+    HOME_DELIVERY: homeDeliveryCost,
+    MOTORCYCLE: motorcycleDeliveryCost,
+  };
+
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("cart");
 
@@ -106,6 +150,14 @@ export function CartPageClient({
   const [postalCode, setPostalCode] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("TRANSFER");
+  const [transferReceiptFile, setTransferReceiptFile] = useState<File | null>(null);
+  const [transferReceiptBase64, setTransferReceiptBase64] = useState<string | null>(null);
+  const [receiptFileError, setReceiptFileError] = useState<string | null>(null);
+  const [orderSuccessReceiptFile, setOrderSuccessReceiptFile] = useState<File | null>(null);
+  const [isUploadingOrderSuccessReceipt, setIsUploadingOrderSuccessReceipt] = useState(false);
+  const [orderSuccessReceiptError, setOrderSuccessReceiptError] = useState<string | null>(null);
+  const [orderSuccessReceiptSuccess, setOrderSuccessReceiptSuccess] = useState(false);
+
   const [paymentMethods, setPaymentMethods] = useState<Array<{
     method: PaymentMethod;
     name: string;
@@ -113,7 +165,7 @@ export function CartPageClient({
     enabled: boolean;
     discountPercent?: number;
     badge?: string;
-  }>>([
+  }>>(initialPaymentMethods ?? [
     {
       method: "TRANSFER",
       name: "Transferencia Bancaria",
@@ -122,34 +174,16 @@ export function CartPageClient({
       discountPercent: 10,
       badge: "10% OFF",
     },
-    {
-      method: "MERCADOPAGO",
-      name: "Mercado Pago",
-      description: "Tarjetas de crédito, débito, dinero en cuenta o cuotas.",
-      enabled: true,
-      badge: "Inmediato",
-    },
-    {
-      method: "CASH",
-      name: "Efectivo",
-      description: "Aboná en efectivo al retirar en showroom o recibir tu paquete.",
-      enabled: true,
-    },
-    {
-      method: "WHATSAPP",
-      name: "Coordinar por WhatsApp",
-      description: "Asistencia directa con el showroom para coordinar tu pago.",
-      enabled: true,
-    },
   ]);
+  const enabledPaymentMethods = paymentMethods.filter((m) => m.enabled !== false);
   const [bankDetails, setBankDetails] = useState<{
     bankName?: string | null;
     accountHolder?: string | null;
     cbu?: string | null;
     alias?: string | null;
     cuit?: string | null;
-    discountPercent: number;
-  } | null>(null);
+    discountPercent?: number;
+  } | null>(initialBankDetails ?? null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Términos y condiciones en Revisión (Paso 3)
@@ -168,6 +202,7 @@ export function CartPageClient({
     whatsappUrl: string;
     paymentPreference?: PaymentPreferenceResult;
     paymentMethod: PaymentMethod;
+    transferReceiptUrl?: string | null;
   } | null>(null);
 
   // Cupón de descuento aplicado
@@ -185,8 +220,14 @@ export function CartPageClient({
 
   useEffect(() => {
     setMounted(true);
-    // Asegurar que al iniciar en Paso 1 no queden métodos arrastrados de sesiones previas
-    setDeliveryMethod("PICKUP");
+    // Asegurar que al iniciar el método seleccionado sea uno de los habilitados por el comercio
+    if (isPickupEnabled) {
+      setDeliveryMethod("PICKUP");
+    } else if (isHomeDeliveryEnabled) {
+      setDeliveryMethod("HOME_DELIVERY");
+    } else if (isMotorcycleDeliveryEnabled) {
+      setDeliveryMethod("MOTORCYCLE");
+    }
 
     // Intentar autocompletar si el cliente tiene sesión activa
     fetch("/api/auth/me")
@@ -229,6 +270,10 @@ export function CartPageClient({
           if (data.bankDetails) {
             setBankDetails(data.bankDetails);
           }
+          const valid = data.methods.filter((m: { enabled?: boolean }) => m.enabled !== false);
+          if (valid.length > 0 && !valid.some((m: { method: PaymentMethod }) => m.method === selectedPaymentMethod)) {
+            setSelectedPaymentMethod(valid[0].method);
+          }
         }
       })
       .catch(() => {});
@@ -244,7 +289,31 @@ export function CartPageClient({
 
   const totalCount = getTotalItemsCount();
   const subtotalCents = getSubtotalCents();
-  const baseShippingCents = deliveryMethod === "PICKUP" ? 0 : SHIPPING_COSTS[deliveryMethod];
+
+  const currentHomeZone = activeHomeZones.find((z) => z.id === selectedHomeZoneId) || activeHomeZones[0];
+  const currentMotoZone = activeMotoZones.find((z) => z.id === selectedMotoZoneId) || activeMotoZones[0];
+
+  const homeFreeThreshold = storeLocation.homeDeliveryFreeThresholdCents ?? storeLocation.freeShippingFromCents ?? null;
+  const isHomeFreeShipping = Boolean(homeFreeThreshold && subtotalCents >= homeFreeThreshold);
+
+  const effectiveHomeDeliveryCost = isHomeFreeShipping
+    ? 0
+    : currentHomeZone
+    ? currentHomeZone.costCents
+    : homeDeliveryCost;
+
+  const effectiveMotoCost = currentMotoZone
+    ? currentMotoZone.costCents
+    : motorcycleDeliveryCost;
+
+  let baseShippingCents = 0;
+  if (deliveryMethod === "PICKUP") {
+    baseShippingCents = 0;
+  } else if (deliveryMethod === "HOME_DELIVERY") {
+    baseShippingCents = effectiveHomeDeliveryCost;
+  } else if (deliveryMethod === "MOTORCYCLE") {
+    baseShippingCents = effectiveMotoCost;
+  }
   const shippingCents = appliedCoupon?.freeShipping ? 0 : baseShippingCents;
   const discountCents = appliedCoupon ? appliedCoupon.discountCents : 0;
 
@@ -266,6 +335,69 @@ export function CartPageClient({
   const cleanPhone = whatsappNumber.replace(/\D/g, "");
 
   // Al volver al Paso 1 (Bolsa), reiniciar las selecciones de entrega y pago de pasos posteriores
+
+  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setReceiptFileError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setReceiptFileError("Solo se admiten comprobantes en formato PDF.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setReceiptFileError("El comprobante supera el tamaño máximo permitido de 10 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setTransferReceiptFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTransferReceiptBase64(reader.result as string);
+    };
+    reader.onerror = () => {
+      setReceiptFileError("Error al procesar el archivo PDF.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleOrderSuccessReceiptUpload = async () => {
+    if (!orderSuccessReceiptFile || !orderSuccess) return;
+    setIsUploadingOrderSuccessReceipt(true);
+    setOrderSuccessReceiptError(null);
+
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Error al leer el archivo PDF"));
+      });
+      reader.readAsDataURL(orderSuccessReceiptFile);
+      const base64 = await base64Promise;
+
+      const res = await fetch(`/api/orders/${orderSuccess.code}/receipt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiptBase64: base64 }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al subir el comprobante");
+      }
+
+      setOrderSuccessReceiptSuccess(true);
+      setOrderSuccess((prev) => (prev ? { ...prev, transferReceiptUrl: data.order?.transferReceiptUrl || base64 } : null));
+    } catch (err) {
+      setOrderSuccessReceiptError(err instanceof Error ? err.message : "Error al subir el comprobante");
+    } finally {
+      setIsUploadingOrderSuccessReceipt(false);
+    }
+  };
+
   const handleReturnToCartStep = () => {
     setDeliveryMethod("PICKUP");
     setSelectedPaymentMethod("TRANSFER");
@@ -323,9 +455,27 @@ export function CartPageClient({
   const handleEstimateShipping = (e: React.FormEvent) => {
     e.preventDefault();
     if (!postalCodeInput.trim()) return;
-    setEstimatedShippingNotice(
-      `CP ${postalCodeInput.trim()}: Envío a domicilio por correo aprox. $4.500 (3-5 días) · Retiro en showroom GRATIS hoy.`
-    );
+    const parts: string[] = [];
+    if (isHomeDeliveryEnabled) {
+      if (isHomeFreeShipping) {
+        parts.push(`Envío a domicilio por correo GRATIS (${currentHomeZone?.estimatedDelivery || storeLocation.homeDeliveryEstimatedDays || "3-5 días"})`);
+      } else {
+        const minCost = activeHomeZones.length > 0
+          ? Math.min(...activeHomeZones.map((z) => z.costCents))
+          : homeDeliveryCost;
+        parts.push(`Envío a domicilio aprox. ${formatPrice(minCost, "ARS")} (${currentHomeZone?.estimatedDelivery || storeLocation.homeDeliveryEstimatedDays || "3-5 días"})`);
+      }
+    }
+    if (isMotorcycleDeliveryEnabled) {
+      const minMotoCost = activeMotoZones.length > 0
+        ? Math.min(...activeMotoZones.map((z) => z.costCents))
+        : motorcycleDeliveryCost;
+      parts.push(`Moto Express aprox. ${formatPrice(minMotoCost, "ARS")} (${currentMotoZone?.estimatedDelivery || storeLocation.motorcycleDeliveryEstimatedDays || "En el día"})`);
+    }
+    if (isPickupEnabled) {
+      parts.push("Retiro en local GRATIS hoy");
+    }
+    setEstimatedShippingNotice(`CP ${postalCodeInput.trim()}: ${parts.join(" · ")}`);
   };
 
   const handleCopy = (text: string, field: string) => {
@@ -408,12 +558,26 @@ export function CartPageClient({
           customerId: customer?.id || null,
           deliveryMethod,
           deliveryAddress: deliveryAddress.trim() || null,
-          deliveryNotes: deliveryNotes.trim() ? `${deliveryNotes.trim()}` : null,
+          deliveryNotes: (() => {
+            const selectedZone =
+              deliveryMethod === "HOME_DELIVERY"
+                ? currentHomeZone?.name
+                : deliveryMethod === "MOTORCYCLE"
+                ? currentMotoZone?.name
+                : null
+            const parts = [
+              selectedZone ? `Zona: ${selectedZone}` : null,
+              postalCode.trim() ? `CP: ${postalCode.trim()}` : null,
+              deliveryNotes.trim() || null,
+            ].filter(Boolean);
+            return parts.length > 0 ? parts.join(" | ") : null
+          })(),
           shippingCents,
           discountCents,
           paymentMethod: selectedPaymentMethod,
           paymentDiscountCents,
           couponCode: appliedCoupon?.code || null,
+          transferReceiptUrl: transferReceiptBase64 || null,
           items: items.map((i) => ({
             productId: i.productId,
             productCode: i.code,
@@ -439,6 +603,7 @@ export function CartPageClient({
         whatsappUrl: data.whatsappUrl,
         paymentPreference: data.paymentPreference,
         paymentMethod: confirmedPaymentMethod,
+        transferReceiptUrl: data.order?.transferReceiptUrl || transferReceiptBase64 || null,
       });
 
       // Limpiar bolsa y reiniciar métodos elegidos para próximas compras
@@ -495,6 +660,117 @@ export function CartPageClient({
           {/* TRANSFERENCIA BANCARIA */}
           {orderSuccess.paymentMethod === "TRANSFER" ? (
             <div className="mt-5 space-y-4 text-left">
+              {/* Plazo de Reserva: 24 Horas */}
+              <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-900 space-y-1">
+                <div className="flex items-center gap-1.5 font-bold text-amber-950">
+                  <Clock className="h-4 w-4 text-amber-700 shrink-0" />
+                  <span>Plazo de Reserva: 24 Horas</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Tus prendas quedan reservadas por <strong>24 horas</strong>. Si no se registra la transferencia en ese plazo, la orden se cancela automáticamente y las prendas vuelven al stock disponible.
+                </p>
+              </div>
+
+              {/* Estado de Comprobante o Uploader Post-Orden */}
+              {orderSuccess.transferReceiptUrl || orderSuccessReceiptSuccess ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-900 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Comprobante PDF adjuntado correctamente (en revisión por el showroom).</span>
+                  </div>
+                  <a
+                    href={`/api/orders/${orderSuccess.code}/receipt`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-bold text-emerald-700 hover:underline shrink-0"
+                  >
+                    Ver PDF
+                  </a>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#e7e2da] bg-white p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText className="h-4 w-4 text-[#926a3c]" />
+                        Subir Comprobante de Transferencia
+                      </h4>
+                      <p className="text-[11px] text-stone-500 mt-0.5">
+                        Solo formato <strong>PDF</strong> (máx. 10 MB). También podés subirlo más tarde desde{" "}
+                        <Link href="/cuenta" className="text-stone-900 font-semibold underline">Mis Pedidos</Link>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="file"
+                      id="success-receipt-pdf"
+                      accept="application/pdf,.pdf"
+                      disabled={isUploadingOrderSuccessReceipt}
+                      onChange={(e) => {
+                        setOrderSuccessReceiptError(null);
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                          setOrderSuccessReceiptError("Solo se admiten comprobantes en formato PDF.");
+                          e.target.value = "";
+                          return;
+                        }
+                        if (file.size > 10 * 1024 * 1024) {
+                          setOrderSuccessReceiptError("El archivo supera el límite de 10 MB.");
+                          e.target.value = "";
+                          return;
+                        }
+                        setOrderSuccessReceiptFile(file);
+                      }}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="success-receipt-pdf"
+                      className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-stone-50 px-3.5 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 cursor-pointer"
+                    >
+                      <Upload className="h-3.5 w-3.5 text-stone-500" />
+                      <span>{orderSuccessReceiptFile ? "Cambiar archivo" : "Elegir archivo PDF"}</span>
+                    </label>
+
+                    {orderSuccessReceiptFile && (
+                      <button
+                        type="button"
+                        disabled={isUploadingOrderSuccessReceipt}
+                        onClick={handleOrderSuccessReceiptUpload}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingOrderSuccessReceipt ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span>Subiendo PDF...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-3.5 w-3.5" />
+                            <span>Guardar Comprobante</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {orderSuccessReceiptFile && (
+                    <p className="text-[11px] text-stone-500">
+                      Archivo: <span className="font-medium text-stone-800">{orderSuccessReceiptFile.name}</span> ({(orderSuccessReceiptFile.size / (1024 * 1024)).toFixed(1)} MB)
+                    </p>
+                  )}
+
+                  {orderSuccessReceiptError && (
+                    <p className="text-[11px] font-medium text-rose-600 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3 shrink-0" />
+                      {orderSuccessReceiptError}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <p className="text-xs sm:text-sm text-stone-600 text-center">
                 Para confirmar la reserva de tus prendas con el <strong>10% OFF</strong>, realizá la transferencia con los siguientes datos:
               </p>
@@ -652,7 +928,7 @@ export function CartPageClient({
               <div className="rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700 space-y-1.5">
                 <div className="flex items-center gap-2 text-stone-900 font-semibold">
                   <Clock className="h-4 w-4 text-[#926a3c]" />
-                  <span>Reserva por 30 minutos</span>
+                  <span>Reserva de prendas</span>
                 </div>
                 <p className="text-[11px] text-stone-600">
                   Apartamos tus prendas en showroom. Coordinamos los detalles por WhatsApp para preparar tu entrega.
@@ -770,14 +1046,6 @@ export function CartPageClient({
                       Vaciar bolsa
                     </button>
                   )}
-                </div>
-
-                {/* Aviso de Reserva */}
-                <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3 text-xs text-amber-900">
-                  <Clock className="h-4 w-4 text-amber-700 shrink-0" />
-                  <span>
-                    <strong>Reserva de pieza única:</strong> Tu selección queda apartada por 30 minutos mientras confirmamos la entrega.
-                  </span>
                 </div>
 
                 {/* Lista de Prendas */}
@@ -901,35 +1169,37 @@ export function CartPageClient({
                   ))}
                 </ul>
 
-                {/* Calculador de envío por CP en Paso 1 */}
-                <div className="mt-6 pt-5 border-t border-[#e7e2da]">
-                  <form onSubmit={handleEstimateShipping} className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                    <label htmlFor="shipping-cp" className="text-xs font-medium text-stone-700 whitespace-nowrap">
-                      Calcular envío:
-                    </label>
-                    <div className="flex items-center gap-2 w-full sm:w-auto">
-                      <input
-                        id="shipping-cp"
-                        type="text"
-                        value={postalCodeInput}
-                        onChange={(e) => setPostalCodeInput(e.target.value)}
-                        placeholder="Código Postal (ej: 1425)"
-                        className="rounded-xl border border-[#d8d2c7] bg-[#faf8f5] px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:bg-white focus:outline-none w-36"
-                      />
-                      <button
-                        type="submit"
-                        className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer"
-                      >
-                        Calcular
-                      </button>
-                    </div>
-                  </form>
-                  {estimatedShippingNotice && (
-                    <p className="mt-2 text-xs text-stone-600 bg-stone-50 p-2.5 rounded-lg border border-stone-200">
-                      {estimatedShippingNotice}
-                    </p>
-                  )}
-                </div>
+                {/* Calculador de envío por CP en Paso 1 (Solo si hay envíos a domicilio o moto habilitados) */}
+                {(isHomeDeliveryEnabled || isMotorcycleDeliveryEnabled) && (
+                  <div className="mt-6 pt-5 border-t border-[#e7e2da]">
+                    <form onSubmit={handleEstimateShipping} className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                      <label htmlFor="shipping-cp" className="text-xs font-medium text-stone-700 whitespace-nowrap">
+                        Calcular envío:
+                      </label>
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <input
+                          id="shipping-cp"
+                          type="text"
+                          value={postalCodeInput}
+                          onChange={(e) => setPostalCodeInput(e.target.value)}
+                          placeholder="Código Postal (ej: 1425)"
+                          className="rounded-xl border border-[#d8d2c7] bg-[#faf8f5] px-3 py-1.5 text-xs text-stone-900 placeholder:text-stone-400 focus:border-stone-900 focus:bg-white focus:outline-none w-36"
+                        />
+                        <button
+                          type="submit"
+                          className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-50 cursor-pointer"
+                        >
+                          Calcular
+                        </button>
+                      </div>
+                    </form>
+                    {estimatedShippingNotice && (
+                      <p className="mt-2 text-xs text-stone-600 bg-stone-50 p-2.5 rounded-lg border border-stone-200">
+                        {estimatedShippingNotice}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Columna Derecha: Tarjeta de Resumen (4 cols) */}
@@ -954,10 +1224,19 @@ export function CartPageClient({
                     </div>
                   )}
 
-                  <div className="flex justify-between">
-                    <span>Envío:</span>
-                    <span className="font-medium text-stone-500">Se calcula en el siguiente paso</span>
-                  </div>
+                  {isHomeDeliveryEnabled || isMotorcycleDeliveryEnabled ? (
+                    <div className="flex justify-between">
+                      <span>Envío:</span>
+                      <span className="font-medium text-stone-500">
+                        {isHomeFreeShipping ? "Gratis" : "Se calcula en el siguiente paso"}
+                      </span>
+                    </div>
+                  ) : isPickupEnabled ? (
+                    <div className="flex justify-between">
+                      <span>Entrega:</span>
+                      <span className="font-semibold text-emerald-700">Retiro en local gratis</span>
+                    </div>
+                  ) : null}
 
                   <div className="border-t border-[#e7e2da] pt-3.5 flex justify-between items-baseline">
                     <span className="font-semibold text-stone-900 text-sm">Total:</span>
@@ -1097,96 +1376,132 @@ export function CartPageClient({
                       Método de Entrega:
                     </label>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryMethod("PICKUP")}
-                        className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all cursor-pointer ${
-                          deliveryMethod === "PICKUP"
-                            ? "border-stone-900 bg-stone-900 text-white shadow-xs ring-2 ring-stone-900/10"
-                            : "border-[#e7e2da] bg-white text-stone-700 hover:border-stone-400"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Store className="h-4 w-4" />
-                          <span className="text-xs font-bold">Retiro Showroom</span>
-                        </div>
-                        <span className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                          Gratis · Hoy
-                        </span>
-                        <span className="text-[11px] opacity-75">Palermo Soho</span>
-                      </button>
+                    <div className={`grid gap-3 ${
+                      (Number(isPickupEnabled) + Number(isHomeDeliveryEnabled) + Number(isMotorcycleDeliveryEnabled)) === 1
+                        ? "grid-cols-1"
+                        : (Number(isPickupEnabled) + Number(isHomeDeliveryEnabled) + Number(isMotorcycleDeliveryEnabled)) === 2
+                        ? "grid-cols-1 sm:grid-cols-2"
+                        : "grid-cols-1 sm:grid-cols-3"
+                    }`}>
+                      {isPickupEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryMethod("PICKUP")}
+                          className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all cursor-pointer ${
+                            deliveryMethod === "PICKUP"
+                              ? "border-stone-900 bg-stone-900 text-white shadow-xs ring-2 ring-stone-900/10"
+                              : "border-[#e7e2da] bg-white text-stone-700 hover:border-stone-400"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <Store className="h-4 w-4" />
+                            <span className="text-xs font-bold">Retiro Showroom</span>
+                          </div>
+                          <span className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            Gratis · Hoy
+                          </span>
+                          <span className="text-[11px] opacity-75">
+                            {storeLocation.locality || "Palermo Soho"}
+                          </span>
+                        </button>
+                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryMethod("HOME_DELIVERY")}
-                        className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all cursor-pointer ${
-                          deliveryMethod === "HOME_DELIVERY"
-                            ? "border-stone-900 bg-stone-900 text-white shadow-xs ring-2 ring-stone-900/10"
-                            : "border-[#e7e2da] bg-white text-stone-700 hover:border-stone-400"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Truck className="h-4 w-4" />
-                          <span className="text-xs font-bold">A Domicilio</span>
-                        </div>
-                        <span className="mt-1 text-xs font-semibold">
-                          $4.500 · 3 a 5 días
-                        </span>
-                        <span className="text-[11px] opacity-75">Correo nacional</span>
-                      </button>
+                      {isHomeDeliveryEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryMethod("HOME_DELIVERY")}
+                          className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all cursor-pointer ${
+                            deliveryMethod === "HOME_DELIVERY"
+                              ? "border-stone-900 bg-stone-900 text-white shadow-xs ring-2 ring-stone-900/10"
+                              : "border-[#e7e2da] bg-white text-stone-700 hover:border-stone-400"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <Truck className="h-4 w-4" />
+                            <span className="text-xs font-bold">A Domicilio</span>
+                          </div>
+                          <span className="mt-1 text-xs font-semibold">
+                            {isHomeFreeShipping
+                              ? "Gratis"
+                              : formatPrice(effectiveHomeDeliveryCost, "ARS")}{" "}
+                            · {currentHomeZone?.estimatedDelivery || storeLocation.homeDeliveryEstimatedDays || "3 a 5 días"}
+                          </span>
+                          <span className="text-[11px] opacity-75">Correo nacional</span>
+                        </button>
+                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryMethod("MOTORCYCLE")}
-                        className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all cursor-pointer ${
-                          deliveryMethod === "MOTORCYCLE"
-                            ? "border-stone-900 bg-stone-900 text-white shadow-xs ring-2 ring-stone-900/10"
-                            : "border-[#e7e2da] bg-white text-stone-700 hover:border-stone-400"
-                        }`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Bike className="h-4 w-4" />
-                          <span className="text-xs font-bold">Moto Express</span>
-                        </div>
-                        <span className="mt-1 text-xs font-semibold">
-                          $3.500 · En el día
-                        </span>
-                        <span className="text-[11px] opacity-75">CABA / AMBA</span>
-                      </button>
+                      {isMotorcycleDeliveryEnabled && (
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryMethod("MOTORCYCLE")}
+                          className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all cursor-pointer ${
+                            deliveryMethod === "MOTORCYCLE"
+                              ? "border-stone-900 bg-stone-900 text-white shadow-xs ring-2 ring-stone-900/10"
+                              : "border-[#e7e2da] bg-white text-stone-700 hover:border-stone-400"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <Bike className="h-4 w-4" />
+                            <span className="text-xs font-bold">Moto Express</span>
+                          </div>
+                          <span className="mt-1 text-xs font-semibold">
+                            {formatPrice(effectiveMotoCost, "ARS")} ·{" "}
+                            {currentMotoZone?.estimatedDelivery || storeLocation.motorcycleDeliveryEstimatedDays || "En el día"}
+                          </span>
+                          <span className="text-[11px] opacity-75">CABA / AMBA</span>
+                        </button>
+                      )}
                     </div>
 
                     {deliveryMethod === "PICKUP" && (
                       <div className="mt-3 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700 space-y-2">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-stone-900">Dirección de Retiro:</p>
-                            <p className="mt-0.5">
-                              {showroomAddress ||
-                                [
-                                  storeLocation.streetAddress,
-                                  storeLocation.locality,
-                                  storeLocation.province,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", ")}
-                            </p>
+                        {storeLocation.pickupAddressVisibility === "COORDINATE_WHATSAPP" ? (
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                              <MessageCircle className="h-4 w-4" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="font-semibold text-stone-900">
+                                Dirección a coordinar por WhatsApp
+                              </p>
+                              <p className="text-[11px] text-stone-600 leading-relaxed">
+                                Nuestro showroom opera con atención personalizada y cita previa{storeLocation.locality ? ` en ${storeLocation.locality}` : ""}. Te enviaremos la ubicación exacta y coordinaremos el horario por WhatsApp una vez confirmado tu pedido.
+                              </p>
+                            </div>
                           </div>
-                          <a
-                            href={buildGoogleMapsSearchUrl(storeLocation)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-800 hover:bg-stone-50"
-                          >
-                            <MapPin className="h-3.5 w-3.5 text-[#926a3c]" />
-                            <span>Cómo llegar</span>
-                            <ExternalLink className="h-3 w-3 opacity-60" />
-                          </a>
-                        </div>
+                        ) : (
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="font-semibold text-stone-900">Dirección de Retiro:</p>
+                              <p className="mt-0.5">
+                                {showroomAddress ||
+                                  [
+                                    storeLocation.streetAddress,
+                                    storeLocation.locality,
+                                    storeLocation.province,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(", ")}
+                              </p>
+                            </div>
+                            <a
+                              href={buildGoogleMapsSearchUrl(storeLocation)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-stone-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-stone-800 hover:bg-stone-50"
+                            >
+                              <MapPin className="h-3.5 w-3.5 text-[#926a3c]" />
+                              <span>Cómo llegar</span>
+                              <ExternalLink className="h-3 w-3 opacity-60" />
+                            </a>
+                          </div>
+                        )}
 
                         <div className="border-t border-[#e7e2da] pt-2">
                           <p className="font-semibold text-stone-900 mb-1">
-                            Horarios de retiro en el local:
+                            {storeLocation.pickupAddressVisibility === "COORDINATE_WHATSAPP"
+                              ? "Horarios de referencia para visitas:"
+                              : "Horarios de retiro en el local:"}
                           </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
                             {DAY_ORDER.map((dayKey) => {
@@ -1210,6 +1525,118 @@ export function CartPageClient({
                             </p>
                           )}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Selector de Zona para Envío a Domicilio */}
+                    {deliveryMethod === "HOME_DELIVERY" && (
+                      <div className="mt-3 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700 space-y-3">
+                        {isHomeFreeShipping ? (
+                          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                            <span>
+                              ¡Tu compra supera {formatPrice(homeFreeThreshold!, "ARS")} y tiene <strong>ENVÍO GRATIS</strong> a domicilio!
+                            </span>
+                          </div>
+                        ) : homeFreeThreshold ? (
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
+                            <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                            <span>
+                              Agregá {formatPrice(homeFreeThreshold - subtotalCents, "ARS")} más para tener <strong>Envío Gratis</strong> a domicilio.
+                            </span>
+                          </div>
+                        ) : null}
+
+                        {activeHomeZones.length > 0 && (
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-semibold text-stone-800 uppercase tracking-wider">
+                              Seleccioná tu región / zona de entrega:
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {activeHomeZones.map((zone) => {
+                                const isSelected = currentHomeZone?.id === zone.id;
+                                return (
+                                  <label
+                                    key={zone.id}
+                                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                      isSelected
+                                        ? "border-stone-900 bg-white shadow-2xs ring-1 ring-stone-900"
+                                        : "border-[#e7e2da] bg-white/70 hover:bg-white text-stone-600"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <input
+                                        type="radio"
+                                        name="homeDeliveryZone"
+                                        value={zone.id}
+                                        checked={isSelected}
+                                        onChange={() => setSelectedHomeZoneId(zone.id)}
+                                        className="accent-stone-900"
+                                      />
+                                      <div className="truncate">
+                                        <span className="font-semibold text-stone-900 block truncate">{zone.name}</span>
+                                        {zone.estimatedDelivery && (
+                                          <span className="text-[10px] text-stone-500 block">{zone.estimatedDelivery}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className="font-mono font-bold text-stone-900 shrink-0 ml-2">
+                                      {isHomeFreeShipping ? "Gratis" : formatPrice(zone.costCents, "ARS")}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Selector de Zona para Moto Express */}
+                    {deliveryMethod === "MOTORCYCLE" && (
+                      <div className="mt-3 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3.5 text-xs text-stone-700 space-y-3">
+                        {activeMotoZones.length > 0 && (
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-semibold text-stone-800 uppercase tracking-wider">
+                              Seleccioná tu zona de cobertura en moto:
+                            </label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {activeMotoZones.map((zone) => {
+                                const isSelected = currentMotoZone?.id === zone.id;
+                                return (
+                                  <label
+                                    key={zone.id}
+                                    className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                      isSelected
+                                        ? "border-stone-900 bg-white shadow-2xs ring-1 ring-stone-900"
+                                        : "border-[#e7e2da] bg-white/70 hover:bg-white text-stone-600"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <input
+                                        type="radio"
+                                        name="motorcycleZone"
+                                        value={zone.id}
+                                        checked={isSelected}
+                                        onChange={() => setSelectedMotoZoneId(zone.id)}
+                                        className="accent-stone-900"
+                                      />
+                                      <div className="truncate">
+                                        <span className="font-semibold text-stone-900 block truncate">{zone.name}</span>
+                                        {zone.estimatedDelivery && (
+                                          <span className="text-[10px] text-stone-500 block">{zone.estimatedDelivery}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className="font-mono font-bold text-stone-900 shrink-0 ml-2">
+                                      {formatPrice(zone.costCents, "ARS")}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1457,288 +1884,504 @@ export function CartPageClient({
             </div>
           )}
 
-          {/* PASO 3: REVISIÓN Y CONFIRMACIÓN POR WHATSAPP */}
+          {/* PASO 3: REVISIÓN Y CONFIRMACIÓN */}
           {currentStep === "payment" && (
-            <div className="max-w-2xl mx-auto rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-2xs space-y-6">
-              <div className="border-b border-[#e7e2da] pb-4">
-                <h1 className="font-serif text-2xl font-light text-stone-900">
-                  Revisión final de tu pedido
-                </h1>
-                <p className="text-xs text-stone-500 mt-1">
-                  Verificá que todos los datos sean correctos antes de enviar tu orden al showroom por WhatsApp.
-                </p>
-              </div>
-
-              {/* Bloque Comprador con botón Editar */}
-              <div className="rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-4 text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-stone-900 uppercase tracking-wider text-[11px]">
-                    Comprador & Contacto
-                  </span>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Columna Izquierda: Revisión de Datos y Selección de Pago (8 cols) */}
+              <div className="lg:col-span-8 rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-8 shadow-2xs space-y-6">
+                <div className="border-b border-[#e7e2da] pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h1 className="font-serif text-2xl font-light text-stone-900">
+                      Revisión final de tu pedido
+                    </h1>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Verificá tus datos de contacto y entrega antes de confirmar la reserva.
+                    </p>
+                  </div>
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => {
                       setSelectedPaymentMethod("TRANSFER");
                       setCurrentStep("shipping");
                     }}
-                    className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer disabled:opacity-50 self-start sm:self-auto"
                   >
-                    Editar
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span>Modificar datos</span>
                   </button>
                 </div>
-                <p className="text-stone-800">
-                  {customerName} · DNI {customerDni} · {customerPhone} · {customerEmail}
-                </p>
-              </div>
 
-              {/* Bloque Entrega con botón Editar */}
-              <div className="rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-4 text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-stone-900 uppercase tracking-wider text-[11px]">
-                    Método de Entrega
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedPaymentMethod("TRANSFER");
-                      setCurrentStep("shipping");
-                    }}
-                    className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer"
-                  >
-                    Editar
-                  </button>
+                {/* Resumen de Datos & Entrega en 2 Columnas Horizontales */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {/* Tarjeta Comprador */}
+                  <div className="rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-4 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-stone-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-[#926a3c]" />
+                        Tus Datos
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setSelectedPaymentMethod("TRANSFER");
+                          setCurrentStep("shipping");
+                        }}
+                        className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer disabled:opacity-50"
+                      >
+                        Editar
+                      </button>
+                    </div>
+                    <div className="space-y-0.5 text-stone-800">
+                      <p className="font-medium text-stone-900">{customerName}</p>
+                      <p className="text-stone-600">DNI: {customerDni}</p>
+                      <p className="text-stone-600">{customerPhone}</p>
+                      <p className="text-stone-600 truncate">{customerEmail}</p>
+                    </div>
+                  </div>
+
+                  {/* Tarjeta Entrega */}
+                  <div className="rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-4 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-stone-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        {deliveryMethod === "PICKUP" ? (
+                          <Store className="h-3.5 w-3.5 text-[#926a3c]" />
+                        ) : (
+                          <Truck className="h-3.5 w-3.5 text-[#926a3c]" />
+                        )}
+                        Modalidad de Entrega
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => {
+                          setSelectedPaymentMethod("TRANSFER");
+                          setCurrentStep("shipping");
+                        }}
+                        className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer disabled:opacity-50"
+                      >
+                        Editar
+                      </button>
+                    </div>
+                    <div className="space-y-0.5 text-stone-800">
+                      <p className="font-medium text-stone-900">
+                        {deliveryMethod === "HOME_DELIVERY"
+                          ? `Envío a Domicilio - ${currentHomeZone?.name || "Correo"} (${isHomeFreeShipping || shippingCents === 0 ? "Gratis" : formatPrice(shippingCents, "ARS")})`
+                          : deliveryMethod === "MOTORCYCLE"
+                          ? `Moto Express - ${currentMotoZone?.name || "Mensajería"} (${formatPrice(shippingCents, "ARS")})`
+                          : "Retiro en Showroom (Gratis)"}
+                      </p>
+                      <p className="text-stone-600 text-[11px] leading-relaxed">
+                        {deliveryMethod === "HOME_DELIVERY" || deliveryMethod === "MOTORCYCLE"
+                          ? deliveryAddress
+                          : storeLocation.pickupAddressVisibility === "COORDINATE_WHATSAPP"
+                          ? `Dirección a coordinar por WhatsApp${storeLocation.locality ? ` (${storeLocation.locality})` : ""}`
+                          : showroomAddress ||
+                            [storeLocation.streetAddress, storeLocation.locality].filter(Boolean).join(", ") ||
+                            "Palermo Soho"}
+                      </p>
+                      {deliveryNotes && (
+                        <p className="text-[11px] text-stone-500 italic">Notas: {deliveryNotes}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-stone-800 font-medium">
-                  {deliveryMethod === "HOME_DELIVERY"
-                    ? `Envío a domicilio ($4.500) — ${deliveryAddress}`
-                    : deliveryMethod === "MOTORCYCLE"
-                    ? `Moto Express ($3.500) — ${deliveryAddress}`
-                    : `Retiro gratuito en Showroom (${showroomAddress || "Palermo Soho"})`}
-                </p>
-                {deliveryNotes && (
-                  <p className="text-[11px] text-stone-500">Indicaciones: {deliveryNotes}</p>
-                )}
+
+                {/* Selector de Método de Pago (BR-47) - Solo métodos habilitados */}
+                <div className="border-t border-[#e7e2da] pt-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-stone-900 uppercase tracking-wider text-[11px]">
+                      Método de Pago
+                    </span>
+                    {transferDiscountPercent > 0 && selectedPaymentMethod === "TRANSFER" && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200/60">
+                        {transferDiscountPercent}% OFF con Transferencia
+                      </span>
+                    )}
+                  </div>
+
+                  {enabledPaymentMethods.length > 1 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {enabledPaymentMethods.map((m) => {
+                        const isSelected = selectedPaymentMethod === m.method;
+                        return (
+                          <label
+                            key={m.method}
+                            className={`flex items-start gap-3 p-3.5 rounded-xl border text-xs transition-all ${
+                              isSubmitting
+                                ? "opacity-60 pointer-events-none cursor-not-allowed"
+                                : "cursor-pointer"
+                            } ${
+                              isSelected
+                                ? "border-stone-900 bg-stone-50/70 shadow-2xs ring-1 ring-stone-900"
+                                : "border-[#e7e2da] hover:border-stone-300 bg-white"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="paymentMethod"
+                              value={m.method}
+                              checked={isSelected}
+                              disabled={isSubmitting}
+                              onChange={() => setSelectedPaymentMethod(m.method)}
+                              className="mt-0.5 accent-stone-900"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 font-medium text-stone-900">
+                                {m.method === "TRANSFER" && <Building2 className="h-4 w-4 text-[#926a3c] shrink-0" />}
+                                {m.method === "MERCADOPAGO" && <CreditCard className="h-4 w-4 text-sky-600 shrink-0" />}
+                                {m.method === "PAYWAY" && <CreditCard className="h-4 w-4 text-indigo-600 shrink-0" />}
+                                {m.method === "GETNET" && <CreditCard className="h-4 w-4 text-rose-600 shrink-0" />}
+                                {m.method === "MODO" && <QrCode className="h-4 w-4 text-teal-600 shrink-0" />}
+                                {m.method === "GOOGLEPAY" && <Wallet className="h-4 w-4 text-amber-500 shrink-0" />}
+                                {m.method === "CASH" && <Banknote className="h-4 w-4 text-emerald-600 shrink-0" />}
+                                {m.method === "WHATSAPP" && <MessageCircle className="h-4 w-4 text-[#25D366] shrink-0" />}
+                                <span className="truncate">{m.name}</span>
+                                {m.badge && (
+                                  <span
+                                    className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 ${
+                                      m.method === "TRANSFER"
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : "bg-sky-100 text-sky-800"
+                                    }`}
+                                  >
+                                    {m.badge}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-1 text-[11px] text-stone-500 leading-normal">
+                                {m.description}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Building2 className="h-4 w-4 text-[#926a3c] shrink-0" />
+                        <div>
+                          <p className="font-semibold text-xs text-stone-900">
+                            {enabledPaymentMethods[0]?.name || "Transferencia Bancaria"}
+                          </p>
+                          <p className="text-[11px] text-stone-500">
+                            {enabledPaymentMethods[0]?.description || "Aboná por CBU/CVU o Alias directo al showroom."}
+                          </p>
+                        </div>
+                      </div>
+                      {transferDiscountPercent > 0 && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                          {transferDiscountPercent}% OFF
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Detalle específico de Transferencia Bancaria */}
+                  {selectedPaymentMethod === "TRANSFER" && (
+                    <div className="rounded-2xl border border-amber-200/90 bg-amber-50/50 p-4 sm:p-5 text-xs space-y-4 animate-in fade-in-50">
+                      <div className="flex items-start gap-2.5">
+                        <Clock className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-amber-950">
+                            Reserva por 24 horas & 10% OFF automático
+                          </p>
+                          <p className="text-[11px] text-amber-800 leading-relaxed mt-0.5">
+                            Tus prendas quedan apartadas por <strong>24 horas</strong>. Si no se registra la transferencia en ese plazo, la orden se cancela automáticamente y las prendas vuelven al stock disponible.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Datos de la Cuenta Bancaria */}
+                      <div className="rounded-xl border border-amber-200/80 bg-white p-3.5 space-y-2.5 text-stone-800">
+                        <div className="flex items-center justify-between border-b border-stone-200/60 pb-2">
+                          <span className="font-semibold text-stone-900 flex items-center gap-1.5">
+                            <Building2 className="h-4 w-4 text-[#926a3c]" />
+                            Datos para la Transferencia
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                            10% OFF Aplicado
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {bankDetails?.alias && (
+                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-stone-50 border border-stone-200/60">
+                              <div>
+                                <span className="text-[10px] text-stone-500 uppercase font-bold block">Alias</span>
+                                <span className="font-mono font-bold text-stone-950 text-xs">{bankDetails.alias}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(bankDetails.alias || "", "alias_step")}
+                                className="inline-flex items-center gap-1 rounded bg-white px-2 py-1 text-[11px] font-semibold text-stone-700 border border-stone-300 hover:bg-stone-50 cursor-pointer shadow-2xs"
+                              >
+                                {copiedField === "alias_step" ? (
+                                  <>
+                                    <Check className="h-3 w-3 text-emerald-600" />
+                                    <span className="text-emerald-700 font-bold">Copiado</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="h-3 w-3" />
+                                    <span>Copiar</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+
+                          {bankDetails?.cbu && (
+                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-stone-50 border border-stone-200/60">
+                              <div>
+                                <span className="text-[10px] text-stone-500 uppercase font-bold block">CBU / CVU</span>
+                                <span className="font-mono text-xs text-stone-900">{bankDetails.cbu}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(bankDetails.cbu || "", "cbu_step")}
+                                className="inline-flex items-center gap-1 rounded bg-white px-2 py-1 text-[11px] font-semibold text-stone-700 border border-stone-300 hover:bg-stone-50 cursor-pointer shadow-2xs"
+                              >
+                                {copiedField === "cbu_step" ? (
+                                  <>
+                                    <Check className="h-3 w-3 text-emerald-600" />
+                                    <span className="text-emerald-700 font-bold">Copiado</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="h-3 w-3" />
+                                    <span>Copiar</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] text-stone-600 pt-1 border-t border-stone-100">
+                          {bankDetails?.bankName && (
+                            <div>
+                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">Banco</span>
+                              <span className="font-medium text-stone-900">{bankDetails.bankName}</span>
+                            </div>
+                          )}
+                          {bankDetails?.accountHolder && (
+                            <div>
+                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">Titular</span>
+                              <span className="font-medium text-stone-900">{bankDetails.accountHolder}</span>
+                            </div>
+                          )}
+                          {bankDetails?.cuit && (
+                            <div>
+                              <span className="text-stone-400 block text-[10px] uppercase font-semibold">CUIT</span>
+                              <span className="font-mono text-stone-900">{bankDetails.cuit}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Uploader Opcional de Comprobante PDF */}
+                      <div className="rounded-xl border border-amber-200/70 bg-white/95 p-3.5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="font-semibold text-stone-900 flex items-center gap-1.5 text-xs">
+                            <FileText className="h-3.5 w-3.5 text-[#926a3c]" />
+                            ¿Ya transferiste? Adjuntá tu comprobante (opcional)
+                          </label>
+                          <span className="text-[10px] text-stone-500">Solo PDF · Máx 10 MB</span>
+                        </div>
+
+                        <p className="text-[11px] text-stone-500">
+                          Si preferís transferir después, podés confirmar ahora y adjuntarlo luego desde{" "}
+                          <strong className="text-stone-800">Mis Pedidos</strong> antes de que pasen las 24 horas.
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <input
+                            type="file"
+                            id="checkout-receipt-pdf"
+                            accept="application/pdf,.pdf"
+                            disabled={isSubmitting}
+                            onChange={handleReceiptFileChange}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor="checkout-receipt-pdf"
+                            className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer shadow-2xs"
+                          >
+                            <Upload className="h-3.5 w-3.5 text-stone-500" />
+                            <span>{transferReceiptFile ? "Cambiar archivo PDF" : "Seleccionar comprobante PDF"}</span>
+                          </label>
+
+                          {transferReceiptFile && (
+                            <div className="flex items-center gap-2 text-xs text-stone-800 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200">
+                              <FileText className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                              <span className="truncate max-w-[200px] font-medium">{transferReceiptFile.name}</span>
+                              <span className="text-[10px] text-stone-400">
+                                ({(transferReceiptFile.size / (1024 * 1024)).toFixed(1)} MB)
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTransferReceiptFile(null);
+                                  setTransferReceiptBase64(null);
+                                }}
+                                className="text-stone-400 hover:text-stone-700 cursor-pointer"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {receiptFileError && (
+                          <p className="text-[11px] font-medium text-rose-600 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3 shrink-0" />
+                            {receiptFileError}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Detalle de prendas con código #00X */}
-              <div className="border-t border-[#e7e2da] pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-sans text-xs font-semibold tracking-wider text-stone-800 uppercase">
-                    Piezas ({totalCount} unidades)
+              {/* Columna Derecha: Resumen de Piezas y Botón de Confirmación Sticky (4 cols) */}
+              <div className="lg:col-span-4 rounded-2xl border border-[#e7e2da] bg-white p-5 sm:p-6 shadow-2xs space-y-5 sticky top-24">
+                <div className="flex items-center justify-between border-b border-[#e7e2da] pb-3">
+                  <h2 className="font-serif text-lg font-medium text-stone-900">
+                    Resumen del pedido
                   </h2>
                   <button
                     type="button"
                     disabled={isSubmitting}
                     onClick={handleReturnToCartStep}
-                    className="text-xs font-semibold text-stone-600 hover:text-stone-950 underline cursor-pointer disabled:opacity-50"
+                    className="text-xs font-medium text-stone-500 hover:text-stone-900 underline cursor-pointer disabled:opacity-50"
                   >
                     Editar bolsa
                   </button>
                 </div>
 
-                <ul className="divide-y divide-[#e7e2da]/70 text-xs">
+                {/* Lista compacta de prendas */}
+                <ul className="divide-y divide-[#e7e2da]/70 max-h-52 overflow-y-auto pr-1 text-xs space-y-1">
                   {items.map((i) => (
-                    <li key={i.key} className="py-2.5 flex justify-between items-center">
-                      <div>
-                        <span className="font-semibold text-stone-900">
-                          {i.formattedCode} · {i.title}
-                        </span>
-                        <span className="text-stone-500 block text-[11px]">
-                          {i.colorName} · Talle {i.size} · Cantidad: {i.quantity}
-                        </span>
+                    <li key={i.key} className="py-2.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {i.photoUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={i.photoUrl}
+                            alt={i.title || i.formattedCode}
+                            className="h-11 w-9 object-cover rounded-md shrink-0 bg-stone-100 border border-stone-200/60"
+                          />
+                        ) : (
+                          <div className="h-11 w-9 rounded-md bg-stone-100 flex items-center justify-center shrink-0 border border-stone-200/60">
+                            <Store className="h-4 w-4 text-stone-400" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-stone-900 truncate text-xs">
+                            {i.formattedCode} · {i.title}
+                          </p>
+                          <p className="text-[11px] text-stone-500">
+                            {i.colorName} · Talle {i.size} (x{i.quantity})
+                          </p>
+                        </div>
                       </div>
-                      <span className="font-serif font-semibold text-stone-900 text-sm">
+                      <span className="font-serif font-semibold text-stone-900 text-xs shrink-0">
                         {formatPrice(i.unitPriceCents ? i.unitPriceCents * i.quantity : null, i.currency)}
                       </span>
                     </li>
                   ))}
                 </ul>
-              </div>
 
-              {/* Selector de Método de Pago (BR-47) */}
-              <div className="border-t border-[#e7e2da] pt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-stone-900 uppercase tracking-wider text-[11px]">
-                    Método de Pago
-                  </span>
-                  {transferDiscountPercent > 0 && (
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                      {transferDiscountPercent}% OFF con Transferencia
-                    </span>
+                {/* Desglose Financiero */}
+                <div className="border-t border-[#e7e2da] pt-3.5 space-y-2 text-xs text-stone-600">
+                  <div className="flex justify-between">
+                    <span>Subtotal piezas:</span>
+                    <span className="font-medium text-stone-900">{formatPrice(subtotalCents, "ARS")}</span>
+                  </div>
+                  {appliedCoupon && discountCents > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-medium">
+                      <span className="flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        Descuento cupón ({appliedCoupon.code}):
+                      </span>
+                      <span className="font-mono font-bold">-{formatPrice(discountCents, "ARS")}</span>
+                    </div>
                   )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {paymentMethods
-                    .filter((m) => m.enabled)
-                    .map((m) => {
-                      const isSelected = selectedPaymentMethod === m.method;
-                      return (
-                        <label
-                          key={m.method}
-                          className={`flex items-start gap-3 p-3.5 rounded-xl border text-xs transition-all ${
-                            isSubmitting
-                              ? "opacity-60 pointer-events-none cursor-not-allowed"
-                              : "cursor-pointer"
-                          } ${
-                            isSelected
-                              ? "border-stone-900 bg-stone-50/70 shadow-2xs ring-1 ring-stone-900"
-                              : "border-[#e7e2da] hover:border-stone-300 bg-white"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="paymentMethod"
-                            value={m.method}
-                            checked={isSelected}
-                            disabled={isSubmitting}
-                            onChange={() => setSelectedPaymentMethod(m.method)}
-                            className="mt-0.5 accent-stone-900"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 font-medium text-stone-900">
-                              {m.method === "TRANSFER" && <Building2 className="h-4 w-4 text-[#926a3c] shrink-0" />}
-                              {m.method === "MERCADOPAGO" && <CreditCard className="h-4 w-4 text-sky-600 shrink-0" />}
-                              {m.method === "PAYWAY" && <CreditCard className="h-4 w-4 text-indigo-600 shrink-0" />}
-                              {m.method === "GETNET" && <CreditCard className="h-4 w-4 text-rose-600 shrink-0" />}
-                              {m.method === "MODO" && <QrCode className="h-4 w-4 text-teal-600 shrink-0" />}
-                              {m.method === "GOOGLEPAY" && <Wallet className="h-4 w-4 text-amber-500 shrink-0" />}
-                              {m.method === "CASH" && <Banknote className="h-4 w-4 text-emerald-600 shrink-0" />}
-                              {m.method === "WHATSAPP" && <MessageCircle className="h-4 w-4 text-[#25D366] shrink-0" />}
-                              <span className="truncate">{m.name}</span>
-                              {m.badge && (
-                                <span
-                                  className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider shrink-0 ${
-                                    m.method === "TRANSFER"
-                                      ? "bg-emerald-100 text-emerald-800"
-                                      : "bg-sky-100 text-sky-800"
-                                  }`}
-                                >
-                                  {m.badge}
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-1 text-[11px] text-stone-500 leading-normal">
-                              {m.description}
-                            </p>
-                          </div>
-                        </label>
-                      );
-                    })}
-                </div>
-              </div>
-
-              {/* Total final */}
-              <div className="border-t border-[#e7e2da] pt-4 space-y-1.5 text-xs text-stone-600">
-                <div className="flex justify-between">
-                  <span>Subtotal piezas:</span>
-                  <span>{formatPrice(subtotalCents, "ARS")}</span>
-                </div>
-                {appliedCoupon && discountCents > 0 && (
-                  <div className="flex justify-between text-emerald-700 font-medium">
-                    <span className="flex items-center gap-1">
-                      <Tag className="h-3 w-3" />
-                      Descuento cupón ({appliedCoupon.code}):
+                  {selectedPaymentMethod === "TRANSFER" && paymentDiscountCents > 0 && (
+                    <div className="flex justify-between text-emerald-700 font-medium">
+                      <span className="flex items-center gap-1">
+                        <Building2 className="h-3 w-3" />
+                        Descuento Transferencia ({transferDiscountPercent}% OFF):
+                      </span>
+                      <span className="font-mono font-bold">-{formatPrice(paymentDiscountCents, "ARS")}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span>Costo de envío:</span>
+                    <span className="font-medium text-stone-900">
+                      {shippingCents === 0 ? "Gratis" : formatPrice(shippingCents, "ARS")}
                     </span>
-                    <span className="font-mono font-bold">-{formatPrice(discountCents, "ARS")}</span>
+                  </div>
+
+                  <div className="border-t border-[#e7e2da] pt-3 flex justify-between items-baseline text-stone-900">
+                    <span className="font-serif text-base font-semibold">Total:</span>
+                    <span className="font-serif text-2xl font-bold">
+                      {formatPrice(finalTotalCents, "ARS")}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Checkbox de Términos & Condiciones */}
+                <div className="border-t border-[#e7e2da] pt-3">
+                  <label className="flex items-start gap-2.5 text-xs text-stone-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={acceptTerms}
+                      disabled={isSubmitting}
+                      onChange={(e) => setAcceptTerms(e.target.checked)}
+                      className="mt-0.5 accent-stone-900 disabled:opacity-50 shrink-0"
+                    />
+                    <span className="text-[11px] leading-relaxed">
+                      Acepto los{" "}
+                      <Link
+                        href="/terminos"
+                        target="_blank"
+                        className="underline font-semibold text-stone-900 hover:text-stone-700"
+                      >
+                        términos de compra
+                      </Link>
+                      , política de reserva por {selectedPaymentMethod === "TRANSFER" ? "24 horas" : reservationText} y condiciones de cambio (15 días con etiqueta).
+                    </span>
+                  </label>
+                </div>
+
+                {errorMessage && (
+                  <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-700">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>{errorMessage}</span>
                   </div>
                 )}
-                {selectedPaymentMethod === "TRANSFER" && paymentDiscountCents > 0 && (
-                  <div className="flex justify-between text-emerald-700 font-medium">
-                    <span className="flex items-center gap-1">
-                      <Building2 className="h-3 w-3" />
-                      Descuento Transferencia ({transferDiscountPercent}% OFF):
-                    </span>
-                    <span className="font-mono font-bold">-{formatPrice(paymentDiscountCents, "ARS")}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span>Costo de envío:</span>
-                  <span>{shippingCents === 0 ? "Gratis" : formatPrice(shippingCents, "ARS")}</span>
-                </div>
-                <div className="border-t border-[#e7e2da] pt-3 flex justify-between items-baseline text-stone-900">
-                  <span className="font-serif text-lg font-medium">Total:</span>
-                  <span className="font-serif text-3xl font-semibold">
-                    {formatPrice(finalTotalCents, "ARS")}
-                  </span>
-                </div>
-              </div>
 
-              {/* Checkbox de Términos y Condiciones */}
-              <div className="border-t border-[#e7e2da] pt-4">
-                <label className="flex items-start gap-2.5 text-xs text-stone-600 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={acceptTerms}
-                    disabled={isSubmitting}
-                    onChange={(e) => setAcceptTerms(e.target.checked)}
-                    className="mt-0.5 accent-stone-900 disabled:opacity-50"
-                  />
-                  <span>
-                    Acepto los{" "}
-                    <Link
-                      href="/terminos"
-                      target="_blank"
-                      className="underline font-semibold text-stone-900 hover:text-stone-700"
-                    >
-                      términos de compra
-                    </Link>
-                    , política de reserva de piezas por {reservationText} y condiciones de cambio (15 días con etiqueta).
-                  </span>
-                </label>
-              </div>
-
-              {/* Aviso dinámico de procesamiento en tiempo real */}
-              {isSubmitting && (
-                <div
-                  role="status"
-                  aria-live="polite"
-                  className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-950 animate-pulse"
-                >
-                  <Loader2 className="h-5 w-5 animate-spin text-amber-700 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="font-bold text-amber-950">
-                      Procesando tu pedido de forma segura...
-                    </p>
-                    <p className="text-amber-800 text-[11px] leading-relaxed">
-                      Estamos reservando el stock de tus prendas y conectando con el servicio de cobro. Por favor no cierres ni recargues esta ventana.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {errorMessage && (
-                <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              {/* Botón de Envío */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#e7e2da] pt-5">
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => {
-                    setSelectedPaymentMethod("TRANSFER");
-                    setCurrentStep("shipping");
-                  }}
-                  className="w-full sm:w-auto inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-stone-900 cursor-pointer disabled:opacity-50"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  <span>Editar datos</span>
-                </button>
-
+                {/* Botón Principal de Confirmación */}
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={handleConfirmOrder}
-                  className="w-full sm:w-auto inline-flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl bg-stone-900 px-7 py-3 text-xs font-bold tracking-wider text-white uppercase shadow-sm hover:bg-stone-800 disabled:opacity-50 transition-all cursor-pointer"
+                  className="w-full inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-3.5 text-xs font-bold tracking-wider text-white uppercase shadow-sm hover:bg-stone-800 disabled:opacity-50 transition-all cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Registrando orden...</span>
+                    </>
+                  ) : selectedPaymentMethod === "TRANSFER" ? (
+                    <>
+                      <Building2 className="h-4 w-4 text-[#d4af37]" />
+                      <span>Confirmar y ver CBU para transferir</span>
                     </>
                   ) : selectedPaymentMethod === "MERCADOPAGO" ? (
                     <>
@@ -1765,11 +2408,6 @@ export function CartPageClient({
                       <Wallet className="h-4 w-4 text-amber-400" />
                       <span>Pagar con Google Pay</span>
                     </>
-                  ) : selectedPaymentMethod === "TRANSFER" ? (
-                    <>
-                      <Building2 className="h-4 w-4 text-[#d4af37]" />
-                      <span>Confirmar y ver CBU para transferir</span>
-                    </>
                   ) : selectedPaymentMethod === "CASH" ? (
                     <>
                       <Banknote className="h-4 w-4 text-emerald-400" />
@@ -1782,6 +2420,18 @@ export function CartPageClient({
                     </>
                   )}
                 </button>
+
+                {/* Sellos de Confianza */}
+                <div className="border-t border-[#e7e2da] pt-3 flex items-center justify-between text-[11px] text-stone-500">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#926a3c] shrink-0" />
+                    Stock garantizado
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Store className="h-3.5 w-3.5 text-[#926a3c]" />
+                    Atención directa
+                  </span>
+                </div>
               </div>
             </div>
           )}

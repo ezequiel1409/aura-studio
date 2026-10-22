@@ -236,4 +236,40 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35, ADM-05, ADM
     );
     expect(fallbackTest.contentWidth).toBe(DEFAULT_STORE_CONTENT_WIDTH);
   });
+
+  it("persiste y recupera la configuración de visibilidad de dirección y métodos de entrega habilitables", async () => {
+    const { deps } = env;
+
+    const initial = await getShowroomSettings(deps);
+    expect(initial.storeLocation.pickupEnabled).toBe(true);
+    expect(initial.storeLocation.homeDeliveryEnabled).toBe(false);
+    expect(initial.storeLocation.motorcycleDeliveryEnabled).toBe(false);
+    expect(initial.storeLocation.pickupAddressVisibility).toBe("PUBLIC");
+
+    // Actualizar para coordinar por WhatsApp y habilitar métodos adicionales
+    const updated = await updateShowroomSettings(
+      {
+        storeLocation: {
+          ...initial.storeLocation,
+          pickupAddressVisibility: "COORDINATE_WHATSAPP",
+          homeDeliveryEnabled: true,
+          homeDeliveryCostCents: 500000,
+          motorcycleDeliveryEnabled: true,
+          motorcycleDeliveryCostCents: 400000,
+        },
+      },
+      deps
+    );
+
+    expect(updated.storeLocation.pickupAddressVisibility).toBe("COORDINATE_WHATSAPP");
+    expect(updated.storeLocation.homeDeliveryEnabled).toBe(true);
+    expect(updated.storeLocation.homeDeliveryCostCents).toBe(500000);
+    expect(updated.storeLocation.motorcycleDeliveryEnabled).toBe(true);
+    expect(updated.storeLocation.motorcycleDeliveryCostCents).toBe(400000);
+
+    const reloaded = await getShowroomSettings(deps);
+    expect(reloaded.storeLocation.pickupAddressVisibility).toBe("COORDINATE_WHATSAPP");
+    expect(reloaded.storeLocation.homeDeliveryEnabled).toBe(true);
+    expect(reloaded.storeLocation.homeDeliveryCostCents).toBe(500000);
+  });
 });

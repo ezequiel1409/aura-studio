@@ -226,6 +226,8 @@ CREATE TABLE IF NOT EXISTS `orders` (
 	`payment_discount_cents` integer DEFAULT 0 NOT NULL,
 	`customer_id` integer,
 	`commerce_id` integer,
+	`transfer_receipt_url` text,
+	`transfer_receipt_uploaded_at` integer,
 	`notes` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL,

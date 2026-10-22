@@ -213,6 +213,14 @@ export function getDb(): DbClient {
       if (!hasPaymentDiscountCents) {
         sqlite.exec("ALTER TABLE orders ADD COLUMN payment_discount_cents integer DEFAULT 0 NOT NULL;");
       }
+      const hasTransferReceiptUrl = pragmaOrderCols.some((col) => col.name === "transfer_receipt_url");
+      if (!hasTransferReceiptUrl) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN transfer_receipt_url text;");
+      }
+      const hasTransferReceiptUploadedAt = pragmaOrderCols.some((col) => col.name === "transfer_receipt_uploaded_at");
+      if (!hasTransferReceiptUploadedAt) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN transfer_receipt_uploaded_at integer;");
+      }
 
       const pragmaCustomerCols = sqlite.prepare("PRAGMA table_info(customers)").all() as Array<{ name: string }>;
       if (pragmaCustomerCols.length > 0) {

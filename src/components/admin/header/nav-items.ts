@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   Store,
   Tag,
+  Truck,
   Users,
   LucideIcon,
 } from "lucide-react";
@@ -153,6 +154,13 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
         label: "Medios de pago",
         description: "Mercado Pago, transferencia y efectivo",
         icon: CreditCard,
+        exact: true,
+      },
+      {
+        href: "/admin/tienda/envios",
+        label: "Envíos y entregas",
+        description: "Retiro, correo, moto y zonas de cobertura",
+        icon: Truck,
         exact: true,
       },
       {

@@ -10,8 +10,7 @@ import {
   Trash2,
   Store,
   ArrowRight,
-  Clock,
-  ShieldCheck,
+    ShieldCheck,
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { formatPrice } from "../../lib/format/currency";
@@ -168,14 +167,6 @@ export function CartDrawer({
                     Vaciar bolsa
                   </button>
                 )}
-              </div>
-
-              {/* Aviso de Reserva */}
-              <div className="flex items-center gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3 text-xs text-amber-900">
-                <Clock className="h-4 w-4 text-amber-700 shrink-0" />
-                <span>
-                  <strong>Reserva de pieza única:</strong> Tu selección queda apartada por 30 minutos mientras confirmamos la entrega.
-                </span>
               </div>
 
               {/* Lista de Prendas */}

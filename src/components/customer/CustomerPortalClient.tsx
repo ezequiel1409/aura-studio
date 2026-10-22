@@ -24,6 +24,10 @@ import {
   LayoutDashboard,
   Heart,
   SlidersHorizontal,
+  FileText,
+  Upload,
+  Building2,
+  Copy,
   Truck,
   Check,
   Eye,
@@ -64,7 +68,12 @@ export function CustomerPortalClient({
   const router = useRouter();
   const [customer, setCustomer] = useState<SafeCustomer>(initialCustomer);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
-  const [orders] = useState<Order[]>(initialOrders);
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [uploadingReceiptOrderId, setUploadingReceiptOrderId] = useState<number | null>(null);
+  const [receiptUploadError, setReceiptUploadError] = useState<Record<number, string | null>>({});
+  const [receiptUploadSuccess, setReceiptUploadSuccess] = useState<Record<number, boolean>>({});
+  const [selectedPdfFiles, setSelectedPdfFiles] = useState<Record<number, File>>({});
+  const [copiedPortalField, setCopiedPortalField] = useState<string | null>(null);
   const [addresses, setAddresses] = useState<CustomerAddress[]>(initialAddresses);
 
   // Carrito store
@@ -398,6 +407,64 @@ export function CustomerPortalClient({
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+
+  const handleCopyPortal = async (text: string, fieldId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedPortalField(fieldId);
+      setTimeout(() => setCopiedPortalField(null), 2000);
+    } catch {}
+  };
+
+  const handleUploadReceiptFromPortal = async (orderId: number, orderCode: number) => {
+    const file = selectedPdfFiles[orderId];
+    if (!file) return;
+
+    setUploadingReceiptOrderId(orderId);
+    setReceiptUploadError((prev) => ({ ...prev, [orderId]: null }));
+
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Error al leer el archivo PDF"));
+      });
+      reader.readAsDataURL(file);
+      const base64 = await base64Promise;
+
+      const res = await fetch(`/api/orders/${orderCode}/receipt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiptBase64: base64 }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al subir el comprobante");
+      }
+
+      setReceiptUploadSuccess((prev) => ({ ...prev, [orderId]: true }));
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                transferReceiptUrl: data.order?.transferReceiptUrl || base64,
+                transferReceiptUploadedAt: data.order?.transferReceiptUploadedAt || Math.floor(Date.now() / 1000),
+              }
+            : o
+        )
+      );
+    } catch (err) {
+      setReceiptUploadError((prev) => ({
+        ...prev,
+        [orderId]: err instanceof Error ? err.message : "Error al subir el comprobante",
+      }));
+    } finally {
+      setUploadingReceiptOrderId(null);
     }
   };
 
@@ -924,6 +991,141 @@ export function CustomerPortalClient({
                       </span>
                     </div>
                   </div>
+
+                  
+                  {/* Bloque Transferencia Bancaria y Comprobante PDF (BR-41 / BR-47) */}
+                  {order.paymentMethod === "TRANSFER" && order.status === "PENDING" && (() => {
+                    const nowSec = Math.floor(Date.now() / 1000);
+                    const hoursRemaining = Math.max(0, 24 - Math.floor((nowSec - order.createdAt) / 3600));
+                    const isExpired = nowSec - order.createdAt > 24 * 3600;
+                    const hasReceipt = Boolean(order.transferReceiptUrl || receiptUploadSuccess[order.id]);
+
+                    return (
+                      <div className="my-4 rounded-2xl border border-amber-200/90 bg-amber-50/40 p-4 text-xs space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/60 pb-2.5">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-amber-700 shrink-0" />
+                            <span className="font-semibold text-amber-950">
+                              Pago por Transferencia Bancaria
+                            </span>
+                          </div>
+                          {isExpired ? (
+                            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+                              Plazo de 24 hs vencido
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100/70 px-2.5 py-0.5 rounded-full border border-amber-300">
+                              {hoursRemaining} {hoursRemaining === 1 ? "hora restante" : "horas restantes"} de reserva
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          {isExpired
+                            ? "El plazo de 24 horas para acreditar la transferencia ha expirado. La orden será cancelada y las prendas volverán al inventario disponible."
+                            : "Tenés hasta 24 horas desde la compra para realizar la transferencia y adjuntar tu comprobante. Pasado ese tiempo, la orden se cancela automáticamente y las prendas vuelven al stock."}
+                        </p>
+
+                        {hasReceipt ? (
+                          <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-emerald-900 font-medium">
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                              <span>Comprobante PDF adjuntado (en revisión por el showroom).</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`/api/orders/${order.code}/receipt`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 text-white px-3 py-1.5 text-xs font-semibold hover:bg-emerald-800 transition-colors"
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                <span>Ver PDF</span>
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            </div>
+                          </div>
+                        ) : !isExpired ? (
+                          <div className="rounded-xl border border-stone-200 bg-white p-3.5 space-y-3">
+                            <div>
+                              <span className="font-semibold text-stone-900 block text-xs">
+                                Adjuntar Comprobante de Transferencia (Solo PDF · Máx 10 MB)
+                              </span>
+                              <span className="text-[11px] text-stone-500 block mt-0.5">
+                                Subí el archivo PDF emitido por tu banco o billetera virtual.
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <input
+                                type="file"
+                                id={`portal-receipt-${order.id}`}
+                                accept="application/pdf,.pdf"
+                                disabled={uploadingReceiptOrderId === order.id}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                                    setReceiptUploadError((prev) => ({ ...prev, [order.id]: "Solo se admiten comprobantes en formato PDF." }));
+                                    e.target.value = "";
+                                    return;
+                                  }
+                                  if (file.size > 10 * 1024 * 1024) {
+                                    setReceiptUploadError((prev) => ({ ...prev, [order.id]: "El archivo supera el tamaño máximo permitido de 10 MB." }));
+                                    e.target.value = "";
+                                    return;
+                                  }
+                                  setSelectedPdfFiles((prev) => ({ ...prev, [order.id]: file }));
+                                }}
+                                className="hidden"
+                              />
+                              <label
+                                htmlFor={`portal-receipt-${order.id}`}
+                                className="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-stone-50 px-3.5 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 cursor-pointer shadow-2xs"
+                              >
+                                <Upload className="h-3.5 w-3.5 text-stone-500" />
+                                <span>{selectedPdfFiles[order.id] ? "Cambiar archivo PDF" : "Seleccionar archivo PDF"}</span>
+                              </label>
+
+                              {selectedPdfFiles[order.id] && (
+                                <button
+                                  type="button"
+                                  disabled={uploadingReceiptOrderId === order.id}
+                                  onClick={() => handleUploadReceiptFromPortal(order.id, order.code)}
+                                  className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 cursor-pointer disabled:opacity-50"
+                                >
+                                  {uploadingReceiptOrderId === order.id ? (
+                                    <>
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      <span>Subiendo...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="h-3.5 w-3.5" />
+                                      <span>Subir Comprobante</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+
+                            {selectedPdfFiles[order.id] && (
+                              <p className="text-[11px] text-stone-500">
+                                Archivo: <span className="font-medium text-stone-800">{selectedPdfFiles[order.id].name}</span> ({(selectedPdfFiles[order.id].size / (1024 * 1024)).toFixed(1)} MB)
+                              </p>
+                            )}
+
+                            {receiptUploadError[order.id] && (
+                              <p className="text-[11px] font-medium text-rose-600 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3 shrink-0" />
+                                {receiptUploadError[order.id]}
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
 
                   {/* Ítems del Pedido */}
                   <div className="divide-y divide-stone-100 my-4">

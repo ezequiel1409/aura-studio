@@ -590,8 +590,8 @@ export async function getShowroomSettings(
     themeFont: storedThemeFont && storedThemeFont.trim() ? storedThemeFont.trim() : DEFAULT_THEME_FONT,
     contentWidth: (storedContentWidth === "compact" || storedContentWidth === "wide" || storedContentWidth === "full" ? storedContentWidth : "standard") as StoreContentWidth,
     customTermsText: storedCustomTermsText && storedCustomTermsText.trim() ? storedCustomTermsText.trim() : null,
-    // Métodos de pago
-    mercadopagoEnabled: storedMercadopagoEnabled !== "0",
+    // Métodos de pago (Solo habilitados si el comercio los activó explícitamente en el backoffice)
+    mercadopagoEnabled: storedMercadopagoEnabled === "1",
     paywayEnabled: storedPaywayEnabled === "1",
     paywayEnvironment: (storedPaywayEnvironment === "production" ? "production" : "sandbox") as "sandbox" | "production",
     paywayCuotaSimpleEnabled: storedPaywayCuotaSimpleEnabled !== "0",
@@ -608,9 +608,9 @@ export async function getShowroomSettings(
     transferDiscountPercent: !Number.isNaN(parsedTransferDiscount) && parsedTransferDiscount >= 0 && parsedTransferDiscount <= 100
       ? parsedTransferDiscount
       : DEFAULT_TRANSFER_DISCOUNT_PERCENT,
-    cashEnabled: storedCashEnabled !== "0",
+    cashEnabled: storedCashEnabled === "1",
     cashNotes: storedCashNotes && storedCashNotes.trim() ? storedCashNotes.trim() : null,
-    whatsappPaymentEnabled: storedWhatsappPaymentEnabled !== "0",
+    whatsappPaymentEnabled: storedWhatsappPaymentEnabled === "1",
     // Nuevas configuraciones
     announcementBar: (() => {
       const parsed = safeJsonParse<AnnouncementBarConfig>(

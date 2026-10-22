@@ -1,3 +1,5 @@
+import { eq } from "drizzle-orm";
+import * as schema from "../src/infra/db/schema";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestEnvironment } from "./setup-db";
 import { createProduct } from "../src/services/product.service";
@@ -8,11 +10,14 @@ import {
   updateOrderStatus,
   listOrders,
   clearOrderSubmissionsCache,
+  uploadTransferReceipt,
+  expirePendingTransferOrders,
 } from "../src/services/order.service";
 import * as paymentService from "../src/services/payment.service";
 import { WhatsAppPaymentAdapter } from "../src/infra/payments/whatsapp.adapter";
 import { validateCreateOrderInput, formatOrderCode, parseOrderCode } from "../src/domain/order/rules";
 import { ValidationError } from "../src/domain/errors";
+import { getShowroomSettings, updateShowroomSettings } from "../src/services/settings.service";
 
 describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
   let env: ReturnType<typeof createTestEnvironment>;
@@ -788,5 +793,293 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       expect(productAfterRetry!.colors![0].sizes[0].stock).toBe(3);
     });
   });
-});
 
+  describe("Transferencias Bancarias: Comprobante PDF y Vencimiento 24hs (BR-41, BR-47)", () => {
+    it("admite adjuntar comprobante PDF válido y rechaza formatos no PDF o archivos mayores a 10 MB", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Camisa Lino Arena $45.000",
+          title: "Camisa Lino Arena",
+          priceCents: 4500000,
+          colors: [
+            {
+              name: "Arena",
+              position: 0,
+              sizes: [{ size: "M", stock: 3 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // 1. Rechaza formato no PDF (ej. texto o imagen)
+      const fakeImageBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      await expect(
+        createOrder(
+          {
+            customerName: "Camila Transfer",
+            customerPhone: "1123456789",
+            customerEmail: "camila@example.com",
+            customerDni: "40111222",
+            deliveryMethod: "PICKUP",
+            paymentMethod: "TRANSFER",
+            transferReceiptUrl: fakeImageBase64,
+            items: [
+              {
+                productId: product.id,
+                productCode: product.code,
+                productTitle: product.title ?? "Camisa",
+                colorName: "Arena",
+                size: "M",
+                quantity: 1,
+                unitPriceCents: 4500000,
+              },
+            ],
+          },
+          env.deps
+        )
+      ).rejects.toThrow(/Solo se admiten comprobantes en formato PDF/i);
+
+      // 2. Crea orden con PDF válido (empieza con %PDF-)
+      const validPdfBase64 = "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmoKPDwvTGVuZ3RoIDM+Pg==...";
+      const result = await createOrder(
+        {
+          customerName: "Camila Transfer",
+          customerPhone: "1123456789",
+          customerEmail: "camila@example.com",
+          customerDni: "40111222",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          transferReceiptUrl: validPdfBase64,
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title ?? "Camisa",
+              colorName: "Arena",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 4500000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      expect(result.order.id).toBeGreaterThan(0);
+      expect(result.order.transferReceiptUrl).toBe(validPdfBase64);
+      expect(result.order.transferReceiptUploadedAt).toBeGreaterThan(0);
+
+      // Stock debitado 3 - 1 = 2
+      const updatedProd = await env.deps.productRepo.findById(product.id);
+      expect(updatedProd!.colors![0].sizes[0].stock).toBe(2);
+    });
+
+    it("permite cargar el comprobante PDF posteriormente desde Mis Pedidos con uploadTransferReceipt", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Pantalón Sastrero $60.000",
+          title: "Pantalón Sastrero",
+          priceCents: 6000000,
+          colors: [
+            {
+              name: "Negro",
+              position: 0,
+              sizes: [{ size: "L", stock: 2 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Crear orden sin comprobante inicial
+      const { order } = await createOrder(
+        {
+          customerName: "Lucía Gómez",
+          customerPhone: "1133445566",
+          customerEmail: "lucia@example.com",
+          customerDni: "38999888",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title ?? "Pantalón",
+              colorName: "Negro",
+              size: "L",
+              quantity: 1,
+              unitPriceCents: 6000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      expect(order.transferReceiptUrl).toBeNull();
+
+      // Cargar comprobante válido posterior
+      const validPdfBase64 = "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmoKPDwvTGVuZ3RoIDM+Pg==";
+      const updatedOrder = await uploadTransferReceipt(order.id, validPdfBase64, env.deps);
+
+      expect(updatedOrder.transferReceiptUrl).toBe(validPdfBase64);
+      expect(updatedOrder.transferReceiptUploadedAt).toBeGreaterThan(0);
+
+      // Si intentamos subir un archivo que no sea PDF, lanza ValidationError
+      await expect(
+        uploadTransferReceipt(order.id, "data:image/jpeg;base64,abc", env.deps)
+      ).rejects.toThrow(/Solo se admiten comprobantes en formato PDF/i);
+    });
+
+    it("cancela automáticamente órdenes con más de 24hs y restaura su inventario al stock disponible", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Tapado Paño Camel $120.000",
+          title: "Tapado Paño Camel",
+          priceCents: 12000000,
+          colors: [
+            {
+              name: "Camel",
+              position: 0,
+              sizes: [{ size: "U", stock: 4 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Crear orden A: hace 26 horas (expirada)
+      const now = Math.floor(Date.now() / 1000);
+      const { order: expiredOrder } = await createOrder(
+        {
+          customerName: "Cliente Vencido",
+          customerPhone: "1144445555",
+          customerEmail: "vencido@example.com",
+          customerDni: "35111222",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title ?? "Tapado",
+              colorName: "Camel",
+              size: "U",
+              quantity: 2,
+              unitPriceCents: 12000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Crear orden B: hace 2 horas (vigente)
+      const { order: activeOrder } = await createOrder(
+        {
+          customerName: "Cliente Vigente",
+          customerPhone: "1177778888",
+          customerEmail: "vigente@example.com",
+          customerDni: "36999000",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title ?? "Tapado",
+              colorName: "Camel",
+              size: "U",
+              quantity: 1,
+              unitPriceCents: 12000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Stock debitado 4 - 2 - 1 = 1
+      const stockBeforeExpire = await env.deps.productRepo.findById(product.id);
+      expect(stockBeforeExpire!.colors![0].sizes[0].stock).toBe(1);
+
+      // Simulamos que la orden A fue creada hace 26 horas (26 * 3600 segundos)
+      const twentySixHoursAgo = now - 26 * 3600;
+      await env.deps.db!
+        .update(schema.orders)
+        .set({ createdAt: twentySixHoursAgo })
+        .where(eq(schema.orders.id, expiredOrder.id));
+
+      // Ejecutar expiración automática
+      const expiredCount = await expirePendingTransferOrders(env.deps);
+      expect(expiredCount).toBe(1);
+
+      // Orden A pasó a CANCELLED
+      const orderACancelled = await env.deps.orderRepo.findById(expiredOrder.id);
+      expect(orderACancelled!.status).toBe("CANCELLED");
+      expect(orderACancelled!.paymentStatus).toBe("REJECTED");
+
+      // Orden B sigue en PENDING
+      const orderBActive = await env.deps.orderRepo.findById(activeOrder.id);
+      expect(orderBActive!.status).toBe("PENDING");
+
+      // El stock de la orden A fue restaurado: 1 + 2 = 3 unidades disponibles
+      const restoredProduct = await env.deps.productRepo.findById(product.id);
+      expect(restoredProduct!.colors![0].sizes[0].stock).toBe(3);
+    });
+
+    it("respeta showroomAddress 'A coordinar por WhatsApp' cuando pickupAddressVisibility es COORDINATE_WHATSAPP", async () => {
+      // Configurar showroom con COORDINATE_WHATSAPP
+      const current = await getShowroomSettings(env.deps);
+      await updateShowroomSettings(
+        {
+          storeLocation: {
+            ...current.storeLocation,
+            pickupAddressVisibility: "COORDINATE_WHATSAPP",
+          },
+        },
+        env.deps
+      );
+
+      const product = await createProduct(
+        {
+          rawText: "Kimono Seda $80.000",
+          colors: [
+            {
+              name: "Negro",
+              position: 0,
+              sizes: [{ size: "U", stock: 5 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      const result = await createOrder(
+        {
+          customerName: "Camila Paz",
+          customerPhone: "11 9999-0000",
+          customerEmail: "camila@example.com",
+          customerDni: "38999888",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title || "Kimono Seda",
+              colorName: "Negro",
+              size: "U",
+              quantity: 1,
+              unitPriceCents: 8000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      expect(result.order.deliveryMethod).toBe("PICKUP");
+      const decoded = decodeURIComponent(result.whatsappUrl);
+      expect(decoded).toContain("Retiro / Entrega en el Showroom (A coordinar por WhatsApp)");
+    });
+  });
+
+});

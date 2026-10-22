@@ -206,6 +206,7 @@ export interface IOrderRepository {
   listByCustomer(customerId: number): Promise<Order[]>;
   updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order>;
   updatePayment?(id: number, data: { paymentStatus: PaymentStatus; paymentExternalId?: string | null; updatedAt: number }): Promise<Order>;
+  updateTransferReceipt?(id: number, receiptUrl: string, uploadedAt: number): Promise<Order>;
   getSummaryCounts?(): Promise<OrderSummaryCounts>;
 }
 

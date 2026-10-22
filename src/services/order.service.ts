@@ -140,6 +140,8 @@ export async function createOrder(
       paymentMethod: validated.paymentMethod,
       paymentStatus: "PENDING",
       paymentDiscountCents: validated.paymentDiscountCents,
+      transferReceiptUrl: validated.transferReceiptUrl || null,
+      transferReceiptUploadedAt: validated.transferReceiptUploadedAt || null,
       notes: validated.notes,
       createdAt: now,
       updatedAt: now,
@@ -223,9 +225,15 @@ export async function createOrder(
         brandName: settings.showroomName,
       });
 
+      const isPrivateShowroom =
+        settings.storeLocation?.pickupAddressVisibility === "COORDINATE_WHATSAPP";
+      const showroomAddressForMessage = isPrivateShowroom
+        ? "A coordinar por WhatsApp"
+        : settings.address;
+
       const paymentAction = adapter.createOrderPaymentAction(order, {
         brandName: settings.showroomName,
-        showroomAddress: settings.address,
+        showroomAddress: showroomAddressForMessage,
       });
 
       // 7. Generar preferencia o instrucciones de pago según método elegido (BR-47)
@@ -341,6 +349,7 @@ export async function listOrders(
   const deps = (isDepsFirst ? optionsOrDeps : maybeDeps) as GlobalAppDeps;
   const options = isDepsFirst ? {} : (optionsOrDeps as { status?: OrderStatus; limit?: number; offset?: number });
 
+  await expirePendingTransferOrders(deps);
   const orders = await deps.orderRepo.list(options);
   if (deps.orderClaimRepo && orders.length > 0) {
     try {
@@ -367,6 +376,96 @@ export async function getOrdersSummaryCounts(
     total: orders.length,
     pending: orders.filter((o) => o.status === "PENDING").length,
   };
+}
+
+
+/**
+ * Expiración automática de órdenes por transferencia pasadas las 24 horas (BR-41)
+ * Restaura el stock de los productos automáticamente al cancelar la orden.
+ */
+export async function expirePendingTransferOrders(deps: GlobalAppDeps): Promise<number> {
+  const now = Math.floor(Date.now() / 1000);
+  const cutoff = now - 24 * 60 * 60; // 24 horas
+  let count = 0;
+
+  try {
+    const pendingOrders = await deps.orderRepo.list({ status: "PENDING" });
+    for (const order of pendingOrders) {
+      if (order.paymentMethod === "TRANSFER" && order.createdAt < cutoff) {
+        try {
+          await updateOrderStatus(order.id, "CANCELLED", deps);
+          if (typeof deps.orderRepo.updatePayment === "function") {
+            await deps.orderRepo.updatePayment(order.id, {
+              paymentStatus: "REJECTED",
+              updatedAt: now,
+            });
+          }
+          count++;
+        } catch (err) {
+          console.error(`[EXPIRE-TRANSFER-ORDERS] Error al cancelar orden ${order.id}:`, err);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[EXPIRE-TRANSFER-ORDERS] Error al listar órdenes pendientes:", err);
+  }
+
+  return count;
+}
+
+/**
+ * Carga y validación estricta de comprobante de transferencia en formato PDF (máx. 10 MB)
+ */
+export async function uploadTransferReceipt(
+  id: number,
+  receiptBase64: string,
+  deps: GlobalAppDeps
+): Promise<Order> {
+  const existing = await deps.orderRepo.findById(id);
+  if (!existing) {
+    throw new OrderNotFoundError(id);
+  }
+  if (existing.paymentMethod !== "TRANSFER") {
+    throw new ValidationError("La orden no corresponde a un método de pago por transferencia.");
+  }
+  if (existing.status === "CANCELLED") {
+    throw new ValidationError("La orden se encuentra cancelada por haber expirado el plazo de 24 horas.");
+  }
+  if (existing.paymentStatus === "PAID") {
+    throw new ValidationError("El pago de esta orden ya ha sido verificado y acreditado.");
+  }
+
+  let cleanBase64 = receiptBase64.trim();
+  if (cleanBase64.startsWith("data:")) {
+    if (!cleanBase64.startsWith("data:application/pdf;base64,")) {
+      throw new ValidationError("Solo se admiten comprobantes en formato PDF.");
+    }
+    cleanBase64 = cleanBase64.replace("data:application/pdf;base64,", "");
+  }
+
+  // Validar tamaño máximo de 10 MB (10 * 1024 * 1024 bytes)
+  const binarySize = Math.floor((cleanBase64.length * 3) / 4);
+  const MAX_SIZE = 10 * 1024 * 1024;
+  if (binarySize > MAX_SIZE) {
+    throw new ValidationError("El comprobante PDF supera el tamaño máximo permitido de 10 MB.");
+  }
+
+  // Validar cabecera mágica '%PDF-'
+  const header = Buffer.from(cleanBase64.slice(0, 16), "base64").toString("utf-8");
+  if (!header.startsWith("%PDF-")) {
+    throw new ValidationError("El archivo adjunto no es un documento PDF válido.");
+  }
+
+  const formattedUrl = receiptBase64.startsWith("data:")
+    ? receiptBase64
+    : `data:application/pdf;base64,${cleanBase64}`;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (typeof deps.orderRepo.updateTransferReceipt === "function") {
+    return await deps.orderRepo.updateTransferReceipt(id, formattedUrl, now);
+  }
+
+  return (await deps.orderRepo.findById(id))!;
 }
 
 export async function updateOrderStatus(

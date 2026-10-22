@@ -106,7 +106,13 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
     } else if (order.deliveryMethod === "MOTORCYCLE") {
       deliveryDesc = `Motomensajería Express (${order.deliveryAddress || "A coordinar"})`;
     } else {
-      const showroomPart = options?.showroomAddress ? ` en ${options.showroomAddress}` : "";
+      let showroomPart = "";
+      if (options?.showroomAddress) {
+        showroomPart =
+          options.showroomAddress.startsWith("(") || options.showroomAddress.startsWith("A ")
+            ? ` (${options.showroomAddress})`
+            : ` en ${options.showroomAddress}`;
+      }
       deliveryDesc = `Retiro / Entrega en el Showroom${showroomPart}`;
     }
 

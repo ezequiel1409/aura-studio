@@ -41,6 +41,8 @@ export interface Order {
   paymentDiscountCents?: number;
   customerId?: number | null;
   commerceId?: number | null;
+  transferReceiptUrl?: string | null;
+  transferReceiptUploadedAt?: number | null;
   notes?: string | null;
   createdAt: number;
   updatedAt: number;
@@ -71,6 +73,8 @@ export interface CreateOrderInput {
   discountCents?: number;
   paymentMethod?: PaymentMethod;
   paymentDiscountCents?: number;
+  transferReceiptUrl?: string | null;
+  transferReceiptUploadedAt?: number | null;
   couponCode?: string | null;
   customerId?: number | null;
   commerceId?: number | null;

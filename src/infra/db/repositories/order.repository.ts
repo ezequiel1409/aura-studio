@@ -51,6 +51,8 @@ export class DrizzleOrderRepository implements IOrderRepository {
         paymentDiscountCents: data.paymentDiscountCents ?? 0,
         customerId: data.customerId ?? null,
         commerceId: data.commerceId ?? null,
+        transferReceiptUrl: data.transferReceiptUrl ?? null,
+        transferReceiptUploadedAt: data.transferReceiptUploadedAt ?? null,
         notes: data.notes,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
@@ -195,6 +197,28 @@ export class DrizzleOrderRepository implements IOrderRepository {
     await this.db
       .update(orders)
       .set(updatePayload)
+      .where(eq(orders.id, id));
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw new Error(`Order ${id} not found`);
+    }
+    return updated;
+  }
+
+
+  async updateTransferReceipt(
+    id: number,
+    receiptUrl: string,
+    uploadedAt: number
+  ): Promise<Order> {
+    await this.db
+      .update(orders)
+      .set({
+        transferReceiptUrl: receiptUrl,
+        transferReceiptUploadedAt: uploadedAt,
+        updatedAt: uploadedAt,
+      })
       .where(eq(orders.id, id));
 
     const updated = await this.findById(id);
