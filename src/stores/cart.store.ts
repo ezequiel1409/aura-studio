@@ -44,6 +44,7 @@ export interface CartStoreState {
   // Acciones de Carrito (BR-40)
   addItem: (item: AddItemInput, quantity?: number) => void;
   updateQuantity: (key: string, quantity: number) => void;
+  syncStock: (stockMap: Record<string, number>) => void;
   removeItem: (key: string) => void;
   clearCart: () => void;
 
@@ -131,6 +132,23 @@ export const useCartStore = create<CartStoreState>()(
             return item;
           });
 
+          return { items: updated };
+        });
+      },
+
+      syncStock: (stockMap: Record<string, number>) => {
+        set((state) => {
+          const updated = state.items.map((item) => {
+            if (item.key in stockMap) {
+              const newMax = Math.max(0, stockMap[item.key]);
+              return {
+                ...item,
+                maxStock: newMax,
+                quantity: newMax <= 0 ? 1 : clampCartQuantity(item.quantity, newMax),
+              };
+            }
+            return item;
+          });
           return { items: updated };
         });
       },

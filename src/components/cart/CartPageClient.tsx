@@ -108,6 +108,7 @@ export function CartPageClient({
   const {
     items,
     updateQuantity,
+    syncStock,
     removeItem,
     clearCart,
     deliveryMethod,
@@ -115,6 +116,37 @@ export function CartPageClient({
     getTotalItemsCount,
     getSubtotalCents,
   } = useCartStore();
+
+  const hasOutOfStockItems = items.some((i) => i.maxStock <= 0);
+
+  // Validar stock de las prendas en el carrito al cargar la página
+  useEffect(() => {
+    if (items.length === 0) return;
+    fetch("/api/catalog/validate-stock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: items.map((i) => ({
+          key: i.key,
+          productId: i.productId,
+          colorName: i.colorName,
+          size: i.size,
+          requestedQuantity: i.quantity,
+        })),
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.items && Array.isArray(data.items)) {
+          const map: Record<string, number> = {};
+          for (const it of data.items) {
+            map[it.key] = it.remainingStock ?? (it.available ? 1 : 0);
+          }
+          syncStock(map);
+        }
+      })
+      .catch(() => {});
+  }, [syncStock]);
 
   const isPickupEnabled = storeLocation.pickupEnabled !== false;
   const isHomeDeliveryEnabled = Boolean(storeLocation.homeDeliveryEnabled);
@@ -495,6 +527,10 @@ export function CartPageClient({
   // Validaciones antes de avanzar del Paso 1 al Paso 2
   const handleProceedToShipping = () => {
     if (items.length === 0 || ordersPaused) return;
+    if (hasOutOfStockItems) {
+      setErrorMessage("Hay prendas sin stock en tu bolsa. Por favor eliminalas para poder continuar.");
+      return;
+    }
     setErrorMessage(null);
     setCurrentStep("shipping");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -504,6 +540,11 @@ export function CartPageClient({
   const handleProceedToPayment = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (hasOutOfStockItems) {
+      setErrorMessage("Hay prendas sin stock en tu bolsa. Por favor volvé al paso 1 y eliminalas.");
+      return;
+    }
 
     if (!customerName.trim() || customerName.trim().length < 2) {
       setErrorMessage("Por favor ingresá tu nombre y apellido para el pedido.");
@@ -538,6 +579,11 @@ export function CartPageClient({
 
   // Confirmar y procesar la orden en Paso 3
   const handleConfirmOrder = async () => {
+    if (hasOutOfStockItems) {
+      setErrorMessage("Hay prendas sin stock en tu bolsa. Por favor volvé al paso 1 y eliminalas.");
+      return;
+    }
+
     if (!acceptTerms) {
       setErrorMessage("Debés aceptar las condiciones de reserva y política de cambios para continuar.");
       return;
@@ -1056,123 +1102,137 @@ export function CartPageClient({
 
                 {/* Lista de Prendas */}
                 <ul className="divide-y divide-[#e7e2da]/70 mt-3" role="list">
-                  {items.map((item) => (
-                    <li key={item.key} className="py-5 flex gap-4 sm:gap-6 items-start">
-                      {/* Foto con proporción 4:5 */}
-                      <div className="h-24 w-20 sm:h-28 sm:w-22 shrink-0 overflow-hidden rounded-xl border border-[#e7e2da] bg-[#f5f2eb]">
-                        {item.photoUrl ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img
-                            src={item.photoUrl}
-                            alt={item.title || "Prenda"}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-stone-300">
-                            <ShoppingBag className="h-8 w-8" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Detalles de la Pieza */}
-                      <div className="flex flex-1 flex-col justify-between self-stretch">
-                        <div>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <span className="text-[11px] font-mono font-medium text-stone-400">
-                                SKU: {item.formattedCode}
-                              </span>
-                              <Link
-                                href={`/p/${item.code.toString().padStart(3, "0")}`}
-                                className="block font-serif text-base sm:text-lg font-semibold text-stone-900 hover:text-stone-700 hover:underline"
-                              >
-                                {item.title || `Producto ${item.formattedCode}`}
-                              </Link>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => removeItem(item.key)}
-                              aria-label={`Eliminar ${item.title || item.formattedCode} de la bolsa`}
-                              title="Eliminar prenda de la bolsa"
-                              className="text-stone-400 hover:text-rose-600 transition-colors p-1.5 cursor-pointer rounded-lg hover:bg-stone-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-
-                          {/* Variantes seleccionadas */}
-                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-stone-600">
-                            <span className="rounded-md border border-[#e7e2da] bg-[#faf8f5] px-2.5 py-0.5 font-medium">
-                              Talle: <strong>{item.size}</strong>
-                            </span>
-                            {item.colorName && item.colorName.toLowerCase() !== "único" && (
-                              <span className="flex items-center gap-1.5 rounded-md border border-[#e7e2da] bg-[#faf8f5] px-2.5 py-0.5 font-medium">
-                                {item.hexCode && (
-                                  <span
-                                    className="h-3 w-3 rounded-full border border-black/20"
-                                    style={{ backgroundColor: item.hexCode }}
-                                  />
-                                )}
-                                <span>{item.colorName}</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Cantidad y Precios (sin duplicaciones innecesarias) */}
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                          {item.maxStock > 1 ? (
-                            <div className="flex items-center rounded-xl border border-[#d8d2c7] bg-[#faf8f5]">
-                              <button
-                                type="button"
-                                disabled={item.quantity <= 1}
-                                onClick={() => updateQuantity(item.key, item.quantity - 1)}
-                                aria-label="Disminuir cantidad"
-                                className="p-2 text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
-                              >
-                                <Minus className="h-3.5 w-3.5" />
-                              </button>
-                              <span className="w-8 text-center font-mono text-xs font-bold text-stone-900">
-                                {item.quantity}
-                              </span>
-                              <button
-                                type="button"
-                                disabled={item.quantity >= item.maxStock}
-                                onClick={() => updateQuantity(item.key, item.quantity + 1)}
-                                aria-label="Aumentar cantidad"
-                                className={`p-2 transition-colors cursor-pointer ${
-                                  item.quantity >= item.maxStock
-                                    ? "text-stone-300 cursor-not-allowed"
-                                    : "text-stone-600 hover:text-stone-900"
-                                }`}
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
+                  {items.map((item) => {
+                    const isItemOutOfStock = item.maxStock <= 0;
+                    return (
+                      <li key={item.key} className="py-5 flex gap-4 sm:gap-6 items-start">
+                        {/* Foto con proporción 4:5 */}
+                        <div className="h-24 w-20 sm:h-28 sm:w-22 shrink-0 overflow-hidden rounded-xl border border-[#e7e2da] bg-[#f5f2eb]">
+                          {item.photoUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={item.photoUrl}
+                              alt={item.title || "Prenda"}
+                              className="h-full w-full object-cover"
+                            />
                           ) : (
-                            <span className="font-mono text-xs text-stone-500 bg-[#faf8f5] border border-[#e7e2da] px-2.5 py-1 rounded-lg">
-                              Pieza única (1u)
-                            </span>
+                            <div className="flex h-full w-full items-center justify-center text-stone-300">
+                              <ShoppingBag className="h-8 w-8" />
+                            </div>
                           )}
+                        </div>
 
-                          <div className="text-right">
-                            {item.quantity > 1 && (
-                              <span className="text-[11px] text-stone-500 block">
-                                {item.quantity} × {formatPrice(item.unitPriceCents, item.currency)}
+                        {/* Detalles de la Pieza */}
+                        <div className="flex flex-1 flex-col justify-between self-stretch">
+                          <div>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-mono font-medium text-stone-400">
+                                    SKU: {item.formattedCode}
+                                  </span>
+                                  {isItemOutOfStock && (
+                                    <span className="inline-flex items-center rounded-md bg-rose-100 text-rose-800 border border-rose-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+                                      Sin stock
+                                    </span>
+                                  )}
+                                </div>
+                                <Link
+                                  href={`/p/${item.code.toString().padStart(3, "0")}`}
+                                  className="block font-serif text-base sm:text-lg font-semibold text-stone-900 hover:text-stone-700 hover:underline"
+                                >
+                                  {item.title || `Producto ${item.formattedCode}`}
+                                </Link>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => removeItem(item.key)}
+                                aria-label={`Eliminar ${item.title || item.formattedCode} de la bolsa`}
+                                title="Eliminar prenda de la bolsa"
+                                className="text-stone-400 hover:text-rose-600 transition-colors p-1.5 cursor-pointer rounded-lg hover:bg-stone-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+
+                            {/* Variantes seleccionadas */}
+                            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-stone-600">
+                              <span className="rounded-md border border-[#e7e2da] bg-[#faf8f5] px-2.5 py-0.5 font-medium">
+                                Talle: <strong>{item.size}</strong>
+                              </span>
+                              {item.colorName && item.colorName.toLowerCase() !== "único" && (
+                                <span className="flex items-center gap-1.5 rounded-md border border-[#e7e2da] bg-[#faf8f5] px-2.5 py-0.5 font-medium">
+                                  {item.hexCode && (
+                                    <span
+                                      className="h-3 w-3 rounded-full border border-black/20"
+                                      style={{ backgroundColor: item.hexCode }}
+                                    />
+                                  )}
+                                  <span>{item.colorName}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Cantidad y Precios (sin duplicaciones innecesarias) */}
+                          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                            {isItemOutOfStock ? (
+                              <span className="font-mono text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg">
+                                Sin stock disponible
+                              </span>
+                            ) : item.maxStock > 1 ? (
+                              <div className="flex items-center rounded-xl border border-[#d8d2c7] bg-[#faf8f5]">
+                                <button
+                                  type="button"
+                                  disabled={item.quantity <= 1}
+                                  onClick={() => updateQuantity(item.key, item.quantity - 1)}
+                                  aria-label="Disminuir cantidad"
+                                  className="p-2 text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="w-8 text-center font-mono text-xs font-bold text-stone-900">
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={item.quantity >= item.maxStock}
+                                  onClick={() => updateQuantity(item.key, item.quantity + 1)}
+                                  aria-label="Aumentar cantidad"
+                                  className={`p-2 transition-colors cursor-pointer ${
+                                    item.quantity >= item.maxStock
+                                      ? "text-stone-300 cursor-not-allowed"
+                                      : "text-stone-600 hover:text-stone-900"
+                                  }`}
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="font-mono text-xs text-stone-500 bg-[#faf8f5] border border-[#e7e2da] px-2.5 py-1 rounded-lg">
+                                Pieza única (1u)
                               </span>
                             )}
-                            <span className="font-serif text-lg sm:text-xl font-bold text-stone-900">
-                              {formatPrice(
-                                item.unitPriceCents ? item.unitPriceCents * item.quantity : null,
-                                item.currency
+
+                            <div className="text-right">
+                              {item.quantity > 1 && !isItemOutOfStock && (
+                                <span className="text-[11px] text-stone-500 block">
+                                  {item.quantity} × {formatPrice(item.unitPriceCents, item.currency)}
+                                </span>
                               )}
-                            </span>
+                              <span className={`font-serif text-lg sm:text-xl font-bold ${isItemOutOfStock ? "text-stone-400 line-through" : "text-stone-900"}`}>
+                                {formatPrice(
+                                  item.unitPriceCents ? item.unitPriceCents * item.quantity : null,
+                                  item.currency
+                                )}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    );
+                  })}
                 </ul>
 
                 {/* Calculador de envío por CP en Paso 1 (Solo si hay envíos a domicilio o moto habilitados) */}
@@ -1301,19 +1361,37 @@ export function CartPageClient({
                   )}
                 </div>
 
+                {hasOutOfStockItems && (
+                  <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-2.5">
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-rose-950">Prendas sin stock en tu bolsa</p>
+                      <p className="text-[11px] text-rose-800 mt-0.5 leading-relaxed">
+                        Una o más piezas de tu bolsa ya no tienen unidades disponibles. Por favor eliminalas para poder continuar con tu compra.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Botón destacado: Continuar con la reserva */}
                 <button
                   type="button"
-                  disabled={ordersPaused}
+                  disabled={ordersPaused || hasOutOfStockItems}
                   onClick={handleProceedToShipping}
                   className={`w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl px-6 py-3 text-xs font-bold tracking-wider uppercase shadow-sm transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
-                    ordersPaused
+                    ordersPaused || hasOutOfStockItems
                       ? "bg-stone-200 text-stone-500 cursor-not-allowed border border-stone-300"
                       : "bg-stone-900 text-white hover:bg-stone-800 cursor-pointer active:scale-98"
                   }`}
                 >
-                  <span>{ordersPaused ? "Ventas pausadas momentáneamente" : "Continuar con la reserva"}</span>
-                  {!ordersPaused && <ArrowRight className="h-4 w-4" />}
+                  <span>
+                    {ordersPaused
+                      ? "Ventas pausadas momentáneamente"
+                      : hasOutOfStockItems
+                      ? "Prendas sin stock en la bolsa"
+                      : "Continuar con la reserva"}
+                  </span>
+                  {!ordersPaused && !hasOutOfStockItems && <ArrowRight className="h-4 w-4" />}
                 </button>
 
                 {/* Medios de Pago Aceptados Dinámicos (BR-47) */}
@@ -1873,7 +1951,14 @@ export function CartPageClient({
                   {items.map((i) => (
                     <li key={i.key} className="py-2.5 flex justify-between gap-2">
                       <div>
-                        <span className="font-semibold text-stone-800 line-clamp-1">{i.title || i.formattedCode}</span>
+                        <span className="font-semibold text-stone-800 line-clamp-1">
+                          {i.title || i.formattedCode}
+                          {i.maxStock <= 0 && (
+                            <span className="ml-1.5 inline-block text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1">
+                              Sin stock
+                            </span>
+                          )}
+                        </span>
                         <span className="text-[11px] text-stone-500">{i.colorName} · Talle {i.size} × {i.quantity}</span>
                       </div>
                       <span className="font-serif font-medium text-stone-900 whitespace-nowrap">
@@ -2416,6 +2501,11 @@ export function CartPageClient({
                         <div className="min-w-0">
                           <p className="font-semibold text-stone-900 truncate text-xs">
                             {i.formattedCode} · {i.title}
+                            {i.maxStock <= 0 && (
+                              <span className="ml-1.5 inline-block text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1">
+                                Sin stock
+                              </span>
+                            )}
                           </p>
                           <p className="text-[11px] text-stone-500">
                             {i.colorName} · Talle {i.size} (x{i.quantity})

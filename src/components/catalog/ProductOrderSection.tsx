@@ -92,6 +92,13 @@ export function ProductOrderSection({
   const maxStock = selectedSizeItem ? selectedSizeItem.stock : (currentSizes.length === 1 ? currentSizes[0].stock : 0);
   const isSelectedOutOfStock = Boolean(selectedSize && maxStock <= 0);
 
+  // Stock total disponible para el color seleccionado (si todos los talles están agotados)
+  const colorTotalStock = useMemo(
+    () => currentSizes.reduce((acc, s) => acc + (s.stock > 0 ? s.stock : 0), 0),
+    [currentSizes]
+  );
+  const isColorOutOfStock = currentSizes.length > 0 && colorTotalStock <= 0;
+
   // Selector de cantidad (no pudiendo superar el stock disponible)
   const [quantity, setQuantity] = useState<number>(1);
   const [justAdded, setJustAdded] = useState<boolean>(false);
@@ -140,7 +147,7 @@ export function ProductOrderSection({
   };
 
   const handleAddToCart = () => {
-    if (isSoldOut || isNoPrice || ordersPaused) return;
+    if (isSoldOut || isColorOutOfStock || isNoPrice || ordersPaused) return;
 
     if (currentSizes.length > 1 && !selectedSize) {
       setSizeErrorPrompt(true);
@@ -176,7 +183,13 @@ export function ProductOrderSection({
 
   const isNoPrice = priceCents === null;
   const needsSizeSelection = hasMultipleSizes && !selectedSize;
-  const isActionDisabled = isSoldOut || isSelectedOutOfStock || (selectedSize !== null && maxStock <= 0) || isNoPrice || ordersPaused;
+  const isActionDisabled =
+    isSoldOut ||
+    isColorOutOfStock ||
+    isSelectedOutOfStock ||
+    (selectedSize !== null && maxStock <= 0) ||
+    isNoPrice ||
+    ordersPaused;
 
   return (
     <div id="order-section" className="mt-6 rounded-2xl border border-[#e7e2da] bg-white p-5 sm:p-6 shadow-2xs">
@@ -343,7 +356,19 @@ export function ProductOrderSection({
         type="button"
         disabled={isActionDisabled}
         onClick={handleAddToCart}
-        aria-label="Agregar a la bolsa"
+        aria-label={
+          isSoldOut
+            ? "Pieza agotada"
+            : ordersPaused
+            ? "Ventas pausadas momentáneamente"
+            : isNoPrice
+            ? "Precio a consultar"
+            : isColorOutOfStock || isSelectedOutOfStock
+            ? "Sin stock"
+            : needsSizeSelection
+            ? "Elegí tu talle"
+            : "Agregar a la bolsa"
+        }
         className={`w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl px-6 py-3 text-xs font-bold tracking-wider uppercase transition-all shadow-sm focus-visible:outline-2 focus-visible:outline-stone-900 ${
           isActionDisabled
             ? "border border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed"
@@ -360,8 +385,8 @@ export function ProductOrderSection({
             ? "Ventas pausadas momentáneamente"
             : isNoPrice
             ? "Precio a consultar"
-            : isSelectedOutOfStock
-            ? "Talle sin stock"
+            : isColorOutOfStock || isSelectedOutOfStock
+            ? "Sin stock"
             : needsSizeSelection
             ? "Elegí tu talle"
             : "Agregar a la bolsa"}

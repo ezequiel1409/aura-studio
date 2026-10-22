@@ -110,6 +110,13 @@ export function ProductCard({
           })),
         };
 
+  // Stock total disponible para el color seleccionado
+  const activeColorStock = activeColor.sizes.reduce(
+    (sum, s) => sum + (s.stock > 0 ? s.stock : 0),
+    0
+  );
+  const isColorOutOfStock = activeColor.sizes.length > 0 && activeColorStock <= 0;
+
   // Calcular si queda última unidad total
   const totalStock =
     product.colors && product.colors.length > 0
@@ -214,7 +221,7 @@ export function ProductCard({
   const handlePrimaryAddClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!canPurchase) return;
+    if (!canPurchase || isColorOutOfStock) return;
 
     if (isSingleVariant) {
       const firstAvailSize =
@@ -430,7 +437,10 @@ export function ProductCard({
                     <button
                       key={c.id || c.name}
                       type="button"
-                      onClick={() => setSelectedColorIdx(idx)}
+                      onClick={() => {
+                        setSelectedColorIdx(idx);
+                        setShowSizePickerDesktop(false);
+                      }}
                       aria-label={`Color ${c.name}`}
                       title={c.name}
                       className={`inline-block h-3.5 w-3.5 rounded-full border shadow-2xs transition-transform ${
@@ -487,19 +497,25 @@ export function ProductCard({
               <button
                 type="button"
                 onClick={handlePrimaryAddClick}
-                disabled={Boolean(addingSize)}
+                disabled={Boolean(addingSize) || isColorOutOfStock}
                 aria-label={
-                  addedSuccess
+                  isColorOutOfStock
+                    ? "Sin stock"
+                    : addedSuccess
                     ? `${titleDisplay} agregado a la bolsa`
                     : `Agregar ${titleDisplay} a la bolsa`
                 }
-                className={`w-full min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer ${
-                  addedSuccess
-                    ? "bg-emerald-800 text-white"
-                    : "bg-[#faf8f5] hover:bg-stone-900 text-stone-900 hover:text-white border border-[#d8d2c7] hover:border-stone-900"
+                className={`w-full min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
+                  isColorOutOfStock
+                    ? "border border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed"
+                    : addedSuccess
+                    ? "bg-emerald-800 text-white cursor-pointer"
+                    : "bg-[#faf8f5] hover:bg-stone-900 text-stone-900 hover:text-white border border-[#d8d2c7] hover:border-stone-900 cursor-pointer"
                 }`}
               >
-                {addingSize ? (
+                {isColorOutOfStock ? (
+                  <span>Sin stock</span>
+                ) : addingSize ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                     <span>Verificando...</span>
@@ -611,38 +627,46 @@ export function ProductCard({
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <span className="block text-xs font-semibold text-stone-700">
-                Seleccioná tu talle para agregar a la bolsa:
-              </span>
-              <div className="grid grid-cols-4 gap-2">
-                {activeColor.sizes.map((sz) => {
-                  const key = `${activeColor.name}__${sz.size}`;
-                  const disabled = sz.stock <= 0 || depletedSizes[key];
-                  return (
-                    <button
-                      key={sz.size}
-                      type="button"
-                      disabled={disabled || Boolean(addingSize)}
-                      onClick={() =>
-                        handleQuickAddVariant(
-                          activeColor.name,
-                          activeColor.hexCode,
-                          sz.size
-                        )
-                      }
-                      className={`min-h-[44px] rounded-xl text-xs font-mono font-bold border ${
-                        disabled
-                          ? "border-stone-200 bg-stone-100 text-stone-400 line-through"
-                          : "border-[#d8d2c7] bg-white text-stone-900 active:bg-stone-900 active:text-white"
-                      }`}
-                    >
-                      {sz.size}
-                    </button>
-                  );
-                })}
+            {isColorOutOfStock ? (
+              <div className="rounded-xl border border-stone-200 bg-stone-100 p-4 text-center">
+                <span className="text-xs font-semibold text-stone-500">
+                  Sin stock disponible en color {activeColor.name}
+                </span>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-1.5">
+                <span className="block text-xs font-semibold text-stone-700">
+                  Seleccioná tu talle para agregar a la bolsa:
+                </span>
+                <div className="grid grid-cols-4 gap-2">
+                  {activeColor.sizes.map((sz) => {
+                    const key = `${activeColor.name}__${sz.size}`;
+                    const disabled = sz.stock <= 0 || depletedSizes[key];
+                    return (
+                      <button
+                        key={sz.size}
+                        type="button"
+                        disabled={disabled || Boolean(addingSize)}
+                        onClick={() =>
+                          handleQuickAddVariant(
+                            activeColor.name,
+                            activeColor.hexCode,
+                            sz.size
+                          )
+                        }
+                        className={`min-h-[44px] rounded-xl text-xs font-mono font-bold border ${
+                          disabled
+                            ? "border-stone-200 bg-stone-100 text-stone-400 line-through"
+                            : "border-[#d8d2c7] bg-white text-stone-900 active:bg-stone-900 active:text-white"
+                        }`}
+                      >
+                        {sz.size}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
