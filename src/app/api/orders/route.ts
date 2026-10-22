@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../infra/db/connection";
 import { createOrder } from "../../../services/order.service";
+import { getShowroomSettings } from "../../../services/settings.service";
 import { DomainError, ProductNotFoundError, OrderNotFoundError } from "../../../domain/errors";
 import { getAuthenticatedCustomer } from "../../../infra/auth/customer-session";
 
@@ -8,6 +9,19 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const deps = getProductServiceDeps();
+
+    // Bloqueo de seguridad: Si las ventas están pausadas por el administrador, rechazar nuevas órdenes
+    const storeSettings = await getShowroomSettings(deps);
+    if (storeSettings.ordersPaused) {
+      return NextResponse.json(
+        {
+          error:
+            storeSettings.ordersPausedNotice ||
+            "Las ventas online se encuentran temporalmente pausadas. Por favor, intentá nuevamente más tarde.",
+        },
+        { status: 403 }
+      );
+    }
 
     // Si el usuario está autenticado como cliente, vincular la orden a su cuenta
     const customerSession = await getAuthenticatedCustomer(req);

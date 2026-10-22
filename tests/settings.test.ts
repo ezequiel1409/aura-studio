@@ -272,4 +272,37 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35, ADM-05, ADM
     expect(reloaded.storeLocation.homeDeliveryEnabled).toBe(true);
     expect(reloaded.storeLocation.homeDeliveryCostCents).toBe(500000);
   });
+
+  it("persiste y recupera el estado de pausa de ventas (kill switch) y mensaje explicativo", async () => {
+    const { deps } = env;
+
+    const initial = await getShowroomSettings(deps);
+    expect(initial.ordersPaused).toBe(false);
+    expect(initial.ordersPausedNotice).toBeNull();
+
+    // Pausar ventas con mensaje personalizado
+    const paused = await updateShowroomSettings(
+      {
+        ordersPaused: true,
+        ordersPausedNotice: "Pausamos temporalmente por balance de inventario.",
+      },
+      deps
+    );
+
+    expect(paused.ordersPaused).toBe(true);
+    expect(paused.ordersPausedNotice).toBe("Pausamos temporalmente por balance de inventario.");
+
+    const reloaded = await getShowroomSettings(deps);
+    expect(reloaded.ordersPaused).toBe(true);
+    expect(reloaded.ordersPausedNotice).toBe("Pausamos temporalmente por balance de inventario.");
+
+    // Reanudar ventas
+    const resumed = await updateShowroomSettings(
+      {
+        ordersPaused: false,
+      },
+      deps
+    );
+    expect(resumed.ordersPaused).toBe(false);
+  });
 });

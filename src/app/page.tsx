@@ -94,6 +94,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           showroomAddress={data.settings.address}
           whatsappNumber={data.settings.whatsappNumber}
           brandName={brandName}
+          ordersPaused={data.settings.ordersPaused}
+          ordersPausedNotice={data.settings.ordersPausedNotice}
         />
         <Footer
           brandName={brandName}
@@ -286,6 +288,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         showroomAddress={settings.address}
         whatsappNumber={settings.whatsappNumber}
         brandName={brandName}
+        ordersPaused={settings.ordersPaused}
+        ordersPausedNotice={settings.ordersPausedNotice}
       />
 
       {/* Footer de 4 columnas con ubicación y horarios (ADM-05, ADM-07, ADM-08) */}

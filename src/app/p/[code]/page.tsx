@@ -290,6 +290,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
               isReserved={isReserved}
               photoUrl={product.photos?.[0]?.keyThumb || product.photos?.[0]?.keyFull || null}
               showWhatsAppInquiry={true}
+              ordersPaused={settings.ordersPaused}
+              ordersPausedNotice={settings.ordersPausedNotice}
             />
 
             {/* Aviso de Venta Final / Sin cambio ni devolución (estilo Adidas) */}
@@ -361,7 +363,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
           className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-xs hover:bg-stone-800"
         >
           <ShoppingBag className="h-3.5 w-3.5" />
-          <span>Agregar a la bolsa</span>
+          <span>{settings.ordersPaused ? "Ventas pausadas" : "Agregar a la bolsa"}</span>
         </a>
       </aside>
 
@@ -370,6 +372,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
         showroomAddress={settings.address}
         whatsappNumber={settings.whatsappNumber}
         brandName={brandName}
+        ordersPaused={settings.ordersPaused}
+        ordersPausedNotice={settings.ordersPausedNotice}
       />
 
       {/* Footer con información de la tienda, redes y data fiscal */}

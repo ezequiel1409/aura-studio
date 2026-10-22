@@ -58,6 +58,8 @@ interface CartPageClientProps {
   whatsappNumber?: string;
   brandName?: string;
   reservationHours?: number;
+  ordersPaused?: boolean;
+  ordersPausedNotice?: string | null;
   initialPaymentMethods?: Array<{
     method: PaymentMethod;
     name: string;
@@ -89,6 +91,8 @@ export function CartPageClient({
   brandName = "Aura Studio",
   whatsappNumber = "+5491100000000",
   reservationHours = 48,
+  ordersPaused = false,
+  ordersPausedNotice,
   initialPaymentMethods,
   initialBankDetails,
 }: CartPageClientProps) {
@@ -488,7 +492,7 @@ export function CartPageClient({
 
   // Validaciones antes de avanzar del Paso 1 al Paso 2
   const handleProceedToShipping = () => {
-    if (items.length === 0) return;
+    if (items.length === 0 || ordersPaused) return;
     setErrorMessage(null);
     setCurrentStep("shipping");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1298,11 +1302,16 @@ export function CartPageClient({
                 {/* Botón destacado: Continuar con la reserva */}
                 <button
                   type="button"
+                  disabled={ordersPaused}
                   onClick={handleProceedToShipping}
-                  className="w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl bg-stone-900 px-6 py-3 text-xs font-bold tracking-wider text-white uppercase shadow-sm transition-all hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer active:scale-98"
+                  className={`w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl px-6 py-3 text-xs font-bold tracking-wider uppercase shadow-sm transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
+                    ordersPaused
+                      ? "bg-stone-200 text-stone-500 cursor-not-allowed border border-stone-300"
+                      : "bg-stone-900 text-white hover:bg-stone-800 cursor-pointer active:scale-98"
+                  }`}
                 >
-                  <span>Continuar con la reserva</span>
-                  <ArrowRight className="h-4 w-4" />
+                  <span>{ordersPaused ? "Ventas pausadas momentáneamente" : "Continuar con la reserva"}</span>
+                  {!ordersPaused && <ArrowRight className="h-4 w-4" />}
                 </button>
 
                 {/* Medios de Pago Aceptados */}

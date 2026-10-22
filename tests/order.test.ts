@@ -204,6 +204,86 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
   });
 
   describe("Servicio createOrder con control de inventario (BR-40, BR-42)", () => {
+    it("bloquea la creación de órdenes si las ventas están pausadas (kill switch)", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Vestido Lino $45.000",
+          colors: [
+            {
+              name: "Natural",
+              position: 0,
+              sizes: [{ size: "M", stock: 3 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // Activar pausa de ventas
+      await updateShowroomSettings(
+        {
+          ordersPaused: true,
+          ordersPausedNotice: "Pausa por inventario físico.",
+        },
+        env.deps
+      );
+
+      await expect(
+        createOrder(
+          {
+            customerName: "Lucas Paz",
+            customerPhone: "11 9999-0000",
+            customerEmail: "lucas@example.com",
+            customerDni: "40123456",
+            deliveryMethod: "PICKUP",
+            items: [
+              {
+                productId: product.id,
+                productCode: product.code,
+                productTitle: product.title || "Vestido Lino",
+                colorName: "Natural",
+                size: "M",
+                quantity: 1,
+                unitPriceCents: 4500000,
+              },
+            ],
+          },
+          env.deps
+        )
+      ).rejects.toThrow("Pausa por inventario físico.");
+
+      // Reanudar ventas y verificar que ahora sí permite comprar
+      await updateShowroomSettings(
+        {
+          ordersPaused: false,
+        },
+        env.deps
+      );
+
+      const okOrder = await createOrder(
+        {
+          customerName: "Lucas Paz",
+          customerPhone: "11 9999-0000",
+          customerEmail: "lucas@example.com",
+          customerDni: "40123456",
+          deliveryMethod: "PICKUP",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title || "Vestido Lino",
+              colorName: "Natural",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 4500000,
+            },
+          ],
+        },
+        env.deps
+      );
+      expect(okOrder.order.id).toBeDefined();
+    });
+
     it("crea una orden atómica única (#ORD-001) y genera el link de WhatsApp", async () => {
       // Creamos un producto de prueba
       const product = await createProduct(

@@ -80,6 +80,8 @@ export default async function CarritoPage() {
           brandName={brandName}
           whatsappNumber={settings.whatsappNumber}
           reservationHours={settings.reservationHours}
+          ordersPaused={settings.ordersPaused}
+          ordersPausedNotice={settings.ordersPausedNotice}
           initialPaymentMethods={availablePaymentMethods}
           initialBankDetails={
             settings.transferEnabled

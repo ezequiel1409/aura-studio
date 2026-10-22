@@ -66,6 +66,18 @@ export async function createOrder(
     // 1. Validar reglas de dominio de orden y comprador (BR-41, BR-42, BR-47)
     const validated = validateCreateOrderInput(input);
 
+    // 1.1 Bloqueo de seguridad: Validar si las ventas están pausadas por el comercio
+    if (deps.settingsRepo) {
+      const { getShowroomSettings } = await import("./settings.service");
+      const settings = await getShowroomSettings(deps);
+      if (settings.ordersPaused) {
+        throw new ValidationError(
+          settings.ordersPausedNotice ||
+            "Las ventas online se encuentran temporalmente pausadas. Por favor, intentá nuevamente más tarde."
+        );
+      }
+    }
+
     // 2. Control estricto de inventario (BR-40): verificar existencia y stock de cada ítem
     const resolvedItems = await Promise.all(
       input.items.map(async (item) => {

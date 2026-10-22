@@ -238,6 +238,7 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
         transferDiscountPercent: 10,
         cashEnabled: true,
         whatsappPaymentEnabled: true,
+        ordersPaused: false,
       };
 
       const html = renderToString(React.createElement(SettingsClient, { initialSettings: mockSettings }));

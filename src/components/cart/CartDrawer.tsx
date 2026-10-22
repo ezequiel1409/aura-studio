@@ -19,10 +19,14 @@ interface CartDrawerProps {
   showroomAddress?: string | null;
   whatsappNumber?: string;
   brandName?: string;
+  ordersPaused?: boolean;
+  ordersPausedNotice?: string | null;
 }
 
 export function CartDrawer({
   showroomAddress,
+  ordersPaused = false,
+  ordersPausedNotice,
 }: CartDrawerProps) {
   const {
     items,
@@ -326,15 +330,24 @@ export function CartDrawer({
 
               {/* Botones de Acción */}
               <div className="space-y-2 pt-1">
-                <Link
-                  href="/carrito"
-                  onClick={closeCart}
-                  prefetch={true}
-                  className="w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl bg-stone-900 px-6 py-3 text-xs font-bold tracking-wider text-white uppercase shadow-sm transition-all hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900"
-                >
-                  <span>Ir a mi bolsa y continuar</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                {ordersPaused ? (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                    <p className="font-semibold text-amber-950">Ventas online pausadas</p>
+                    <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                      {ordersPausedNotice || "Estamos en balance de inventario. Las compras se reanudarán en breve."}
+                    </p>
+                  </div>
+                ) : (
+                  <Link
+                    href="/carrito"
+                    onClick={closeCart}
+                    prefetch={true}
+                    className="w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl bg-stone-900 px-6 py-3 text-xs font-bold tracking-wider text-white uppercase shadow-sm transition-all hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900"
+                  >
+                    <span>Ir a mi bolsa y continuar</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                )}
 
                 <button
                   type="button"

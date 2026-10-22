@@ -252,6 +252,9 @@ export interface ShowroomSettings {
   catalogConfig: CatalogConfig;
   storeLocation: StoreLocationConfig;
   storeSchedule: StoreScheduleConfig;
+  // Pausa de ventas / Frenar órdenes (Kill switch de checkout)
+  ordersPaused?: boolean;
+  ordersPausedNotice?: string | null;
 }
 
 export interface UpdateShowroomSettingsInput {
@@ -303,6 +306,8 @@ export interface UpdateShowroomSettingsInput {
   catalogConfig?: CatalogConfig;
   storeLocation?: StoreLocationConfig;
   storeSchedule?: StoreScheduleConfig;
+  ordersPaused?: boolean;
+  ordersPausedNotice?: string | null;
 }
 
 const DEFAULT_WHATSAPP_NUMBER = "+5491100000000";
@@ -313,6 +318,8 @@ const DEFAULT_HERO_MODE: HeroMode = "featured_carousel";
 const DEFAULT_THEME_PALETTE = "lino";
 const DEFAULT_THEME_FONT = "cormorant";
 const DEFAULT_TRANSFER_DISCOUNT_PERCENT = 10;
+export const DEFAULT_ORDERS_PAUSED_NOTICE =
+  "Estamos realizando tareas de mantenimiento y balance de stock. Las compras online se reanudarán en breve.";
 
 function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
   if (!raw || !raw.trim()) return fallback;
@@ -380,6 +387,8 @@ export async function getShowroomSettings(
   let storedCatalogConfig: string | null = null;
   let storedStoreLocation: string | null = null;
   let storedStoreSchedule: string | null = null;
+  let storedOrdersPaused: string | null = null;
+  let storedOrdersPausedNotice: string | null = null;
 
   if (settingsRepo) {
     if (typeof settingsRepo.getAll === "function") {
@@ -432,6 +441,8 @@ export async function getShowroomSettings(
       storedCatalogConfig = all["catalog_config_json"] ?? null;
       storedStoreLocation = all["store_location_json"] ?? null;
       storedStoreSchedule = all["store_schedule_json"] ?? null;
+      storedOrdersPaused = all["orders_paused"] ?? null;
+      storedOrdersPausedNotice = all["orders_paused_notice"] ?? null;
     } else {
       [
         storedWhatsapp,
@@ -482,6 +493,8 @@ export async function getShowroomSettings(
         storedCatalogConfig,
         storedStoreLocation,
         storedStoreSchedule,
+        storedOrdersPaused,
+        storedOrdersPausedNotice,
       ] = await Promise.all([
         settingsRepo.get("whatsapp_number"),
         settingsRepo.get("showroom_name"),
@@ -531,6 +544,8 @@ export async function getShowroomSettings(
         settingsRepo.get("catalog_config_json"),
         settingsRepo.get("store_location_json"),
         settingsRepo.get("store_schedule_json"),
+        settingsRepo.get("orders_paused"),
+        settingsRepo.get("orders_paused_notice"),
       ]);
     }
   }
@@ -648,6 +663,11 @@ export async function getShowroomSettings(
       storedStoreSchedule,
       DEFAULT_STORE_SCHEDULE
     ),
+    ordersPaused: storedOrdersPaused === "1",
+    ordersPausedNotice:
+      storedOrdersPausedNotice && storedOrdersPausedNotice.trim()
+        ? storedOrdersPausedNotice.trim()
+        : null,
   };
 }
 
@@ -910,6 +930,17 @@ export async function updateShowroomSettings(
 
   if (input.storeSchedule !== undefined) {
     await settingsRepo.set("store_schedule_json", JSON.stringify(input.storeSchedule));
+  }
+
+  if (input.ordersPaused !== undefined) {
+    await settingsRepo.set("orders_paused", input.ordersPaused ? "1" : "0");
+  }
+
+  if (input.ordersPausedNotice !== undefined) {
+    await settingsRepo.set(
+      "orders_paused_notice",
+      input.ordersPausedNotice ? input.ordersPausedNotice.trim() : ""
+    );
   }
 
   return getShowroomSettings(deps);

@@ -3,6 +3,9 @@
 import { useState } from "react";
 import {
   AlertCircle,
+  Info,
+  PauseCircle,
+  PlayCircle,
   Building2,
   CheckCircle2,
   Eye,
@@ -39,6 +42,11 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
   );
   const [aboutText, setAboutText] = useState(initialSettings.aboutText || "");
   const [logoUrl, setLogoUrl] = useState(initialSettings.logoUrl || "");
+  const [ordersPaused, setOrdersPaused] = useState(Boolean(initialSettings.ordersPaused));
+  const [ordersPausedNotice, setOrdersPausedNotice] = useState(
+    initialSettings.ordersPausedNotice ||
+      "Estamos realizando tareas de mantenimiento y balance de stock. Las compras online se reanudarán en breve."
+  );
 
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -83,6 +91,8 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
           businessDescriptor: businessDescriptor.trim() || "",
           aboutText: aboutText.trim() || "",
           logoUrl: logoUrl.trim() || "",
+          ordersPaused,
+          ordersPausedNotice: ordersPausedNotice.trim() || "",
         }),
       });
 

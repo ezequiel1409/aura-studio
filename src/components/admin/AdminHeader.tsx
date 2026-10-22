@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowUpRight, LogOut, Menu, PlusCircle, Search, X } from "lucide-react";
+import { ArrowUpRight, Loader2, LogOut, Menu, PauseCircle, PlayCircle, PlusCircle, Search, X } from "lucide-react";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { AdminThemeToggle } from "./AdminThemeToggle";
 import { AdminMainSidebar } from "./navigation/AdminMainSidebar";
@@ -37,6 +37,11 @@ export function AdminHeader({
   } = useAdminNav();
 
   const [brandName, setBrandName] = useState(initialBrandName || "Aura Studio");
+  const [ordersPaused, setOrdersPaused] = useState(false);
+  const [ordersPausedNotice, setOrdersPausedNotice] = useState("");
+  const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
+  const [modalNoticeInput, setModalNoticeInput] = useState("");
+  const [updatingPauseStatus, setUpdatingPauseStatus] = useState(false);
   const [, setStoreType] = useState(initialStoreType || "Showroom");
   const [loggingOut, setLoggingOut] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -83,6 +88,24 @@ export function AdminHeader({
     }
   }, [pathname, fetchSession]);
 
+  // Cargar estado de pausa de ventas
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.settings) {
+          setOrdersPaused(Boolean(data.settings.ordersPaused));
+          if (data.settings.ordersPausedNotice) {
+            setOrdersPausedNotice(data.settings.ordersPausedNotice);
+            setModalNoticeInput(data.settings.ordersPausedNotice);
+          } else {
+            setModalNoticeInput("Estamos realizando balance de stock. Las compras online se reanudan en breve.");
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Cargar nombre de tienda si no vino por props
   useEffect(() => {
     if (!hasLoadedBrandRef.current) {
@@ -126,6 +149,45 @@ export function AdminHeader({
   ) {
     return null;
   }
+
+  const handleResumeSales = async () => {
+    if (updatingPauseStatus) return;
+    setUpdatingPauseStatus(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ordersPaused: false }),
+      });
+      if (res.ok) {
+        setOrdersPaused(false);
+      }
+    } finally {
+      setUpdatingPauseStatus(false);
+    }
+  };
+
+  const handleConfirmPause = async () => {
+    if (updatingPauseStatus) return;
+    setUpdatingPauseStatus(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ordersPaused: true,
+          ordersPausedNotice: modalNoticeInput.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        setOrdersPaused(true);
+        setOrdersPausedNotice(modalNoticeInput.trim());
+        setIsPauseModalOpen(false);
+      }
+    } finally {
+      setUpdatingPauseStatus(false);
+    }
+  };
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -260,6 +322,38 @@ export function AdminHeader({
 
           {/* Lado Derecho: Acciones Rápidas, Enlace Tienda, Tema y Usuario */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Botón Kill-Switch: Pausar o Reanudar Ventas */}
+            <button
+              type="button"
+              disabled={updatingPauseStatus}
+              onClick={() => (ordersPaused ? handleResumeSales() : setIsPauseModalOpen(true))}
+              title={
+                ordersPaused
+                  ? "Las ventas online están pausadas. Clic para reanudar."
+                  : "La tienda está activa y recibiendo pedidos. Clic para pausar."
+              }
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                ordersPaused
+                  ? "bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25"
+                  : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+              }`}
+            >
+              {updatingPauseStatus ? (
+                <Loader2 size={13} className="animate-spin text-zinc-400" />
+              ) : ordersPaused ? (
+                <>
+                  <PauseCircle size={14} className="shrink-0 text-rose-400" />
+                  <span className="hidden sm:inline">Ventas pausadas</span>
+                  <span className="text-[10px] font-bold uppercase underline tracking-wider ml-0.5">Reanudar</span>
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="hidden sm:inline">Tienda activa</span>
+                </>
+              )}
+            </button>
+
             {/* Botón Ver Tienda Pública */}
             <Link
               href="/"
@@ -305,7 +399,80 @@ export function AdminHeader({
           onClose={() => setIsMobileDrawerOpen(false)}
           onLogout={handleLogout}
         />
+        {/* Banner persistente de aviso si la tienda está en pausa */}
+        {ordersPaused && (
+          <div className="bg-rose-950/80 border-t border-rose-800/80 text-rose-200 px-4 md:px-6 py-2 text-xs flex items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="h-2 w-2 rounded-full bg-rose-400 animate-pulse shrink-0" />
+              <span className="truncate">
+                <strong>Atención:</strong> Las ventas online se encuentran <strong>pausadas</strong>. Los clientes no pueden confirmar órdenes.
+              </span>
+            </div>
+            <button
+              type="button"
+              disabled={updatingPauseStatus}
+              onClick={handleResumeSales}
+              className="px-3 py-1 rounded-lg bg-rose-400 hover:bg-rose-300 text-zinc-950 font-bold text-[11px] uppercase tracking-wider transition-colors shrink-0 cursor-pointer disabled:opacity-50 shadow-sm"
+            >
+              {updatingPauseStatus ? "Reanudando..." : "Reanudar ventas"}
+            </button>
+          </div>
+        )}
       </header>
+
+      {/* Modal interactivo para pausar ventas con mensaje personalizado */}
+      {isPauseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                <PauseCircle size={22} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-zinc-100">
+                  ¿Pausar ventas en la tienda?
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                  Los clientes podrán seguir viendo el catálogo en modo escaparate, pero se deshabilitará el checkout.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
+                Mensaje para los clientes en la tienda:
+              </label>
+              <textarea
+                rows={3}
+                value={modalNoticeInput}
+                onChange={(e) => setModalNoticeInput(e.target.value)}
+                placeholder="ej: Estamos realizando balance de inventario. Las compras se reanudarán en breve."
+                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:outline-none leading-relaxed"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={updatingPauseStatus}
+                onClick={() => setIsPauseModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors font-semibold cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={updatingPauseStatus}
+                onClick={handleConfirmPause}
+                className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {updatingPauseStatus && <Loader2 size={13} className="animate-spin" />}
+                <span>Confirmar y Pausar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

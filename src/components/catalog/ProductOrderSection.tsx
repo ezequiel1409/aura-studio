@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ShieldCheck, ShoppingBag, Plus, Minus, CheckCircle2, ArrowRight, MessageCircle } from "lucide-react";
+import { ShieldCheck, ShoppingBag, Plus, Minus, CheckCircle2, ArrowRight, MessageCircle, Info } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { ProductColor } from "../../domain/product/types";
 
@@ -21,6 +21,8 @@ interface ProductOrderSectionProps {
   isReserved?: boolean;
   photoUrl?: string | null;
   showWhatsAppInquiry?: boolean;
+  ordersPaused?: boolean;
+  ordersPausedNotice?: string | null;
   onColorChange?: (colorId: number) => void;
 }
 
@@ -38,6 +40,8 @@ export function ProductOrderSection({
   isSoldOut,
   photoUrl,
   showWhatsAppInquiry = false,
+  ordersPaused = false,
+  ordersPausedNotice,
   onColorChange,
 }: ProductOrderSectionProps) {
   const { addItem, openCart } = useCartStore();
@@ -136,7 +140,7 @@ export function ProductOrderSection({
   };
 
   const handleAddToCart = () => {
-    if (isSoldOut || isNoPrice) return;
+    if (isSoldOut || isNoPrice || ordersPaused) return;
 
     if (currentSizes.length > 1 && !selectedSize) {
       setSizeErrorPrompt(true);
@@ -172,7 +176,7 @@ export function ProductOrderSection({
 
   const isNoPrice = priceCents === null;
   const needsSizeSelection = hasMultipleSizes && !selectedSize;
-  const isActionDisabled = isSoldOut || isSelectedOutOfStock || (selectedSize !== null && maxStock <= 0) || isNoPrice;
+  const isActionDisabled = isSoldOut || isSelectedOutOfStock || (selectedSize !== null && maxStock <= 0) || isNoPrice || ordersPaused;
 
   return (
     <div id="order-section" className="mt-6 rounded-2xl border border-[#e7e2da] bg-white p-5 sm:p-6 shadow-2xs">
@@ -352,6 +356,8 @@ export function ProductOrderSection({
         <span>
           {isSoldOut
             ? "Pieza Agotada"
+            : ordersPaused
+            ? "Ventas pausadas momentáneamente"
             : isNoPrice
             ? "Precio a consultar"
             : isSelectedOutOfStock
@@ -361,6 +367,18 @@ export function ProductOrderSection({
             : "Agregar a la bolsa"}
         </span>
       </button>
+
+      {ordersPaused && (
+        <div className="mt-3 p-3.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-900 text-xs flex items-start gap-2.5">
+          <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold block text-amber-950">Ventas online pausadas temporalmente</span>
+            <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+              {ordersPausedNotice || "Estamos realizando tareas de mantenimiento y balance de stock. Las compras online se reanudarán en breve."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Botón de consulta directa por WhatsApp si no tiene precio cargado (BR-23, ADM-08) */}
       {isNoPrice && (
