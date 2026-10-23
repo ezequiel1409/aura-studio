@@ -13,6 +13,29 @@ import {
 } from "../../lib/email/order-templates";
 
 /**
+ * Extrae la dirección pura de email (ej: "Aura Studio <onboarding@resend.dev>" -> "onboarding@resend.dev")
+ */
+export function extractEmailAddress(raw: string): string {
+  const match = raw.match(/<([^>]+)>/);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  return raw.trim();
+}
+
+/**
+ * Formatea el remitente combinando el nombre dinámico de la tienda con la casilla de correo configurada.
+ */
+export function formatSender(brandName: string | undefined, rawFrom: string): string {
+  const email = extractEmailAddress(rawFrom);
+  const cleanName = brandName?.trim();
+  if (!cleanName) {
+    return rawFrom.includes("<") ? rawFrom : `Aura Studio <${email}>`;
+  }
+  return `${cleanName} <${email}>`;
+}
+
+/**
  * Obtiene variables de entorno tanto en Node.js local como en Cloudflare Workers (OpenNext)
  */
 export function getEnvVar(key: string): string | undefined {
@@ -53,15 +76,15 @@ export class ResendEmailAdapter implements IEmailService {
     return this.explicitApiKey || getEnvVar("RESEND_API_KEY");
   }
 
-  public getFromEmail(): string {
-    return (
+  public getFromEmail(brandName?: string): string {
+    const configured =
       this.explicitFromEmail ||
       getEnvVar("EMAIL_FROM") ||
-      "Aura Studio <onboarding@resend.dev>"
-    );
+      "onboarding@resend.dev";
+    return formatSender(brandName, configured);
   }
 
-  public getStatus(): {
+  public getStatus(brandName?: string): {
     configured: boolean;
     keyMasked: string | null;
     fromEmail: string;
@@ -73,19 +96,20 @@ export class ResendEmailAdapter implements IEmailService {
     return {
       configured: isConfigured,
       keyMasked: isConfigured ? `${key.slice(0, 5)}••••••••${key.slice(-4)}` : null,
-      fromEmail: this.getFromEmail(),
+      fromEmail: this.getFromEmail(brandName),
       orderNotificationsEmail: getEnvVar("ORDER_NOTIFICATIONS_EMAIL") || null,
     };
   }
 
   async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
     const apiKey = this.getApiKey();
-    const fromEmail = this.getFromEmail();
+    const fromEmail = options.from || this.getFromEmail(options.fromName);
 
     if (!apiKey) {
       console.warn(
         `\n[ResendEmailAdapter] AVISO: RESEND_API_KEY no está configurada.\n` +
           `Para enviar correos reales vía Resend, definí RESEND_API_KEY en tu .env.local o como secret en Cloudflare.\n` +
+          `Remitente: ${fromEmail}\n` +
           `Destinatario: ${options.to}\n` +
           `Asunto: ${options.subject}\n` +
           (options.resetLink ? `Enlace de restablecimiento generado: ${options.resetLink}\n` : "")
@@ -148,10 +172,12 @@ export class ResendEmailAdapter implements IEmailService {
   async sendPasswordResetEmail(
     to: string,
     resetLink: string,
-    userName?: string
+    userName?: string,
+    brandName?: string
   ): Promise<SendEmailResult> {
+    const brand = brandName?.trim() || "Aura Studio";
     const greeting = userName ? `Hola ${userName},` : "Hola,";
-    const subject = "Recuperación de contraseña - Aura Studio";
+    const subject = `Recuperación de contraseña - ${brand}`;
 
     const html = `
 <!DOCTYPE html>
@@ -174,10 +200,10 @@ export class ResendEmailAdapter implements IEmailService {
 </head>
 <body>
   <div class="card">
-    <div class="brand">AURA STUDIO</div>
+    <div class="brand">${brand.toUpperCase()}</div>
     <h1>Recuperación de contraseña</h1>
     <p>${greeting}</p>
-    <p>Hemos recibido una solicitud para restablecer la contraseña de acceso a tu panel de administración en Aura Studio.</p>
+    <p>Hemos recibido una solicitud para restablecer la contraseña de acceso a tu panel de administración en ${brand}.</p>
     <div class="btn-container">
       <a href="${resetLink}" class="btn" target="_blank">Restablecer mi contraseña</a>
     </div>
@@ -186,17 +212,18 @@ export class ResendEmailAdapter implements IEmailService {
       <p>Si el botón no funciona, copia y pega el siguiente enlace en tu navegador:</p>
       <p class="link-alt">${resetLink}</p>
       <p style="margin-top: 20px; font-size: 12px;">Si no solicitaste este cambio, desestima este mensaje de forma segura. Tu contraseña actual no se modificará.</p>
+      <p style="margin-top: 8px; font-size: 11px; color: #A8A29E;">© ${new Date().getFullYear()} ${brand}. Todos los derechos reservados.</p>
     </div>
   </div>
 </body>
 </html>`;
 
     const text = `
-AURA STUDIO - Recuperación de contraseña
+${brand.toUpperCase()} - Recuperación de contraseña
 
 ${greeting}
 
-Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de administración en Aura Studio.
+Hemos recibido una solicitud para restablecer la contraseña de tu cuenta de administración en ${brand}.
 
 Para ingresar una nueva contraseña, ingresa al siguiente enlace (válido por 1 hora):
 ${resetLink}
@@ -210,6 +237,7 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
       html,
       text,
       resetLink,
+      fromName: brand,
     });
   }
 
@@ -220,7 +248,7 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
     const { subject, html, text } = generateOrderCreatedTemplate(data);
-    return this.sendEmail({ to, subject, html, text });
+    return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
 
   async sendOrderPaidEmail(
@@ -230,7 +258,7 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
     const { subject, html, text } = generateOrderPaidTemplate(data);
-    return this.sendEmail({ to, subject, html, text });
+    return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
 
   async sendOrderShippedEmail(
@@ -240,7 +268,7 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
     const { subject, html, text } = generateOrderShippedTemplate(data);
-    return this.sendEmail({ to, subject, html, text });
+    return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
 
   async sendOrderCancelledEmail(
@@ -250,7 +278,7 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
     const { subject, html, text } = generateOrderCancelledTemplate(data);
-    return this.sendEmail({ to, subject, html, text });
+    return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
 
   async sendAdminNewOrderAlertEmail(
@@ -260,7 +288,7 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
     const { subject, html, text } = generateAdminNewOrderAlertTemplate(data);
-    return this.sendEmail({ to, subject, html, text });
+    return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
 }
 

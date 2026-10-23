@@ -1,10 +1,17 @@
-import { IAdminUserRepository, IEmailService, IPasswordResetTokenRepository } from "../domain/ports/repositories.port";
+import {
+  IAdminUserRepository,
+  IEmailService,
+  IPasswordResetTokenRepository,
+  ISettingsRepository,
+} from "../domain/ports/repositories.port";
 import { generateSecureToken, hashPassword, hashToken } from "../lib/crypto/password";
 
 export interface PasswordResetDeps {
   adminUserRepo: IAdminUserRepository;
   passwordResetTokenRepo: IPasswordResetTokenRepository;
   emailService?: IEmailService;
+  settingsRepo?: ISettingsRepository;
+  brandName?: string;
 }
 
 export interface RequestPasswordResetInput {
@@ -36,7 +43,7 @@ export async function requestPasswordReset(
   input: RequestPasswordResetInput,
   deps: PasswordResetDeps
 ): Promise<PasswordResetResult> {
-  const { adminUserRepo, passwordResetTokenRepo, emailService } = deps;
+  const { adminUserRepo, passwordResetTokenRepo, emailService, settingsRepo } = deps;
   const now = input.now ?? Date.now();
   const genericMessage =
     "Si la dirección de correo se encuentra registrada y activa, recibirás un enlace de restablecimiento a la brevedad.";
@@ -63,8 +70,26 @@ export async function requestPasswordReset(
   let devResetLink: string | undefined;
   let emailError: string | undefined;
 
+  // Resolver nombre de la tienda para remitente y asunto (settings o env)
+  let brandName = deps.brandName;
+  if (!brandName && settingsRepo) {
+    const stored = await settingsRepo.get("showroom_name");
+    if (stored && stored.trim()) brandName = stored.trim();
+  }
+  if (!brandName && typeof process !== "undefined" && process.env?.DEFAULT_BRAND_NAME) {
+    brandName = process.env.DEFAULT_BRAND_NAME;
+  }
+  if (!brandName) {
+    brandName = "Aura Studio";
+  }
+
   if (emailService) {
-    const emailRes = await emailService.sendPasswordResetEmail(user.email, resetLink, user.name);
+    const emailRes = await emailService.sendPasswordResetEmail(
+      user.email,
+      resetLink,
+      user.name,
+      brandName
+    );
     if (!emailRes.success) {
       emailError = emailRes.error;
     }
@@ -155,4 +180,3 @@ export async function resetPassword(
     message: "Tu contraseña ha sido restablecida exitosamente. Ya puedes iniciar sesión.",
   };
 }
-

@@ -581,7 +581,10 @@ export async function getShowroomSettings(
 
   return {
     whatsappNumber: storedWhatsapp || process.env.WHATSAPP_NUMBER || DEFAULT_WHATSAPP_NUMBER,
-    showroomName: storedName || DEFAULT_SHOWROOM_NAME,
+    showroomName:
+      storedName ||
+      (typeof process !== "undefined" ? process.env?.DEFAULT_BRAND_NAME : undefined) ||
+      DEFAULT_SHOWROOM_NAME,
     storeType: storedStoreType && storedStoreType.trim() ? storedStoreType.trim() : DEFAULT_STORE_TYPE,
     aboutText: storedAboutText && storedAboutText.trim() ? storedAboutText.trim() : null,
     businessVertical: storedBusinessVertical && storedBusinessVertical.trim() ? storedBusinessVertical.trim() : "indumentaria",

@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
         adminUserRepo: deps.adminUserRepo,
         passwordResetTokenRepo: deps.passwordResetTokenRepo,
         emailService,
+        settingsRepo: deps.settingsRepo,
       }
     );
 
@@ -48,4 +49,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

@@ -4,6 +4,8 @@ export interface SendEmailOptions {
   html: string;
   text?: string;
   resetLink?: string;
+  fromName?: string;
+  from?: string;
 }
 
 export interface SendEmailResult {
@@ -56,10 +58,15 @@ export interface OrderEmailData {
 
 export interface IEmailService {
   sendEmail(options: SendEmailOptions): Promise<SendEmailResult>;
-  sendPasswordResetEmail(to: string, resetLink: string, userName?: string): Promise<SendEmailResult>;
-  sendOrderCreatedEmail?(to: string, data: OrderEmailData): Promise<SendEmailResult>;
-  sendOrderPaidEmail?(to: string, data: OrderEmailData): Promise<SendEmailResult>;
-  sendOrderShippedEmail?(to: string, data: OrderEmailData): Promise<SendEmailResult>;
-  sendOrderCancelledEmail?(to: string, data: OrderEmailData): Promise<SendEmailResult>;
-  sendAdminNewOrderAlertEmail?(to: string, data: OrderEmailData): Promise<SendEmailResult>;
+  sendPasswordResetEmail(
+    to: string,
+    resetLink: string,
+    userName?: string,
+    brandName?: string
+  ): Promise<SendEmailResult>;
+  sendOrderCreatedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
+  sendOrderPaidEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
+  sendOrderShippedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
+  sendOrderCancelledEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
+  sendAdminNewOrderAlertEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
 }

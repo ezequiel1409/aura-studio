@@ -1,11 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { ResendEmailAdapter } from "../src/infra/email/resend.adapter";
+import {
+  ResendEmailAdapter,
+  extractEmailAddress,
+  formatSender,
+} from "../src/infra/email/resend.adapter";
 import {
   generateOrderCreatedTemplate,
   generateOrderPaidTemplate,
   generateOrderShippedTemplate,
 } from "../src/lib/email/order-templates";
-import { OrderEmailData } from "../src/domain/ports/email.port";
+import { OrderEmailData, SendEmailOptions, SendEmailResult } from "../src/domain/ports/email.port";
 
 describe("ResendEmailAdapter & Email Templates", () => {
   const sampleOrder: OrderEmailData = {
@@ -100,5 +104,47 @@ describe("ResendEmailAdapter & Email Templates", () => {
     expect(status.keyMasked?.startsWith("re_")).toBe(true);
     expect(status.keyMasked?.endsWith("cdef")).toBe(true);
     expect(status.keyMasked).toContain("••••");
+  });
+
+  it("extractEmailAddress y formatSender adaptan el remitente dinámicamente al nombre de la tienda", () => {
+    expect(extractEmailAddress("Aura Studio <onboarding@resend.dev>")).toBe("onboarding@resend.dev");
+    expect(extractEmailAddress("pedidos@mitienda.com")).toBe("pedidos@mitienda.com");
+
+    expect(formatSender("Boutique Sofía", "Aura Studio <onboarding@resend.dev>")).toBe(
+      "Boutique Sofía <onboarding@resend.dev>"
+    );
+    expect(formatSender("Calzados Luna", "pedidos@mitienda.com")).toBe(
+      "Calzados Luna <pedidos@mitienda.com>"
+    );
+
+    const adapter = new ResendEmailAdapter({
+      apiKey: "re_test_key_1234567890abcdef",
+      fromEmail: "Aura Studio <onboarding@resend.dev>",
+    });
+
+    expect(adapter.getFromEmail()).toBe("Aura Studio <onboarding@resend.dev>");
+    expect(adapter.getFromEmail("Boutique Sofía")).toBe("Boutique Sofía <onboarding@resend.dev>");
+  });
+
+  it("sendPasswordResetEmail adopta el nombre dinámico de la marca en asunto y remitente", async () => {
+    const adapter = new ResendEmailAdapter({ apiKey: "" });
+    let capturedOptions: SendEmailOptions | undefined;
+    adapter.sendEmail = async (options: SendEmailOptions): Promise<SendEmailResult> => {
+      capturedOptions = options;
+      return { success: true, messageId: "test-123" };
+    };
+
+    await adapter.sendPasswordResetEmail(
+      "admin@ejemplo.com",
+      "https://example.com/reset",
+      "Ezequiel",
+      "Boutique Sofía"
+    );
+
+    expect(capturedOptions).toBeDefined();
+    expect(capturedOptions?.fromName).toBe("Boutique Sofía");
+    expect(capturedOptions?.subject).toContain("Boutique Sofía");
+    expect(capturedOptions?.html).toContain("BOUTIQUE SOFÍA");
+    expect(capturedOptions?.html).toContain("en Boutique Sofía");
   });
 });
