@@ -21,6 +21,8 @@ import {
   DrizzlePromotionRepository,
 } from "./index";
 import { ProductServiceDeps } from "../../services/product.service";
+import { IEmailService } from "../../domain/ports/email.port";
+import { getEmailService } from "../email/resend.adapter";
 
 export interface GlobalAppDeps extends ProductServiceDeps {
   loginAttemptRepo: DrizzleLoginAttemptRepository;
@@ -34,6 +36,7 @@ export interface GlobalAppDeps extends ProductServiceDeps {
   orderClaimRepo: DrizzleOrderClaimRepository;
   navigationRepo: DrizzleNavigationRepository;
   promotionRepo: DrizzlePromotionRepository;
+  emailService?: IEmailService;
   db?: DbClient;
 }
 
@@ -642,6 +645,7 @@ export function getProductServiceDeps(): GlobalAppDeps {
     orderClaimRepo: new DrizzleOrderClaimRepository(db),
     navigationRepo: new DrizzleNavigationRepository(db),
     promotionRepo: new DrizzlePromotionRepository(db),
+    emailService: getEmailService(),
     db,
   };
 

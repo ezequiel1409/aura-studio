@@ -1,9 +1,21 @@
-import { IEmailService, SendEmailOptions, SendEmailResult } from "../../domain/ports/email.port";
+import {
+  IEmailService,
+  OrderEmailData,
+  SendEmailOptions,
+  SendEmailResult,
+} from "../../domain/ports/email.port";
+import {
+  generateAdminNewOrderAlertTemplate,
+  generateOrderCancelledTemplate,
+  generateOrderCreatedTemplate,
+  generateOrderPaidTemplate,
+  generateOrderShippedTemplate,
+} from "../../lib/email/order-templates";
 
 /**
  * Obtiene variables de entorno tanto en Node.js local como en Cloudflare Workers (OpenNext)
  */
-function getEnvVar(key: string): string | undefined {
+export function getEnvVar(key: string): string | undefined {
   if (typeof process !== "undefined" && process.env?.[key]) {
     return process.env[key];
   }
@@ -24,21 +36,46 @@ export class ResendEmailAdapter implements IEmailService {
   private explicitApiKey: string | undefined;
   private explicitFromEmail: string | undefined;
 
-  constructor(apiKey?: string, fromEmail?: string) {
-    this.explicitApiKey = apiKey;
-    this.explicitFromEmail = fromEmail;
+  constructor(
+    apiKeyOrConfig?: string | { apiKey?: string; fromEmail?: string },
+    fromEmail?: string
+  ) {
+    if (typeof apiKeyOrConfig === "object" && apiKeyOrConfig !== null) {
+      this.explicitApiKey = apiKeyOrConfig.apiKey;
+      this.explicitFromEmail = apiKeyOrConfig.fromEmail;
+    } else {
+      this.explicitApiKey = apiKeyOrConfig;
+      this.explicitFromEmail = fromEmail;
+    }
   }
 
-  private getApiKey(): string | undefined {
+  public getApiKey(): string | undefined {
     return this.explicitApiKey || getEnvVar("RESEND_API_KEY");
   }
 
-  private getFromEmail(): string {
+  public getFromEmail(): string {
     return (
       this.explicitFromEmail ||
       getEnvVar("EMAIL_FROM") ||
       "Aura Studio <onboarding@resend.dev>"
     );
+  }
+
+  public getStatus(): {
+    configured: boolean;
+    keyMasked: string | null;
+    fromEmail: string;
+    orderNotificationsEmail: string | null;
+  } {
+    const rawKey = this.getApiKey();
+    const key = typeof rawKey === "string" ? rawKey.trim() : "";
+    const isConfigured = key.length > 0;
+    return {
+      configured: isConfigured,
+      keyMasked: isConfigured ? `${key.slice(0, 5)}••••••••${key.slice(-4)}` : null,
+      fromEmail: this.getFromEmail(),
+      orderNotificationsEmail: getEnvVar("ORDER_NOTIFICATIONS_EMAIL") || null,
+    };
   }
 
   async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
@@ -78,9 +115,15 @@ export class ResendEmailAdapter implements IEmailService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMsg =
+        let errorMsg =
           (errorData as { message?: string }).message ||
           `HTTP ${response.status}: ${response.statusText}`;
+
+        // Diagnóstico asistido para límites de cuenta de prueba en Resend
+        if (response.status === 403 && errorMsg.includes("testing emails")) {
+          errorMsg = `Resend en modo prueba solo permite enviar a tu propio email registrado. Para enviar a clientes (${options.to}), agrega y verifica tu dominio en resend.com/domains`;
+        }
+
         console.error("[ResendEmailAdapter] Error al enviar email:", errorMsg);
         return {
           success: false,
@@ -92,7 +135,7 @@ export class ResendEmailAdapter implements IEmailService {
       const data = (await response.json()) as { id?: string };
       return { success: true, messageId: data.id };
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Error desconocido";
+      const errorMsg = err instanceof Error ? err.message : "Error desconocido de red";
       console.error("[ResendEmailAdapter] Excepción en envío:", errorMsg);
       return {
         success: false,
@@ -146,8 +189,7 @@ export class ResendEmailAdapter implements IEmailService {
     </div>
   </div>
 </body>
-</html>
-`;
+</html>`;
 
     const text = `
 AURA STUDIO - Recuperación de contraseña
@@ -170,14 +212,63 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
       resetLink,
     });
   }
+
+  async sendOrderCreatedEmail(
+    toOrData: string | OrderEmailData,
+    maybeData?: OrderEmailData
+  ): Promise<SendEmailResult> {
+    const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
+    const data = typeof toOrData === "string" ? maybeData! : toOrData;
+    const { subject, html, text } = generateOrderCreatedTemplate(data);
+    return this.sendEmail({ to, subject, html, text });
+  }
+
+  async sendOrderPaidEmail(
+    toOrData: string | OrderEmailData,
+    maybeData?: OrderEmailData
+  ): Promise<SendEmailResult> {
+    const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
+    const data = typeof toOrData === "string" ? maybeData! : toOrData;
+    const { subject, html, text } = generateOrderPaidTemplate(data);
+    return this.sendEmail({ to, subject, html, text });
+  }
+
+  async sendOrderShippedEmail(
+    toOrData: string | OrderEmailData,
+    maybeData?: OrderEmailData
+  ): Promise<SendEmailResult> {
+    const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
+    const data = typeof toOrData === "string" ? maybeData! : toOrData;
+    const { subject, html, text } = generateOrderShippedTemplate(data);
+    return this.sendEmail({ to, subject, html, text });
+  }
+
+  async sendOrderCancelledEmail(
+    toOrData: string | OrderEmailData,
+    maybeData?: OrderEmailData
+  ): Promise<SendEmailResult> {
+    const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
+    const data = typeof toOrData === "string" ? maybeData! : toOrData;
+    const { subject, html, text } = generateOrderCancelledTemplate(data);
+    return this.sendEmail({ to, subject, html, text });
+  }
+
+  async sendAdminNewOrderAlertEmail(
+    toOrData: string | OrderEmailData,
+    maybeData?: OrderEmailData
+  ): Promise<SendEmailResult> {
+    const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
+    const data = typeof toOrData === "string" ? maybeData! : toOrData;
+    const { subject, html, text } = generateAdminNewOrderAlertTemplate(data);
+    return this.sendEmail({ to, subject, html, text });
+  }
 }
 
-let globalEmailService: IEmailService | null = null;
+let globalEmailService: ResendEmailAdapter | null = null;
 
-export function getEmailService(): IEmailService {
+export function getEmailService(): ResendEmailAdapter {
   if (!globalEmailService) {
     globalEmailService = new ResendEmailAdapter();
   }
   return globalEmailService;
 }
-

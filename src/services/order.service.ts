@@ -13,6 +13,52 @@ import { trackAnalyticsEvent } from "./analytics.service";
 import { normalizeEmail, normalizePhone } from "./coupon.service";
 import { PaymentPreferenceResult } from "../domain/payment/types";
 import { createOrderPaymentPreference } from "./payment.service";
+import { OrderEmailData } from "../domain/ports/email.port";
+import { getEnvVar } from "../infra/email/resend.adapter";
+import { ShowroomSettings } from "./settings.service";
+
+function buildOrderEmailData(order: Order, settings: ShowroomSettings, baseUrl?: string): OrderEmailData {
+  return {
+    orderId: order.id,
+    orderCode: order.code,
+    formattedCode: formatOrderCode(order.code),
+    customerName: order.customerName,
+    customerEmail: order.customerEmail || "",
+    customerPhone: order.customerPhone,
+    deliveryMethod: order.deliveryMethod,
+    deliveryAddress: order.deliveryAddress,
+    deliveryNotes: order.deliveryNotes,
+    items: (order.items || []).map((i) => ({
+      productTitle: i.productTitle,
+      productCode: i.productCode,
+      colorName: i.colorName,
+      size: i.size,
+      quantity: i.quantity,
+      unitPriceCents: i.unitPriceCents,
+      photoUrl: i.photoUrl,
+    })),
+    subtotalCents: order.subtotalCents,
+    shippingCents: order.shippingCents,
+    discountCents: order.discountCents,
+    totalCents: order.totalCents,
+    currency: order.currency || "ARS",
+    paymentMethod: order.paymentMethod || "COORDINATE",
+    paymentStatus: order.paymentStatus || "PENDING",
+    bankDetails: {
+      bankName: settings.transferBankName,
+      accountHolder: settings.transferAccountHolder,
+      cbu: settings.transferCbu,
+      alias: settings.transferAlias,
+      cuit: settings.transferCuit,
+    },
+    showroomAddress: settings.address,
+    brandName: settings.showroomName || "Aura Studio",
+    receiptUrl: baseUrl
+      ? `${baseUrl.replace(/\/$/, "")}/api/orders/${order.id}/receipt`
+      : `/api/orders/${order.id}/receipt`,
+    supportWhatsapp: settings.whatsappNumber,
+  };
+}
 
 // Cache de idempotencia en memoria con TTL de 10 minutos para prevenir pedidos duplicados
 interface CachedOrderSubmission {
@@ -258,6 +304,22 @@ export async function createOrder(
         whatsappUrl: paymentAction.url,
         paymentPreference,
       };
+
+      // 8. Envío no-bloqueante de confirmación de pedido vía Resend
+      if (deps.emailService && order.customerEmail) {
+        const emailData = buildOrderEmailData(order, settings, input.baseUrl);
+        deps.emailService.sendOrderCreatedEmail?.(order.customerEmail, emailData).catch((err) => {
+          console.error("[Email] Error al enviar confirmación de compra a clienta:", err);
+        });
+
+        // Alerta al correo del administrador configurado en servidor
+        const adminEmail = getEnvVar("ORDER_NOTIFICATIONS_EMAIL");
+        if (adminEmail) {
+          deps.emailService.sendAdminNewOrderAlertEmail?.(adminEmail, emailData).catch((err) => {
+            console.error("[Email] Error al enviar alerta de venta a administrador:", err);
+          });
+        }
+      }
 
       if (idempotencyKey) {
         recentOrderSubmissions.set(idempotencyKey, {
@@ -512,5 +574,29 @@ export async function updateOrderStatus(
     await deps.orderRepo.updatePayment(id, { paymentStatus: "PAID", updatedAt: now });
   }
 
-  return deps.orderRepo.updateStatus(id, status, now);
+  const updated = await deps.orderRepo.updateStatus(id, status, now);
+
+  // Envío no-bloqueante de correo a clienta según cambio de estado
+  if (deps.emailService && updated.customerEmail) {
+    getShowroomSettings(deps)
+      .then((settings) => {
+        const emailData = buildOrderEmailData(updated, settings);
+        if (status === "PAID" && existing.paymentStatus !== "PAID") {
+          deps.emailService?.sendOrderPaidEmail?.(updated.customerEmail!, emailData).catch((err) => {
+            console.error("[Email] Error al enviar email de pago aprobado:", err);
+          });
+        } else if (status === "CONFIRMED" && existing.status !== "CONFIRMED") {
+          deps.emailService?.sendOrderShippedEmail?.(updated.customerEmail!, emailData).catch((err) => {
+            console.error("[Email] Error al enviar email de pedido confirmado / listo para entrega:", err);
+          });
+        } else if (status === "CANCELLED" && existing.status !== "CANCELLED") {
+          deps.emailService?.sendOrderCancelledEmail?.(updated.customerEmail!, emailData).catch((err) => {
+            console.error("[Email] Error al enviar email de pedido cancelado:", err);
+          });
+        }
+      })
+      .catch(() => {});
+  }
+
+  return updated;
 }

@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:setup-local": "tsx src/infra/db/setup-local.ts",
+    "admin:reset-password": "node scripts/reset-admin-password.mjs",
     "d1:create": "wrangler d1 create aura-studio-db",
     "d1:migrate": "wrangler d1 migrations apply aura-studio-db --remote",
     "d1:migrate:orders": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/d1-migration-orders-customers.sql",

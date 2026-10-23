@@ -13,6 +13,10 @@ const envSchema = z.object({
   MP_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLIC_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default("Aura Studio <onboarding@resend.dev>"),
+  ORDER_NOTIFICATIONS_EMAIL: z.string().optional(),
+  ADMIN_RECOVERY_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
