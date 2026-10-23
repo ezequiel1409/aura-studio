@@ -35,7 +35,7 @@ export function FeaturedSectionsMosaic({
           </p>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/catalogo"
           className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-stone-800 hover:text-stone-950 underline underline-offset-4"
         >
@@ -58,7 +58,7 @@ export function FeaturedSectionsMosaic({
             sec.ruleType === "SALE" || sec.slug.toLowerCase() === "sale";
 
           return (
-            <Link
+            <Link prefetch={false}
               key={sec.slug}
               href={`/${sec.slug}`}
               className="group relative overflow-hidden rounded-3xl border border-[#e7e2da] bg-[#f3efe6] min-h-[180px] sm:min-h-[220px] p-6 flex flex-col justify-between transition-all hover:border-stone-500 hover:shadow-md focus-visible:outline-2 focus-visible:outline-stone-900"

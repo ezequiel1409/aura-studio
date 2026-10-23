@@ -12,7 +12,7 @@ export function DashboardQuickLinks({
 }: DashboardQuickLinksProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
-      <Link
+      <Link prefetch={false}
         href="/admin/ordenes"
         aria-label={`Ir a gestión de pedidos: ${totalOrdersCount} órdenes, ${pendingOrdersCount} pendientes`}
         className="flex items-center justify-between p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-amber-400 transition-all group shadow-2xs focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
@@ -45,7 +45,7 @@ export function DashboardQuickLinks({
         />
       </Link>
 
-      <Link
+      <Link prefetch={false}
         href="/admin/productos"
         aria-label="Ir al catálogo de productos: gestión de stock, edición y acciones en lote"
         className="flex items-center justify-between p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all group shadow-2xs focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
@@ -66,7 +66,7 @@ export function DashboardQuickLinks({
         />
       </Link>
 
-      <Link
+      <Link prefetch={false}
         href="/admin/categorias"
         aria-label="Ir a categorías: árbol, orden y métricas de visitas"
         className="flex items-center justify-between p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all group shadow-2xs focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
@@ -87,7 +87,7 @@ export function DashboardQuickLinks({
         />
       </Link>
 
-      <Link
+      <Link prefetch={false}
         href="/admin/configuracion"
         aria-label="Ir a configuración de la tienda: parte superior, portada, pie de página y equipo"
         className="flex items-center justify-between p-4 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 transition-all group shadow-2xs focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"

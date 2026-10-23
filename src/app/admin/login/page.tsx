@@ -151,7 +151,7 @@ export default function AdminLoginPage({
                 >
                   Contraseña
                 </label>
-                <Link
+                <Link prefetch={false}
                   href="/admin/recuperar"
                   className="text-xs text-amber-300 hover:text-amber-200 hover:underline underline-offset-4 transition-colors py-1 font-semibold rounded focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                 >

@@ -62,6 +62,17 @@ export function maskDni(dni: string | number): string {
   return `***${str.slice(-4)}`;
 }
 
+export function sanitizeErrorMessage(msg: string): string {
+  if (!msg || typeof msg !== "string") return "";
+  // Ofuscar parámetros SQL de Drizzle que vuelcan PII
+  let cleaned = msg.replace(/params:\s*\[[\s\S]*?\]/gi, 'params: ["[REDACTED_SQL_PARAMS]"]');
+  // Truncar para prevenir exceder el límite de 256KB de Cloudflare Workers
+  if (cleaned.length > 500) {
+    cleaned = cleaned.slice(0, 500) + "... [TRUNCATED]";
+  }
+  return cleaned;
+}
+
 export function sanitizeContext(context?: LogContext): Record<string, unknown> {
   if (!context) return {};
   const cleaned: Record<string, unknown> = {};
@@ -82,6 +93,13 @@ export function sanitizeContext(context?: LogContext): Record<string, unknown> {
     if ((lower === "dni" || lower === "customerdni") && (typeof value === "string" || typeof value === "number")) {
       cleaned[key] = maskDni(value);
       continue;
+    }
+
+    if (typeof value === "string") {
+      if (value.startsWith("data:") || value.length > 500) {
+        cleaned[key] = `[Truncated string (${value.length} chars)]`;
+        continue;
+      }
     }
 
     if (typeof value === "object" && value !== null) {
@@ -132,9 +150,24 @@ export const logger = {
   error(tag: string, message: string, error?: unknown, context?: LogContext) {
     let errorDetails: Record<string, unknown> = {};
     if (error instanceof Error) {
+      const cause = (error as { cause?: unknown })?.cause;
+      let causeMessage: string | undefined;
+      if (cause instanceof Error) {
+        causeMessage = sanitizeErrorMessage(cause.message);
+      } else if (cause && typeof cause === "object") {
+        try {
+          causeMessage = sanitizeErrorMessage(JSON.stringify(cause));
+        } catch {
+          causeMessage = "[Object Cause]";
+        }
+      } else if (cause) {
+        causeMessage = sanitizeErrorMessage(String(cause));
+      }
+
       errorDetails = {
         errorName: error.name,
-        errorMessage: error.message,
+        errorMessage: sanitizeErrorMessage(error.message),
+        ...(causeMessage ? { causeMessage } : {}),
         stackSnippet: error.stack
           ?.split("\n")
           .slice(0, 3)
@@ -142,7 +175,7 @@ export const logger = {
           .join(" -> "),
       };
     } else if (error) {
-      errorDetails = { errorMessage: String(error) };
+      errorDetails = { errorMessage: sanitizeErrorMessage(String(error)) };
     }
 
     const payload = {

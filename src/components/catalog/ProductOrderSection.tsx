@@ -452,7 +452,7 @@ export function ProductOrderSection({
           </div>
           <Link
             href="/carrito"
-            prefetch={true}
+            prefetch={false}
             className="inline-flex items-center gap-1 font-bold text-stone-900 underline underline-offset-4 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-stone-900"
           >
             <span>Ver mi bolsa</span>

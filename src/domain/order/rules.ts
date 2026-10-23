@@ -1,5 +1,5 @@
 import { ValidationError } from "../errors";
-import { CreateOrderInput, DeliveryMethod, OrderStatus } from "./types";
+import { CreateOrderInput, DeliveryMethod, Order, OrderStatus } from "./types";
 import { isValidPaymentMethod, PaymentMethod } from "../payment";
 
 /**

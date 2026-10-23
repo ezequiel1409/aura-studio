@@ -49,6 +49,9 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://aura-studio.facuezedrive.workers.dev"
+  ),
   title: "Aura Studio | Showroom & Catálogo",
   description: "Piezas únicas y selección exclusiva con reserva directa por WhatsApp.",
 };

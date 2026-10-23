@@ -731,7 +731,7 @@ export function OrdersManagerClient({
                                 </span>
                               </button>
 
-                              <Link
+                              <Link prefetch={false}
                                 href={`/admin/ordenes/${order.id}`}
                                 className={`${
                                   density === "compact"
@@ -745,7 +745,7 @@ export function OrdersManagerClient({
 
                               <div className="min-w-0 flex-1 space-y-0.5">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <Link
+                                  <Link prefetch={false}
                                     href={`/admin/ordenes/${order.id}`}
                                     className="text-sm font-bold text-zinc-100 hover:text-amber-300 transition-colors truncate"
                                   >
@@ -914,7 +914,7 @@ export function OrdersManagerClient({
                                   <span className="font-semibold text-xs">Chat</span>
                                 </a>
 
-                                <Link
+                                <Link prefetch={false}
                                   href={`/admin/ordenes/${order.id}`}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-amber-300 text-zinc-100 hover:text-zinc-950 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none shrink-0"
                                 >
@@ -1028,7 +1028,7 @@ export function OrdersManagerClient({
                                       </a>
                                     </div>
 
-                                    <Link
+                                    <Link prefetch={false}
                                       href={`/admin/ordenes/${order.id}`}
                                       className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 font-semibold hover:underline"
                                     >

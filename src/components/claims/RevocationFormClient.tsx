@@ -232,7 +232,7 @@ export function RevocationFormClient({
               <span>Avisar por WhatsApp</span>
             </a>
           )}
-          <Link
+          <Link prefetch={false}
             href="/"
             className="w-full sm:w-auto py-3 px-5 rounded-xl border border-[#e7e2da] hover:bg-stone-50 text-stone-700 text-xs font-semibold text-center transition-colors"
           >

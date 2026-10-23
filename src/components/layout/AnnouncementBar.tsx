@@ -75,7 +75,7 @@ export function AnnouncementBar({ config }: AnnouncementBarProps) {
 
         <div className="flex-1 text-center truncate font-medium tracking-wide">
           {current.href ? (
-            <Link
+            <Link prefetch={false}
               href={current.href}
               className="hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-amber-300 rounded-xs px-1"
             >

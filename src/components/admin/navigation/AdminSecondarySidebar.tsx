@@ -47,7 +47,7 @@ export function AdminSecondarySidebar() {
           );
 
           return (
-            <Link
+            <Link prefetch={false}
               key={sub.href}
               href={sub.href}
               aria-current={isActive ? "page" : undefined}

@@ -496,7 +496,7 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
       {/* Enlace para continuar como invitado en checkout */}
       {redirectUrl.includes("carrito") && (
         <div className="mt-6 text-center">
-          <Link
+          <Link prefetch={false}
             href="/carrito"
             className="text-xs text-stone-500 hover:text-stone-800 underline underline-offset-4 transition-colors"
           >

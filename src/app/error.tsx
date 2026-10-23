@@ -67,7 +67,7 @@ export default function GlobalErrorPage({
             <span>Reintentar</span>
           </button>
 
-          <Link
+          <Link prefetch={false}
             href="/"
             className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-stone-300 bg-white px-6 py-2.5 text-xs font-semibold tracking-wider text-stone-700 uppercase transition-colors hover:bg-stone-50 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
           >

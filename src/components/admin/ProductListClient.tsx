@@ -663,7 +663,7 @@ export function ProductListClient({
             </button>
           )}
 
-          <Link
+          <Link prefetch={false}
             href="/admin/productos/nuevo"
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-200 text-zinc-950 font-semibold text-xs hover:bg-amber-100 transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
@@ -1237,7 +1237,7 @@ export function ProductListClient({
                                     role="menu"
                                     className="absolute right-0 top-full mt-1 w-44 z-40 bg-zinc-900 border border-zinc-700 rounded-xl p-1 shadow-2xl space-y-0.5 animate-in fade-in"
                                   >
-                                    <Link
+                                    <Link prefetch={false}
                                       href={`/admin/productos/${p.code}/editar`}
                                       role="menuitem"
                                       onClick={() => setOpenMenuProductId(null)}

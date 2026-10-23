@@ -749,7 +749,7 @@ export function CartPageClient({
                       </h4>
                       <p className="text-[11px] text-stone-500 mt-0.5">
                         Solo formato <strong>PDF</strong> (máx. 10 MB). También podés subirlo más tarde desde{" "}
-                        <Link href="/cuenta" className="text-stone-900 font-semibold underline">Mis Pedidos</Link>.
+                        <Link prefetch={false} href="/cuenta" className="text-stone-900 font-semibold underline">Mis Pedidos</Link>.
                       </p>
                     </div>
                   </div>
@@ -1019,7 +1019,7 @@ export function CartPageClient({
                   : "Abrir WhatsApp"}
               </span>
             </a>
-            <Link
+            <Link prefetch={false}
               href="/"
               className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[#e7e2da] bg-white px-6 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
             >
@@ -1041,7 +1041,7 @@ export function CartPageClient({
           </p>
 
           <div className="mt-8 flex justify-center">
-            <Link
+            <Link prefetch={false}
               href="/"
               className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-stone-900 px-7 py-3 text-xs font-semibold tracking-wider text-white uppercase transition-colors hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900 shadow-2xs"
             >
@@ -1137,7 +1137,7 @@ export function CartPageClient({
                                     </span>
                                   )}
                                 </div>
-                                <Link
+                                <Link prefetch={false}
                                   href={`/p/${item.code.toString().padStart(3, "0")}`}
                                   className="block font-serif text-base sm:text-lg font-semibold text-stone-900 hover:text-stone-700 hover:underline"
                                 >
@@ -1765,7 +1765,7 @@ export function CartPageClient({
                     {!customer && (
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3 text-xs text-stone-600">
                         <span>¿Ya tenés una cuenta en {brandName}?</span>
-                        <Link
+                        <Link prefetch={false}
                           href="/cuenta/ingresar?redirect=/carrito"
                           className="font-semibold text-stone-900 hover:text-stone-700 underline underline-offset-2"
                         >
@@ -2570,7 +2570,7 @@ export function CartPageClient({
                     />
                     <span className="text-[11px] leading-relaxed">
                       Acepto los{" "}
-                      <Link
+                      <Link prefetch={false}
                         href="/terminos"
                         target="_blank"
                         className="underline font-semibold text-stone-900 hover:text-stone-700"

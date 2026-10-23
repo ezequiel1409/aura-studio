@@ -77,7 +77,7 @@ export function DashboardStatGrid({ summary }: DashboardStatGridProps) {
       {statCards.map((card) => {
         const Icon = card.icon;
         return (
-          <Link
+          <Link prefetch={false}
             key={card.title}
             href={card.href}
             aria-label={`${card.title}: ${card.count} productos. ${card.description}. Ver listado filtrado.`}

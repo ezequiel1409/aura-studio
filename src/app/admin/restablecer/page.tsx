@@ -72,7 +72,7 @@ function ResetPasswordForm() {
         <p className="text-xs text-zinc-300 leading-relaxed">
           El enlace no contiene el token necesario para restablecer tu clave. Por favor, solicita uno nuevo.
         </p>
-        <Link
+        <Link prefetch={false}
           href="/admin/recuperar"
           className="inline-block text-xs font-semibold text-zinc-200 hover:text-zinc-100 py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-colors w-full border border-zinc-700 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >

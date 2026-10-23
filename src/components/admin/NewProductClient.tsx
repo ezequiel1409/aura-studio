@@ -501,7 +501,7 @@ export function NewProductClient({
             + Cargar otra pieza
           </button>
 
-          <Link
+          <Link prefetch={false}
             href="/admin/productos"
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-semibold text-sm transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
@@ -557,7 +557,7 @@ export function NewProductClient({
       {/* 1. Encabezado Superior */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <div className="flex items-center gap-3">
-          <Link
+          <Link prefetch={false}
             href="/admin/productos"
             className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             aria-label="Volver al catálogo"
@@ -574,7 +574,7 @@ export function NewProductClient({
           </div>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/admin/productos/importar"
           className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none self-start sm:self-auto"
         >

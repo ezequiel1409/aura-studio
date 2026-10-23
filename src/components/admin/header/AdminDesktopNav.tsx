@@ -24,7 +24,7 @@ export function AdminDesktopNav({ pathname }: AdminDesktopNavProps) {
         const Icon = item.icon;
         const isActive = isAdminNavItemActive(pathname, item);
         return (
-          <Link
+          <Link prefetch={false}
             key={item.id}
             href={item.href}
             aria-current={isActive ? "page" : undefined}
@@ -42,7 +42,7 @@ export function AdminDesktopNav({ pathname }: AdminDesktopNavProps) {
 
       <div className="h-4 w-px bg-zinc-800 mx-0.5 hidden lg:block" aria-hidden="true" />
 
-      <Link
+      <Link prefetch={false}
         href={ADMIN_QUICK_CREATE_ITEM.href}
         aria-current={isQuickActive ? "page" : undefined}
         className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${

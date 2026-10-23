@@ -264,7 +264,7 @@ export function Footer({
             <ul className="space-y-2 text-stone-600 list-none p-0 m-0">
               {navLinks.map((sec) => (
                 <li key={sec.slug}>
-                  <Link
+                  <Link prefetch={false}
                     href={`/${sec.slug}`}
                     className="hover:text-stone-950 hover:underline underline-offset-4 transition-colors font-medium"
                   >
@@ -273,7 +273,7 @@ export function Footer({
                 </li>
               ))}
               <li>
-                <Link
+                <Link prefetch={false}
                   href="/catalogo"
                   className="hover:text-stone-950 hover:underline underline-offset-4 transition-colors"
                 >
@@ -294,7 +294,7 @@ export function Footer({
 
             <ul className="space-y-2 text-stone-600 list-none p-0 m-0">
               <li>
-                <Link
+                <Link prefetch={false}
                   href="/promociones"
                   className="inline-flex items-center gap-1.5 font-semibold text-stone-900 hover:underline underline-offset-4"
                 >
@@ -303,7 +303,7 @@ export function Footer({
                 </Link>
               </li>
               <li>
-                <Link
+                <Link prefetch={false}
                   href="/terminos"
                   className="hover:text-stone-900 hover:underline underline-offset-4 transition-colors"
                 >
@@ -311,7 +311,7 @@ export function Footer({
                 </Link>
               </li>
               <li>
-                <Link
+                <Link prefetch={false}
                   href="/terminos"
                   className="hover:text-stone-900 hover:underline underline-offset-4 transition-colors"
                 >
@@ -322,7 +322,7 @@ export function Footer({
                 <span>Medios de pago: transferencia, Mercado Pago y efectivo</span>
               </li>
               <li>
-                <Link
+                <Link prefetch={false}
                   href="/cuenta"
                   className="hover:text-stone-900 hover:underline underline-offset-4"
                 >
@@ -467,14 +467,14 @@ export function Footer({
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
+            <Link prefetch={false}
               href="/terminos"
               className="hover:text-stone-900 transition-colors font-medium"
             >
               Términos y Condiciones
             </Link>
 
-            <Link
+            <Link prefetch={false}
               href="/promociones"
               className="hover:text-stone-900 transition-colors"
             >
@@ -491,7 +491,7 @@ export function Footer({
               <span>Defensa del Consumidor (Ley 24.240)</span>
             </a>
 
-            <Link
+            <Link prefetch={false}
               href="/arrepentimiento"
               className="inline-flex items-center gap-1 text-stone-600 hover:text-rose-700 transition-colors"
             >

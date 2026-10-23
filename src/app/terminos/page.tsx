@@ -66,7 +66,7 @@ export default async function TerminosPage() {
       <main className="flex-1 mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
         {/* Navegación y Encabezado */}
         <div className="mb-8">
-          <Link
+          <Link prefetch={false}
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-900 transition-colors mb-4"
           >

@@ -43,7 +43,7 @@ export function AdminSubNavBar({ pathname }: AdminSubNavBarProps) {
           }
 
           return (
-            <Link
+            <Link prefetch={false}
               key={sub.href}
               href={sub.href}
               aria-current={isSubActive ? "page" : undefined}

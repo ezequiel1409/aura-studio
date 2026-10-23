@@ -158,8 +158,12 @@ export async function POST(
       logger.warn("RECEIPT:VALIDATION_ERROR", error.message, { durationMs, status: 400 });
       return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
     }
-    const message = error instanceof Error ? error.message : "Error al procesar el comprobante";
-    logger.error("RECEIPT:UPLOAD_EXCEPTION", message, error, { durationMs, status: 500 });
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    const rawMessage = error instanceof Error ? error.message : "Error al procesar el comprobante";
+    const cleanMessage =
+      rawMessage.toLowerCase().includes("query") || rawMessage.toLowerCase().includes("sql") || rawMessage.length > 200
+        ? "Error al procesar el comprobante."
+        : rawMessage;
+    logger.error("RECEIPT:UPLOAD_EXCEPTION", cleanMessage, error, { durationMs, status: 500 });
+    return NextResponse.json({ ok: false, error: cleanMessage }, { status: 500 });
   }
 }

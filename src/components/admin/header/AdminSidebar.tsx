@@ -48,7 +48,7 @@ export function AdminSidebar({
     >
       {/* 1. Encabezado de Marca y Estado de Tienda */}
       <div className="h-16 px-5 border-b border-zinc-800 flex items-center justify-between shrink-0">
-        <Link
+        <Link prefetch={false}
           href="/admin"
           aria-label={`${brandName}, ir al panel de administración`}
           className="font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5 truncate"
@@ -73,7 +73,7 @@ export function AdminSidebar({
 
           return (
             <div key={item.id} className="space-y-1">
-              <Link
+              <Link prefetch={false}
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
@@ -106,7 +106,7 @@ export function AdminSidebar({
                     const SubIcon = sub.icon;
                     const isSubActive = pathname === sub.href;
                     return (
-                      <Link
+                      <Link prefetch={false}
                         key={sub.href}
                         href={sub.href}
                         className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
@@ -128,7 +128,7 @@ export function AdminSidebar({
 
         {/* Separador de acción rápida */}
         <div className="pt-3 pb-1">
-          <Link
+          <Link prefetch={false}
             href="/admin/productos/nuevo"
             className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-amber-300/10 hover:bg-amber-300/20 border border-amber-400/30 text-amber-300 text-xs font-bold transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
           >

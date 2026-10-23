@@ -25,7 +25,7 @@ export function ProductGrid({ products }: ProductGridProps) {
           Probá seleccionando otra categoría o restableciendo los filtros del catálogo para ver toda la colección disponible.
         </p>
         <div className="mt-6">
-          <Link
+          <Link prefetch={false}
             href="/"
             className="inline-flex min-h-[42px] items-center gap-2 rounded-full border border-stone-800 bg-stone-900 px-6 py-2.5 text-xs font-semibold tracking-wider text-white uppercase transition-colors hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900 shadow-2xs"
           >

@@ -149,7 +149,7 @@ export function HomeHero({
                   {/* Acciones del Hero */}
                   <div className="mt-5 pt-4 border-t border-[#f0ece1] flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                      <Link
+                      <Link prefetch={false}
                         href={`/p/${paddedCode}`}
                         className="inline-flex min-h-[40px] items-center gap-2 rounded-full bg-stone-900 px-5 py-2 text-xs font-semibold tracking-wider text-white uppercase transition-all hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900 shadow-2xs"
                       >
@@ -267,7 +267,7 @@ export function HomeHero({
             {/* Columna Derecha: Tarjeta visual de pieza destacada */}
             <div className="md:col-span-5 p-4 sm:p-6 bg-[#faf8f5] flex items-center justify-center border-t md:border-t-0 md:border-l border-[#e7e2da] self-stretch">
               {firstPiece ? (
-                <Link
+                <Link prefetch={false}
                   href={`/p/${firstPiece.code.toString().padStart(3, "0")}`}
                   className="group block relative w-full max-w-[280px] aspect-[4/5] rounded-xl overflow-hidden border border-[#e7e2da] shadow-sm hover:shadow-md transition-all"
                 >

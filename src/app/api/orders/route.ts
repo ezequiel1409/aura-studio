@@ -158,7 +158,11 @@ export async function POST(req: NextRequest) {
       durationMs,
       status: 500,
     });
-    const message = error instanceof Error ? error.message : "Error al procesar la orden";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const rawMessage = error instanceof Error ? error.message : "Error al procesar la orden";
+    const clientMessage =
+      rawMessage.toLowerCase().includes("query") || rawMessage.toLowerCase().includes("sql")
+        ? "Error al procesar la orden. Por favor, intentá nuevamente."
+        : rawMessage;
+    return NextResponse.json({ error: clientMessage }, { status: 500 });
   }
 }

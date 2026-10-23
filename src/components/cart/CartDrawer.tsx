@@ -262,7 +262,7 @@ export function CartDrawer({
                                   </span>
                                 )}
                               </div>
-                              <Link
+                              <Link prefetch={false}
                                 href={`/p/${item.code.toString().padStart(3, "0")}`}
                                 onClick={closeCart}
                                 className="font-serif text-sm sm:text-base font-semibold text-stone-900 hover:text-stone-700 hover:underline line-clamp-1"
@@ -438,7 +438,7 @@ export function CartDrawer({
                   <Link
                     href="/carrito"
                     onClick={closeCart}
-                    prefetch={true}
+                    prefetch={false}
                     className="w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl bg-stone-900 px-6 py-3 text-xs font-bold tracking-wider text-white uppercase shadow-sm transition-all hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900"
                   >
                     <span>Ir a mi bolsa y continuar</span>

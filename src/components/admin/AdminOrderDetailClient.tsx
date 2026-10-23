@@ -322,7 +322,7 @@ export function AdminOrderDetailClient({
       {/* Navegación y Acciones de Cabecera */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800 pb-5">
         <div>
-          <Link
+          <Link prefetch={false}
             href="/admin/ordenes"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-amber-300 transition-colors mb-2"
           >

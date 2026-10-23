@@ -123,7 +123,7 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
         <Link
           href={createQueryString(undefined)}
           scroll={false}
-          prefetch={true}
+          prefetch={false}
           onClick={() => {
             setOptimisticSlug(null);
             setIsDropdownOpen(false);
@@ -149,7 +149,7 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
               key={root.id}
               href={createQueryString(root.slug)}
               scroll={false}
-              prefetch={true}
+              prefetch={false}
               onClick={() => setOptimisticSlug(root.slug)}
               aria-current={isDirectlyActive ? "page" : isParentOfActive ? "true" : undefined}
               className={`inline-flex min-h-[40px] items-center whitespace-nowrap rounded-full px-5 py-2 text-xs tracking-wider uppercase transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
@@ -181,7 +181,7 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
           <Link
             href={createQueryString(activeRootCategory.slug)}
             scroll={false}
-            prefetch={true}
+            prefetch={false}
             onClick={() => setOptimisticSlug(activeRootCategory.slug)}
             aria-current={effectiveActiveSlug === activeRootCategory.slug ? "page" : undefined}
             className={`inline-flex min-h-[34px] items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
@@ -201,7 +201,7 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
                 key={sub.id}
                 href={createQueryString(sub.slug)}
                 scroll={false}
-                prefetch={true}
+                prefetch={false}
                 onClick={() => setOptimisticSlug(sub.slug)}
                 aria-current={isSubActive ? "page" : undefined}
                 className={`inline-flex min-h-[34px] items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs transition-all focus-visible:outline-2 focus-visible:outline-stone-900 ${
@@ -251,7 +251,7 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
                   <Link
                     href={createQueryString(root.slug)}
                     scroll={false}
-                    prefetch={true}
+                    prefetch={false}
                     onClick={() => {
                       setOptimisticSlug(root.slug);
                       setIsDropdownOpen(false);
@@ -270,7 +270,7 @@ export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
                           <Link
                             href={createQueryString(sub.slug)}
                             scroll={false}
-                            prefetch={true}
+                            prefetch={false}
                             onClick={() => {
                               setOptimisticSlug(sub.slug);
                               setIsDropdownOpen(false);

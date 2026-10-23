@@ -400,7 +400,7 @@ export function EditProductClient({
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       {/* Barra Superior de Navegación */}
       <div className="flex items-center justify-between gap-4">
-        <Link
+        <Link prefetch={false}
           href="/admin/productos"
           className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 p-1"
           aria-label="Volver al catálogo de productos"
@@ -973,7 +973,7 @@ export function EditProductClient({
               <CheckCircle2 size={16} aria-hidden="true" />
               <span>Producto actualizado con éxito en el catálogo.</span>
             </div>
-            <Link
+            <Link prefetch={false}
               href="/admin/productos"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
             >
@@ -995,7 +995,7 @@ export function EditProductClient({
           </button>
 
           <div className="flex items-center gap-3">
-            <Link
+            <Link prefetch={false}
               href="/admin/productos"
               className="px-5 py-2.5 rounded-xl border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             >

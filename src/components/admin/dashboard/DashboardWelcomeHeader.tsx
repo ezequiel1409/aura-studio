@@ -21,7 +21,7 @@ export function DashboardWelcomeHeader({ storeType }: DashboardWelcomeHeaderProp
       </div>
 
       <div className="flex items-center gap-3">
-        <Link
+        <Link prefetch={false}
           href="/admin/productos/nuevo"
           aria-label="Cargar nuevo producto al catálogo"
           className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-200 text-zinc-950 font-bold text-sm hover:bg-amber-100 active:scale-[0.98] transition-all shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"

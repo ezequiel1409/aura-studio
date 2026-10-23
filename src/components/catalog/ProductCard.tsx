@@ -272,7 +272,7 @@ export const ProductCard = memo(function ProductCard({
         <div className="relative aspect-[4/5] w-full shrink-0 overflow-hidden bg-[#f5f2eb]">
           <Link
             href={href}
-            prefetch={true}
+            prefetch={false}
             aria-label={accessibleLabel}
             className="block h-full w-full focus:outline-none"
           >
@@ -422,6 +422,7 @@ export const ProductCard = memo(function ProductCard({
 
             <Link
               href={href}
+              prefetch={false}
               className="mt-0.5 block font-serif text-base sm:text-lg font-normal tracking-wide text-stone-900 transition-colors hover:text-stone-700 line-clamp-1"
             >
               {titleDisplay}
@@ -538,6 +539,7 @@ export const ProductCard = memo(function ProductCard({
             ) : (
               <Link
                 href={href}
+                prefetch={false}
                 className="w-full min-h-[38px] inline-flex items-center justify-center rounded-xl border border-[#e7e2da] bg-[#faf8f5] px-3 py-2 text-xs font-medium text-stone-600 hover:text-stone-900"
               >
                 {isSoldOut

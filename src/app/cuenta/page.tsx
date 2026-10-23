@@ -84,7 +84,7 @@ export default async function CustomerAccountPage() {
         className="sticky top-0 z-40 w-full border-b border-[#e7e2da] bg-[#faf8f5]/90 backdrop-blur-md"
       >
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6">
-          <Link
+          <Link prefetch={false}
             href="/"
             aria-label={`${brandName} - Volver al inicio`}
             className="group flex items-center focus-visible:outline-2 focus-visible:outline-stone-900"

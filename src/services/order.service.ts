@@ -16,6 +16,7 @@ import { createOrderPaymentPreference } from "./payment.service";
 import { OrderEmailData } from "../domain/ports/email.port";
 import { getEnvVar } from "../infra/email/resend.adapter";
 import { ShowroomSettings } from "./settings.service";
+import { logger } from "../lib/logger";
 
 function buildOrderEmailData(order: Order, settings: ShowroomSettings, baseUrl?: string): OrderEmailData {
   return {
@@ -331,7 +332,10 @@ export async function createOrder(
 
       return result;
     } catch (processError: unknown) {
-      console.error("[ORDEN-ROLLBACK] Error en procesamiento de pago o inventario:", processError);
+      logger.error("ORDEN:ROLLBACK", "Error en procesamiento de pago o inventario", processError, {
+        orderId: order.id,
+        orderCode: order.code,
+      });
 
       // ROLLBACK TRANSACCIONAL: Restaurar stock físico de cada ítem debitado
       for (const item of decrementedItems) {
@@ -344,7 +348,10 @@ export async function createOrder(
             now * 1000
           );
         } catch (restoreErr) {
-          console.error("[ORDEN-ROLLBACK] Error al restaurar stock:", restoreErr);
+          logger.error("ORDEN:RESTORE_STOCK_ERROR", "Error al restaurar stock", restoreErr, {
+            orderId: order.id,
+            productId: item.productId,
+          });
         }
       }
 
@@ -358,7 +365,9 @@ export async function createOrder(
           });
         }
       } catch (cancelErr) {
-        console.error("[ORDEN-ROLLBACK] Error al marcar orden como CANCELLED:", cancelErr);
+        logger.error("ORDEN:CANCEL_ERROR", "Error al marcar orden como CANCELLED", cancelErr, {
+          orderId: order.id,
+        });
       }
 
       if (idempotencyKey) {

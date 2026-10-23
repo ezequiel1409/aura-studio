@@ -769,7 +769,7 @@ export function CatalogPanelView({
       <nav aria-label="Migas de pan" className="mb-4 text-xs text-stone-500">
         <ol className="flex items-center gap-1.5">
           <li>
-            <Link href="/" className="hover:text-stone-900 hover:underline">
+            <Link prefetch={false} href="/" className="hover:text-stone-900 hover:underline">
               Inicio
             </Link>
           </li>

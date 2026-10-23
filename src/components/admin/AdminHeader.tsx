@@ -278,7 +278,7 @@ export function AdminHeader({
               )}
             </button>
 
-            <Link
+            <Link prefetch={false}
               href="/admin"
               aria-label={`${brandName}, ir al panel de administración`}
               className="font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5"
@@ -355,7 +355,7 @@ export function AdminHeader({
             </button>
 
             {/* Botón Ver Tienda Pública */}
-            <Link
+            <Link prefetch={false}
               href="/"
               target="_blank"
               rel="noreferrer"

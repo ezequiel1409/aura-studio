@@ -63,7 +63,7 @@ export function ActionRequiredSection({
               </p>
             </div>
 
-            <Link
+            <Link prefetch={false}
               href="/admin/ordenes?status=PENDING"
               className="mt-3.5 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-300 hover:bg-amber-200 text-zinc-950 text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
@@ -93,7 +93,7 @@ export function ActionRequiredSection({
               </p>
             </div>
 
-            <Link
+            <Link prefetch={false}
               href="/admin/productos?filter=por_vencer"
               className="mt-3.5 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-rose-300 border border-rose-700/50 text-xs font-bold transition-colors focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
             >
@@ -123,7 +123,7 @@ export function ActionRequiredSection({
               </p>
             </div>
 
-            <Link
+            <Link prefetch={false}
               href="/admin/productos?filter=sin_precio"
               className="mt-3.5 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
@@ -153,7 +153,7 @@ export function ActionRequiredSection({
               </p>
             </div>
 
-            <Link
+            <Link prefetch={false}
               href="/admin/productos?filter=sin_clasificar"
               className="mt-3.5 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >

@@ -242,7 +242,7 @@ export function Header({
               <Menu className="h-4 w-4" aria-hidden="true" />
             </button>
 
-            <Link
+            <Link prefetch={false}
               href="/"
               aria-label={`${brandName} - Inicio del catálogo`}
               className="group flex items-center focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-stone-900"
@@ -303,7 +303,7 @@ export function Header({
                   }}
                 >
                   <div className="flex items-center">
-                    <Link
+                    <Link prefetch={false}
                       href={`/${sec.slug}`}
                       aria-current={isActive ? "page" : undefined}
                       style={
@@ -368,7 +368,7 @@ export function Header({
                           <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
                             Explorar {sec.name}
                           </span>
-                          <Link
+                          <Link prefetch={false}
                             href={`/${sec.slug}`}
                             onClick={() => setOpenDropdownSlug(null)}
                             className="text-[11px] font-semibold text-stone-900 hover:underline"
@@ -386,7 +386,7 @@ export function Header({
                               }))
                           ).map((sub) => (
                             <li key={sub.categorySlug || sub.label}>
-                              <Link
+                              <Link prefetch={false}
                                 href={
                                   sub.href ||
                                   `/${sec.slug}?categoria=${encodeURIComponent(
@@ -465,7 +465,7 @@ export function Header({
                     className="absolute right-0 top-full mt-2 w-72 sm:w-80 rounded-2xl border border-[#e7e2da] bg-[#faf8f5] p-3 shadow-2xl z-50 space-y-3"
                   >
                     {suggestions.directCode && (
-                      <Link
+                      <Link prefetch={false}
                         href={`/p/${suggestions.directCode}`}
                         onClick={() => setShowSuggestions(false)}
                         className="flex items-center justify-between rounded-xl bg-stone-900 px-3 py-2 text-xs font-semibold text-white hover:bg-stone-800"
@@ -481,7 +481,7 @@ export function Header({
                           Categorías
                         </span>
                         {suggestions.categories.map((cat) => (
-                          <Link
+                          <Link prefetch={false}
                             key={cat.id}
                             href={cat.href}
                             onClick={() => setShowSuggestions(false)}
@@ -500,7 +500,7 @@ export function Header({
                           Productos sugeridos
                         </span>
                         {suggestions.products.map((prod) => (
-                          <Link
+                          <Link prefetch={false}
                             key={prod.id}
                             href={prod.href}
                             onClick={() => setShowSuggestions(false)}
@@ -542,7 +542,7 @@ export function Header({
             </form>
 
             {/* Enlace accesible a Mi Cuenta / Pedidos */}
-            <Link
+            <Link prefetch={false}
               href="/cuenta"
               aria-label="Mi Cuenta y Pedidos"
               className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#d8d2c7] bg-white/80 text-stone-700 shadow-xs transition-colors hover:border-stone-900 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
@@ -600,7 +600,7 @@ export function Header({
                       className="border-b border-[#e7e2da]/70 py-1.5"
                     >
                       <div className="flex items-center justify-between">
-                        <Link
+                        <Link prefetch={false}
                           href={`/${sec.slug}`}
                           onClick={() => setMobileMenuOpen(false)}
                           style={
@@ -641,7 +641,7 @@ export function Header({
                         <ul className="pl-3 pb-2 space-y-1">
                           {visibleCategories.map((cat) => (
                             <li key={cat.id}>
-                              <Link
+                              <Link prefetch={false}
                                 href={`/${sec.slug}?categoria=${encodeURIComponent(
                                   cat.slug
                                 )}`}
@@ -659,14 +659,14 @@ export function Header({
                 })}
 
                 <div className="pt-2 space-y-1">
-                  <Link
+                  <Link prefetch={false}
                     href="/catalogo"
                     onClick={() => setMobileMenuOpen(false)}
                     className="block py-2 text-sm font-semibold tracking-wider uppercase text-stone-800"
                   >
                     Ver todo el catálogo
                   </Link>
-                  <Link
+                  <Link prefetch={false}
                     href="/promociones"
                     onClick={() => setMobileMenuOpen(false)}
                     className="block py-2 text-sm font-medium text-stone-700"
@@ -678,7 +678,7 @@ export function Header({
             </div>
 
             <div className="border-t border-[#e7e2da] pt-4">
-              <Link
+              <Link prefetch={false}
                 href="/cuenta"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex items-center gap-2 text-xs font-semibold text-stone-800"

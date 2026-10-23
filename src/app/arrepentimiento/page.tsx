@@ -26,14 +26,14 @@ export default async function RevocationPage() {
       {/* Barra de Navegación Simple */}
       <header className="sticky top-0 z-30 border-b border-[#e7e2da] bg-[#faf8f5]/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link
+          <Link prefetch={false}
             href="/"
             className="font-serif text-lg sm:text-xl tracking-wider text-stone-900 uppercase"
           >
             {brandName}
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/"
             className="inline-flex items-center gap-1.5 rounded-full border border-[#e7e2da] bg-white px-3.5 py-1 text-xs font-medium text-stone-700 hover:border-stone-400 transition-colors"
           >

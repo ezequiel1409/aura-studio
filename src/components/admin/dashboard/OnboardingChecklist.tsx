@@ -162,7 +162,7 @@ export function OnboardingChecklist({
       {/* Lista de pasos con enlaces directos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
         {steps.map((step) => (
-          <Link
+          <Link prefetch={false}
             key={step.id}
             href={step.href}
             className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${

@@ -71,7 +71,7 @@ export function RecentOrdersAndViewsSection({
                 Últimos pedidos
               </h3>
             </div>
-            <Link
+            <Link prefetch={false}
               href="/admin/ordenes"
               className="text-xs font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1 transition-colors"
             >
@@ -95,7 +95,7 @@ export function RecentOrdersAndViewsSection({
                   >
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/ordenes/${order.id}`}
                           className="font-bold text-zinc-100 hover:text-amber-300 font-mono transition-colors"
                         >
@@ -117,7 +117,7 @@ export function RecentOrdersAndViewsSection({
                       <p className="font-bold text-zinc-100 font-mono lining-nums tabular-nums">
                         {formatPriceARS(order.totalCents)}
                       </p>
-                      <Link
+                      <Link prefetch={false}
                         href={`/admin/ordenes/${order.id}`}
                         className="text-[11px] text-amber-300 hover:underline font-semibold"
                       >
@@ -131,7 +131,7 @@ export function RecentOrdersAndViewsSection({
           </div>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/admin/ordenes"
           className="w-full py-2 px-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-semibold text-center transition-colors block"
         >
@@ -152,7 +152,7 @@ export function RecentOrdersAndViewsSection({
                 Piezas destacadas
               </h3>
             </div>
-            <Link
+            <Link prefetch={false}
               href="/admin/productos"
               className="text-xs font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1 transition-colors"
             >
@@ -212,7 +212,7 @@ export function RecentOrdersAndViewsSection({
           </div>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/admin/productos"
           className="w-full py-2 px-3 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-semibold text-center transition-colors block"
         >

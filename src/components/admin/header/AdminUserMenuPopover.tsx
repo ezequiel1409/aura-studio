@@ -119,7 +119,7 @@ export function AdminUserMenuPopover({
 
             {/* Enlace a gestión de equipo y perfil */}
             <div className="space-y-1">
-              <Link
+              <Link prefetch={false}
                 href="/admin/usuarios"
                 onClick={onClose}
                 className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-zinc-200 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"

@@ -22,7 +22,7 @@ export default function NotFound() {
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
+          <Link prefetch={false}
             href="/"
             className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-stone-900 px-6 py-2.5 text-xs font-semibold tracking-wider text-white uppercase transition-colors hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900"
           >
@@ -30,7 +30,7 @@ export default function NotFound() {
             <span>Volver al catálogo</span>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/carrito"
             className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full border border-stone-300 bg-white px-6 py-2.5 text-xs font-semibold tracking-wider text-stone-700 uppercase transition-colors hover:bg-stone-50 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
           >

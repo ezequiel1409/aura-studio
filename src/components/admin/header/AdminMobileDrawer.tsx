@@ -56,7 +56,7 @@ export function AdminMobileDrawer({
             </div>
           </div>
 
-          <Link
+          <Link prefetch={false}
             href={ADMIN_QUICK_CREATE_ITEM.href}
             onClick={onClose}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-200 text-zinc-950 text-xs font-bold shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
@@ -73,7 +73,7 @@ export function AdminMobileDrawer({
             const isActive = isAdminNavItemActive(pathname, item);
             return (
               <div key={item.id} className="space-y-1.5">
-                <Link
+                <Link prefetch={false}
                   href={item.href}
                   onClick={onClose}
                   aria-current={isActive ? "page" : undefined}
@@ -92,7 +92,7 @@ export function AdminMobileDrawer({
                     {item.subItems.map((sub) => {
                       const SubIcon = sub.icon;
                       return (
-                        <Link
+                        <Link prefetch={false}
                           key={sub.href}
                           href={sub.href}
                           onClick={onClose}

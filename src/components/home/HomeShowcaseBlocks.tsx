@@ -39,7 +39,7 @@ export function NewArrivalsBlock({
           </h2>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href={sectionHref}
           className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-stone-800 hover:text-stone-950 underline underline-offset-4 shrink-0"
         >
@@ -82,7 +82,7 @@ export function FeaturedProductsBlock({ products }: { products: Product[] }) {
           </h2>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/catalogo?orden=destacados"
           className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-stone-800 hover:text-stone-950 underline underline-offset-4 shrink-0"
         >
@@ -134,7 +134,7 @@ export function SaleBlock({
           </p>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href={sectionHref}
           className="min-h-[42px] inline-flex items-center justify-center gap-2 rounded-full bg-rose-700 hover:bg-rose-800 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white transition-colors self-start sm:self-center"
         >
@@ -207,7 +207,7 @@ export function TrustStripBlock({
           </h3>
           <p className="mt-0.5 text-xs text-stone-600 leading-relaxed">
             {paymentText}{" "}
-            <Link
+            <Link prefetch={false}
               href="/promociones"
               className="font-semibold text-stone-900 underline underline-offset-2"
             >

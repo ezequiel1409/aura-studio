@@ -21,7 +21,7 @@ export function CartHeaderButton() {
   return (
     <Link
       href="/carrito"
-      prefetch={true}
+      prefetch={false}
       aria-label={`Bolsa de compras con ${count} producto${count === 1 ? "" : "s"}`}
       className="relative flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full border border-[#d8d2c7] bg-white/90 p-2 text-stone-700 shadow-2xs transition-all hover:border-stone-900 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
     >

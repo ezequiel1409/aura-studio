@@ -307,7 +307,7 @@ export function GeneralSystemSettingsSection({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Link
+          <Link prefetch={false}
             href="/admin/usuarios"
             className="flex items-center justify-between p-4 rounded-xl bg-zinc-950/70 border border-zinc-800 hover:border-amber-400/50 transition-all group"
           >
@@ -326,7 +326,7 @@ export function GeneralSystemSettingsSection({
             />
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/admin/categorias"
             className="flex items-center justify-between p-4 rounded-xl bg-zinc-950/70 border border-zinc-800 hover:border-amber-400/50 transition-all group"
           >

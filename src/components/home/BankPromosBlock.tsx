@@ -30,7 +30,7 @@ export function BankPromosBlock({ promotions }: BankPromosBlockProps) {
           </h2>
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/promociones"
           className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-stone-800 hover:text-stone-950 underline underline-offset-4 shrink-0"
         >
@@ -91,7 +91,7 @@ export function BankPromosBlock({ promotions }: BankPromosBlockProps) {
                   <span>Hasta {endFormatted}</span>
                 </span>
 
-                <Link
+                <Link prefetch={false}
                   href={`/promociones/${promo.slug}`}
                   className="font-semibold text-stone-900 hover:underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-stone-900 rounded-xs"
                 >

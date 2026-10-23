@@ -42,7 +42,7 @@ export function InventorySummaryLine({
         </div>
       </div>
 
-      <Link
+      <Link prefetch={false}
         href="/admin/productos"
         className="inline-flex items-center gap-1.5 font-bold text-amber-300 hover:text-amber-200 transition-colors self-end sm:self-auto shrink-0"
       >

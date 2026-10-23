@@ -168,7 +168,7 @@ export function HeroBannerCarousel({
 
           {/* Un solo botón principal por slide */}
           <div className="pt-2 flex flex-wrap items-center gap-3">
-            <Link
+            <Link prefetch={false}
               href={resolvedHref}
               className={`min-h-[44px] inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-semibold uppercase tracking-[0.15em] transition-all focus-visible:outline-2 ${
                 hasImage
