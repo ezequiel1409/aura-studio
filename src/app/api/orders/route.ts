@@ -4,6 +4,7 @@ import { createOrder } from "../../../services/order.service";
 import { getShowroomSettings } from "../../../services/settings.service";
 import { DomainError, ProductNotFoundError, OrderNotFoundError } from "../../../domain/errors";
 import { getAuthenticatedCustomer } from "../../../infra/auth/customer-session";
+import { sanitizeOrderForResponse } from "../../../domain/order";
 import { logger } from "../../../lib/logger";
 
 export async function POST(req: NextRequest) {
@@ -134,7 +135,13 @@ export async function POST(req: NextRequest) {
       status: 200,
     });
 
-    return NextResponse.json({ ok: true, ...result });
+    const sanitizedOrder = sanitizeOrderForResponse(result.order);
+
+    return NextResponse.json({
+      ok: true,
+      ...result,
+      order: sanitizedOrder,
+    });
   } catch (error) {
     const durationMs = Math.round(performance.now() - startTime);
 

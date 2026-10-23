@@ -155,3 +155,19 @@ export function isValidOrderStatusTransition(from: OrderStatus, to: OrderStatus)
   if (from === "PAID" && to !== "CANCELLED") return false;
   return true;
 }
+
+/**
+ * Sanitiza una orden antes de responderla al cliente o serializarla en JSON.
+ * Si el comprobante de transferencia contiene un Base64 pesado, lo reemplaza
+ * por la URL limpia del endpoint de descarga (/api/orders/:id/receipt).
+ */
+export function sanitizeOrderForResponse(order: Order): Order {
+  if (!order.transferReceiptUrl) return order;
+  if (order.transferReceiptUrl.startsWith("data:") || order.transferReceiptUrl.length > 500) {
+    return {
+      ...order,
+      transferReceiptUrl: `/api/orders/${order.id}/receipt`,
+    };
+  }
+  return order;
+}

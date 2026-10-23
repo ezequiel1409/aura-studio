@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { uploadTransferReceipt } from "../../../../../services/order.service";
 import { DomainError, OrderNotFoundError, ValidationError } from "../../../../../domain/errors";
-import { parseOrderCode } from "../../../../../domain/order";
+import { parseOrderCode, sanitizeOrderForResponse } from "../../../../../domain/order";
 import { logger } from "../../../../../lib/logger";
 
 export async function GET(
@@ -139,10 +139,14 @@ export async function POST(
       status: 200,
     });
 
+    const sanitizedOrder = sanitizeOrderForResponse(updatedOrder);
+
     return NextResponse.json({
       ok: true,
       message: "Comprobante cargado exitosamente.",
-      order: updatedOrder,
+      receiptUrl: `/api/orders/${updatedOrder.id}/receipt`,
+      uploadedAt: updatedOrder.transferReceiptUploadedAt,
+      order: sanitizedOrder,
     });
   } catch (error: unknown) {
     const durationMs = Math.round(performance.now() - startTime);
