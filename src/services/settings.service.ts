@@ -337,13 +337,30 @@ function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
   }
 }
 
+let cachedShowroomSettings: { data: ShowroomSettings; timestamp: number } | null = null;
+const SETTINGS_CACHE_TTL_MS = 60_000; // 60 segundos de caché en memoria para evitar consultas recurrentes a D1
+
 /**
- * Obtiene la configuración del showroom desde la base de datos sin deploy.
+ * Invalida la caché en memoria de configuración (se invoca tras guardar cambios en el backoffice)
+ */
+export function invalidateShowroomSettingsCache(): void {
+  cachedShowroomSettings = null;
+}
+
+/**
+ * Obtiene la configuración del showroom con caché en memoria y fallback a variables de entorno.
  * Si alguna clave no fue configurada en DB, utiliza los valores por defecto del sistema/entorno.
  */
 export async function getShowroomSettings(
-  deps: SettingsServiceDeps
+  deps: SettingsServiceDeps,
+  options?: { bypassCache?: boolean }
 ): Promise<ShowroomSettings> {
+  const isTest = typeof process !== "undefined" && process.env?.NODE_ENV === "test";
+  const now = Date.now();
+  if (!isTest && !options?.bypassCache && cachedShowroomSettings && now - cachedShowroomSettings.timestamp < SETTINGS_CACHE_TTL_MS) {
+    return cachedShowroomSettings.data;
+  }
+
   const { settingsRepo } = deps;
 
   let storedWhatsapp: string | null = null;
@@ -589,13 +606,22 @@ export async function getShowroomSettings(
         .join(", ")
     : null;
 
-  return {
-    whatsappNumber: storedWhatsapp || process.env.WHATSAPP_NUMBER || DEFAULT_WHATSAPP_NUMBER,
+  const settingsResult: ShowroomSettings = {
+    whatsappNumber:
+      storedWhatsapp ||
+      process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ||
+      process.env.WHATSAPP_NUMBER ||
+      DEFAULT_WHATSAPP_NUMBER,
     showroomName:
       storedName ||
+      process.env.NEXT_PUBLIC_STORE_NAME ||
+      process.env.STORE_NAME ||
       (typeof process !== "undefined" ? process.env?.DEFAULT_BRAND_NAME : undefined) ||
       DEFAULT_SHOWROOM_NAME,
-    storeType: storedStoreType && storedStoreType.trim() ? storedStoreType.trim() : DEFAULT_STORE_TYPE,
+    storeType:
+      storedStoreType && storedStoreType.trim()
+        ? storedStoreType.trim()
+        : process.env.STORE_RUBRO || DEFAULT_STORE_TYPE,
     aboutText: storedAboutText && storedAboutText.trim() ? storedAboutText.trim() : null,
     businessVertical: storedBusinessVertical && storedBusinessVertical.trim() ? storedBusinessVertical.trim() : "indumentaria",
     businessDescriptor: storedBusinessDescriptor && storedBusinessDescriptor.trim() ? storedBusinessDescriptor.trim() : null,
@@ -686,6 +712,9 @@ export async function getShowroomSettings(
       DEFAULT_EMAIL_CUSTOMIZATION
     ),
   };
+
+  cachedShowroomSettings = { data: settingsResult, timestamp: Date.now() };
+  return settingsResult;
 }
 
 /**
@@ -967,7 +996,8 @@ export async function updateShowroomSettings(
     );
   }
 
-  return getShowroomSettings(deps);
+  invalidateShowroomSettingsCache();
+  return getShowroomSettings(deps, { bypassCache: true });
 }
 
 export class SettingsService {
