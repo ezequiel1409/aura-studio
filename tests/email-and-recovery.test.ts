@@ -5,7 +5,9 @@ import {
   formatSender,
 } from "../src/infra/email/resend.adapter";
 import {
+  generateOrderCancelledTemplate,
   generateOrderCreatedTemplate,
+  generateOrderDeliveredTemplate,
   generateOrderPaidTemplate,
   generateOrderShippedTemplate,
 } from "../src/lib/email/order-templates";
@@ -74,6 +76,21 @@ describe("ResendEmailAdapter & Email Templates", () => {
     expect(template.subject.toLowerCase()).toContain("listo para retirar");
     expect(template.html.toLowerCase()).toContain("listo para retirar");
     expect(template.html).toContain("Palermo Soho");
+  });
+
+  it("generateOrderDeliveredTemplate incluye felicitación y gratitud por la compra entregada", () => {
+    const template = generateOrderDeliveredTemplate(sampleOrder);
+    expect(template.subject.toLowerCase()).toContain("disfrutes tu compra");
+    expect(template.html.toLowerCase()).toContain("entregado con éxito");
+    expect(template.html).toContain("Valentina Rossi");
+    expect(template.html).toContain("#000101");
+  });
+
+  it("generateOrderCancelledTemplate informa la cancelación y liberación del stock", () => {
+    const template = generateOrderCancelledTemplate(sampleOrder);
+    expect(template.subject.toLowerCase()).toContain("aviso sobre tu pedido");
+    expect(template.html.toLowerCase()).toContain("pedido cancelado");
+    expect(template.html).toContain("stock disponible");
   });
 
   it("ResendEmailAdapter opera en modo simulación seguro cuando no hay API key", async () => {
@@ -146,5 +163,92 @@ describe("ResendEmailAdapter & Email Templates", () => {
     expect(capturedOptions?.subject).toContain("Boutique Sofía");
     expect(capturedOptions?.html).toContain("BOUTIQUE SOFÍA");
     expect(capturedOptions?.html).toContain("en Boutique Sofía");
+  });
+
+  it("aplica personalización de marca en el layout general: logo, saludo, pie de página y color", () => {
+    const customOrder: OrderEmailData = {
+      ...sampleOrder,
+      brandName: "Maison Lumière",
+      emailCustomization: {
+        layout: {
+          logoUrl: "https://example.com/logo-lumiere.png",
+          brandColor: "#7C3AED",
+          headerGreeting: "Haute Couture & Elegance",
+          footerText: "Gracias por ser parte de nuestra exclusiva comunidad.",
+          showSocialLinks: true,
+          showAddress: true,
+        },
+        events: [],
+      },
+    };
+
+    const template = generateOrderCreatedTemplate(customOrder);
+    expect(template.html).toContain("https://example.com/logo-lumiere.png");
+    expect(template.html).toContain("Haute Couture & Elegance");
+    expect(template.html).toContain("Gracias por ser parte de nuestra exclusiva comunidad.");
+    expect(template.html).toContain("#7C3AED");
+  });
+
+  it("aplica plantilla personalizada de evento interpolando variables de cliente y pedido", () => {
+    const customOrder: OrderEmailData = {
+      ...sampleOrder,
+      brandName: "Atelier Chic",
+      receiptUrl: "https://atelierchic.com/pedidos/000101",
+      emailCustomization: {
+        layout: {
+          brandColor: "#059669",
+        },
+        events: [
+          {
+            id: "order_created",
+            trigger: "order_created",
+            name: "Compra Realizada",
+            description: "",
+            enabled: true,
+            subject: "¡{{nombre}}, recibimos tu orden {{codigo_pedido}} en {{nombre_tienda}}!",
+            headline: "¡Hola {{nombre}}, tu selección está en marcha!",
+            bodyText: "Hemos reservado tus piezas por un total de {{total}}. Revisa tu pedido en {{link_pedido}}.",
+            buttonText: "Rastrear {{codigo_pedido}}",
+            buttonUrl: "{{link_pedido}}",
+            triggerCondition: "",
+            availableVariables: [],
+          },
+        ],
+      },
+    };
+
+    const template = generateOrderCreatedTemplate(customOrder);
+    expect(template.subject).toBe("¡Valentina Rossi, recibimos tu orden #000101 en Atelier Chic!");
+    expect(template.html).toContain("¡Hola Valentina Rossi, tu selección está en marcha!");
+    expect(template.html).toContain("Hemos reservado tus piezas");
+    expect(template.html).toContain("Rastrear #000101");
+  });
+
+  it("omite el envío cuando un evento está pausado por la comerciante", async () => {
+    const adapter = new ResendEmailAdapter({ apiKey: "" });
+    const orderWithDisabledEvent: OrderEmailData = {
+      ...sampleOrder,
+      emailCustomization: {
+        layout: {},
+        events: [
+          {
+            id: "order_created",
+            trigger: "order_created",
+            name: "Compra Realizada",
+            description: "",
+            enabled: false, // PAUSADA
+            subject: "Asunto",
+            headline: "Titular",
+            bodyText: "Cuerpo",
+            triggerCondition: "",
+            availableVariables: [],
+          },
+        ],
+      },
+    };
+
+    const result = await adapter.sendOrderCreatedEmail(orderWithDisabledEvent);
+    expect(result.success).toBe(true);
+    expect(result.messageId).toBe("skipped-disabled-order_created");
   });
 });

@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
         storeSchedule: body.storeSchedule,
         ordersPaused: body.ordersPaused !== undefined ? Boolean(body.ordersPaused) : undefined,
         ordersPausedNotice: body.ordersPausedNotice !== undefined ? body.ordersPausedNotice : undefined,
+        emailCustomization: body.emailCustomization,
       },
       deps
     );

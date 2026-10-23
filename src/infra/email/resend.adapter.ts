@@ -8,6 +8,7 @@ import {
   generateAdminNewOrderAlertTemplate,
   generateOrderCancelledTemplate,
   generateOrderCreatedTemplate,
+  generateOrderDeliveredTemplate,
   generateOrderPaidTemplate,
   generateOrderShippedTemplate,
 } from "../../lib/email/order-templates";
@@ -247,6 +248,14 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
   ): Promise<SendEmailResult> {
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
+
+    if (data.emailCustomization?.events) {
+      const ev = data.emailCustomization.events.find((e) => e.trigger === "order_created");
+      if (ev && !ev.enabled) {
+        return { success: true, messageId: "skipped-disabled-order_created" };
+      }
+    }
+
     const { subject, html, text } = generateOrderCreatedTemplate(data);
     return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
@@ -257,6 +266,14 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
   ): Promise<SendEmailResult> {
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
+
+    if (data.emailCustomization?.events) {
+      const ev = data.emailCustomization.events.find((e) => e.trigger === "order_paid");
+      if (ev && !ev.enabled) {
+        return { success: true, messageId: "skipped-disabled-order_paid" };
+      }
+    }
+
     const { subject, html, text } = generateOrderPaidTemplate(data);
     return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
@@ -267,7 +284,33 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
   ): Promise<SendEmailResult> {
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
+
+    if (data.emailCustomization?.events) {
+      const ev = data.emailCustomization.events.find((e) => e.trigger === "order_shipped");
+      if (ev && !ev.enabled) {
+        return { success: true, messageId: "skipped-disabled-order_shipped" };
+      }
+    }
+
     const { subject, html, text } = generateOrderShippedTemplate(data);
+    return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
+  }
+
+  async sendOrderDeliveredEmail(
+    toOrData: string | OrderEmailData,
+    maybeData?: OrderEmailData
+  ): Promise<SendEmailResult> {
+    const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
+    const data = typeof toOrData === "string" ? maybeData! : toOrData;
+
+    if (data.emailCustomization?.events) {
+      const ev = data.emailCustomization.events.find((e) => e.trigger === "order_delivered");
+      if (ev && !ev.enabled) {
+        return { success: true, messageId: "skipped-disabled-order_delivered" };
+      }
+    }
+
+    const { subject, html, text } = generateOrderDeliveredTemplate(data);
     return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
 
@@ -277,6 +320,14 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
   ): Promise<SendEmailResult> {
     const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
     const data = typeof toOrData === "string" ? maybeData! : toOrData;
+
+    if (data.emailCustomization?.events) {
+      const ev = data.emailCustomization.events.find((e) => e.trigger === "order_cancelled");
+      if (ev && !ev.enabled) {
+        return { success: true, messageId: "skipped-disabled-order_cancelled" };
+      }
+    }
+
     const { subject, html, text } = generateOrderCancelledTemplate(data);
     return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }

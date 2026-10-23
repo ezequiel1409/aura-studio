@@ -6,6 +6,10 @@ import {
   StoreLocationConfig,
   StoreScheduleConfig,
 } from "../lib/schedule/store-schedule";
+import {
+  DEFAULT_EMAIL_CUSTOMIZATION,
+  EmailCustomizationConfig,
+} from "../domain/email/customization";
 
 export interface SettingsServiceDeps {
   settingsRepo?: ISettingsRepository;
@@ -255,6 +259,8 @@ export interface ShowroomSettings {
   // Pausa de ventas / Frenar órdenes (Kill switch de checkout)
   ordersPaused?: boolean;
   ordersPausedNotice?: string | null;
+  // Personalización de correos transaccionales y de marketing
+  emailCustomization?: EmailCustomizationConfig;
 }
 
 export interface UpdateShowroomSettingsInput {
@@ -308,6 +314,7 @@ export interface UpdateShowroomSettingsInput {
   storeSchedule?: StoreScheduleConfig;
   ordersPaused?: boolean;
   ordersPausedNotice?: string | null;
+  emailCustomization?: EmailCustomizationConfig;
 }
 
 const DEFAULT_WHATSAPP_NUMBER = "+5491100000000";
@@ -389,6 +396,7 @@ export async function getShowroomSettings(
   let storedStoreSchedule: string | null = null;
   let storedOrdersPaused: string | null = null;
   let storedOrdersPausedNotice: string | null = null;
+  let storedEmailCustomization: string | null = null;
 
   if (settingsRepo) {
     if (typeof settingsRepo.getAll === "function") {
@@ -443,6 +451,7 @@ export async function getShowroomSettings(
       storedStoreSchedule = all["store_schedule_json"] ?? null;
       storedOrdersPaused = all["orders_paused"] ?? null;
       storedOrdersPausedNotice = all["orders_paused_notice"] ?? null;
+      storedEmailCustomization = all["email_customization_json"] ?? null;
     } else {
       [
         storedWhatsapp,
@@ -546,6 +555,7 @@ export async function getShowroomSettings(
         settingsRepo.get("store_schedule_json"),
         settingsRepo.get("orders_paused"),
         settingsRepo.get("orders_paused_notice"),
+        settingsRepo.get("email_customization_json"),
       ]);
     }
   }
@@ -671,6 +681,10 @@ export async function getShowroomSettings(
       storedOrdersPausedNotice && storedOrdersPausedNotice.trim()
         ? storedOrdersPausedNotice.trim()
         : null,
+    emailCustomization: safeJsonParse<EmailCustomizationConfig>(
+      storedEmailCustomization,
+      DEFAULT_EMAIL_CUSTOMIZATION
+    ),
   };
 }
 
@@ -943,6 +957,13 @@ export async function updateShowroomSettings(
     await settingsRepo.set(
       "orders_paused_notice",
       input.ordersPausedNotice ? input.ordersPausedNotice.trim() : ""
+    );
+  }
+
+  if (input.emailCustomization !== undefined) {
+    await settingsRepo.set(
+      "email_customization_json",
+      JSON.stringify(input.emailCustomization)
     );
   }
 

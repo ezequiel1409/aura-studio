@@ -1,10 +1,19 @@
 import { OrderEmailData } from "../../domain/ports/email.port";
 import { formatPrice } from "../format/currency";
+import {
+  EmailCustomizationConfig,
+  EmailEventTemplateConfig,
+  EmailEventTrigger,
+  EmailLayoutConfig,
+  interpolateVariables,
+} from "../../domain/email/customization";
 
-const BASE_STYLES = `
+function getBaseStyles(brandColor = "#1C1917"): string {
+  return `
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #FBFBF9; margin: 0; padding: 32px 16px; color: #1C1917; }
   .card { max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; border: 1px solid #E7E5E4; padding: 36px 28px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
   .brand { font-size: 20px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: #1C1917; text-align: center; margin-bottom: 24px; }
+  .header-greeting { text-align: center; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: #78716C; margin-top: -16px; margin-bottom: 24px; }
   h1 { font-size: 20px; font-weight: 600; margin: 0 0 12px 0; color: #1C1917; }
   p { font-size: 14px; line-height: 1.6; color: #44403C; margin: 0 0 16px 0; }
   .order-badge { display: inline-block; background-color: #F5F5F4; border: 1px solid #E7E5E4; padding: 4px 10px; border-radius: 6px; font-family: monospace; font-size: 13px; font-weight: 700; color: #1C1917; }
@@ -17,9 +26,10 @@ const BASE_STYLES = `
   .total-row.final { font-size: 16px; font-weight: 700; color: #1C1917; margin-top: 10px; padding-top: 10px; border-top: 1px solid #E7E5E4; }
   .info-box { background-color: #FAF8F5; border: 1px solid #E7E2DA; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 13px; line-height: 1.6; }
   .btn-container { text-align: center; margin: 28px 0; }
-  .btn { display: inline-block; background-color: #1C1917; color: #ffffff !important; text-decoration: none; padding: 13px 26px; border-radius: 10px; font-weight: 600; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+  .btn { display: inline-block; background-color: ${brandColor}; color: #ffffff !important; text-decoration: none; padding: 13px 26px; border-radius: 10px; font-weight: 600; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
   .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #F5F5F4; font-size: 12px; color: #78716C; text-align: center; line-height: 1.5; }
 `;
+}
 
 function renderItemsHtml(items: OrderEmailData["items"], currency: string): string {
   return items
@@ -43,9 +53,106 @@ function renderItemsHtml(items: OrderEmailData["items"], currency: string): stri
     .join("");
 }
 
+/**
+ * Busca si el comerciante configuró una plantilla específica para este trigger de evento
+ */
+function getEventConfig(
+  customization: EmailCustomizationConfig | undefined,
+  trigger: EmailEventTrigger
+): EmailEventTemplateConfig | undefined {
+  if (!customization?.events) return undefined;
+  return customization.events.find((e) => e.trigger === trigger && e.enabled);
+}
+
+/**
+ * Genera el diccionario de variables disponibles para interpolar
+ */
+function getVariables(data: OrderEmailData, brand: string): Record<string, string> {
+  const code = data.formattedCode.startsWith("#") ? data.formattedCode : `#${data.formattedCode}`;
+  return {
+    nombre: data.customerName || "Cliente",
+    codigo_pedido: code,
+    nombre_tienda: brand,
+    total: formatPrice(data.totalCents, data.currency),
+    link_pedido: data.receiptUrl || "",
+    catalogo_url: "/",
+    carrito_url: "/carrito",
+    producto_url: "/",
+    whatsapp: data.supportWhatsapp || "",
+  };
+}
+
+/**
+ * Renderiza el encabezado corporativo (logo o nombre de marca + saludo superior si existe)
+ */
+function renderHeader(brand: string, layout?: EmailLayoutConfig): string {
+  const logoHtml = layout?.logoUrl
+    ? `<div style="text-align: center; margin-bottom: 20px;">
+        <img src="${layout.logoUrl}" alt="${brand}" style="max-height: 52px; max-width: 220px; object-fit: contain; margin: 0 auto; display: block;" />
+      </div>`
+    : `<div class="brand">${brand}</div>`;
+
+  const greetingHtml = layout?.headerGreeting
+    ? `<div class="header-greeting">${layout.headerGreeting}</div>`
+    : "";
+
+  return `${logoHtml}${greetingHtml}`;
+}
+
+/**
+ * Renderiza el pie de página unificado respetando las configuraciones de marca
+ */
+function renderFooter(brand: string, data: OrderEmailData, layout?: EmailLayoutConfig): string {
+  const customFooter = layout?.footerText
+    ? `<p>${layout.footerText}</p>`
+    : `<p>Si tenés alguna consulta, escribinos directamente por WhatsApp al ${data.supportWhatsapp || "soporte"}.</p>`;
+
+  const address =
+    (layout?.showAddress ?? true) && (data.showroomAddress || data.deliveryAddress)
+      ? `<p style="font-size: 11px; color: #A8A29E; margin-top: 6px;">${data.showroomAddress || data.deliveryAddress}</p>`
+      : "";
+
+  const whatsapp =
+    data.supportWhatsapp && !layout?.footerText?.includes(data.supportWhatsapp)
+      ? `<p style="font-size: 11px; color: #A8A29E; margin-top: 4px;">WhatsApp de atención: ${data.supportWhatsapp}</p>`
+      : "";
+
+  return `
+    <div class="footer">
+      ${customFooter}
+      ${address}
+      ${whatsapp}
+      <p style="margin-top: 10px; font-size: 11px; color: #A8A29E;">© ${new Date().getFullYear()} ${brand}. Todos los derechos reservados.</p>
+    </div>
+  `;
+}
+
 export function generateOrderCreatedTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
   const brand = data.brandName || "Aura Studio";
-  const subject = `Confirmación de pedido #${data.formattedCode} - ${brand}`;
+  const layout = data.emailCustomization?.layout;
+  const brandColor = layout?.brandColor || "#1C1917";
+  const event = getEventConfig(data.emailCustomization, "order_created");
+  const vars = getVariables(data, brand);
+
+  const subject = event?.subject
+    ? interpolateVariables(event.subject, vars)
+    : `Confirmación de pedido #${data.formattedCode} - ${brand}`;
+
+  const headline = event?.headline
+    ? interpolateVariables(event.headline, vars)
+    : `¡Gracias por tu compra, ${data.customerName}!`;
+
+  const bodyText = event?.bodyText
+    ? interpolateVariables(event.bodyText, vars)
+    : `Hemos registrado tu pedido <span class="order-badge">#${data.formattedCode}</span> con éxito.`;
+
+  const btnText = event?.buttonText
+    ? interpolateVariables(event.buttonText, vars)
+    : "Ver estado de mi pedido";
+
+  const btnUrl = event?.buttonUrl
+    ? interpolateVariables(event.buttonUrl, vars)
+    : data.receiptUrl;
 
   const isTransfer = data.paymentMethod === "TRANSFER";
   const isPickup = data.deliveryMethod === "PICKUP";
@@ -56,13 +163,13 @@ export function generateOrderCreatedTemplate(data: OrderEmailData): { subject: s
 <head>
   <meta charset="utf-8">
   <title>${subject}</title>
-  <style>${BASE_STYLES}</style>
+  <style>${getBaseStyles(brandColor)}</style>
 </head>
 <body>
   <div class="card">
-    <div class="brand">${brand}</div>
-    <h1>¡Gracias por tu compra, ${data.customerName}!</h1>
-    <p>Hemos registrado tu pedido <span class="order-badge">#${data.formattedCode}</span> con éxito.</p>
+    ${renderHeader(brand, layout)}
+    <h1>${headline}</h1>
+    <p>${bodyText}</p>
 
     ${
       isTransfer
@@ -128,18 +235,15 @@ export function generateOrderCreatedTemplate(data: OrderEmailData): { subject: s
     </div>
 
     ${
-      data.receiptUrl
+      btnUrl
         ? `
     <div class="btn-container">
-      <a href="${data.receiptUrl}" class="btn" target="_blank">Ver estado de mi pedido</a>
+      <a href="${btnUrl}" class="btn" target="_blank">${btnText}</a>
     </div>`
         : ""
     }
 
-    <div class="footer">
-      <p>Si tenés alguna consulta, escribinos directamente por WhatsApp al ${data.supportWhatsapp || "soporte"}.</p>
-      <p>© ${new Date().getFullYear()} ${brand}. Todos los derechos reservados.</p>
-    </div>
+    ${renderFooter(brand, data, layout)}
   </div>
 </body>
 </html>
@@ -149,7 +253,7 @@ export function generateOrderCreatedTemplate(data: OrderEmailData): { subject: s
 ${brand} - Confirmación de pedido #${data.formattedCode}
 
 Hola ${data.customerName},
-Hemos registrado tu pedido #${data.formattedCode} con éxito.
+${bodyText.replace(/<[^>]+>/g, "")}
 
 Total: ${formatPrice(data.totalCents, data.currency)}
 Entrega: ${isPickup ? "Retiro en Showroom" : "Envío a Domicilio"}
@@ -164,7 +268,7 @@ Total: ${formatPrice(data.totalCents, data.currency)}`
     : ""
 }
 
-Ver tu pedido en línea: ${data.receiptUrl || ""}
+Ver tu pedido en línea: ${btnUrl || ""}
 `;
 
   return { subject, html, text };
@@ -172,7 +276,30 @@ Ver tu pedido en línea: ${data.receiptUrl || ""}
 
 export function generateOrderPaidTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
   const brand = data.brandName || "Aura Studio";
-  const subject = `¡Pago acreditado! Tu pedido #${data.formattedCode} está confirmado - ${brand}`;
+  const layout = data.emailCustomization?.layout;
+  const brandColor = layout?.brandColor || "#1C1917";
+  const event = getEventConfig(data.emailCustomization, "order_paid");
+  const vars = getVariables(data, brand);
+
+  const subject = event?.subject
+    ? interpolateVariables(event.subject, vars)
+    : `¡Pago acreditado! Tu pedido #${data.formattedCode} está confirmado - ${brand}`;
+
+  const headline = event?.headline
+    ? interpolateVariables(event.headline, vars)
+    : "¡Pago Acreditado!";
+
+  const bodyText = event?.bodyText
+    ? interpolateVariables(event.bodyText, vars)
+    : `Hola <strong>${data.customerName}</strong>, hemos recibido y verificado tu pago para el pedido <span class="order-badge">#${data.formattedCode}</span>.`;
+
+  const btnText = event?.buttonText
+    ? interpolateVariables(event.buttonText, vars)
+    : "Ver detalle del pedido";
+
+  const btnUrl = event?.buttonUrl
+    ? interpolateVariables(event.buttonUrl, vars)
+    : data.receiptUrl;
 
   const html = `
 <!DOCTYPE html>
@@ -180,19 +307,19 @@ export function generateOrderPaidTemplate(data: OrderEmailData): { subject: stri
 <head>
   <meta charset="utf-8">
   <title>${subject}</title>
-  <style>${BASE_STYLES}</style>
+  <style>${getBaseStyles(brandColor)}</style>
 </head>
 <body>
   <div class="card">
-    <div class="brand">${brand}</div>
+    ${renderHeader(brand, layout)}
     <div style="text-align: center; margin-bottom: 20px;">
       <span style="display: inline-block; background-color: #D1FAE5; color: #065F46; border-radius: 50%; width: 44px; height: 44px; line-height: 44px; font-size: 22px;">✓</span>
     </div>
-    <h1 style="text-align: center;">¡Pago Acreditado!</h1>
-    <p style="text-align: center;">Hola <strong>${data.customerName}</strong>, hemos recibido y verificado tu pago para el pedido <span class="order-badge">#${data.formattedCode}</span>.</p>
+    <h1 style="text-align: center;">${headline}</h1>
+    <p style="text-align: center;">${bodyText}</p>
 
     <div class="info-box" style="border-left: 4px solid #059669; background-color: #ECFDF5; color: #064E3B;">
-      Tus prendas ya están aseguradas y nuestro equipo del showroom comenzó con la preparación y empaquetado de tus piezas. Te notificaremos en cuanto estén listas.
+      Tus prendas ya están aseguradas y nuestro equipo comenzó con la preparación y empaquetado de tus piezas. Te notificaremos en cuanto estén listas.
     </div>
 
     <table class="items-table">
@@ -202,17 +329,15 @@ export function generateOrderPaidTemplate(data: OrderEmailData): { subject: stri
     </table>
 
     ${
-      data.receiptUrl
+      btnUrl
         ? `
     <div class="btn-container">
-      <a href="${data.receiptUrl}" class="btn" target="_blank">Ver detalle del pedido</a>
+      <a href="${btnUrl}" class="btn" target="_blank">${btnText}</a>
     </div>`
         : ""
     }
 
-    <div class="footer">
-      <p>Aura Studio · Showroom Exclusivo</p>
-    </div>
+    ${renderFooter(brand, data, layout)}
   </div>
 </body>
 </html>`;
@@ -221,9 +346,9 @@ export function generateOrderPaidTemplate(data: OrderEmailData): { subject: stri
 ${brand} - ¡Pago Acreditado! Pedido #${data.formattedCode}
 
 Hola ${data.customerName},
-Verificamos tu pago con éxito. Tus prendas ya están aseguradas y comenzamos con la preparación de tu pedido.
+${bodyText.replace(/<[^>]+>/g, "")}
 
-Ver estado: ${data.receiptUrl || ""}
+Ver estado: ${btnUrl || ""}
 `;
 
   return { subject, html, text };
@@ -231,10 +356,39 @@ Ver estado: ${data.receiptUrl || ""}
 
 export function generateOrderShippedTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
   const brand = data.brandName || "Aura Studio";
+  const layout = data.emailCustomization?.layout;
+  const brandColor = layout?.brandColor || "#1C1917";
+  const event = getEventConfig(data.emailCustomization, "order_shipped");
+  const vars = getVariables(data, brand);
   const isPickup = data.deliveryMethod === "PICKUP";
-  const subject = isPickup
+
+  const defaultSubject = isPickup
     ? `¡Tu pedido #${data.formattedCode} está listo para retirar! - ${brand}`
     : `¡Tu pedido #${data.formattedCode} está en camino! - ${brand}`;
+
+  const defaultHeadline = isPickup
+    ? "¡Tu pedido está listo para retirar!"
+    : "¡Tu pedido está en camino!";
+
+  const subject = event?.subject
+    ? interpolateVariables(event.subject, vars)
+    : defaultSubject;
+
+  const headline = event?.headline
+    ? interpolateVariables(event.headline, vars)
+    : defaultHeadline;
+
+  const bodyText = event?.bodyText
+    ? interpolateVariables(event.bodyText, vars)
+    : `Hola <strong>${data.customerName}</strong>, tu pedido <span class="order-badge">#${data.formattedCode}</span> ya está listo para ti.`;
+
+  const btnText = event?.buttonText
+    ? interpolateVariables(event.buttonText, vars)
+    : isPickup ? "Ver datos de retiro" : "Ver recibo del pedido";
+
+  const btnUrl = event?.buttonUrl
+    ? interpolateVariables(event.buttonUrl, vars)
+    : data.receiptUrl;
 
   const html = `
 <!DOCTYPE html>
@@ -242,20 +396,20 @@ export function generateOrderShippedTemplate(data: OrderEmailData): { subject: s
 <head>
   <meta charset="utf-8">
   <title>${subject}</title>
-  <style>${BASE_STYLES}</style>
+  <style>${getBaseStyles(brandColor)}</style>
 </head>
 <body>
   <div class="card">
-    <div class="brand">${brand}</div>
-    <h1>${isPickup ? "¡Tu pedido está listo para retirar!" : "¡Tu pedido está en camino!"}</h1>
-    <p>Hola <strong>${data.customerName}</strong>,</p>
+    ${renderHeader(brand, layout)}
+    <h1>${headline}</h1>
+    <p>${bodyText}</p>
 
     ${
       isPickup
         ? `
       <div class="info-box" style="border-left: 4px solid #0284C7; background-color: #F0F9FF; color: #0C4A6E;">
         <strong style="display: block; font-size: 14px; margin-bottom: 4px;">Punto de retiro:</strong>
-        ${data.showroomAddress || "Showroom Oficial de Aura Studio"}<br />
+        ${data.showroomAddress || "Showroom Oficial"}<br />
         <span style="font-size: 12px; color: #0369A1; margin-top: 6px; display: block;">Recordá presentar tu número de pedido <strong>#${data.formattedCode}</strong> o DNI al retirar.</span>
       </div>`
         : `
@@ -272,36 +426,58 @@ export function generateOrderShippedTemplate(data: OrderEmailData): { subject: s
     </table>
 
     ${
-      data.receiptUrl
+      btnUrl
         ? `
     <div class="btn-container">
-      <a href="${data.receiptUrl}" class="btn" target="_blank">Ver recibo del pedido</a>
+      <a href="${btnUrl}" class="btn" target="_blank">${btnText}</a>
     </div>`
         : ""
     }
 
-    <div class="footer">
-      <p>Aura Studio · Showroom Exclusivo</p>
-    </div>
+    ${renderFooter(brand, data, layout)}
   </div>
 </body>
 </html>`;
 
   const text = `
-${brand} - ${isPickup ? "Listo para retirar" : "En camino"} (Pedido #${data.formattedCode})
+${brand} - ${headline} (Pedido #${data.formattedCode})
 
 Hola ${data.customerName},
-${isPickup ? `Tu pedido ya está listo para retirar en ${data.showroomAddress || "el showroom"}.` : `Tu pedido ya fue despachado a ${data.deliveryAddress || "tu domicilio"}.`}
+${bodyText.replace(/<[^>]+>/g, "")}
+${isPickup ? `Punto de retiro: ${data.showroomAddress || "Showroom Oficial"}` : `Dirección de entrega: ${data.deliveryAddress || "Tu domicilio"}`}
 
-Ver recibo: ${data.receiptUrl || ""}
+Ver recibo: ${btnUrl || ""}
 `;
 
   return { subject, html, text };
 }
 
-export function generateOrderCancelledTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
+export function generateOrderDeliveredTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
   const brand = data.brandName || "Aura Studio";
-  const subject = `Aviso sobre tu pedido #${data.formattedCode} - ${brand}`;
+  const layout = data.emailCustomization?.layout;
+  const brandColor = layout?.brandColor || "#1C1917";
+  const event = getEventConfig(data.emailCustomization, "order_delivered");
+  const vars = getVariables(data, brand);
+
+  const subject = event?.subject
+    ? interpolateVariables(event.subject, vars)
+    : `¡Esperamos que disfrutes tu compra! - ${brand}`;
+
+  const headline = event?.headline
+    ? interpolateVariables(event.headline, vars)
+    : "¡Pedido entregado con éxito!";
+
+  const bodyText = event?.bodyText
+    ? interpolateVariables(event.bodyText, vars)
+    : `Hola <strong>${data.customerName}</strong>, tu pedido <span class="order-badge">#${data.formattedCode}</span> figura como entregado. Deseamos de corazón que disfrutes tus nuevas piezas exclusivas.`;
+
+  const btnText = event?.buttonText
+    ? interpolateVariables(event.buttonText, vars)
+    : "Ver resumen de compra";
+
+  const btnUrl = event?.buttonUrl
+    ? interpolateVariables(event.buttonUrl, vars)
+    : data.receiptUrl;
 
   const html = `
 <!DOCTYPE html>
@@ -309,22 +485,108 @@ export function generateOrderCancelledTemplate(data: OrderEmailData): { subject:
 <head>
   <meta charset="utf-8">
   <title>${subject}</title>
-  <style>${BASE_STYLES}</style>
+  <style>${getBaseStyles(brandColor)}</style>
 </head>
 <body>
   <div class="card">
-    <div class="brand">${brand}</div>
-    <h1>Pedido Cancelado</h1>
-    <p>Hola <strong>${data.customerName}</strong>,</p>
-    <p>Te informamos que el pedido <span class="order-badge">#${data.formattedCode}</span> ha sido cancelado y las prendas han vuelto al stock disponible.</p>
+    ${renderHeader(brand, layout)}
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #FDF2F8; color: #BE185D; border-radius: 50%; width: 44px; height: 44px; line-height: 44px; font-size: 22px;">♥</span>
+    </div>
+    <h1 style="text-align: center;">${headline}</h1>
+    <p style="text-align: center;">${bodyText}</p>
+
+    <div class="info-box" style="background-color: #FAF5FF; border-left: 4px solid #9333EA; color: #581C87;">
+      ¡Nos encantaría ver cómo te quedan tus prendas! Si te animás, subí una foto etiquetándonos en Instagram para ser parte de nuestra comunidad.
+    </div>
+
+    <table class="items-table">
+      <tbody>
+        ${renderItemsHtml(data.items, data.currency)}
+      </tbody>
+    </table>
+
+    ${
+      btnUrl
+        ? `
+    <div class="btn-container">
+      <a href="${btnUrl}" class="btn" target="_blank">${btnText}</a>
+    </div>`
+        : ""
+    }
+
+    ${renderFooter(brand, data, layout)}
+  </div>
+</body>
+</html>`;
+
+  const text = `
+${brand} - ¡Pedido Entregado! (#${data.formattedCode})
+
+Hola ${data.customerName},
+${bodyText.replace(/<[^>]+>/g, "")}
+
+Ver compra: ${btnUrl || ""}
+`;
+
+  return { subject, html, text };
+}
+
+export function generateOrderCancelledTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
+  const brand = data.brandName || "Aura Studio";
+  const layout = data.emailCustomization?.layout;
+  const brandColor = layout?.brandColor || "#1C1917";
+  const event = getEventConfig(data.emailCustomization, "order_cancelled");
+  const vars = getVariables(data, brand);
+
+  const subject = event?.subject
+    ? interpolateVariables(event.subject, vars)
+    : `Aviso sobre tu pedido #${data.formattedCode} - ${brand}`;
+
+  const headline = event?.headline
+    ? interpolateVariables(event.headline, vars)
+    : "Pedido Cancelado";
+
+  const bodyText = event?.bodyText
+    ? interpolateVariables(event.bodyText, vars)
+    : `Hola <strong>${data.customerName}</strong>, te informamos que el pedido <span class="order-badge">#${data.formattedCode}</span> ha sido cancelado y las prendas han vuelto al stock disponible.`;
+
+  const btnText = event?.buttonText
+    ? interpolateVariables(event.buttonText, vars)
+    : "Volver a la tienda";
+
+  const btnUrl = event?.buttonUrl
+    ? interpolateVariables(event.buttonUrl, vars)
+    : "/";
+
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>${subject}</title>
+  <style>${getBaseStyles(brandColor)}</style>
+</head>
+<body>
+  <div class="card">
+    ${renderHeader(brand, layout)}
+    <h1>${headline}</h1>
+    <p>${bodyText}</p>
 
     <div class="info-box" style="background-color: #F5F5F4; color: #57534E;">
       Si realizaste una transferencia en las últimas horas o considerás que esto fue un error, por favor contactanos de inmediato por WhatsApp para asistirte.
     </div>
 
-    <div class="footer">
-      <p>Aura Studio · Showroom Exclusivo</p>
-    </div>
+    ${
+      btnUrl
+        ? `
+    <div class="btn-container">
+      <a href="${btnUrl}" class="btn" target="_blank">${btnText}</a>
+    </div>`
+        : ""
+    }
+
+    ${renderFooter(brand, data, layout)}
   </div>
 </body>
 </html>`;
@@ -333,7 +595,7 @@ export function generateOrderCancelledTemplate(data: OrderEmailData): { subject:
 ${brand} - Pedido #${data.formattedCode} cancelado
 
 Hola ${data.customerName},
-Tu pedido #${data.formattedCode} fue cancelado y las prendas volvieron al stock disponible.
+${bodyText.replace(/<[^>]+>/g, "")}
 `;
 
   return { subject, html, text };
@@ -341,6 +603,8 @@ Tu pedido #${data.formattedCode} fue cancelado y las prendas volvieron al stock 
 
 export function generateAdminNewOrderAlertTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
   const brand = data.brandName || "Aura Studio";
+  const layout = data.emailCustomization?.layout;
+  const brandColor = layout?.brandColor || "#1C1917";
   const subject = `🎉 Nueva Venta: Pedido #${data.formattedCode} (${data.customerName}) - ${formatPrice(data.totalCents, data.currency)}`;
 
   const html = `
@@ -349,7 +613,7 @@ export function generateAdminNewOrderAlertTemplate(data: OrderEmailData): { subj
 <head>
   <meta charset="utf-8">
   <title>${subject}</title>
-  <style>${BASE_STYLES}</style>
+  <style>${getBaseStyles(brandColor)}</style>
 </head>
 <body>
   <div class="card">
@@ -376,7 +640,7 @@ export function generateAdminNewOrderAlertTemplate(data: OrderEmailData): { subj
     </div>
 
     <div class="footer">
-      <p>Notificación interna automática de ventas · Aura Studio</p>
+      <p>Notificación interna automática de ventas · ${brand}</p>
     </div>
   </div>
 </body>
@@ -391,4 +655,3 @@ Total: ${formatPrice(data.totalCents, data.currency)}
 
   return { subject, html, text };
 }
-

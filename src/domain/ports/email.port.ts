@@ -1,3 +1,5 @@
+import { EmailCustomizationConfig } from "../email/customization";
+
 export interface SendEmailOptions {
   to: string;
   subject: string;
@@ -54,6 +56,7 @@ export interface OrderEmailData {
   brandName?: string;
   receiptUrl?: string;
   supportWhatsapp?: string;
+  emailCustomization?: EmailCustomizationConfig;
 }
 
 export interface IEmailService {
@@ -67,6 +70,7 @@ export interface IEmailService {
   sendOrderCreatedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendOrderPaidEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendOrderShippedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
+  sendOrderDeliveredEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendOrderCancelledEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendAdminNewOrderAlertEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
 }

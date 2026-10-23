@@ -6,6 +6,7 @@ import {
   Landmark,
   LayoutDashboard,
   LayoutTemplate,
+  Mail,
   MapPin,
   Package,
   PanelTop,
@@ -168,6 +169,13 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
         label: "Contacto y redes",
         description: "Horarios, WhatsApp y ubicación",
         icon: MapPin,
+        exact: true,
+      },
+      {
+        href: "/admin/tienda/correos",
+        label: "Correos y Notificaciones",
+        description: "Plantillas, eventos y diseño de marca",
+        icon: Mail,
         exact: true,
       },
       {

@@ -57,6 +57,7 @@ function buildOrderEmailData(order: Order, settings: ShowroomSettings, baseUrl?:
       ? `${baseUrl.replace(/\/$/, "")}/api/orders/${order.id}/receipt`
       : `/api/orders/${order.id}/receipt`,
     supportWhatsapp: settings.whatsappNumber,
+    emailCustomization: settings.emailCustomization,
   };
 }
 
