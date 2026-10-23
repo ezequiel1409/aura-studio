@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import Link from "next/link";
 import { Check, Loader2, ShoppingBag, Sparkles, Star, X } from "lucide-react";
 import { Product } from "../../domain/product/types";
@@ -19,12 +19,13 @@ export interface ProductCardProps {
   cardId?: string;
 }
 
-export function ProductCard({
+export const ProductCard = memo(function ProductCard({
   product,
   priority = false,
   cardId,
 }: ProductCardProps) {
-  const { addItem } = useCartStore();
+  // Selector atómico para no suscribirse a todo el estado del carrito
+  const addItem = useCartStore((state) => state.addItem);
 
   const [selectedColorIdx, setSelectedColorIdx] = useState(0);
   const [addingSize, setAddingSize] = useState<string | null>(null);
@@ -672,4 +673,4 @@ export function ProductCard({
       )}
     </article>
   );
-}
+});

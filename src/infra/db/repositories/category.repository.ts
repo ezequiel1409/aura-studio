@@ -3,6 +3,10 @@ import { Category } from "../../../domain/category/types";
 import { ICategoryRepository } from "../../../domain/ports/repositories.port";
 import { DbClient } from "../client";
 import { categories, categoryStats } from "../schema";
+import { memoryCache } from "../../cache/memory-cache";
+
+const CACHE_KEY_ALL = "store_categories_all";
+const CACHE_TTL_SECONDS = 300; // 5 minutos
 
 export class DrizzleCategoryRepository implements ICategoryRepository {
   constructor(private readonly db: DbClient) {}
@@ -27,6 +31,8 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
       lastViewedAt: null,
     });
 
+    memoryCache.deleteMatching("store_categories_");
+
     return {
       id: inserted.id,
       parentId: inserted.parentId,
@@ -39,6 +45,12 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
   }
 
   async findById(id: number): Promise<Category | null> {
+    const cachedList = memoryCache.get<Category[]>(CACHE_KEY_ALL);
+    if (cachedList) {
+      const found = cachedList.find((c) => c.id === id);
+      if (found) return found;
+    }
+
     const [row] = await this.db
       .select()
       .from(categories)
@@ -58,6 +70,12 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
   }
 
   async findBySlug(slug: string): Promise<Category | null> {
+    const cachedList = memoryCache.get<Category[]>(CACHE_KEY_ALL);
+    if (cachedList) {
+      const found = cachedList.find((c) => c.slug === slug);
+      if (found) return found;
+    }
+
     const [row] = await this.db
       .select()
       .from(categories)
@@ -77,12 +95,17 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
   }
 
   async listAll(): Promise<Category[]> {
+    const cached = memoryCache.get<Category[]>(CACHE_KEY_ALL);
+    if (cached) {
+      return cached;
+    }
+
     const rows = await this.db
       .select()
       .from(categories)
       .orderBy(categories.position, categories.name);
 
-    return rows.map((row) => ({
+    const result = rows.map((row) => ({
       id: row.id,
       parentId: row.parentId,
       name: row.name,
@@ -91,6 +114,9 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
       isHidden: Boolean(row.isHidden),
       isSystem: Boolean(row.isSystem),
     }));
+
+    memoryCache.set(CACHE_KEY_ALL, result, CACHE_TTL_SECONDS);
+    return result;
   }
 
   async listAllWithStats(): Promise<Category[]> {
@@ -126,6 +152,11 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
   }
 
   async findSubcategories(parentId: number): Promise<Category[]> {
+    const cachedList = memoryCache.get<Category[]>(CACHE_KEY_ALL);
+    if (cachedList) {
+      return cachedList.filter((c) => c.parentId === parentId);
+    }
+
     const rows = await this.db
       .select()
       .from(categories)
@@ -158,6 +189,8 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
       .where(eq(categories.id, id))
       .returning();
 
+    memoryCache.deleteMatching("store_categories_");
+
     return {
       id: updated.id,
       parentId: updated.parentId,
@@ -171,6 +204,6 @@ export class DrizzleCategoryRepository implements ICategoryRepository {
 
   async delete(id: number): Promise<void> {
     await this.db.delete(categories).where(eq(categories.id, id));
+    memoryCache.deleteMatching("store_categories_");
   }
 }
-

@@ -1,7 +1,14 @@
 import { Suspense } from "react";
+
+// Revalida el catálogo en segundo plano cada 60 segundos en Edge CDN
+export const revalidate = 60;
+import dynamic from "next/dynamic";
 import { Header } from "../../components/layout/Header";
 import { Footer } from "../../components/layout/Footer";
-import { CartDrawer } from "../../components/cart/CartDrawer";
+
+const CartDrawer = dynamic(() =>
+  import("../../components/cart/CartDrawer").then((mod) => mod.CartDrawer)
+);
 import { CartToast } from "../../components/cart/CartToast";
 import { StoreThemeStyles } from "../../components/theme/StoreThemeStyles";
 import { CatalogPanelView } from "../../components/catalog/CatalogPanelView";

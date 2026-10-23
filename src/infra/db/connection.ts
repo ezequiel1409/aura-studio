@@ -357,6 +357,8 @@ export function getDb(): DbClient {
           FOREIGN KEY (promotion_id) REFERENCES promotions(id) ON DELETE set null
         );
         CREATE INDEX IF NOT EXISTS home_banners_placement_active_idx ON home_banners (placement, is_active, position);
+        CREATE INDEX IF NOT EXISTS product_photos_product_id_idx ON product_photos (product_id);
+        CREATE INDEX IF NOT EXISTS status_history_product_id_idx ON status_history (product_id);
       `);
 
       // Sembrar atributo "Para" y secciones por defecto si están vacíos

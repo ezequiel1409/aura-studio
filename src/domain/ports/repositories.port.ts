@@ -88,6 +88,7 @@ export interface IProductRepository {
   list(filter: ListProductsFilter, categoryIdsToInclude?: number[]): Promise<PaginatedResult<Product>>;
   getFacets?(filter: ListProductsFilter, categoryIdsToInclude?: number[]): Promise<CatalogFacets>;
   countByCategoryId(categoryId: number): Promise<number>;
+  countGroupedByCategoryId?(): Promise<Record<number, number>>;
   getSummaryCounts(uncategorizedCategoryId: number, now?: number): Promise<BackofficeSummaryCounts>;
   delete(id: number): Promise<void>;
   reassignCategory(fromCategoryId: number, toCategoryId: number): Promise<number>;

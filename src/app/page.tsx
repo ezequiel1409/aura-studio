@@ -1,4 +1,7 @@
 import { Suspense } from "react";
+
+// Revalida en segundo plano cada 60 segundos (Edge ISR - Cloudflare CDN)
+export const revalidate = 60;
 import { getProductServiceDeps } from "../infra/db/connection";
 import { listProducts } from "../services/product.service";
 import { getShowroomSettings } from "../services/settings.service";
@@ -17,7 +20,11 @@ import {
   SaleBlock,
   TrustStripBlock,
 } from "../components/home/HomeShowcaseBlocks";
-import { CartDrawer } from "../components/cart/CartDrawer";
+import dynamic from "next/dynamic";
+
+const CartDrawer = dynamic(() =>
+  import("../components/cart/CartDrawer").then((mod) => mod.CartDrawer)
+);
 import { StoreThemeStyles } from "../components/theme/StoreThemeStyles";
 import { CartToast } from "../components/cart/CartToast";
 import {

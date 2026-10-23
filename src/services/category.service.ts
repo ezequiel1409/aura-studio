@@ -48,11 +48,16 @@ export async function getCategoryTree(
   const { categoryRepo, productRepo } = deps;
 
   const allCategories = await categoryRepo.listAllWithStats();
+  const countsMap = typeof productRepo.countGroupedByCategoryId === "function"
+    ? await productRepo.countGroupedByCategoryId()
+    : null;
 
-  // Mapear cada categoría con su conteo de productos
+  // Mapear cada categoría con su conteo de productos (1 sola query agregada, sin N+1)
   const nodesMap = new Map<number, CategoryTreeNode>();
   for (const cat of allCategories) {
-    const productsCount = await productRepo.countByCategoryId(cat.id);
+    const productsCount = countsMap
+      ? (countsMap[cat.id] ?? 0)
+      : await productRepo.countByCategoryId(cat.id);
     nodesMap.set(cat.id, {
       ...cat,
       productsCount,

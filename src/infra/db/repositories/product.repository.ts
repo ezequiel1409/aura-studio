@@ -877,6 +877,24 @@ export class DrizzleProductRepository implements IProductRepository {
     return Number(result?.count ?? 0);
   }
 
+  async countGroupedByCategoryId(): Promise<Record<number, number>> {
+    const rows = await this.db
+      .select({
+        categoryId: products.categoryId,
+        count: count(),
+      })
+      .from(products)
+      .groupBy(products.categoryId);
+
+    const map: Record<number, number> = {};
+    for (const row of rows) {
+      if (row.categoryId !== null && row.categoryId !== undefined) {
+        map[row.categoryId] = Number(row.count ?? 0);
+      }
+    }
+    return map;
+  }
+
   async delete(id: number): Promise<void> {
     await this.db.delete(products).where(eq(products.id, id));
   }

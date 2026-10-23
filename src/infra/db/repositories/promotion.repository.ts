@@ -15,6 +15,7 @@ import { IPromotionRepository } from "../../../domain/ports/repositories.port";
 import { DbClient } from "../client";
 import { banks, homeBanners, promotions } from "../schema";
 import { DEFAULT_ARGENTINE_BANKS } from "../../../domain/promotion/default-banks";
+import { memoryCache } from "../../cache/memory-cache";
 
 function slugify(value: string): string {
   return value
@@ -99,6 +100,7 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
         .where(eq(banks.id, input.id))
         .returning();
 
+      memoryCache.deleteMatching("store_promotions_");
       return this.mapBank(updated);
     }
 
@@ -114,17 +116,23 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
       })
       .returning();
 
+    memoryCache.deleteMatching("store_promotions_");
     return this.mapBank(inserted);
   }
 
   async deleteBank(id: number): Promise<void> {
     await this.db.delete(banks).where(eq(banks.id, id));
+    memoryCache.deleteMatching("store_promotions_");
   }
 
   async listPromotions(options?: {
     activeOnly?: boolean;
     now?: number;
   }): Promise<Promotion[]> {
+    const cacheKey = options?.activeOnly ? "store_promotions_active" : "store_promotions_all";
+    const cached = memoryCache.get<Promotion[]>(cacheKey);
+    if (cached) return cached;
+
     try {
       const allBanks = await this.listBanks();
       const bankMap = new Map<number, Bank>(allBanks.map((b) => [b.id, b]));
@@ -141,7 +149,9 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
         );
       }
 
-      return rows.map((r) => this.mapPromotion(r, r.bankId ? bankMap.get(r.bankId) || null : null));
+      const result = rows.map((r) => this.mapPromotion(r, r.bankId ? bankMap.get(r.bankId) || null : null));
+      memoryCache.set(cacheKey, result, 300);
+      return result;
     } catch {
       return [];
     }
@@ -218,6 +228,7 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
         .returning();
 
       const bank = updated.bankId ? await this.findBankById(updated.bankId) : null;
+      memoryCache.deleteMatching("store_promotions_");
       return this.mapPromotion(updated, bank);
     }
 
@@ -246,11 +257,13 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
       .returning();
 
     const bank = inserted.bankId ? await this.findBankById(inserted.bankId) : null;
+    memoryCache.deleteMatching("store_promotions_");
     return this.mapPromotion(inserted, bank);
   }
 
   async deletePromotion(id: number): Promise<void> {
     await this.db.delete(promotions).where(eq(promotions.id, id));
+    memoryCache.deleteMatching("store_promotions_");
   }
 
   async listHomeBanners(options?: {
@@ -258,6 +271,10 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
     activeOnly?: boolean;
     now?: number;
   }): Promise<HomeBanner[]> {
+    const cacheKey = `store_home_banners_${options?.placement || "all"}_${options?.activeOnly ? "active" : "all"}`;
+    const cached = memoryCache.get<HomeBanner[]>(cacheKey);
+    if (cached) return cached;
+
     try {
       const conditions = [];
       if (options?.placement) {
@@ -281,12 +298,14 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
         allPromos.map((p) => [p.id, p.slug])
       );
 
-      return rows.map((r) =>
+      const result = rows.map((r) =>
         this.mapBanner(
           r,
           r.promotionId ? promoSlugById.get(r.promotionId) || null : null
         )
       );
+      memoryCache.set(cacheKey, result, 300);
+      return result;
     } catch {
       return [];
     }
@@ -324,6 +343,7 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
         .where(eq(homeBanners.id, input.id))
         .returning();
 
+      memoryCache.deleteMatching("store_home_banners_");
       return this.mapBanner(updated, promotionSlug);
     }
 
@@ -345,11 +365,13 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
       })
       .returning();
 
+    memoryCache.deleteMatching("store_home_banners_");
     return this.mapBanner(inserted, promotionSlug);
   }
 
   async deleteHomeBanner(id: number): Promise<void> {
     await this.db.delete(homeBanners).where(eq(homeBanners.id, id));
+    memoryCache.deleteMatching("store_home_banners_");
   }
 
   private mapBank(row: typeof banks.$inferSelect): Bank {

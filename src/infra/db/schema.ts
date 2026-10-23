@@ -102,34 +102,48 @@ export const productColorSizes = sqliteTable(
 /**
  * Fotos asociadas a un producto (BR-07)
  */
-export const productPhotos = sqliteTable("product_photos", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  productId: integer("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-  productColorId: integer("product_color_id").references(
-    (): AnySQLiteColumn => productColors.id,
-    { onDelete: "set null" }
-  ),
-  position: integer("position").notNull().default(0),
-  keyThumb: text("key_thumb").notNull(),
-  keyFull: text("key_full").notNull(),
-  createdAt: integer("created_at").notNull(),
-});
+export const productPhotos = sqliteTable(
+  "product_photos",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    productId: integer("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    productColorId: integer("product_color_id").references(
+      (): AnySQLiteColumn => productColors.id,
+      { onDelete: "set null" }
+    ),
+    position: integer("position").notNull().default(0),
+    keyThumb: text("key_thumb").notNull(),
+    keyFull: text("key_full").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (table) => [
+    index("product_photos_product_id_idx").on(table.productId),
+    index("product_photos_color_id_idx").on(table.productColorId),
+  ]
+);
 
 /**
  * Historial de cambios de estado para auditoría y deshacer (BR-28)
  * No tiene FK en cascade para preservar la auditoría tras la purga del producto.
  */
-export const statusHistory = sqliteTable("status_history", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  productId: integer("product_id").notNull(),
-  productCode: integer("product_code").notNull(),
-  fromStatus: text("from_status"),
-  toStatus: text("to_status").notNull(),
-  at: integer("at").notNull(),
-  source: text("source", { enum: ["web", "telegram", "system"] }).notNull(),
-});
+export const statusHistory = sqliteTable(
+  "status_history",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    productId: integer("product_id").notNull(),
+    productCode: integer("product_code").notNull(),
+    fromStatus: text("from_status"),
+    toStatus: text("to_status").notNull(),
+    at: integer("at").notNull(),
+    source: text("source", { enum: ["web", "telegram", "system"] }).notNull(),
+  },
+  (table) => [
+    index("status_history_product_id_idx").on(table.productId),
+    index("status_history_product_code_idx").on(table.productCode),
+  ]
+);
 
 /**
  * Registro de corridas de purga (BR-04, BR-32)

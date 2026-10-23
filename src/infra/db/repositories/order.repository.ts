@@ -59,27 +59,22 @@ export class DrizzleOrderRepository implements IOrderRepository {
       })
       .returning();
 
-    const createdItems: OrderItem[] = [];
+    let createdItems: OrderItem[] = [];
     if (data.items && data.items.length > 0) {
-      for (const item of data.items) {
-        const subtotalCents = item.quantity * item.unitPriceCents;
-        const [insertedItem] = await this.db
-          .insert(orderItems)
-          .values({
-            orderId: inserted.id,
-            productId: item.productId ?? null,
-            productCode: item.productCode,
-            productTitle: item.productTitle,
-            colorName: item.colorName,
-            size: item.size,
-            quantity: item.quantity,
-            unitPriceCents: item.unitPriceCents,
-            subtotalCents,
-            photoUrl: item.photoUrl ?? null,
-          })
-          .returning();
-        createdItems.push(insertedItem as OrderItem);
-      }
+      const payload = data.items.map((item) => ({
+        orderId: inserted.id,
+        productId: item.productId ?? null,
+        productCode: item.productCode,
+        productTitle: item.productTitle,
+        colorName: item.colorName,
+        size: item.size,
+        quantity: item.quantity,
+        unitPriceCents: item.unitPriceCents,
+        subtotalCents: item.quantity * item.unitPriceCents,
+        photoUrl: item.photoUrl ?? null,
+      }));
+      const rows = await this.db.insert(orderItems).values(payload).returning();
+      createdItems = rows as OrderItem[];
     }
 
     return {

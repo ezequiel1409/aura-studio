@@ -10,6 +10,7 @@ import {
 import { INavigationRepository } from "../../../domain/ports/repositories.port";
 import { DbClient } from "../client";
 import { navigationSections, productAttributeDefinitions } from "../schema";
+import { memoryCache } from "../../cache/memory-cache";
 
 function slugify(value: string): string {
   return value
@@ -24,6 +25,12 @@ export class DrizzleNavigationRepository implements INavigationRepository {
   constructor(private readonly db: DbClient) {}
 
   async listSections(options?: { visibleOnly?: boolean }): Promise<NavigationSection[]> {
+    const cacheKey = options?.visibleOnly
+      ? "store_nav_sections_visible"
+      : "store_nav_sections_all";
+    const cached = memoryCache.get<NavigationSection[]>(cacheKey);
+    if (cached) return cached;
+
     try {
       const rows = options?.visibleOnly
         ? await this.db
@@ -36,7 +43,9 @@ export class DrizzleNavigationRepository implements INavigationRepository {
             .from(navigationSections)
             .orderBy(asc(navigationSections.position), asc(navigationSections.id));
 
-      return rows.map((row) => this.mapSection(row));
+      const result = rows.map((row) => this.mapSection(row));
+      memoryCache.set(cacheKey, result, 300);
+      return result;
     } catch {
       return [];
     }
@@ -107,6 +116,7 @@ export class DrizzleNavigationRepository implements INavigationRepository {
         .where(eq(navigationSections.id, input.id))
         .returning();
 
+      memoryCache.deleteMatching("store_nav_sections_");
       return this.mapSection(updated);
     }
 
@@ -128,11 +138,13 @@ export class DrizzleNavigationRepository implements INavigationRepository {
       })
       .returning();
 
+    memoryCache.deleteMatching("store_nav_sections_");
     return this.mapSection(inserted);
   }
 
   async deleteSection(id: number): Promise<void> {
     await this.db.delete(navigationSections).where(eq(navigationSections.id, id));
+    memoryCache.deleteMatching("store_nav_sections_");
   }
 
   async reorderSections(orderedIds: number[]): Promise<void> {
@@ -142,11 +154,18 @@ export class DrizzleNavigationRepository implements INavigationRepository {
         .set({ position: i })
         .where(eq(navigationSections.id, orderedIds[i]));
     }
+    memoryCache.deleteMatching("store_nav_sections_");
   }
 
   async listAttributeDefinitions(options?: {
     filterableOnly?: boolean;
   }): Promise<ProductAttributeDefinition[]> {
+    const cacheKey = options?.filterableOnly
+      ? "store_attr_definitions_filterable"
+      : "store_attr_definitions_all";
+    const cached = memoryCache.get<ProductAttributeDefinition[]>(cacheKey);
+    if (cached) return cached;
+
     try {
       const rows = options?.filterableOnly
         ? await this.db
@@ -165,7 +184,9 @@ export class DrizzleNavigationRepository implements INavigationRepository {
               asc(productAttributeDefinitions.id)
             );
 
-      return rows.map((row) => this.mapAttributeDefinition(row));
+      const result = rows.map((row) => this.mapAttributeDefinition(row));
+      memoryCache.set(cacheKey, result, 300);
+      return result;
     } catch {
       return [];
     }
@@ -214,6 +235,7 @@ export class DrizzleNavigationRepository implements INavigationRepository {
         .where(eq(productAttributeDefinitions.id, existing[0].id))
         .returning();
 
+      memoryCache.deleteMatching("store_attr_definitions_");
       return this.mapAttributeDefinition(updated);
     }
 
@@ -228,6 +250,7 @@ export class DrizzleNavigationRepository implements INavigationRepository {
       })
       .returning();
 
+    memoryCache.deleteMatching("store_attr_definitions_");
     return this.mapAttributeDefinition(inserted);
   }
 
@@ -235,6 +258,7 @@ export class DrizzleNavigationRepository implements INavigationRepository {
     await this.db
       .delete(productAttributeDefinitions)
       .where(eq(productAttributeDefinitions.id, id));
+    memoryCache.deleteMatching("store_attr_definitions_");
   }
 
   private mapSection(row: typeof navigationSections.$inferSelect): NavigationSection {

@@ -33,9 +33,18 @@ import {
 import { Category } from "../../domain/category/types";
 import { Product, ProductStatus } from "../../domain/product/types";
 import { formatPriceARS } from "../../lib/format/currency";
+import dynamic from "next/dynamic";
 import { UndoAction, UndoToast } from "./UndoToast";
-import { StatusHistoryModal } from "./StatusHistoryModal";
-import { ConfirmDeleteProductModal } from "./ConfirmDeleteProductModal";
+
+const StatusHistoryModal = dynamic(
+  () => import("./StatusHistoryModal").then((mod) => mod.StatusHistoryModal),
+  { ssr: false }
+);
+
+const ConfirmDeleteProductModal = dynamic(
+  () => import("./ConfirmDeleteProductModal").then((mod) => mod.ConfirmDeleteProductModal),
+  { ssr: false }
+);
 import { useBackofficeStore } from "../../stores/backoffice.store";
 
 export type GroupByMode = "category" | "status" | "none";

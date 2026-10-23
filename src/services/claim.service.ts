@@ -138,13 +138,18 @@ export async function createOrderClaim(
   }
 
   // 5. Validar si algún producto es de Venta Final (allowReturn === false)
-  for (const item of order.items || []) {
-    const product = item.productId
-      ? await deps.productRepo.findById(item.productId)
+  const items = order.items || [];
+  const productPromises = items.map((item) =>
+    item.productId
+      ? deps.productRepo.findById(item.productId)
       : item.productCode
-      ? await deps.productRepo.findByCode(item.productCode)
-      : null;
-
+      ? deps.productRepo.findByCode(item.productCode)
+      : Promise.resolve(null)
+  );
+  const resolvedProducts = await Promise.all(productPromises);
+  for (let i = 0; i < resolvedProducts.length; i++) {
+    const product = resolvedProducts[i];
+    const item = items[i];
     if (product && product.allowReturn === false) {
       throw new ValidationError(
         `La prenda #${item.productCode} (${item.productTitle}) fue adquirida bajo la condición de Venta Final (sin cambios ni devoluciones).`

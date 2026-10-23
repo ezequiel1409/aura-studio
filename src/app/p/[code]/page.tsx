@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Sparkles, Star, Tag, ShoppingBag } from "lucide-react";
@@ -11,18 +12,36 @@ import { ProductAccordions } from "../../../components/catalog/ProductAccordions
 import { ProductCard } from "../../../components/catalog/ProductCard";
 import { ProductGrid } from "../../../components/catalog/ProductGrid";
 import { AnalyticsTracker } from "../../../components/analytics/AnalyticsTracker";
+import dynamic from "next/dynamic";
 import { CartHeaderButton } from "../../../components/cart/CartHeaderButton";
-import { CartDrawer } from "../../../components/cart/CartDrawer";
+
+const CartDrawer = dynamic(() =>
+  import("../../../components/cart/CartDrawer").then((mod) => mod.CartDrawer)
+);
 import { CartToast } from "../../../components/cart/CartToast";
 import { listProducts } from "../../../services/product.service";
 import { getShowroomSettings } from "../../../services/settings.service";
 import { Footer } from "../../../components/layout/Footer";
+
+// Revalida la ficha de producto en Edge CDN cada 5 minutos
+export const revalidate = 300;
 
 interface ProductPageProps {
   params: Promise<{
     code: string;
   }>;
 }
+
+// Deduplicación por ciclo de request (evita dobles queries entre generateMetadata y el componente)
+const getCachedProduct = cache(async (codeNum: number) => {
+  const deps = getProductServiceDeps();
+  return deps.productRepo.findByCode(codeNum);
+});
+
+const getCachedSettings = cache(async () => {
+  const deps = getProductServiceDeps();
+  return getShowroomSettings(deps);
+});
 
 /**
  * Genera metadatos Open Graph dinámicos para compartir en WhatsApp e Instagram
@@ -35,10 +54,9 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
     return { title: "Pieza no disponible | Aura Studio" };
   }
 
-  const deps = getProductServiceDeps();
   const [product, settings] = await Promise.all([
-    deps.productRepo.findByCode(codeNum),
-    getShowroomSettings(deps),
+    getCachedProduct(codeNum),
+    getCachedSettings(),
   ]);
 
   const brandName = settings.showroomName || "Aura Studio";
@@ -68,7 +86,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   const deps = getProductServiceDeps();
   const codeNum = parseProductCode(resolvedParams.code);
 
-  const product = codeNum ? await deps.productRepo.findByCode(codeNum) : null;
+  const product = codeNum ? await getCachedProduct(codeNum) : null;
 
   // BR-09: Si no existe, fue purgada o eliminada, página amable con sugerencias (no 404 seco)
   if (!product) {
@@ -126,7 +144,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps) {
   // Resolver categoría, configuración y piezas relacionadas
   const [category, settings, relatedResult] = await Promise.all([
     deps.categoryRepo.findById(product.categoryId),
-    getShowroomSettings(deps),
+    getCachedSettings(),
     listProducts({ pageSize: 6, sortBy: "newest" }, deps),
   ]);
 

@@ -1,4 +1,7 @@
 import { getProductServiceDeps } from "../../infra/db/connection";
+
+// Revalida promociones en Edge CDN cada 10 minutos
+export const revalidate = 600;
 import { NavigationService } from "../../services/navigation.service";
 import { PromotionService } from "../../services/promotion.service";
 import { getShowroomSettings } from "../../services/settings.service";
