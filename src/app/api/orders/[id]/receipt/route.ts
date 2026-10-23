@@ -3,11 +3,13 @@ import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { uploadTransferReceipt } from "../../../../../services/order.service";
 import { DomainError, OrderNotFoundError, ValidationError } from "../../../../../domain/errors";
 import { parseOrderCode } from "../../../../../domain/order";
+import { logger } from "../../../../../lib/logger";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const startTime = performance.now();
   try {
     const resolvedParams = await params;
     const rawId = resolvedParams.id;
@@ -38,6 +40,14 @@ export async function GET(
     }
 
     const pdfBuffer = Buffer.from(base64Data, "base64");
+    const durationMs = Math.round(performance.now() - startTime);
+
+    logger.info("RECEIPT:DOWNLOAD", `Comprobante de orden #${order.code} descargado`, {
+      orderId: order.id,
+      orderCode: order.code,
+      bytes: pdfBuffer.length,
+      durationMs,
+    });
 
     return new NextResponse(pdfBuffer, {
       status: 200,
@@ -49,7 +59,9 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
+    const durationMs = Math.round(performance.now() - startTime);
     const message = error instanceof Error ? error.message : "Error al obtener el comprobante";
+    logger.error("RECEIPT:DOWNLOAD_ERROR", message, error, { durationMs });
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
@@ -58,6 +70,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const startTime = performance.now();
   try {
     const resolvedParams = await params;
     const rawId = resolvedParams.id;
@@ -117,6 +130,14 @@ export async function POST(
     }
 
     const updatedOrder = await uploadTransferReceipt(orderId, receiptBase64, deps);
+    const durationMs = Math.round(performance.now() - startTime);
+
+    logger.info("RECEIPT:UPLOADED", `Comprobante de orden #${updatedOrder.code} cargado exitosamente`, {
+      orderId: updatedOrder.id,
+      orderCode: updatedOrder.code,
+      durationMs,
+      status: 200,
+    });
 
     return NextResponse.json({
       ok: true,
@@ -124,14 +145,17 @@ export async function POST(
       order: updatedOrder,
     });
   } catch (error: unknown) {
+    const durationMs = Math.round(performance.now() - startTime);
     if (error instanceof OrderNotFoundError) {
+      logger.warn("RECEIPT:ORDER_NOT_FOUND", error.message, { durationMs, status: 404 });
       return NextResponse.json({ ok: false, error: error.message }, { status: 404 });
     }
     if (error instanceof ValidationError || error instanceof DomainError) {
+      logger.warn("RECEIPT:VALIDATION_ERROR", error.message, { durationMs, status: 400 });
       return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
     }
     const message = error instanceof Error ? error.message : "Error al procesar el comprobante";
+    logger.error("RECEIPT:UPLOAD_EXCEPTION", message, error, { durationMs, status: 500 });
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
-

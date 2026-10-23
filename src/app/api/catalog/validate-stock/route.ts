@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
+import { logger } from "../../../../lib/logger";
 
 export async function POST(req: NextRequest) {
+  const startTime = performance.now();
   try {
     const body = await req.json();
-
     const deps = getProductServiceDeps();
 
     // Soporte para validación masiva (ej: verificación de bolsa / carrito)
@@ -64,6 +65,16 @@ export async function POST(req: NextRequest) {
         })
       );
 
+      const anyUnavailable = results.some((r) => !r.available);
+      const durationMs = Math.round(performance.now() - startTime);
+
+      if (anyUnavailable) {
+        logger.warn("STOCK:BATCH_UNAVAILABLE", "Ítems con stock insuficiente en validación masiva", {
+          itemsCount: results.length,
+          durationMs,
+        });
+      }
+
       return NextResponse.json({ ok: true, items: results });
     }
 
@@ -80,7 +91,14 @@ export async function POST(req: NextRequest) {
     }
 
     const product = await deps.productRepo.findById(productId);
+    const durationMs = Math.round(performance.now() - startTime);
+
     if (!product) {
+      logger.warn("STOCK:PRODUCT_NOT_FOUND", "Consulta de stock de producto inexistente", {
+        productId,
+        durationMs,
+        status: 404,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -93,6 +111,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (product.status === "SOLD_OUT") {
+      logger.warn("STOCK:PRODUCT_SOLD_OUT", "Pieza completamente agotada", {
+        productId,
+        productCode: product.code,
+        durationMs,
+      });
       return NextResponse.json({
         ok: false,
         available: false,
@@ -102,6 +125,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (product.status === "RESERVED") {
+      logger.warn("STOCK:PRODUCT_RESERVED", "Pieza reservada temporalmente", {
+        productId,
+        productCode: product.code,
+        durationMs,
+      });
       return NextResponse.json({
         ok: false,
         available: false,
@@ -121,6 +149,11 @@ export async function POST(req: NextRequest) {
       );
 
       if (!matchedSize || matchedSize.stock <= 0) {
+        logger.warn("STOCK:VARIANT_SOLD_OUT", "Variante de color/talle agotada", {
+          productId,
+          productCode: product.code,
+          durationMs,
+        });
         return NextResponse.json({
           ok: false,
           available: false,
@@ -130,6 +163,11 @@ export async function POST(req: NextRequest) {
       }
 
       if (matchedSize.stock < requestedQuantity) {
+        logger.warn("STOCK:INSUFFICIENT", "Stock insuficiente para la cantidad solicitada", {
+          productId,
+          productCode: product.code,
+          durationMs,
+        });
         return NextResponse.json({
           ok: false,
           available: false,
@@ -154,7 +192,9 @@ export async function POST(req: NextRequest) {
       available: true,
       remainingStock: 1,
     });
-  } catch {
+  } catch (error) {
+    const durationMs = Math.round(performance.now() - startTime);
+    logger.error("STOCK:EXCEPTION", "Error interno en validación de stock", error, { durationMs });
     return NextResponse.json({
       ok: true,
       available: true,
@@ -162,4 +202,3 @@ export async function POST(req: NextRequest) {
     });
   }
 }
-

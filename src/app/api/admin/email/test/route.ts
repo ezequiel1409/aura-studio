@@ -3,10 +3,15 @@ import { isAuthenticatedAdmin } from "../../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { getEmailService } from "../../../../../infra/email/resend.adapter";
 import { getShowroomSettings } from "../../../../../services/settings.service";
+import { logger } from "../../../../../lib/logger";
 
 export async function POST(req: NextRequest) {
+  const startTime = performance.now();
   const isAuth = await isAuthenticatedAdmin(req);
   if (!isAuth) {
+    logger.warn("ADMIN:EMAIL_TEST_UNAUTHORIZED", "Intento no autorizado de prueba de correo", {
+      status: 401,
+    });
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
   }
 
@@ -29,6 +34,9 @@ export async function POST(req: NextRequest) {
     const apiKey = emailService.getApiKey();
 
     if (!apiKey) {
+      logger.warn("ADMIN:EMAIL_TEST_NO_KEY", "Prueba de correo cancelada: RESEND_API_KEY no configurada", {
+        status: 400,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -74,7 +82,15 @@ export async function POST(req: NextRequest) {
       fromName: brandName,
     });
 
+    const durationMs = Math.round(performance.now() - startTime);
+
     if (!result.success) {
+      logger.warn("ADMIN:EMAIL_TEST_FAILED", "Fallo al enviar correo de prueba vía Resend", {
+        reason: result.error,
+        email: recipientEmail,
+        durationMs,
+        status: 400,
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -84,13 +100,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    logger.info("ADMIN:EMAIL_TEST_SUCCESS", "Correo de prueba enviado con éxito", {
+      email: recipientEmail,
+      messageId: result.messageId,
+      durationMs,
+      status: 200,
+    });
+
     return NextResponse.json({
       ok: true,
       messageId: result.messageId,
       message: `¡Correo de prueba enviado con éxito a ${recipientEmail}!`,
     });
   } catch (error) {
-    console.error("[EmailTest] Error:", error);
+    const durationMs = Math.round(performance.now() - startTime);
+    logger.error("ADMIN:EMAIL_TEST_EXCEPTION", "Error interno al enviar correo de prueba", error, {
+      durationMs,
+      status: 500,
+    });
     return NextResponse.json(
       { ok: false, error: "Error interno al procesar el envío de prueba." },
       { status: 500 }

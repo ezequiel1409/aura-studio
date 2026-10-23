@@ -4,8 +4,10 @@ import { createOrder } from "../../../services/order.service";
 import { getShowroomSettings } from "../../../services/settings.service";
 import { DomainError, ProductNotFoundError, OrderNotFoundError } from "../../../domain/errors";
 import { getAuthenticatedCustomer } from "../../../infra/auth/customer-session";
+import { logger } from "../../../lib/logger";
 
 export async function POST(req: NextRequest) {
+  const startTime = performance.now();
   try {
     const body = await req.json();
     const deps = getProductServiceDeps();
@@ -13,6 +15,11 @@ export async function POST(req: NextRequest) {
     // Bloqueo de seguridad: Si las ventas están pausadas por el administrador, rechazar nuevas órdenes
     const storeSettings = await getShowroomSettings(deps);
     if (storeSettings.ordersPaused) {
+      const durationMs = Math.round(performance.now() - startTime);
+      logger.warn("CHECKOUT:ORDERS_PAUSED", "Intento de compra mientras las órdenes están pausadas", {
+        durationMs,
+        status: 403,
+      });
       return NextResponse.json(
         {
           error:
@@ -115,14 +122,35 @@ export async function POST(req: NextRequest) {
 
     body.baseUrl = req.nextUrl.origin;
     const result = await createOrder(body, deps);
+    const durationMs = Math.round(performance.now() - startTime);
+
+    logger.info("ORDER:CREATED", `Orden #${result.order.code} generada exitosamente`, {
+      orderId: result.order.id,
+      orderCode: result.order.code,
+      totalCents: result.order.totalCents,
+      paymentMethod: result.order.paymentMethod || undefined,
+      itemsCount: Array.isArray(body.items) ? body.items.length : 0,
+      durationMs,
+      status: 200,
+    });
+
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
+    const durationMs = Math.round(performance.now() - startTime);
+
     if (error instanceof ProductNotFoundError || error instanceof OrderNotFoundError) {
+      logger.warn("ORDER:NOT_FOUND", error.message, { durationMs, status: 404 });
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
     if (error instanceof DomainError) {
+      logger.warn("ORDER:DOMAIN_VALIDATION", error.message, { durationMs, status: 400 });
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    logger.error("ORDER:EXCEPTION", "Error interno al procesar orden de compra", error, {
+      durationMs,
+      status: 500,
+    });
     const message = error instanceof Error ? error.message : "Error al procesar la orden";
     return NextResponse.json({ error: message }, { status: 500 });
   }

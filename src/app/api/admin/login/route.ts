@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
 import { loginAdmin } from "../../../../services/auth.service";
 import { getShowroomSettings } from "../../../../services/settings.service";
+import { logger } from "../../../../lib/logger";
 
 export async function GET() {
   try {
@@ -22,6 +23,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = performance.now();
   try {
     const body = await req.json();
     const { email, password } = body;
@@ -44,8 +46,16 @@ export async function POST(req: NextRequest) {
       { loginAttemptRepo: deps.loginAttemptRepo, adminUserRepo: deps.adminUserRepo }
     );
 
+    const durationMs = Math.round(performance.now() - startTime);
+
     if (!result.success) {
       const status = result.remainingLockSeconds ? 429 : 401;
+      logger.warn("AUTH:ADMIN_LOGIN_FAILED", "Intento de inicio de sesión fallido de administrador", {
+        email,
+        status,
+        durationMs,
+        reason: result.remainingLockSeconds ? "BRUTE_FORCE_LOCKED" : "INVALID_CREDENTIALS",
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -55,6 +65,12 @@ export async function POST(req: NextRequest) {
         { status }
       );
     }
+
+    logger.info("AUTH:ADMIN_LOGIN_SUCCESS", "Inicio de sesión de administrador exitoso", {
+      email,
+      durationMs,
+      status: 200,
+    });
 
     const res = NextResponse.json({ ok: true });
     res.cookies.set("aura_admin_token", result.sessionToken!, {
@@ -67,7 +83,11 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (error) {
-    console.error("Error en POST /api/admin/login:", error);
+    const durationMs = Math.round(performance.now() - startTime);
+    logger.error("AUTH:ADMIN_LOGIN_EXCEPTION", "Error interno en login de administrador", error, {
+      durationMs,
+      status: 500,
+    });
     return NextResponse.json(
       { ok: false, error: "Error interno del servidor." },
       { status: 500 }

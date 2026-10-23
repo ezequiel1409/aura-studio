@@ -12,6 +12,7 @@ import {
   generateOrderPaidTemplate,
   generateOrderShippedTemplate,
 } from "../../lib/email/order-templates";
+import { logger, maskEmail } from "../../lib/logger";
 
 /**
  * Extrae la dirección pura de email (ej: "Aura Studio <onboarding@resend.dev>" -> "onboarding@resend.dev")
@@ -103,18 +104,15 @@ export class ResendEmailAdapter implements IEmailService {
   }
 
   async sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+    const startTime = performance.now();
     const apiKey = this.getApiKey();
     const fromEmail = options.from || this.getFromEmail(options.fromName);
 
     if (!apiKey) {
-      console.warn(
-        `\n[ResendEmailAdapter] AVISO: RESEND_API_KEY no está configurada.\n` +
-          `Para enviar correos reales vía Resend, definí RESEND_API_KEY en tu .env.local o como secret en Cloudflare.\n` +
-          `Remitente: ${fromEmail}\n` +
-          `Destinatario: ${options.to}\n` +
-          `Asunto: ${options.subject}\n` +
-          (options.resetLink ? `Enlace de restablecimiento generado: ${options.resetLink}\n` : "")
-      );
+      logger.warn("EMAIL:SIMULATED", `Envío de correo en modo simulación (sin RESEND_API_KEY)`, {
+        email: options.to,
+        subject: options.subject,
+      });
       return {
         success: true,
         messageId: `mock-${Date.now()}`,
@@ -138,6 +136,8 @@ export class ResendEmailAdapter implements IEmailService {
         }),
       });
 
+      const durationMs = Math.round(performance.now() - startTime);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         let errorMsg =
@@ -149,7 +149,13 @@ export class ResendEmailAdapter implements IEmailService {
           errorMsg = `Resend en modo prueba solo permite enviar a tu propio email registrado. Para enviar a clientes (${options.to}), agrega y verifica tu dominio en resend.com/domains`;
         }
 
-        console.error("[ResendEmailAdapter] Error al enviar email:", errorMsg);
+        logger.error("EMAIL:SEND_FAILED", `Fallo al enviar correo a ${maskEmail(options.to)}: ${errorMsg}`, undefined, {
+          email: options.to,
+          subject: options.subject,
+          status: response.status,
+          durationMs,
+        });
+
         return {
           success: false,
           error: errorMsg,
@@ -158,10 +164,26 @@ export class ResendEmailAdapter implements IEmailService {
       }
 
       const data = (await response.json()) as { id?: string };
+
+      logger.info("EMAIL:SENT_SUCCESS", `Correo enviado exitosamente a ${maskEmail(options.to)}`, {
+        email: options.to,
+        subject: options.subject,
+        messageId: data.id,
+        durationMs,
+        status: 200,
+      });
+
       return { success: true, messageId: data.id };
     } catch (err) {
+      const durationMs = Math.round(performance.now() - startTime);
       const errorMsg = err instanceof Error ? err.message : "Error desconocido de red";
-      console.error("[ResendEmailAdapter] Excepción en envío:", errorMsg);
+
+      logger.error("EMAIL:SEND_EXCEPTION", `Excepción de red al enviar correo a ${maskEmail(options.to)}`, err, {
+        email: options.to,
+        subject: options.subject,
+        durationMs,
+      });
+
       return {
         success: false,
         error: errorMsg,

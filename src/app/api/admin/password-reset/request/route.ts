@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { getEmailService } from "../../../../../infra/email/resend.adapter";
 import { requestPasswordReset } from "../../../../../services/password-reset.service";
+import { logger } from "../../../../../lib/logger";
 
 export async function POST(req: NextRequest) {
+  const startTime = performance.now();
   try {
     const body = await req.json();
     const { email } = body;
@@ -35,6 +37,14 @@ export async function POST(req: NextRequest) {
       }
     );
 
+    const durationMs = Math.round(performance.now() - startTime);
+
+    logger.info("AUTH:PASSWORD_RESET_REQUESTED", "Solicitud de restablecimiento de contraseña procesada", {
+      email,
+      durationMs,
+      status: 200,
+    });
+
     return NextResponse.json({
       ok: true,
       message: result.message,
@@ -42,7 +52,11 @@ export async function POST(req: NextRequest) {
       emailError: result.error,
     });
   } catch (error) {
-    console.error("Error en POST /api/admin/password-reset/request:", error);
+    const durationMs = Math.round(performance.now() - startTime);
+    logger.error("AUTH:PASSWORD_RESET_EXCEPTION", "Error interno en solicitud de restablecimiento", error, {
+      durationMs,
+      status: 500,
+    });
     return NextResponse.json(
       { ok: false, error: "Error interno del servidor al procesar la solicitud." },
       { status: 500 }

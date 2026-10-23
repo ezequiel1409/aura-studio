@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
 import { loginCustomer } from "../../../../services/customer.service";
 import { CUSTOMER_SESSION_COOKIE_NAME, CUSTOMER_SESSION_TTL_MS } from "../../../../infra/auth/customer-session";
+import { logger } from "../../../../lib/logger";
 
 export async function POST(req: NextRequest) {
+  const startTime = performance.now();
   try {
     const body = await req.json();
     const { email, password } = body;
@@ -22,8 +24,16 @@ export async function POST(req: NextRequest) {
       }
     );
 
+    const durationMs = Math.round(performance.now() - startTime);
+
     if (!result.success || !result.customer) {
       const status = result.remainingLockSeconds ? 429 : 401;
+      logger.warn("AUTH:CUSTOMER_LOGIN_FAILED", "Intento de inicio de sesión fallido de cliente", {
+        email,
+        status,
+        durationMs,
+        reason: result.remainingLockSeconds ? "BRUTE_FORCE_LOCKED" : "INVALID_CREDENTIALS",
+      });
       return NextResponse.json(
         {
           ok: false,
@@ -33,6 +43,13 @@ export async function POST(req: NextRequest) {
         { status }
       );
     }
+
+    logger.info("AUTH:CUSTOMER_LOGIN_SUCCESS", "Inicio de sesión de cliente exitoso", {
+      customerId: result.customer.id,
+      email,
+      durationMs,
+      status: 200,
+    });
 
     const res = NextResponse.json({ ok: true, customer: result.customer });
     res.cookies.set(CUSTOMER_SESSION_COOKIE_NAME, result.sessionToken!, {
@@ -45,11 +62,14 @@ export async function POST(req: NextRequest) {
 
     return res;
   } catch (error) {
-    console.error("Error en POST /api/auth/login:", error);
+    const durationMs = Math.round(performance.now() - startTime);
+    logger.error("AUTH:CUSTOMER_LOGIN_EXCEPTION", "Error interno en login de cliente", error, {
+      durationMs,
+      status: 500,
+    });
     return NextResponse.json(
       { ok: false, error: "Ocurrió un error inesperado al iniciar sesión." },
       { status: 500 }
     );
   }
 }
-

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { processPaymentWebhook } from "../../../../../services/payment.service";
+import { logger } from "../../../../../lib/logger";
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ provider: string }> }
 ) {
+  const startTime = performance.now();
   try {
     const { provider } = await context.params;
     const deps = getProductServiceDeps();
@@ -40,6 +42,15 @@ export async function POST(
     }
 
     const result = await processPaymentWebhook(provider, payload, headers, deps);
+    const durationMs = Math.round(performance.now() - startTime);
+
+    logger.info("PAYMENT:WEBHOOK", `Webhook de pago procesado exitosamente (${provider})`, {
+      paymentMethod: provider,
+      paymentStatus: result?.status,
+      orderCode: result?.orderCode,
+      durationMs,
+      status: 200,
+    });
 
     return NextResponse.json({
       received: true,
@@ -48,7 +59,10 @@ export async function POST(
       orderCode: result?.orderCode,
     });
   } catch (error) {
-    console.error("Error al procesar webhook de pagos:", error);
+    const durationMs = Math.round(performance.now() - startTime);
+    logger.error("PAYMENT:WEBHOOK_ERROR", "Error al procesar webhook de pagos", error, {
+      durationMs,
+    });
     // Retornamos 200 a las pasarelas para que no reintenten indefinidamente ante errores de parseo
     return NextResponse.json({ received: false, error: (error as Error).message }, { status: 200 });
   }
