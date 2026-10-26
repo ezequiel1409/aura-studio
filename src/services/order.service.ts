@@ -433,7 +433,8 @@ export async function listOrders(
   const deps = (isDepsFirst ? optionsOrDeps : maybeDeps) as GlobalAppDeps;
   const options = isDepsFirst ? {} : (optionsOrDeps as { status?: OrderStatus; limit?: number; offset?: number });
 
-  await expirePendingTransferOrders(deps);
+  // Nota de rendimiento: La expiración de órdenes pendientes ya se ejecuta de forma asíncrona
+  // vía /api/orders/expire o background cron. No debe bloquear el pipeline de lectura de la lista.
   const orders = await deps.orderRepo.list(options);
   if (deps.orderClaimRepo && orders.length > 0) {
     try {

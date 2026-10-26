@@ -26,7 +26,7 @@ export type SettingsTabId = "top" | "main" | "footer" | "payments" | "general" |
 import { TopHeaderSettingsSection } from "./settings/TopHeaderSettingsSection";
 import { MainContentSettingsSection } from "./settings/MainContentSettingsSection";
 import { FooterSettingsSection } from "./settings/FooterSettingsSection";
-import { GeneralSystemSettingsSection } from "./settings/GeneralSystemSettingsSection";
+
 import { PaymentsSettingsSection } from "./settings/PaymentsSettingsSection";
 
 interface SettingsClientProps {
@@ -47,19 +47,22 @@ const VALID_TABS: SettingsTabId[] = ["top", "main", "footer", "payments", "gener
 
 export function SettingsClient({
   initialSettings,
-  initialTab = "top",
+  initialTab = "politicas",
 }: SettingsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
     const param = searchParams?.get("seccion") as SettingsTabId | null;
+    if (param === "general") return "politicas";
     return param && VALID_TABS.includes(param) ? param : initialTab;
   });
 
   useEffect(() => {
     const param = searchParams?.get("seccion") as SettingsTabId | null;
-    if (param && VALID_TABS.includes(param)) {
+    if (param === "general") {
+      setActiveTab("politicas");
+    } else if (param && VALID_TABS.includes(param)) {
       setActiveTab(param);
     }
   }, [searchParams]);
@@ -698,19 +701,14 @@ export function SettingsClient({
                   <strong>Botón de Arrepentimiento:</strong> Enlace a <code className="text-amber-300">/arrepentimiento</code> conforme a Ley N° 24.240 y Res. 424/2020 SCI.
                 </li>
                 <li>
-                  <strong>Políticas de reserva y retiro:</strong> Plazo máximo configurado en la tienda ({reservationHours}hs) y horarios del local.
+                  <strong>Políticas de compra y entrega:</strong> Métodos de entrega, plazos y horarios del local.
                 </li>
               </ul>
             </div>
           </div>
         </div>
 
-        <div hidden={activeTab !== "general"}>
-          <GeneralSystemSettingsSection
-            reservationHours={reservationHours}
-            onReservationHoursChange={setReservationHours}
-          />
-        </div>
+
 
         {errorMessage && (
           <div

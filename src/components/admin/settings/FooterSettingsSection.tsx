@@ -178,10 +178,10 @@ export function FooterSettingsSection({
       id="settings-panel-footer"
       role="tabpanel"
       aria-labelledby="settings-tab-footer"
-      className="grid grid-cols-1 lg:grid-cols-12 gap-5"
+      className="grid grid-cols-1 xl:grid-cols-12 gap-5 min-w-0"
     >
       {/* Columna Izquierda (5 cols): WhatsApp, Ubicación y Redes */}
-      <div className="lg:col-span-5 space-y-5">
+      <div className="xl:col-span-5 space-y-5 min-w-0">
         {/* Bloque 1: WhatsApp Oficial */}
         <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-3.5">
           <div className="flex items-center gap-2">
@@ -478,7 +478,7 @@ export function FooterSettingsSection({
       </div>
 
       {/* Columna Derecha (7 cols): Horarios de Atención, Retiro y Feriados */}
-      <div className="lg:col-span-7 space-y-5">
+      <div className="xl:col-span-7 space-y-5 min-w-0">
         <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Clock size={16} className="text-amber-400" aria-hidden="true" />

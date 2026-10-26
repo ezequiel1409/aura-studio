@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const statusParam = searchParams.get("status");
+    const limitParam = searchParams.get("limit");
+    const parsedLimit = limitParam ? parseInt(limitParam, 10) : undefined;
     const deps = getProductServiceDeps();
 
     const orders = await listOrders(
@@ -24,6 +26,7 @@ export async function GET(req: NextRequest) {
           statusParam && statusParam !== "ALL"
             ? (statusParam as OrderStatus)
             : undefined,
+        limit: parsedLimit && !Number.isNaN(parsedLimit) ? parsedLimit : undefined,
       },
       deps
     );

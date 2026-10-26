@@ -143,8 +143,8 @@ export function PaymentsSettingsSection({
   onWhatsappPaymentEnabledChange,
 }: PaymentsSettingsSectionProps) {
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    transfer: true,
-    mercadopago: true,
+    transfer: false,
+    mercadopago: false,
     cash: false,
     whatsapp: false,
     otherGateways: false,
@@ -394,8 +394,9 @@ export function PaymentsSettingsSection({
         )}
       </div>
 
-      {/* 2. MERCADO PAGO - ESTADO SIMPLE PARA EL USUARIO */}
-      <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl overflow-hidden transition-all">
+      {/* 2. MERCADO PAGO - HABILITADO EN EL SERVIDOR */}
+      {isMpReady && (
+        <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl overflow-hidden transition-all">
         <div className="p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 bg-zinc-900/60">
           <div className="flex items-center gap-3 min-w-0">
             <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 shrink-0">
@@ -407,16 +408,10 @@ export function PaymentsSettingsSection({
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-sky-950 text-sky-400 border border-sky-800/60 px-2 py-0.5 rounded-full">
                   Checkout Pro
                 </span>
-                {isMpReady ? (
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <CheckCircle2 size={11} />
-                    <span>Conectado</span>
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <span>Requiere activación</span>
-                  </span>
-                )}
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 size={11} />
+                  <span>Conectado</span>
+                </span>
               </div>
               <p className="text-xs text-zinc-400 truncate">
                 Tarjetas de crédito, débito, dinero en cuenta y cuotas.
@@ -452,39 +447,27 @@ export function PaymentsSettingsSection({
 
         {openSections.mercadopago && (
           <div className="p-5 border-t border-zinc-800 space-y-4 bg-zinc-950/40">
-            {isMpReady ? (
-              <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
-                    <CheckCircle2 size={15} />
-                    <span>Tu cuenta de Mercado Pago está lista para recibir pagos</span>
-                  </div>
-                  <p className="text-xs text-zinc-400">
-                    Las compras en tu tienda se procesarán directamente a través de tu cuenta de Mercado Pago de forma automática y segura.
-                  </p>
+            <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-300">
+                  <CheckCircle2 size={15} />
+                  <span>Tu cuenta de Mercado Pago está lista para recibir pagos</span>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleTestConnection}
-                  disabled={testingConnection}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold shrink-0 cursor-pointer transition-all disabled:opacity-50"
-                >
-                  <RefreshCw size={13} className={testingConnection ? "animate-spin" : ""} />
-                  <span>{testingConnection ? "Comprobando..." : "Comprobar estado"}</span>
-                </button>
-              </div>
-            ) : (
-              <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-300">
-                  <HelpCircle size={15} className="text-amber-400" />
-                  <span>Configuración de Mercado Pago en el servidor</span>
-                </div>
-                <p className="text-xs text-zinc-400 leading-relaxed">
-                  Para procesar cobros reales con Mercado Pago, configurá la credencial <code className="text-amber-300 font-mono text-[11px] bg-zinc-950 px-1 py-0.5 rounded">MP_ACCESS_TOKEN</code> en el servidor. Podés prender o apagar este medio de cobro en tu tienda cuando lo desees con el switch superior.
+                <p className="text-xs text-zinc-400">
+                  Las compras en tu tienda se procesarán directamente a través de tu cuenta de Mercado Pago de forma automática y segura.
                 </p>
               </div>
-            )}
+
+              <button
+                type="button"
+                onClick={handleTestConnection}
+                disabled={testingConnection}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-semibold shrink-0 cursor-pointer transition-all disabled:opacity-50"
+              >
+                <RefreshCw size={13} className={testingConnection ? "animate-spin" : ""} />
+                <span>{testingConnection ? "Comprobando..." : "Comprobar estado"}</span>
+              </button>
+            </div>
 
             {/* Mensaje de comprobación amigable */}
             {diagnostic && (
@@ -512,6 +495,7 @@ export function PaymentsSettingsSection({
           </div>
         )}
       </div>
+      )}
 
       {/* 3. EFECTIVO AL RETIRAR O RECIBIR */}
       <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl overflow-hidden transition-all">
@@ -638,6 +622,24 @@ export function PaymentsSettingsSection({
         {openSections.otherGateways && (
           <div className="p-5 border-t border-zinc-800/60 space-y-3 bg-zinc-950/20">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Mercado Pago si aún no fue configurado por el desarrollador en el servidor */}
+              {!isMpReady && (
+                <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CreditCard size={15} className="text-sky-400" />
+                      <span className="text-xs font-bold text-zinc-200">Mercado Pago (Checkout Pro)</span>
+                    </div>
+                    <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-medium">
+                      Disponible para integrar
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    Cobros con tarjeta de crédito, débito, dinero en cuenta y cuotas a través de tu cuenta de Mercado Pago.
+                  </p>
+                </div>
+              )}
+
               {/* Payway */}
               <div className="p-3.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -646,7 +648,7 @@ export function PaymentsSettingsSection({
                     <span className="text-xs font-bold text-zinc-200">Payway (Prisma)</span>
                   </div>
                   <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-medium">
-                    Requiere activación técnica
+                    Disponible para integrar
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
@@ -662,7 +664,7 @@ export function PaymentsSettingsSection({
                     <span className="text-xs font-bold text-zinc-200">Getnet (Santander)</span>
                   </div>
                   <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-medium">
-                    Requiere activación técnica
+                    Disponible para integrar
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
@@ -678,7 +680,7 @@ export function PaymentsSettingsSection({
                     <span className="text-xs font-bold text-zinc-200">MODO (App & QR)</span>
                   </div>
                   <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-medium">
-                    Requiere activación técnica
+                    Disponible para integrar
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
@@ -694,7 +696,7 @@ export function PaymentsSettingsSection({
                     <span className="text-xs font-bold text-zinc-200">Google Pay</span>
                   </div>
                   <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-medium">
-                    Requiere activación técnica
+                    Disponible para integrar
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">

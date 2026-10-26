@@ -90,7 +90,7 @@ export function ContactSettingsClient({ initialSettings }: ContactSettingsClient
   };
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 max-w-6xl w-full min-w-0">
       {/* Encabezado Principal y Guardado Rápido */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -140,7 +140,7 @@ export function ContactSettingsClient({ initialSettings }: ContactSettingsClient
       )}
 
       {/* Formulario en 2 Columnas Balanceadas */}
-      <form onSubmit={handleSave}>
+      <form onSubmit={handleSave} className="w-full min-w-0">
         <FooterSettingsSection
           whatsappNumber={whatsappNumber}
           instagramHandle={instagramHandle}

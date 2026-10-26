@@ -15,7 +15,7 @@ export default async function AdminOrdersPage() {
   const deps = getProductServiceDeps();
 
   const [orders, settings] = await Promise.all([
-    listOrders({ limit: 500 }, deps).catch((err) => {
+    listOrders({ limit: 100 }, deps).catch((err) => {
       console.error("Error al cargar pedidos en /admin/ordenes:", err);
       return [];
     }),

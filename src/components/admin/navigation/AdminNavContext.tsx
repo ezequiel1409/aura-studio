@@ -110,7 +110,7 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
   // Cargar conteo de pedidos pendientes
   const refreshPendingOrders = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/orders?status=PENDING", {
+      const res = await fetch("/api/admin/orders?status=PENDING&limit=50", {
         cache: "no-store",
       });
       if (res.ok) {

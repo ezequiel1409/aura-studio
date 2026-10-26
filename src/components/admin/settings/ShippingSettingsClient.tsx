@@ -150,6 +150,10 @@ export function ShippingSettingsClient({ initialSettings }: ShippingSettingsClie
   const isHomeActive = Boolean(storeLocation.homeDeliveryEnabled);
   const isMotoActive = Boolean(storeLocation.motorcycleDeliveryEnabled);
 
+  const hasStoreAddress = Boolean(storeLocation.streetAddress && storeLocation.streetAddress.trim().length > 0);
+  const isHomeDeliveryConfigured = hasStoreAddress && (storeLocation.homeDeliveryZones?.length ?? 0) > 0;
+  const isMotoDeliveryConfigured = hasStoreAddress && (storeLocation.motorcycleZones?.length ?? 0) > 0;
+
   return (
     <form onSubmit={handleSave} className="space-y-6 max-w-5xl">
       {/* Encabezado Principal */}
@@ -345,34 +349,55 @@ export function ShippingSettingsClient({ initialSettings }: ShippingSettingsClie
               <Truck className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-zinc-100">
-                Envío a Domicilio por Correo (Nacional / Regional)
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-bold text-zinc-100">
+                  Envío a Domicilio por Correo (Nacional / Regional)
+                </h2>
+                {isHomeDeliveryConfigured ? (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/50 border border-emerald-800/50 px-2 py-0.5 rounded-full">
+                    Configurado
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/50 border border-amber-800/50 px-2 py-0.5 rounded-full">
+                    Requiere configuración técnica
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">
                 Despacho por Correo Argentino, Andreani, OCA u otro operador logístico.
               </p>
             </div>
           </div>
 
-          <label className="relative inline-flex items-center cursor-pointer">
+          <label className={`relative inline-flex items-center ${!isHomeDeliveryConfigured ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
             <input
               type="checkbox"
-              checked={isHomeActive}
+              disabled={!isHomeDeliveryConfigured}
+              checked={isHomeActive && isHomeDeliveryConfigured}
               onChange={(e) =>
                 setStoreLocation((prev) => ({
                   ...prev,
                   homeDeliveryEnabled: e.target.checked,
                 }))
               }
-              className="rounded border-zinc-700 text-amber-400 focus:ring-amber-400 h-4 w-4 accent-amber-400"
+              className="rounded border-zinc-700 text-amber-400 focus:ring-amber-400 h-4 w-4 accent-amber-400 disabled:cursor-not-allowed"
             />
             <span className="ml-2 text-xs font-semibold text-zinc-200">
-              {isHomeActive ? "Habilitado" : "Deshabilitado"}
+              {isHomeActive && isHomeDeliveryConfigured ? "Habilitado" : "Deshabilitado"}
             </span>
           </label>
         </div>
 
-        {isHomeActive && (
+        {!isHomeDeliveryConfigured && (
+          <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/50 text-xs text-amber-300 flex items-center gap-2.5">
+            <Info size={16} className="shrink-0 text-amber-400" />
+            <span>
+              Para activar este método en la tienda, asegurate de tener definida la dirección del local y al menos una zona de entrega con costo.
+            </span>
+          </div>
+        )}
+
+        {(isHomeActive || !isHomeDeliveryConfigured) && (
           <div className="space-y-4 pt-1 animate-in fade-in-50">
             {/* Parámetros Generales de Correo */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -542,34 +567,55 @@ export function ShippingSettingsClient({ initialSettings }: ShippingSettingsClie
               <Bike className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-zinc-100">
-                Moto Mensajería Express (Entrega en el día / CABA y AMBA)
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-bold text-zinc-100">
+                  Moto Mensajería Express (Entrega en el día / CABA y AMBA)
+                </h2>
+                {isMotoDeliveryConfigured ? (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/50 border border-emerald-800/50 px-2 py-0.5 rounded-full">
+                    Configurado
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/50 border border-amber-800/50 px-2 py-0.5 rounded-full">
+                    Requiere configuración técnica
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-zinc-400 mt-0.5">
                 Cadetería rápida en moto para entregas urgentes o del mismo día.
               </p>
             </div>
           </div>
 
-          <label className="relative inline-flex items-center cursor-pointer">
+          <label className={`relative inline-flex items-center ${!isMotoDeliveryConfigured ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
             <input
               type="checkbox"
-              checked={isMotoActive}
+              disabled={!isMotoDeliveryConfigured}
+              checked={isMotoActive && isMotoDeliveryConfigured}
               onChange={(e) =>
                 setStoreLocation((prev) => ({
                   ...prev,
                   motorcycleDeliveryEnabled: e.target.checked,
                 }))
               }
-              className="rounded border-zinc-700 text-amber-400 focus:ring-amber-400 h-4 w-4 accent-amber-400"
+              className="rounded border-zinc-700 text-amber-400 focus:ring-amber-400 h-4 w-4 accent-amber-400 disabled:cursor-not-allowed"
             />
             <span className="ml-2 text-xs font-semibold text-zinc-200">
-              {isMotoActive ? "Habilitado" : "Deshabilitado"}
+              {isMotoActive && isMotoDeliveryConfigured ? "Habilitado" : "Deshabilitado"}
             </span>
           </label>
         </div>
 
-        {isMotoActive && (
+        {!isMotoDeliveryConfigured && (
+          <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/50 text-xs text-amber-300 flex items-center gap-2.5">
+            <Info size={16} className="shrink-0 text-amber-400" />
+            <span>
+              Para activar moto mensajería en la tienda, asegurate de tener definida la dirección del local y al menos una zona de moto con costo.
+            </span>
+          </div>
+        )}
+
+        {(isMotoActive || !isMotoDeliveryConfigured) && (
           <div className="space-y-4 pt-1 animate-in fade-in-50">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

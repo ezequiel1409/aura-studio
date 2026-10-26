@@ -35,6 +35,9 @@ export interface FooterProps {
   sections?: NavigationSection[];
   storeLocation?: StoreLocationConfig | null;
   storeSchedule?: StoreScheduleConfig | null;
+  mercadopagoEnabled?: boolean;
+  transferEnabled?: boolean;
+  cashEnabled?: boolean;
 }
 
 export function Footer({
@@ -51,6 +54,9 @@ export function Footer({
   sections = [],
   storeLocation,
   storeSchedule,
+  mercadopagoEnabled,
+  transferEnabled = true,
+  cashEnabled = true,
 }: FooterProps) {
   const cleanPhone = whatsappNumber
     ? whatsappNumber.replace(/[^0-9]/g, "")
@@ -97,6 +103,12 @@ export function Footer({
     resolvedSchedule,
     resolvedLocation
   );
+
+  const enabledPaymentLabels = [
+    transferEnabled !== false ? "transferencia" : null,
+    mercadopagoEnabled ? "Mercado Pago" : null,
+    cashEnabled !== false ? "efectivo" : null,
+  ].filter(Boolean);
 
   // Variante mínima (para checkout y carrito)
   if (variant === "minimal") {
@@ -318,9 +330,11 @@ export function Footer({
                   Cambios y devoluciones (15 días)
                 </Link>
               </li>
-              <li>
-                <span>Medios de pago: transferencia, Mercado Pago y efectivo</span>
-              </li>
+              {enabledPaymentLabels.length > 0 && (
+                <li>
+                  <span>Medios de pago: {enabledPaymentLabels.join(", ")}</span>
+                </li>
+              )}
               <li>
                 <Link prefetch={false}
                   href="/cuenta"

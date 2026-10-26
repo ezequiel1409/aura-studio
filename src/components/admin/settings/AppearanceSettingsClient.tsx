@@ -675,6 +675,71 @@ export function AppearanceSettingsClient({
               </div>
             </div>
 
+            {/* ESTRUCTURA Y SECCIONES DEL PIE DE PÁGINA (FOOTER CMS) */}
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 sm:p-5 space-y-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Layers size={16} className="text-amber-400" />
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-200">
+                    Estructura y Secciones del Pie de Página (Footer CMS)
+                  </h2>
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-1">
+                  Personalizá la estructura de tu pie de página, enlaces institucionales y la visualización de medios de pago en la portada.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {/* Columna 1: Identidad y Marca */}
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+                  <span className="font-semibold text-zinc-200 block">Columna 1: Marca y Propósito</span>
+                  <p className="text-[11px] text-zinc-400">
+                    Muestra el logotipo de la marca, descripción comercial y enlace a WhatsApp oficial.
+                  </p>
+                  <a href="/admin/tienda/negocio" className="text-[11px] font-semibold text-amber-300 hover:underline inline-flex items-center gap-1 pt-1">
+                    <span>Editar texto y logo</span>
+                    <ArrowRight size={12} />
+                  </a>
+                </div>
+
+                {/* Columna 2: Navegación de Catálogo */}
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+                  <span className="font-semibold text-zinc-200 block">Columna 2: Catálogo y Rubros</span>
+                  <p className="text-[11px] text-zinc-400">
+                    Se sincroniza automáticamente con las categorías y secciones visibles del catálogo.
+                  </p>
+                  <a href="/admin/categorias" className="text-[11px] font-semibold text-amber-300 hover:underline inline-flex items-center gap-1 pt-1">
+                    <span>Gestionar categorías</span>
+                    <ArrowRight size={12} />
+                  </a>
+                </div>
+
+                {/* Columna 3: Información y Medios de Pago */}
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+                  <span className="font-semibold text-zinc-200 block">Columna 3: Información y Pagos</span>
+                  <p className="text-[11px] text-zinc-400">
+                    Los medios de pago mostrados en el pie se sincronizan en vivo según los métodos que tengas habilitados (Transferencia, Mercado Pago, Efectivo).
+                  </p>
+                  <a href="/admin/tienda/pagos" className="text-[11px] font-semibold text-amber-300 hover:underline inline-flex items-center gap-1 pt-1">
+                    <span>Configurar medios de pago</span>
+                    <ArrowRight size={12} />
+                  </a>
+                </div>
+
+                {/* Columna 4: Ubicación y Horarios */}
+                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
+                  <span className="font-semibold text-zinc-200 block">Columna 4: Local y Retiro</span>
+                  <p className="text-[11px] text-zinc-400">
+                    Dirección física, enlace a Google Maps, horarios de atención y data fiscal AFIP / ARCA.
+                  </p>
+                  <a href="/admin/tienda/contacto" className="text-[11px] font-semibold text-amber-300 hover:underline inline-flex items-center gap-1 pt-1">
+                    <span>Editar ubicación y horarios</span>
+                    <ArrowRight size={12} />
+                  </a>
+                </div>
+              </div>
+            </div>
+
             {/* VALIDADOR DE CONTRASTE WCAG 2.2 (ADM-06) */}
             <div
               className={`p-4 rounded-xl border text-xs space-y-1.5 ${

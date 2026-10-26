@@ -89,6 +89,9 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
         sections={data.publicSections}
         storeLocation={data.settings.storeLocation}
         storeSchedule={data.settings.storeSchedule}
+        mercadopagoEnabled={data.settings.mercadopagoEnabled}
+        transferEnabled={data.settings.transferEnabled}
+        cashEnabled={data.settings.cashEnabled}
       />
 
       <CartToast />

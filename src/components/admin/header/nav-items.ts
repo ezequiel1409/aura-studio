@@ -179,16 +179,9 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
         exact: true,
       },
       {
-        href: "/admin/configuracion?seccion=general",
-        label: "Reservas e inventario",
-        description: "Tiempos de reserva y stock",
-        icon: Settings2,
-        tabParam: "general",
-      },
-      {
         href: "/admin/configuracion?seccion=politicas",
         label: "Políticas de tienda",
-        description: "Cambios, devoluciones y términos",
+        description: "Cambios, devoluciones y términos legales",
         icon: ShieldCheck,
         tabParam: "politicas",
       },
@@ -230,10 +223,10 @@ export function isSubNavItemActive(
   if (subItem.tabParam) {
     const params = new URLSearchParams(searchParamsString || "");
     const currentTab = params.get("seccion");
-    if (subItem.tabParam === "general") {
+    if (subItem.tabParam === "politicas") {
       return (
         pathname === "/admin/configuracion" &&
-        (!currentTab || currentTab === "general")
+        (!currentTab || currentTab === "politicas" || currentTab === "general")
       );
     }
     return (

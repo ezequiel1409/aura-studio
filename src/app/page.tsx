@@ -313,6 +313,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         sections={publicSections}
         storeLocation={settings.storeLocation}
         storeSchedule={settings.storeSchedule}
+        mercadopagoEnabled={settings.mercadopagoEnabled}
+        transferEnabled={settings.transferEnabled}
+        cashEnabled={settings.cashEnabled}
       />
 
       {/* Toast accesible de confirmación de bolsa de compras (BR-40) */}
