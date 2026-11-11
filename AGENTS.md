@@ -8,9 +8,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Reglas y Principios de Desarrollo Mandatorios (Aura Studio)
+# Reglas y Principios de Desarrollo Mandatorios (Motor / Plantilla Neutra)
 
-A partir de ahora, **toda nueva función, componente, refactorización o modificación de código** DEBE ser analizada y contrastada de forma estricta contra estos 8 principios obligatorios:
+A partir de ahora, **toda nueva función, componente, refactorización o modificación de código** DEBE ser analizada y contrastada de forma estricta contra estos 10 principios obligatorios:
 
 1. **No mantener compatibilidad hacia atrás.**
    - Lo obsoleto, bórralo directamente.
@@ -39,12 +39,22 @@ A partir de ahora, **toda nueva función, componente, refactorización o modific
 8. **Mira primero cómo resuelven el mismo problema los productos maduros.**
    - Usa patrones ya validados; no inventes soluciones desde cero.
 
+9. **Neutralidad absoluta de plantilla (Cero Hardcoding de Comercio / White-Label).**
+   - Este repositorio es un motor base neutro que será forkeado por un orquestador para distintos comercios clientes.
+   - Queda estrictamente prohibido codificar a fuego nombres de marca, slugs, dominios, teléfonos, correos o credenciales de un comercio específico en el código fuente.
+   - Toda identidad debe resolverse dinámicamente vía variables de entorno (`env`), base de datos (`settings`/`commerce`) o configuración inyectada por el orquestador.
+
+10. **Dependencias y tooling gobernados por el proyecto superior (Orquestador).**
+    - El orquestador es la única fuente de verdad para las dependencias clave, versiones de paquetes y stack tecnológico.
+    - No agregar paquetes ad-hoc o redundantes que diverjan del estándar definido por el orquestador.
+
 ---
 
 ## Protocolo de Análisis Mandatorio para Cada Cambio
 
 Antes de emitir o modificar código, verifica siempre este checklist:
-- [ ] **Check de dependencias existentes:** ¿Ya existe una librería o utilidad instalada en el proyecto que resuelva esto?
+- [ ] **Check de dependencias existentes y orquestador:** ¿Ya existe una librería en el proyecto o está alineada con el orquestador superior?
+- [ ] **Neutralidad / White-Label:** ¿El código evita cualquier nombre o dato hardcodeado de un comercio específico?
 - [ ] **Limpieza de obsolescencia:** ¿Reemplaza código previo? Si es así, se elimina lo anterior sin fallbacks ni compatibilidad hacia atrás.
 - [ ] **Simplicidad y modularidad:** ¿Es la implementación más simple posible? ¿Respeta la separación de capas sin abstracciones preventivas?
 - [ ] **Extremo a extremo:** ¿Mantiene el flujo funcional sin romper lo que ya opera?
