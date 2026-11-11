@@ -10,7 +10,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { InstagramIcon, TikTokIcon, WhatsAppLogo } from "../icons/SocialIcons";
+import { BrandLogo } from "./BrandLogo";
 import { NavigationSection } from "../../domain/navigation/types";
+import {
+  FooterConfig,
+  DEFAULT_FOOTER_CONFIG,
+} from "../../services/settings.service";
 import {
   buildGoogleMapsSearchUrl,
   computeStoreOpenStatus,
@@ -35,6 +40,8 @@ export interface FooterProps {
   sections?: NavigationSection[];
   storeLocation?: StoreLocationConfig | null;
   storeSchedule?: StoreScheduleConfig | null;
+  bankPromotionsEnabled?: boolean;
+  footerConfig?: FooterConfig | null;
   mercadopagoEnabled?: boolean;
   transferEnabled?: boolean;
   cashEnabled?: boolean;
@@ -54,10 +61,14 @@ export function Footer({
   sections = [],
   storeLocation,
   storeSchedule,
-  mercadopagoEnabled,
+  bankPromotionsEnabled = true,
+  footerConfig,
+  mercadopagoEnabled = false,
   transferEnabled = true,
   cashEnabled = true,
 }: FooterProps) {
+  const showBankPromos = bankPromotionsEnabled !== false;
+  const showDataFiscal = dataFiscalUrl === undefined || Boolean(dataFiscalUrl && dataFiscalUrl.trim());
   const cleanPhone = whatsappNumber
     ? whatsappNumber.replace(/[^0-9]/g, "")
     : null;
@@ -104,12 +115,6 @@ export function Footer({
     resolvedLocation
   );
 
-  const enabledPaymentLabels = [
-    transferEnabled !== false ? "transferencia" : null,
-    mercadopagoEnabled ? "Mercado Pago" : null,
-    cashEnabled !== false ? "efectivo" : null,
-  ].filter(Boolean);
-
   // Variante mínima (para checkout y carrito)
   if (variant === "minimal") {
     return (
@@ -145,6 +150,13 @@ export function Footer({
       </footer>
     );
   }
+
+  const cfg = footerConfig || DEFAULT_FOOTER_CONFIG;
+  const colSec = cfg.sections?.collections || DEFAULT_FOOTER_CONFIG.sections.collections;
+  const helpSec = cfg.sections?.help || DEFAULT_FOOTER_CONFIG.sections.help;
+  const locSec = cfg.sections?.location || DEFAULT_FOOTER_CONFIG.sections.location;
+  const paySec = cfg.sections?.payments || DEFAULT_FOOTER_CONFIG.sections.payments;
+  const bottomLegal = cfg.bottomLegal || DEFAULT_FOOTER_CONFIG.bottomLegal;
 
   const navLinks =
     sections && sections.length > 0
@@ -191,17 +203,12 @@ export function Footer({
       />
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        {/* Estructura en 4 Columnas (Sección 6.1 del Plan) */}
+        {/* Estructura en 4 Columnas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 pb-10 border-b border-[#f0ece1]">
           {/* Columna 1: Marca y Contacto */}
           <div className="space-y-3.5">
             {logoUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={logoUrl}
-                alt={brandName}
-                className="h-8 w-auto object-contain"
-              />
+              <BrandLogo src={logoUrl} alt={brandName} className="h-16 w-16" />
             ) : (
               <div>
                 {businessDescriptor && businessDescriptor.trim() && (
@@ -256,264 +263,369 @@ export function Footer({
                   rel="noopener noreferrer"
                   aria-label={`Seguir en TikTok a @${cleanTiktok}`}
                   title={`TikTok: @${cleanTiktok}`}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8d2c7] bg-white text-stone-800 hover:text-white hover:bg-black hover:border-black transition-all shadow-2xs hover:scale-105"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8d2c7] bg-white text-stone-700 hover:text-white hover:bg-stone-950 hover:border-stone-950 transition-all shadow-2xs hover:scale-105"
                 >
                   <TikTokIcon className="h-4 w-4" />
                 </a>
               )}
             </div>
-          </div>
 
-          {/* Columna 2: Secciones Activas */}
-          <div className="space-y-3">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c]">
-              Colecciones
-            </span>
-            <h3 className="font-serif text-lg font-normal text-stone-900 tracking-wide">
-              Secciones
-            </h3>
-
-            <ul className="space-y-2 text-stone-600 list-none p-0 m-0">
-              {navLinks.map((sec) => (
-                <li key={sec.slug}>
-                  <Link prefetch={false}
-                    href={`/${sec.slug}`}
-                    className="hover:text-stone-950 hover:underline underline-offset-4 transition-colors font-medium"
-                  >
-                    {sec.name}
-                  </Link>
-                </li>
-              ))}
-              <li>
-                <Link prefetch={false}
-                  href="/catalogo"
-                  className="hover:text-stone-950 hover:underline underline-offset-4 transition-colors"
-                >
-                  Ver todo el catálogo
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Columna 3: Ayuda y Promociones Bancarias */}
-          <div className="space-y-3">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c]">
-              Guía & Confianza
-            </span>
-            <h3 className="font-serif text-lg font-normal text-stone-900 tracking-wide">
-              Ayuda al cliente
-            </h3>
-
-            <ul className="space-y-2 text-stone-600 list-none p-0 m-0">
-              <li>
-                <Link prefetch={false}
-                  href="/promociones"
-                  className="inline-flex items-center gap-1.5 font-semibold text-stone-900 hover:underline underline-offset-4"
-                >
-                  <Landmark className="h-3.5 w-3.5 text-stone-700" aria-hidden="true" />
-                  <span>Promociones bancarias</span>
-                </Link>
-              </li>
-              <li>
-                <Link prefetch={false}
-                  href="/terminos"
-                  className="hover:text-stone-900 hover:underline underline-offset-4 transition-colors"
-                >
-                  Envíos a domicilio y retiros
-                </Link>
-              </li>
-              <li>
-                <Link prefetch={false}
-                  href="/terminos"
-                  className="hover:text-stone-900 hover:underline underline-offset-4 transition-colors"
-                >
-                  Cambios y devoluciones (15 días)
-                </Link>
-              </li>
-              {enabledPaymentLabels.length > 0 && (
-                <li>
-                  <span>Medios de pago: {enabledPaymentLabels.join(", ")}</span>
-                </li>
-              )}
-              <li>
-                <Link prefetch={false}
-                  href="/cuenta"
-                  className="hover:text-stone-900 hover:underline underline-offset-4"
-                >
-                  Estado de mi pedido y cuenta
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Columna 4: Local, Google Maps y Horarios de Atención y Retiro (ADM-07) */}
-          <div className="space-y-3">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c]">
-              Ubicación y Horarios
-            </span>
-            <h3 className="font-serif text-lg font-normal text-stone-900 tracking-wide">
-              Local y retiro
-            </h3>
-
-            {resolvedLocation.attendsPublic ? (
-              <div className="space-y-2">
-                <p className="flex items-start gap-2 text-stone-800 font-medium">
-                  <MapPin
-                    className="h-4 w-4 text-stone-500 shrink-0 mt-0.5"
-                    aria-hidden="true"
-                  />
-                  <span>
-                    {resolvedLocation.streetAddress}
-                    {resolvedLocation.locality
-                      ? `, ${resolvedLocation.locality}`
-                      : ""}
-                    {resolvedLocation.province
-                      ? `, ${resolvedLocation.province}`
-                      : ""}
-                  </span>
-                </p>
-
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d8d2c7] bg-[#faf8f5] px-3 py-1 text-[11px] font-semibold text-stone-900 hover:border-stone-900 hover:bg-stone-100 transition-colors"
-                >
-                  <MapPin className="h-3 w-3 text-stone-700" aria-hidden="true" />
-                  <span>Ver en Google Maps</span>
-                  <ExternalLink className="h-3 w-3 opacity-70" aria-hidden="true" />
-                </a>
-              </div>
-            ) : (
-              <p className="flex items-start gap-2 text-stone-600">
-                <MapPin
-                  className="h-4 w-4 text-stone-400 shrink-0 mt-0.5"
-                  aria-hidden="true"
-                />
-                <span>
-                  Tienda online con envíos desde CP{" "}
-                  {resolvedLocation.postalCode || "C1414"} (
-                  {resolvedLocation.province || "Buenos Aires"}).
-                </span>
+            <div className="pt-2 space-y-1 text-[11px] text-stone-500">
+              <p className="flex items-center gap-1.5 font-medium text-emerald-800">
+                <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>Stock en tiempo real y reservas garantizadas</span>
               </p>
-            )}
-
-            {resolvedLocation.attendsPublic && (
-              <>
-                {/* Estado en vivo (Abierto ahora / Cerrado) */}
-                <div className="pt-1">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
-                      openStatus.isOpen
-                        ? "bg-emerald-50 text-emerald-900 border-emerald-300"
-                        : "bg-stone-100 text-stone-700 border-stone-300"
-                    }`}
-                  >
-                    <Clock className="h-3 w-3" aria-hidden="true" />
-                    <span>{openStatus.badgeText}</span>
-                  </span>
-                </div>
-
-                {/* Horarios de atención y retiros agrupados (ADM-07) */}
-                <div
-                  aria-label="Horarios de atención por día de la semana"
-                  className="pt-1 space-y-1 text-[11px]"
-                >
-                  {scheduleSummary.attendanceLines.map((line, idx) => (
-                    <p key={`att-${idx}`} className="font-medium text-stone-800">
-                      {line}
-                    </p>
-                  ))}
-                  {scheduleSummary.pickupLines.map((line, idx) => (
-                    <p
-                      key={`pick-${idx}`}
-                      className="font-medium text-stone-700 flex items-center gap-1.5 pt-0.5"
-                    >
-                      <PackageCheck
-                        className="h-3.5 w-3.5 text-stone-500 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span>{line}</span>
-                    </p>
-                  ))}
-                </div>
-
-                {resolvedSchedule.note && (
-                  <p className="text-[11px] text-stone-500 italic">
-                    {resolvedSchedule.note}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Franja Inferior Legal: Términos y Condiciones, Arrepentimiento y Data Fiscal (ADM-09) */}
-        <div className="pt-8 border-t border-[#e7e2da] flex flex-col md:flex-row items-center justify-between gap-6 text-stone-500 text-[11px]">
-          <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-            {/* Placa Oficial AFIP Formulario 960 (Data Fiscal) - Destacada y de alta visibilidad */}
-            <a
-              href={dataFiscalUrl || "https://serviciosweb.afip.gob.ar/clavefiscal/qr/mobile/ver.aspx"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group block shrink-0 transition-transform duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-stone-800 rounded-lg p-0.5"
-              aria-label="Ver Formulario 960 Data Fiscal AFIP"
-              title="Formulario 960/D - Data Fiscal AFIP / ARCA"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/images/data-fiscal.png"
-                alt="Data Fiscal AFIP - Formulario 960/D"
-                width={80}
-                height={110}
-                className="h-24 sm:h-28 w-auto object-contain rounded shadow-xs border border-stone-200 bg-white"
-              />
-            </a>
-
-            <div>
-              <p className="font-medium text-stone-700">
-                © {new Date().getFullYear()} {brandName}. Todos los derechos reservados.
-              </p>
-              <p className="text-[10px] text-stone-400 mt-0.5">
-                Comercio adherido al régimen de transparencia fiscal (AFIP / ARCA - Res. Gral. 3377).
+              <p>
+                Tienda online operada por <strong className="font-medium text-stone-700">Altum</strong>
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link prefetch={false}
-              href="/terminos"
-              className="hover:text-stone-900 transition-colors font-medium"
-            >
-              Términos y Condiciones
-            </Link>
+          {/* Columna 2: Secciones / Colecciones configurables */}
+          {colSec.enabled && (
+            <div className="space-y-3">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c]">
+                {colSec.subtitle}
+              </span>
+              <h3 className="font-serif text-lg font-normal text-stone-900 tracking-wide">
+                {colSec.title}
+              </h3>
 
-            <Link prefetch={false}
-              href="/promociones"
-              className="hover:text-stone-900 transition-colors"
-            >
-              Promociones bancarias
-            </Link>
+              <ul className="space-y-2 text-stone-600 list-none p-0 m-0">
+                {navLinks.map((sec) => (
+                  <li key={sec.slug}>
+                    <Link
+                      href={`/${sec.slug}`}
+                      className="hover:text-stone-950 hover:underline underline-offset-4 transition-colors font-medium"
+                    >
+                      {sec.name}
+                    </Link>
+                  </li>
+                ))}
+                {colSec.customLinks?.filter((l) => l.enabled).map((link) => (
+                  <li key={link.id}>
+                    {link.isExternal ? (
+                      <a
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-stone-950 hover:underline underline-offset-4 transition-colors font-medium"
+                      >
+                        {link.label}
+                      </a>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className="hover:text-stone-950 hover:underline underline-offset-4 transition-colors font-medium"
+                      >
+                        {link.label}
+                      </Link>
+                    )}
+                  </li>
+                ))}
+                {colSec.showAllCatalogLink && (
+                  <li>
+                    <Link
+                      href="/catalogo"
+                      className="hover:text-stone-950 hover:underline underline-offset-4 transition-colors"
+                    >
+                      {colSec.allCatalogLabel || "Ver todo el catálogo"}
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
 
-            <a
-              href="https://www.argentina.gob.ar/defensadelconsumidor"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 hover:text-stone-900 transition-colors"
-            >
-              <Scale className="h-3.5 w-3.5 text-stone-400" aria-hidden="true" />
-              <span>Defensa del Consumidor (Ley 24.240)</span>
-            </a>
+          {/* Columna 3: Ayuda al cliente y Promociones Bancarias configurables */}
+          {helpSec.enabled && (
+            <div className="space-y-3">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c]">
+                {helpSec.subtitle}
+              </span>
+              <h3 className="font-serif text-lg font-normal text-stone-900 tracking-wide">
+                {helpSec.title}
+              </h3>
 
-            <Link prefetch={false}
-              href="/arrepentimiento"
-              className="inline-flex items-center gap-1 text-stone-600 hover:text-rose-700 transition-colors"
-            >
-              <RotateCcw className="h-3 w-3" aria-hidden="true" />
-              <span>Botón de arrepentimiento</span>
-            </Link>
-          </div>
+              <ul className="space-y-2 text-stone-600 list-none p-0 m-0">
+                {helpSec.links.filter((l) => l.enabled).map((item) => {
+                  if (item.id === "promociones") {
+                    if (!showBankPromos) return null;
+                    return (
+                      <li key={item.id}>
+                        <Link
+                          href={item.href}
+                          className="inline-flex items-center gap-1.5 font-semibold text-stone-900 hover:underline underline-offset-4"
+                        >
+                          <Landmark className="h-3.5 w-3.5 text-stone-700" aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </li>
+                    );
+                  }
+
+                  if (item.id === "medios-pago") {
+                    return (
+                      <li key={item.id}>
+                        <span>{item.label}</span>
+                      </li>
+                    );
+                  }
+
+                  if (item.isExternal) {
+                    return (
+                      <li key={item.id}>
+                        <a
+                          href={item.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-stone-900 hover:underline underline-offset-4 transition-colors"
+                        >
+                          {item.label}
+                        </a>
+                      </li>
+                    );
+                  }
+
+                  return (
+                    <li key={item.id}>
+                      <Link
+                        href={item.href}
+                        className="hover:text-stone-900 hover:underline underline-offset-4 transition-colors"
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
+          {/* Columna 4: Local, Google Maps y Horarios de Atención y Retiro (ADM-07) / Medios de Pago */}
+          {(locSec.enabled || paySec.enabled) && (
+            <div className="space-y-3">
+              {locSec.enabled && (
+                <>
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-[#926a3c]">
+                    {locSec.subtitle || "Ubicación y Horarios"}
+                  </span>
+                  <h3 className="font-serif text-lg font-normal text-stone-900 tracking-wide">
+                    {locSec.title || "Local y retiro"}
+                  </h3>
+
+                  {resolvedLocation.attendsPublic ? (
+                    <div className="space-y-2">
+                      <p className="flex items-start gap-2 text-stone-800 font-medium">
+                        <MapPin
+                          className="h-4 w-4 text-stone-500 shrink-0 mt-0.5"
+                          aria-hidden="true"
+                        />
+                        <span>
+                          {resolvedLocation.streetAddress}
+                          {resolvedLocation.locality
+                            ? `, ${resolvedLocation.locality}`
+                            : ""}
+                          {resolvedLocation.province
+                            ? `, ${resolvedLocation.province}`
+                            : ""}
+                        </span>
+                      </p>
+
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#d8d2c7] bg-[#faf8f5] px-3 py-1 text-[11px] font-semibold text-stone-900 hover:border-stone-900 hover:bg-stone-100 transition-colors"
+                      >
+                        <MapPin className="h-3 w-3 text-stone-700" aria-hidden="true" />
+                        <span>Ver en Google Maps</span>
+                        <ExternalLink className="h-3 w-3 opacity-70" aria-hidden="true" />
+                      </a>
+                    </div>
+                  ) : (
+                    <p className="flex items-start gap-2 text-stone-600">
+                      <MapPin
+                        className="h-4 w-4 text-stone-400 shrink-0 mt-0.5"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        Tienda online con envíos desde CP{" "}
+                        {resolvedLocation.postalCode || "C1414"} (
+                        {resolvedLocation.province || "Buenos Aires"}).
+                      </span>
+                    </p>
+                  )}
+
+                  {resolvedLocation.attendsPublic && (
+                    <>
+                      {/* Estado en vivo (Abierto ahora / Cerrado) */}
+                      <div className="pt-1">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
+                            openStatus.isOpen
+                              ? "bg-emerald-50 text-emerald-900 border-emerald-300"
+                              : "bg-stone-100 text-stone-700 border-stone-300"
+                          }`}
+                        >
+                          <Clock className="h-3 w-3" aria-hidden="true" />
+                          <span>{openStatus.badgeText}</span>
+                        </span>
+                      </div>
+
+                      {/* Horarios de atención y retiros agrupados (ADM-07) */}
+                      <div
+                        aria-label="Horarios de atención por día de la semana"
+                        className="pt-1 space-y-1 text-[11px]"
+                      >
+                        {scheduleSummary.attendanceLines.map((line, idx) => (
+                          <p key={`att-${idx}`} className="font-medium text-stone-800">
+                            {line}
+                          </p>
+                        ))}
+                        {scheduleSummary.pickupLines.map((line, idx) => (
+                          <p
+                            key={`pick-${idx}`}
+                            className="font-medium text-stone-700 flex items-center gap-1.5 pt-0.5"
+                          >
+                            <PackageCheck
+                              className="h-3.5 w-3.5 text-stone-500 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span>{line}</span>
+                          </p>
+                        ))}
+                      </div>
+
+                      {resolvedSchedule.note && (
+                        <p className="text-[11px] text-stone-500 italic">
+                          {resolvedSchedule.note}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Medios de Pago Dinámicos y Configurables */}
+              {paySec.enabled && (
+                <div
+                  className={`${
+                    locSec.enabled ? "pt-2.5 border-t border-stone-200" : ""
+                  } space-y-1.5 text-[11px] text-stone-500`}
+                >
+                  <span className="font-semibold text-stone-700 block">
+                    {paySec.title || "Medios de pago"}:
+                  </span>
+
+                  {/* Badges dinámicos según métodos activados en el servidor */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {mercadopagoEnabled && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#009ee3]/10 text-[#0081ba] font-semibold border border-[#009ee3]/20 text-[10px]">
+                        Mercado Pago
+                      </span>
+                    )}
+                    {transferEnabled !== false && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 font-medium border border-stone-200 text-[10px]">
+                        Transferencia
+                      </span>
+                    )}
+                    {cashEnabled !== false && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-stone-100 text-stone-800 font-medium border border-stone-200 text-[10px]">
+                        Efectivo
+                      </span>
+                    )}
+                  </div>
+
+                  {paySec.text && (
+                    <span className="text-[10px] text-stone-500 block pt-0.5">
+                      {paySec.text}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Franja Inferior Legal: Términos y Condiciones, Arrepentimiento y Data Fiscal (ADM-09) */}
+        {bottomLegal.enabled && (
+          <div className="pt-8 border-t border-[#e7e2da] flex flex-col md:flex-row items-center justify-between gap-6 text-stone-500 text-[11px]">
+            <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+              {/* Placa Oficial AFIP Formulario 960 (Data Fiscal) - Solo si está disponible */}
+              {showDataFiscal && (
+                <a
+                  href={dataFiscalUrl || "https://serviciosweb.afip.gob.ar/clavefiscal/qr/mobile/ver.aspx"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group block shrink-0 transition-transform duration-200 hover:scale-105 focus-visible:outline-2 focus-visible:outline-stone-800 rounded-lg p-0.5"
+                  aria-label="Ver Formulario 960 Data Fiscal AFIP"
+                  title="Formulario 960/D - Data Fiscal AFIP / ARCA"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/images/data-fiscal.png"
+                    alt="Data Fiscal AFIP - Formulario 960/D"
+                    width={80}
+                    height={110}
+                    className="h-24 sm:h-28 w-auto object-contain rounded shadow-xs border border-stone-200 bg-white"
+                  />
+                </a>
+              )}
+
+              <div>
+                <p className="font-medium text-stone-700">
+                  © {new Date().getFullYear()} {brandName}. Todos los derechos reservados.
+                </p>
+                <p className="text-[10px] text-stone-400 mt-0.5">
+                  {bottomLegal.copyrightNotice || "Comercio adherido al régimen de transparencia fiscal (AFIP / ARCA - Res. Gral. 3377)."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              {bottomLegal.showTermsLink && (
+                <Link
+                  href="/terminos"
+                  className="hover:text-stone-900 transition-colors font-medium"
+                >
+                  Términos y Condiciones
+                </Link>
+              )}
+
+              {showBankPromos && bottomLegal.showBankPromosLink && (
+                <Link
+                  href="/promociones"
+                  className="hover:text-stone-900 transition-colors"
+                >
+                  Promociones bancarias
+                </Link>
+              )}
+
+              {bottomLegal.showConsumerDefenseLink && (
+                <a
+                  href="https://www.argentina.gob.ar/defensadelconsumidor"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 hover:text-stone-900 transition-colors"
+                >
+                  <Scale className="h-3.5 w-3.5 text-stone-400" aria-hidden="true" />
+                  <span>Defensa del Consumidor (Ley 24.240)</span>
+                </a>
+              )}
+
+              {bottomLegal.showRevocationButton && (
+                <Link
+                  href="/arrepentimiento"
+                  className="inline-flex items-center gap-1 text-stone-600 hover:text-rose-700 transition-colors"
+                >
+                  <RotateCcw className="h-3 w-3" aria-hidden="true" />
+                  <span>Botón de arrepentimiento</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </footer>
   );

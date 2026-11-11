@@ -9,6 +9,7 @@ import {
   getAvailableSizesWithStock,
 } from "../../domain/product/rules";
 import { formatPrice } from "../../lib/format/currency";
+import { resolveColorHex } from "../../lib/format/colors";
 import { parseSizesList } from "../../lib/parser/product-parser";
 import { useCartStore } from "../../stores/cart.store";
 import { FavoriteButton } from "./FavoriteButton";
@@ -143,25 +144,33 @@ export const ProductCard = memo(function ProductCard({
     setAddingSize(sizeName);
     setStockErrorMsg(null);
 
+    const safeColor = (colorName || activeColor?.name || "Único").trim();
+    const safeSize = (sizeName || "ÚNICO").trim();
+    const safePrice =
+      typeof product.priceCents === "number" && !Number.isNaN(product.priceCents)
+        ? product.priceCents
+        : Number(product.priceCents) || 0;
+
     try {
       const res = await fetch("/api/catalog/validate-stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: product.id,
-          colorName,
-          size: sizeName,
+          colorName: safeColor,
+          size: safeSize,
         }),
       });
       const data = await res.json();
+      const availableStock = Number(data.stock ?? data.remainingStock ?? 0);
 
-      if (!res.ok || !data.available || data.stock <= 0) {
+      if (!res.ok || !data.available || availableStock <= 0) {
         setDepletedSizes((prev) => ({
           ...prev,
-          [`${colorName}__${sizeName}`]: true,
+          [`${safeColor}__${safeSize}`]: true,
         }));
         setStockErrorMsg(
-          data.reason || `El talle ${sizeName} acaba de agotarse.`
+          data.message || data.reason || `El talle ${safeSize} acaba de agotarse.`
         );
         return;
       }
@@ -172,12 +181,12 @@ export const ProductCard = memo(function ProductCard({
           code: product.code,
           formattedCode,
           title: product.title,
-          colorName,
+          colorName: safeColor,
           hexCode: hexCode || null,
-          size: sizeName,
-          maxStock: data.stock,
-          unitPriceCents: product.priceCents,
-          currency: product.currency,
+          size: safeSize,
+          maxStock: availableStock,
+          unitPriceCents: safePrice,
+          currency: product.currency || "ARS",
           photoUrl: mainPhoto,
         },
         1
@@ -191,19 +200,20 @@ export const ProductCard = memo(function ProductCard({
       }, 1500);
     } catch {
       // Fallback local si no hay red
-      const szObj = activeColor.sizes.find((s) => s.size === sizeName);
+      const szObj = activeColor.sizes.find((s) => s.size === safeSize);
+      const fallbackStock = Number(szObj?.stock ?? 1) || 1;
       addItem(
         {
           productId: product.id,
           code: product.code,
           formattedCode,
           title: product.title,
-          colorName,
+          colorName: safeColor,
           hexCode: hexCode || null,
-          size: sizeName,
-          maxStock: szObj?.stock || 1,
-          unitPriceCents: product.priceCents,
-          currency: product.currency,
+          size: safeSize,
+          maxStock: fallbackStock,
+          unitPriceCents: safePrice,
+          currency: product.currency || "ARS",
           photoUrl: mainPhoto,
         },
         1
@@ -272,7 +282,7 @@ export const ProductCard = memo(function ProductCard({
         <div className="relative aspect-[4/5] w-full shrink-0 overflow-hidden bg-[#f5f2eb]">
           <Link
             href={href}
-            prefetch={false}
+            prefetch={true}
             aria-label={accessibleLabel}
             className="block h-full w-full focus:outline-none"
           >
@@ -406,24 +416,10 @@ export const ProductCard = memo(function ProductCard({
         {/* Ficha de Detalles */}
         <div className="flex flex-1 flex-col justify-between p-3.5 sm:p-4">
           <div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-[11px] font-medium text-stone-400">
-                {formattedCode}
-              </span>
-              {availableSizes.length > 0 && (
-                <span
-                  title={`Talles disponibles: ${availableSizes.join(", ")}`}
-                  className="max-w-[65%] truncate font-mono text-[11px] font-medium text-stone-500"
-                >
-                  {availableSizes.join(" · ")}
-                </span>
-              )}
-            </div>
-
             <Link
               href={href}
-              prefetch={false}
-              className="mt-0.5 block font-serif text-base sm:text-lg font-normal tracking-wide text-stone-900 transition-colors hover:text-stone-700 line-clamp-1"
+              prefetch={true}
+              className="block font-serif text-base sm:text-lg font-normal tracking-wide text-stone-900 transition-colors hover:text-stone-700 line-clamp-1"
             >
               {titleDisplay}
             </Link>
@@ -450,7 +446,7 @@ export const ProductCard = memo(function ProductCard({
                           ? "ring-2 ring-stone-900 ring-offset-1 scale-110"
                           : "border-stone-300"
                       }`}
-                      style={{ backgroundColor: c.hexCode || "#78716c" }}
+                      style={{ backgroundColor: resolveColorHex(c.name, c.hexCode) }}
                     />
                   ))}
                 </div>
@@ -539,7 +535,7 @@ export const ProductCard = memo(function ProductCard({
             ) : (
               <Link
                 href={href}
-                prefetch={false}
+                prefetch={true}
                 className="w-full min-h-[38px] inline-flex items-center justify-center rounded-xl border border-[#e7e2da] bg-[#faf8f5] px-3 py-2 text-xs font-medium text-stone-600 hover:text-stone-900"
               >
                 {isSoldOut

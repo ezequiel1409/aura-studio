@@ -1,16 +1,12 @@
-import { Suspense } from "react";
-
 // Revalida en segundo plano cada 60 segundos (Edge ISR - Cloudflare CDN)
 export const revalidate = 60;
+
 import { getProductServiceDeps } from "../infra/db/connection";
 import { listProducts } from "../services/product.service";
 import { getShowroomSettings } from "../services/settings.service";
 import { NavigationService } from "../services/navigation.service";
 import { PromotionService } from "../services/promotion.service";
-import { Header } from "../components/layout/Header";
-import { Footer } from "../components/layout/Footer";
 import { NewPiecesAlertSection } from "../components/catalog/NewPiecesAlertSection";
-import { CatalogPanelView } from "../components/catalog/CatalogPanelView";
 import { HeroBannerCarousel } from "../components/home/HeroBannerCarousel";
 import { BankPromosBlock } from "../components/home/BankPromosBlock";
 import { FeaturedSectionsMosaic } from "../components/home/FeaturedSectionsMosaic";
@@ -20,109 +16,17 @@ import {
   SaleBlock,
   TrustStripBlock,
 } from "../components/home/HomeShowcaseBlocks";
-import dynamic from "next/dynamic";
 
-const CartDrawer = dynamic(() =>
-  import("../components/cart/CartDrawer").then((mod) => mod.CartDrawer)
-);
-import { StoreThemeStyles } from "../components/theme/StoreThemeStyles";
-import { CartToast } from "../components/cart/CartToast";
-import {
-  loadCatalogPanelData,
-  RawCatalogSearchParams,
-} from "../lib/catalog/load-catalog-panel";
+const ONE_HOUR_MS = 60 * 60 * 1000;
 
-interface HomePageProps {
-  searchParams?: Promise<RawCatalogSearchParams>;
+function getHourlyAlignedPastMs(days: number): number {
+  return (
+    Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / ONE_HOUR_MS) *
+    ONE_HOUR_MS
+  );
 }
 
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const resolvedParams = searchParams ? await searchParams : {};
-
-  // Si la URL raíz recibe filtros de catálogo (?q=..., ?categoria=..., ?talle=...), mostramos la vista de panel de catálogo
-  const hasCatalogQuery = Boolean(
-    resolvedParams.q ||
-      resolvedParams.categoria ||
-      resolvedParams.talle ||
-      resolvedParams.color ||
-      resolvedParams.oferta ||
-      resolvedParams.orden ||
-      resolvedParams.pagina
-  );
-
-  if (hasCatalogQuery) {
-    const data = await loadCatalogPanelData({
-      rawSearchParams: resolvedParams,
-      section: null,
-    });
-    const brandName = data.settings.showroomName || "Aura Studio";
-    return (
-      <div className="min-h-screen bg-[#faf8f5] text-[#1c1917] flex flex-col">
-        <StoreThemeStyles
-          paletteId={data.settings.themePalette}
-          primaryColor={data.settings.themePrimaryColor}
-          bgColor={data.settings.themeBgColor}
-          surfaceColor={data.settings.themeSurfaceColor}
-          headerBgColor={data.settings.themeHeaderBgColor}
-          footerBgColor={data.settings.themeFooterBgColor}
-          fontId={data.settings.themeFont}
-        />
-        <Header
-          brandName={brandName}
-          logoUrl={data.settings.logoUrl}
-          initialSearch={data.activeFilters.q || ""}
-          sections={data.publicSections}
-          categories={data.categories}
-          announcementBar={data.settings.announcementBar}
-        />
-        <main className="flex-1">
-          <Suspense fallback={<div className="mx-auto max-w-6xl p-8">Cargando catálogo...</div>}>
-            <CatalogPanelView
-              title={
-                data.activeFilters.q
-                  ? `Resultados para "${data.activeFilters.q}"`
-                  : "Catálogo"
-              }
-              breadcrumbLabel="Catálogo"
-              products={data.products}
-              totalCount={data.totalCount}
-              pageSize={data.pageSize}
-              currentPage={data.currentPage}
-              facets={data.facets}
-              categories={data.categories}
-              attributeDefinitions={data.attributeDefinitions}
-              enabledFilters={data.enabledFilters}
-              activeFilters={data.activeFilters}
-              defaultSort={data.defaultSort}
-            />
-          </Suspense>
-        </main>
-        <CartDrawer
-          showroomAddress={data.settings.address}
-          whatsappNumber={data.settings.whatsappNumber}
-          brandName={brandName}
-          ordersPaused={data.settings.ordersPaused}
-          ordersPausedNotice={data.settings.ordersPausedNotice}
-        />
-        <Footer
-          brandName={brandName}
-          businessDescriptor={data.settings.businessDescriptor}
-          aboutText={data.settings.aboutText}
-          logoUrl={data.settings.logoUrl}
-          whatsappNumber={data.settings.whatsappNumber}
-          instagramHandle={data.settings.instagramHandle}
-          tiktokHandle={data.settings.tiktokHandle}
-          address={data.settings.address}
-          dataFiscalUrl={data.settings.dataFiscalUrl}
-          sections={data.publicSections}
-          storeLocation={data.settings.storeLocation}
-          storeSchedule={data.settings.storeSchedule}
-        />
-        <CartToast />
-      </div>
-    );
-  }
-
+export default async function HomePage() {
   const deps = getProductServiceDeps();
   const navService = new NavigationService({
     navigationRepo: deps.navigationRepo,
@@ -131,12 +35,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   });
   const promotionService = new PromotionService(deps.promotionRepo);
 
-  const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const thirtyDaysAgoMs = getHourlyAlignedPastMs(30);
 
   const [
     settings,
-    allCategories,
     publicSections,
+    homeSections,
     activeBanners,
     activePromotions,
     newArrivalsResult,
@@ -144,8 +48,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     saleResult,
   ] = await Promise.all([
     getShowroomSettings(deps),
-    deps.categoryRepo.listAll(),
     navService.listPublicNavigationSections(),
+    navService.listHomeSections(),
     promotionService.listActiveHomeBanners(),
     promotionService.listActivePublicPromotions(),
     listProducts(
@@ -177,7 +81,50 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ),
   ]);
 
-  const brandName = settings.showroomName || "Aura Studio";
+  const defaultBrand = process.env.COMMERCE_NAME || "Mi Tienda";
+  const brandName = settings.showroomName || defaultBrand;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mitienda.local";
+
+  const paymentLabels = [
+    ...(settings.mercadopagoEnabled ? ["Mercado Pago", "Tarjeta de Crédito"] : []),
+    ...(settings.transferEnabled ? ["Transferencia Bancaria"] : []),
+    ...(settings.cashEnabled ? ["Efectivo"] : []),
+  ];
+
+  const storeJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    name: brandName,
+    description:
+      settings.aboutText ||
+      settings.businessDescriptor ||
+      "Catálogo online con piezas seleccionadas y reserva directa.",
+    url: baseUrl,
+    ...(settings.logoUrl ? { logo: settings.logoUrl } : {}),
+    priceRange: "$$",
+    currenciesAccepted: "ARS",
+    ...(paymentLabels.length > 0 ? { paymentAccepted: paymentLabels.join(", ") } : {}),
+    ...(settings.address
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            streetAddress: settings.address,
+            addressCountry: "AR",
+          },
+        }
+      : {}),
+    ...(settings.whatsappNumber
+      ? {
+          telephone: settings.whatsappNumber,
+        }
+      : {}),
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${baseUrl}/catalogo?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   const rawBlocks = Array.isArray(settings.homeBlocks)
     ? settings.homeBlocks
     : settings.homeBlocks?.blocks || [];
@@ -186,29 +133,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     .sort((a, b) => a.position - b.position);
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#1c1917] flex flex-col">
-      {/* Inyección de paleta de colores configurada en Backoffice */}
-      <StoreThemeStyles
-        paletteId={settings.themePalette}
-        primaryColor={settings.themePrimaryColor}
-        bgColor={settings.themeBgColor}
-        surfaceColor={settings.themeSurfaceColor}
-        headerBgColor={settings.themeHeaderBgColor}
-        footerBgColor={settings.themeFooterBgColor}
-        fontId={settings.themeFont}
-      />
-
-      {/* 1 & 2. Barra de anuncios (36-40px) + Header fijo con secciones y buscador con sugerencias */}
-      <Header
-        brandName={brandName}
-        logoUrl={settings.logoUrl}
-        sections={publicSections}
-        categories={allCategories}
-        announcementBar={settings.announcementBar}
+    <>
+      {/* Datos Estructurados JSON-LD (Schema.org Store) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(storeJsonLd) }}
       />
 
       {/* Vidriera por bloques ordenables desde el backoffice */}
-      <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 space-y-10 sm:space-y-14">
+      <main className="flex-1 mx-auto w-full max-w-6xl px-4 pt-3 pb-8 sm:px-6 sm:pt-4 sm:pb-12 space-y-8 sm:space-y-12">
         {orderedBlocks.map((block) => {
           switch (block.id) {
             case "hero":
@@ -237,7 +170,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               return (
                 <FeaturedSectionsMosaic
                   key={block.id}
-                  sections={publicSections}
+                  sections={homeSections}
                 />
               );
 
@@ -289,37 +222,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           }
         })}
       </main>
-
-      {/* Drawer lateral de Carrito / Bolsa */}
-      <CartDrawer
-        showroomAddress={settings.address}
-        whatsappNumber={settings.whatsappNumber}
-        brandName={brandName}
-        ordersPaused={settings.ordersPaused}
-        ordersPausedNotice={settings.ordersPausedNotice}
-      />
-
-      {/* Footer de 4 columnas con ubicación y horarios (ADM-05, ADM-07, ADM-08) */}
-      <Footer
-        brandName={brandName}
-        businessDescriptor={settings.businessDescriptor}
-        aboutText={settings.aboutText}
-        logoUrl={settings.logoUrl}
-        whatsappNumber={settings.whatsappNumber}
-        instagramHandle={settings.instagramHandle}
-        tiktokHandle={settings.tiktokHandle}
-        address={settings.address}
-        dataFiscalUrl={settings.dataFiscalUrl}
-        sections={publicSections}
-        storeLocation={settings.storeLocation}
-        storeSchedule={settings.storeSchedule}
-        mercadopagoEnabled={settings.mercadopagoEnabled}
-        transferEnabled={settings.transferEnabled}
-        cashEnabled={settings.cashEnabled}
-      />
-
-      {/* Toast accesible de confirmación de bolsa de compras (BR-40) */}
-      <CartToast />
-    </div>
+    </>
   );
 }

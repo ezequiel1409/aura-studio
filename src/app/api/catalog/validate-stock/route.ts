@@ -49,19 +49,20 @@ export async function POST(req: NextRequest) {
             );
 
             if (!matchedSize || matchedSize.stock <= 0) {
-              return { key, productId, available: false, remainingStock: 0, reason: "SOLD_OUT" };
+              return { key, productId, available: false, stock: 0, remainingStock: 0, reason: "SOLD_OUT" };
             }
 
             return {
               key,
               productId,
               available: matchedSize.stock >= requestedQuantity,
+              stock: matchedSize.stock,
               remainingStock: matchedSize.stock,
               reason: matchedSize.stock < requestedQuantity ? "INSUFFICIENT_STOCK" : null,
             };
           }
 
-          return { key, productId, available: true, remainingStock: 1, reason: null };
+          return { key, productId, available: true, stock: 1, remainingStock: 1, reason: null };
         })
       );
 
@@ -157,6 +158,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           ok: false,
           available: false,
+          stock: 0,
+          remainingStock: 0,
           reason: "SOLD_OUT",
           message: `El talle ${size} en ${matchedColor?.name || colorName} ya no tiene stock disponible.`,
         });
@@ -172,6 +175,7 @@ export async function POST(req: NextRequest) {
           ok: false,
           available: false,
           reason: "INSUFFICIENT_STOCK",
+          stock: matchedSize.stock,
           remainingStock: matchedSize.stock,
           message:
             matchedSize.stock === 1
@@ -183,6 +187,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         available: true,
+        stock: matchedSize.stock,
         remainingStock: matchedSize.stock,
       });
     }
@@ -190,6 +195,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       available: true,
+      stock: 1,
       remainingStock: 1,
     });
   } catch (error) {
@@ -198,6 +204,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       available: true,
+      stock: 1,
       remainingStock: 1,
     });
   }

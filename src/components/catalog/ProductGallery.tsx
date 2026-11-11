@@ -1,33 +1,34 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import {
   ChevronLeft,
   ChevronRight,
-  X,
   ZoomIn,
-  ZoomOut,
-  RotateCcw,
 } from "lucide-react";
 import { ProductPhoto } from "../../domain/product/types";
+
+const ProductLightboxModal = dynamic(
+  () =>
+    import("./ProductLightboxModal").then((mod) => mod.ProductLightboxModal),
+  { ssr: false }
+);
 
 interface ProductGalleryProps {
   photos: ProductPhoto[];
   title?: string | null;
   code: string;
+  selectedColorId?: number | null;
 }
 
 const emptySubscribe = () => () => {};
 
-export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
+export function ProductGallery({ photos, title, code, selectedColorId }: ProductGalleryProps) {
   const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
+  const thumbnailContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Swipe táctil en móvil
   const touchStartXRef = useRef<number | null>(null);
@@ -35,59 +36,58 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
 
   const totalPhotos = photos?.length || 0;
 
+  const slideTo = useCallback(
+    (targetIndex: number) => {
+      if (targetIndex < 0 || targetIndex >= totalPhotos) return;
+      setCurrentIndex(targetIndex);
+
+      // Desplazamiento suave de la miniatura activa en el visor
+      if (thumbnailContainerRef.current) {
+        const thumbEl = thumbnailContainerRef.current.children[targetIndex] as HTMLElement | undefined;
+        if (thumbEl && typeof thumbEl.scrollIntoView === "function") {
+          thumbEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        }
+      }
+    },
+    [totalPhotos]
+  );
+
   const nextSlide = useCallback(() => {
     if (totalPhotos <= 1) return;
-    setCurrentIndex((prev) => (prev + 1) % totalPhotos);
-    setZoomLevel(1);
-    setPanPosition({ x: 0, y: 0 });
-  }, [totalPhotos]);
+    slideTo((currentIndex + 1) % totalPhotos);
+  }, [totalPhotos, currentIndex, slideTo]);
 
   const prevSlide = useCallback(() => {
     if (totalPhotos <= 1) return;
-    setCurrentIndex((prev) => (prev - 1 + totalPhotos) % totalPhotos);
-    setZoomLevel(1);
-    setPanPosition({ x: 0, y: 0 });
-  }, [totalPhotos]);
+    slideTo((currentIndex - 1 + totalPhotos) % totalPhotos);
+  }, [totalPhotos, currentIndex, slideTo]);
 
-  // Manejo de teclado para el carrusel y el modal
+  // Sincronización automática variante de color -> deslizamiento suave hacia la primera imagen de la variante
   useEffect(() => {
+    if (selectedColorId == null || !photos || photos.length === 0) return;
+    const matchingIndex = photos.findIndex(
+      (p) => p.productColorId != null && p.productColorId === selectedColorId
+    );
+    if (matchingIndex !== -1 && matchingIndex !== currentIndex) {
+      slideTo(matchingIndex);
+    }
+  }, [selectedColorId, photos, currentIndex, slideTo]);
+
+  // Manejo de teclado para el carrusel de página cuando el lightbox no está abierto
+  useEffect(() => {
+    if (isLightboxOpen) return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isLightboxOpen) {
-        if (e.key === "Escape") {
-          setIsLightboxOpen(false);
-          setZoomLevel(1);
-          setPanPosition({ x: 0, y: 0 });
-        } else if (e.key === "ArrowRight") {
-          nextSlide();
-        } else if (e.key === "ArrowLeft") {
-          prevSlide();
-        } else if (e.key === "+" || e.key === "=") {
-          setZoomLevel((z) => Math.min(z + 0.5, 3.5));
-        } else if (e.key === "-") {
-          setZoomLevel((z) => Math.max(z - 0.5, 1));
-        }
-      } else {
-        if (e.key === "ArrowRight") {
-          nextSlide();
-        } else if (e.key === "ArrowLeft") {
-          prevSlide();
-        }
+      if (e.key === "ArrowRight") {
+        nextSlide();
+      } else if (e.key === "ArrowLeft") {
+        prevSlide();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isLightboxOpen, nextSlide, prevSlide]);
-
-  // Bloquear scroll de la página de fondo mientras el visor está abierto
-  useEffect(() => {
-    if (!isLightboxOpen) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isLightboxOpen]);
 
   // Gestos táctiles de deslizamiento (Swipe)
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -112,73 +112,53 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
     touchStartYRef.current = null;
   };
 
-  // Controles de zoom en modal
-  const handleZoomIn = () => setZoomLevel((z) => Math.min(z + 0.5, 3.5));
-  const handleZoomOut = () => {
-    setZoomLevel((z) => {
-      const next = Math.max(z - 0.5, 1);
-      if (next === 1) setPanPosition({ x: 0, y: 0 });
-      return next;
-    });
-  };
-  const handleResetZoom = () => {
-    setZoomLevel(1);
-    setPanPosition({ x: 0, y: 0 });
-  };
-
-  // Arrastre al hacer zoom (Pan)
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoomLevel <= 1) return;
-    setIsDragging(true);
-    dragStartRef.current = { x: e.clientX - panPosition.x, y: e.clientY - panPosition.y };
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || zoomLevel <= 1) return;
-    setPanPosition({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y,
-    });
-  };
-
-  const handleMouseUp = () => setIsDragging(false);
-
   // Si no hay fotos, mostrar placeholder elegante
   if (totalPhotos === 0) {
     return (
       <div className="relative mx-auto flex h-[310px] xs:h-[340px] sm:h-[390px] md:h-[410px] lg:h-[440px] w-full max-w-[360px] md:max-w-[400px] overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] flex-col items-center justify-center p-8 text-center text-stone-400">
-        <span className="font-serif text-5xl font-light text-stone-300">AURA</span>
+        <span className="font-serif text-4xl font-light text-stone-300">SIN FOTO</span>
         <span className="mt-2 font-mono text-xs tracking-widest text-stone-400">{code}</span>
       </div>
     );
   }
 
-  const currentPhoto = photos[currentIndex] || photos[0];
-  const photoAlt = title ? `${title} - Foto ${currentIndex + 1} de ${totalPhotos}` : `Foto de ${code}`;
-
   return (
     <div className="flex flex-col gap-3">
-      {/* Contenedor Principal del Carrusel */}
+      {/* Contenedor Principal del Carrusel con Slider Suave */}
       <div
         className="group relative mx-auto flex aspect-[4/5] min-h-[360px] sm:min-h-[440px] lg:min-h-[500px] w-full items-center justify-center overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] shadow-xs select-none"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Fondo difuminado ambiental suave en el tono de la prenda */}
+        {/* Tira horizontal deslizable con transición fluida */}
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-15 blur-lg scale-110 pointer-events-none"
-          style={{ backgroundImage: `url(${currentPhoto.keyThumb || currentPhoto.keyFull})` }}
-          aria-hidden="true"
-        />
+          className="flex h-full w-full transition-transform duration-500 ease-out will-change-transform"
+          style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        >
+          {photos.map((photo, idx) => (
+            <div
+              key={photo.id || idx}
+              className="relative flex h-full min-w-full items-center justify-center overflow-hidden flex-shrink-0"
+            >
+              {/* Fondo difuminado ambiental suave en el tono de la prenda */}
+              <div
+                className="absolute inset-0 bg-cover bg-center opacity-15 blur-lg scale-110 pointer-events-none"
+                style={{ backgroundImage: `url(${photo.keyThumb || photo.keyFull})` }}
+                aria-hidden="true"
+              />
 
-        {/* Imagen del Slide Actual (con object-contain para ver el producto completo sin recortes) */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={currentPhoto.keyFull || currentPhoto.keyThumb}
-          alt={photoAlt}
-          className="relative z-10 h-full w-full object-contain p-2 transition-all duration-300 cursor-zoom-in drop-shadow-xs"
-          onClick={() => setIsLightboxOpen(true)}
-        />
+              {/* Imagen del Slide */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photo.keyFull || photo.keyThumb}
+                alt={title ? `${title} - Foto ${idx + 1} de ${totalPhotos}` : `Foto de ${code}`}
+                className="relative z-10 h-full w-full object-contain p-2 transition-all duration-300 cursor-zoom-in drop-shadow-xs"
+                onClick={() => setIsLightboxOpen(true)}
+                loading={idx === 0 ? "eager" : "lazy"}
+              />
+            </div>
+          ))}
+        </div>
 
         {/* Botón flotante para Zoom / Vista detallada */}
         <button
@@ -220,17 +200,17 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
           </>
         )}
 
-        {/* Puntos indicadores inferiores del carrusel */}
+        {/* Indicadores de barra inferior de posición */}
         {totalPhotos > 1 && (
-          <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full bg-stone-950/40 px-2.5 py-1 backdrop-blur-xs">
-            {photos.map((_, idx) => (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full bg-stone-950/40 px-2.5 py-1 backdrop-blur-xs">
+            {photos.map((_, i) => (
               <button
-                key={idx}
+                key={i}
                 type="button"
-                onClick={() => setCurrentIndex(idx)}
-                aria-label={`Ir a la foto ${idx + 1}`}
-                className={`h-1.5 transition-all rounded-full cursor-pointer ${
-                  idx === currentIndex ? "w-4 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80"
+                onClick={() => slideTo(i)}
+                aria-label={`Ir a foto ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  i === currentIndex ? "w-4 bg-white" : "w-1.5 bg-white/50 hover:bg-white/80"
                 }`}
               />
             ))}
@@ -238,13 +218,12 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
         )}
       </div>
 
-      {/* Miniaturas inferiores para selección directa (1 a 3 fotos) */}
+      {/* Miniaturas de Navegación Rápida */}
       {totalPhotos > 1 && (
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col gap-1.5">
           <div
-            className="flex items-center justify-center gap-2 sm:gap-2.5 py-0.5"
-            role="tablist"
-            aria-label="Miniaturas del producto"
+            ref={thumbnailContainerRef}
+            className="flex gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-none"
           >
             {photos.map((photo, index) => {
               const isSelected = index === currentIndex;
@@ -252,14 +231,7 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
                 <button
                   key={photo.id || index}
                   type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  aria-label={`Foto ${index + 1} de ${totalPhotos}`}
-                  onClick={() => {
-                    setCurrentIndex(index);
-                    setZoomLevel(1);
-                    setPanPosition({ x: 0, y: 0 });
-                  }}
+                  onClick={() => slideTo(index)}
                   className={`group/thumb relative h-14 w-12 sm:h-16 sm:w-14 flex-shrink-0 overflow-hidden rounded-xl border-2 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-stone-900 ${
                     isSelected
                       ? "border-stone-900 shadow-sm ring-2 ring-stone-900/10 scale-102 opacity-100"
@@ -285,136 +257,18 @@ export function ProductGallery({ photos, title, code }: ProductGalleryProps) {
         </div>
       )}
 
-      {/* MODAL LIGHTBOX DE ZOOM INMERSIVO (Renderizado en Portal para evitar solapamiento de z-index) */}
-      {isMounted && isLightboxOpen &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Visor de alta resolución con zoom"
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-950/95 backdrop-blur-md select-none"
-          >
-            {/* Barra superior de controles del visor */}
-            <div className="absolute top-4 left-4 right-4 z-50 flex items-center justify-between text-white">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-semibold text-stone-300">
-                  {code} · {currentIndex + 1} / {totalPhotos}
-                </span>
-                {zoomLevel > 1 && (
-                  <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-mono">
-                    {Math.round(zoomLevel * 100)}%
-                  </span>
-                )}
-              </div>
-
-              {/* Herramientas de Zoom */}
-              <div className="flex items-center gap-1.5 bg-stone-900/80 p-1 rounded-full border border-stone-800">
-                <button
-                  type="button"
-                  onClick={handleZoomOut}
-                  disabled={zoomLevel <= 1}
-                  aria-label="Alejar imagen"
-                  className="rounded-full p-2 text-stone-300 hover:bg-stone-800 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
-                >
-                  <ZoomOut className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResetZoom}
-                  disabled={zoomLevel === 1}
-                  aria-label="Restablecer tamaño original"
-                  className="rounded-full p-2 text-stone-300 hover:bg-stone-800 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleZoomIn}
-                  disabled={zoomLevel >= 3.5}
-                  aria-label="Acercar imagen"
-                  className="rounded-full p-2 text-stone-300 hover:bg-stone-800 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
-                >
-                  <ZoomIn className="h-4 w-4" />
-                </button>
-                <div className="h-4 w-px bg-stone-700 mx-1" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLightboxOpen(false);
-                    setZoomLevel(1);
-                    setPanPosition({ x: 0, y: 0 });
-                  }}
-                  aria-label="Cerrar visor de imagen"
-                  className="rounded-full p-2 text-stone-300 hover:bg-rose-950/60 hover:text-white cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Flecha previa en Lightbox */}
-            {totalPhotos > 1 && (
-              <button
-                type="button"
-                onClick={prevSlide}
-                aria-label="Foto anterior"
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-stone-900/70 text-white shadow-md transition-all hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-white cursor-pointer"
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </button>
-            )}
-
-            {/* Área interactiva de la imagen con Zoom y Arrastre */}
-            <div
-              className={`relative flex h-full w-full items-center justify-center overflow-hidden p-4 ${
-                zoomLevel > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-default"
-              }`}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onDoubleClick={() => {
-                if (zoomLevel === 1) {
-                  setZoomLevel(2);
-                } else {
-                  handleResetZoom();
-                }
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={currentPhoto.keyFull || currentPhoto.keyThumb}
-                alt={photoAlt}
-                style={{
-                  transform: `scale(${zoomLevel}) translate(${panPosition.x / zoomLevel}px, ${
-                    panPosition.y / zoomLevel
-                  }px)`,
-                  transition: isDragging ? "none" : "transform 0.2s ease-out",
-                }}
-                className="max-h-[85vh] max-w-[85vw] object-contain transition-transform select-none"
-                draggable={false}
-              />
-            </div>
-
-            {/* Flecha siguiente en Lightbox */}
-            {totalPhotos > 1 && (
-              <button
-                type="button"
-                onClick={nextSlide}
-                aria-label="Foto siguiente"
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-stone-900/70 text-white shadow-md transition-all hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-white cursor-pointer"
-              >
-                <ChevronRight className="h-6 w-6" />
-              </button>
-            )}
-
-            {/* Instrucciones de ayuda al pie del visor */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center text-[11px] text-stone-400 pointer-events-none z-40">
-              <span>Doble clic para acercar o alejar · Arrastra para explorar detalles · ESC para salir</span>
-            </div>
-          </div>,
-          document.body
-        )}
+      {/* MODAL LIGHTBOX DE ZOOM INMERSIVO (Carga diferida / Lazy loading bajo demanda) */}
+      {isMounted && isLightboxOpen && (
+        <ProductLightboxModal
+          photos={photos}
+          currentIndex={currentIndex}
+          code={code}
+          title={title}
+          onClose={() => setIsLightboxOpen(false)}
+          onPrev={prevSlide}
+          onNext={nextSlide}
+        />
+      )}
     </div>
   );
 }

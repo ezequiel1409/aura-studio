@@ -352,23 +352,25 @@ export function CartPageClient({
   } else if (deliveryMethod === "MOTORCYCLE") {
     baseShippingCents = effectiveMotoCost;
   }
-  const shippingCents = appliedCoupon?.freeShipping ? 0 : baseShippingCents;
-  const discountCents = appliedCoupon ? appliedCoupon.discountCents : 0;
+  const safeSubtotal = Number.isFinite(subtotalCents) && subtotalCents >= 0 ? subtotalCents : 0;
+  const shippingCents = appliedCoupon?.freeShipping ? 0 : (Number.isFinite(baseShippingCents) ? baseShippingCents : 0);
+  const discountCents = appliedCoupon && Number.isFinite(appliedCoupon.discountCents) ? appliedCoupon.discountCents : 0;
 
   // Bonificación por método de pago (ej: 10% OFF en transferencia, aplicable en Paso 3)
   const activeMethod = paymentMethods.find((m) => m.method === effectivePaymentMethod);
+  const rawTransferPercent = activeMethod?.discountPercent ?? bankDetails?.discountPercent ?? 10;
   const transferDiscountPercent =
-    effectivePaymentMethod === "TRANSFER"
-      ? (activeMethod?.discountPercent ?? bankDetails?.discountPercent ?? 10)
+    effectivePaymentMethod === "TRANSFER" && Number.isFinite(rawTransferPercent)
+      ? Math.max(0, Math.min(100, rawTransferPercent))
       : 0;
   const paymentDiscountCents =
     transferDiscountPercent > 0
-      ? Math.round((Math.max(0, subtotalCents - discountCents) * transferDiscountPercent) / 100)
+      ? Math.round((Math.max(0, safeSubtotal - discountCents) * transferDiscountPercent) / 100)
       : 0;
 
-  const step1TotalCents = Math.max(0, subtotalCents - discountCents);
-  const step2TotalCents = Math.max(0, subtotalCents - discountCents + shippingCents);
-  const finalTotalCents = Math.max(0, subtotalCents - discountCents - paymentDiscountCents + shippingCents);
+  const step1TotalCents = Math.max(0, safeSubtotal - discountCents);
+  const step2TotalCents = Math.max(0, safeSubtotal - discountCents + shippingCents);
+  const finalTotalCents = Math.max(0, safeSubtotal - discountCents - paymentDiscountCents + shippingCents);
 
   const cleanPhone = whatsappNumber.replace(/\D/g, "");
 
@@ -408,18 +410,12 @@ export function CartPageClient({
     setOrderSuccessReceiptError(null);
 
     try {
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error("Error al leer el archivo PDF"));
-      });
-      reader.readAsDataURL(orderSuccessReceiptFile);
-      const base64 = await base64Promise;
+      const formData = new FormData();
+      formData.append("file", orderSuccessReceiptFile);
 
       const res = await fetch(`/api/orders/${orderSuccess.code}/receipt`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receiptBase64: base64 }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -428,7 +424,15 @@ export function CartPageClient({
       }
 
       setOrderSuccessReceiptSuccess(true);
-      setOrderSuccess((prev) => (prev ? { ...prev, transferReceiptUrl: data.order?.transferReceiptUrl || base64 } : null));
+      setOrderSuccess((prev) =>
+        prev
+          ? {
+              ...prev,
+              transferReceiptUrl:
+                data.receiptUrl || data.order?.transferReceiptUrl || `/api/orders/${orderSuccess.code}/receipt`,
+            }
+          : null
+      );
     } catch (err) {
       setOrderSuccessReceiptError(err instanceof Error ? err.message : "Error al subir el comprobante");
     } finally {
@@ -629,15 +633,18 @@ export function CartPageClient({
           paymentMethod: effectivePaymentMethod,
           paymentDiscountCents,
           couponCode: appliedCoupon?.code || null,
-          transferReceiptUrl: transferReceiptBase64 || null,
+          transferReceiptUrl: null,
           items: items.map((i) => ({
             productId: i.productId,
             productCode: i.code,
             productTitle: i.title || `Producto ${i.formattedCode}`,
-            colorName: i.colorName,
-            size: i.size,
-            quantity: i.quantity,
-            unitPriceCents: i.unitPriceCents || 0,
+            colorName: (i.colorName || "Único").trim(),
+            size: (i.size || "ÚNICO").trim(),
+            quantity: Number.isFinite(i.quantity) && i.quantity > 0 ? Math.floor(i.quantity) : 1,
+            unitPriceCents:
+              i.unitPriceCents != null && Number.isFinite(i.unitPriceCents)
+                ? Math.round(i.unitPriceCents)
+                : 0,
             photoUrl: i.photoUrl,
           })),
         }),
@@ -648,6 +655,35 @@ export function CartPageClient({
         throw new Error(data.error || "Error al procesar la orden.");
       }
 
+      let finalReceiptUrl = data.order?.transferReceiptUrl || null;
+
+      // Si se adjuntó un comprobante en el checkout, se sube por separado vía multipart/form-data
+      if (transferReceiptFile && data.order?.code) {
+        try {
+          const formData = new FormData();
+          formData.append("file", transferReceiptFile);
+          const receiptRes = await fetch(`/api/orders/${data.order.code}/receipt`, {
+            method: "POST",
+            body: formData,
+          });
+          if (receiptRes.ok) {
+            const receiptData = await receiptRes.json();
+            finalReceiptUrl =
+              receiptData.receiptUrl ||
+              receiptData.order?.transferReceiptUrl ||
+              `/api/orders/${data.order.code}/receipt`;
+          } else {
+            setOrderSuccessReceiptError(
+              "Tu pedido fue registrado con éxito, pero hubo un inconveniente al adjuntar el comprobante. Podés volver a subirlo a continuación."
+            );
+          }
+        } catch {
+          setOrderSuccessReceiptError(
+            "Tu pedido fue registrado con éxito, pero hubo un inconveniente al adjuntar el comprobante. Podés volver a subirlo a continuación."
+          );
+        }
+      }
+
       const confirmedPaymentMethod = effectivePaymentMethod;
 
       setOrderSuccess({
@@ -655,7 +691,7 @@ export function CartPageClient({
         whatsappUrl: data.whatsappUrl,
         paymentPreference: data.paymentPreference,
         paymentMethod: confirmedPaymentMethod,
-        transferReceiptUrl: data.order?.transferReceiptUrl || transferReceiptBase64 || null,
+        transferReceiptUrl: finalReceiptUrl,
       });
 
       // Limpiar bolsa y reiniciar métodos elegidos para próximas compras
@@ -1159,7 +1195,7 @@ export function CartPageClient({
                             {/* Variantes seleccionadas */}
                             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-stone-600">
                               <span className="rounded-md border border-[#e7e2da] bg-[#faf8f5] px-2.5 py-0.5 font-medium">
-                                Talle: <strong>{item.size}</strong>
+                                Talle: <strong>{item.size || "ÚNICO"}</strong>
                               </span>
                               {item.colorName && item.colorName.toLowerCase() !== "único" && (
                                 <span className="flex items-center gap-1.5 rounded-md border border-[#e7e2da] bg-[#faf8f5] px-2.5 py-0.5 font-medium">
@@ -1177,56 +1213,80 @@ export function CartPageClient({
 
                           {/* Cantidad y Precios (sin duplicaciones innecesarias) */}
                           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                            {isItemOutOfStock ? (
-                              <span className="font-mono text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg">
-                                Sin stock disponible
-                              </span>
-                            ) : item.maxStock > 1 ? (
-                              <div className="flex items-center rounded-xl border border-[#d8d2c7] bg-[#faf8f5]">
-                                <button
-                                  type="button"
-                                  disabled={item.quantity <= 1}
-                                  onClick={() => updateQuantity(item.key, item.quantity - 1)}
-                                  aria-label="Disminuir cantidad"
-                                  className="p-2 text-stone-600 hover:text-stone-900 transition-colors cursor-pointer"
-                                >
-                                  <Minus className="h-3.5 w-3.5" />
-                                </button>
-                                <span className="w-8 text-center font-mono text-xs font-bold text-stone-900">
-                                  {item.quantity}
+                            {(() => {
+                              const safeQty = Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
+                              const safeStock = Number.isFinite(item.maxStock) ? item.maxStock : 1;
+                              const isOutOfStock = safeStock <= 0;
+
+                              if (isOutOfStock) {
+                                return (
+                                  <span className="font-mono text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg">
+                                    Sin stock disponible
+                                  </span>
+                                );
+                              }
+
+                              if (safeStock > 1) {
+                                return (
+                                  <div className="flex items-center rounded-xl border border-[#d8d2c7] bg-[#faf8f5]">
+                                    <button
+                                      type="button"
+                                      disabled={safeQty <= 1}
+                                      onClick={() => updateQuantity(item.key, safeQty - 1)}
+                                      aria-label="Disminuir cantidad"
+                                      className="p-2 text-stone-600 hover:text-stone-900 transition-colors cursor-pointer disabled:opacity-40"
+                                    >
+                                      <Minus className="h-3.5 w-3.5" />
+                                    </button>
+                                    <span className="w-8 text-center font-mono text-xs font-bold text-stone-900">
+                                      {safeQty}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      disabled={safeQty >= safeStock}
+                                      onClick={() => updateQuantity(item.key, safeQty + 1)}
+                                      aria-label="Aumentar cantidad"
+                                      className={`p-2 transition-colors cursor-pointer ${
+                                        safeQty >= safeStock
+                                          ? "text-stone-300 cursor-not-allowed"
+                                          : "text-stone-600 hover:text-stone-900"
+                                      }`}
+                                    >
+                                      <Plus className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <span className="font-mono text-xs text-stone-500 bg-[#faf8f5] border border-[#e7e2da] px-2.5 py-1 rounded-lg">
+                                  Pieza única (1u)
                                 </span>
-                                <button
-                                  type="button"
-                                  disabled={item.quantity >= item.maxStock}
-                                  onClick={() => updateQuantity(item.key, item.quantity + 1)}
-                                  aria-label="Aumentar cantidad"
-                                  className={`p-2 transition-colors cursor-pointer ${
-                                    item.quantity >= item.maxStock
-                                      ? "text-stone-300 cursor-not-allowed"
-                                      : "text-stone-600 hover:text-stone-900"
-                                  }`}
-                                >
-                                  <Plus className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="font-mono text-xs text-stone-500 bg-[#faf8f5] border border-[#e7e2da] px-2.5 py-1 rounded-lg">
-                                Pieza única (1u)
-                              </span>
-                            )}
+                              );
+                            })()}
 
                             <div className="text-right">
-                              {item.quantity > 1 && !isItemOutOfStock && (
-                                <span className="text-[11px] text-stone-500 block">
-                                  {item.quantity} × {formatPrice(item.unitPriceCents, item.currency)}
-                                </span>
-                              )}
-                              <span className={`font-serif text-lg sm:text-xl font-bold ${isItemOutOfStock ? "text-stone-400 line-through" : "text-stone-900"}`}>
-                                {formatPrice(
-                                  item.unitPriceCents ? item.unitPriceCents * item.quantity : null,
-                                  item.currency
-                                )}
-                              </span>
+                              {(() => {
+                                const safeQty = Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
+                                const isOutOfStock = Number.isFinite(item.maxStock) && item.maxStock <= 0;
+                                return (
+                                  <>
+                                    {safeQty > 1 && !isOutOfStock && (
+                                      <span className="text-[11px] text-stone-500 block">
+                                        {safeQty} × {formatPrice(item.unitPriceCents, item.currency)}
+                                      </span>
+                                    )}
+                                    <span className={`font-serif text-lg sm:text-xl font-bold ${isOutOfStock ? "text-stone-400 line-through" : "text-stone-900"}`}>
+                                      {formatPrice(
+                                        item.unitPriceCents != null && Number.isFinite(item.unitPriceCents) && safeQty > 0
+                                          ? item.unitPriceCents * safeQty
+                                          : null,
+                                        item.currency
+                                      )}
+                                    </span>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -1503,13 +1563,17 @@ export function CartPageClient({
                         >
                           <div className="flex items-center gap-1.5">
                             <Store className="h-4 w-4" />
-                            <span className="text-xs font-bold">Retiro Showroom</span>
+                            <span className="text-xs font-bold">
+                              {storeLocation.attendsPublic ? "Retiro Showroom" : "Entrega coordinada"}
+                            </span>
                           </div>
                           <span className="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            Gratis · Hoy
+                            Gratis
                           </span>
                           <span className="text-[11px] opacity-75">
-                            {storeLocation.locality || "Palermo Soho"}
+                            {storeLocation.attendsPublic
+                              ? (storeLocation.locality || "Showroom")
+                              : "A coordinar por WhatsApp"}
                           </span>
                         </button>
                       )}
@@ -2513,7 +2577,12 @@ export function CartPageClient({
                         </div>
                       </div>
                       <span className="font-serif font-semibold text-stone-900 text-xs shrink-0">
-                        {formatPrice(i.unitPriceCents ? i.unitPriceCents * i.quantity : null, i.currency)}
+                        {formatPrice(
+                          i.unitPriceCents != null && Number.isFinite(i.unitPriceCents) && i.quantity > 0
+                            ? i.unitPriceCents * i.quantity
+                            : null,
+                          i.currency
+                        )}
                       </span>
                     </li>
                   ))}

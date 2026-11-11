@@ -55,11 +55,19 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      ok: true,
-      products: matchedProducts,
-      categories: matchedCategories,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        products: matchedProducts,
+        categories: matchedCategories,
+      },
+      {
+        headers: {
+          "Cache-Control":
+            "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch {
     return NextResponse.json({
       ok: true,

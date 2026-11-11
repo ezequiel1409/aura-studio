@@ -1,8 +1,8 @@
 import { Loader2 } from "lucide-react";
 
 /**
- * Fallback de carga instantáneo para la página principal del catálogo (AR-11).
- * Activado automáticamente por Next.js App Router ante transiciones de ruta hacia "/".
+ * Fallback de carga instantáneo para el contenido del catálogo (AR-11).
+ * Activado automáticamente por Next.js App Router en el área principal de contenido.
  */
 export default function CatalogLoading() {
   return (
@@ -10,19 +10,8 @@ export default function CatalogLoading() {
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className="min-h-screen bg-[#faf8f5] text-[#1c1917]"
+      className="flex-1 w-full bg-[#faf8f5] text-[#1c1917]"
     >
-      {/* Header simulado */}
-      <header className="sticky top-0 z-40 border-b border-[#e7e2da] bg-[#faf8f5]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5 sm:px-6">
-          <div className="space-y-1">
-            <div className="h-6 w-36 animate-pulse rounded bg-[#e7e2da]" />
-            <div className="h-2.5 w-24 animate-pulse rounded bg-[#f0ece1]" />
-          </div>
-          <div className="h-9 w-44 sm:w-72 animate-pulse rounded-full bg-[#f0ece1]" />
-        </div>
-      </header>
-
       {/* Contenido principal en carga */}
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         {/* Banner editorial en carga con spinner central */}
@@ -78,7 +67,7 @@ export default function CatalogLoading() {
       </main>
 
       {/* Anuncio accesible oculto para lectores de pantalla */}
-      <span className="sr-only">Cargando catálogo completo de Aura Studio</span>
+      <span className="sr-only">Cargando catálogo completo</span>
     </div>
   );
 }

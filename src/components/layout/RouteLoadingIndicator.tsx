@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 /**
- * Indicador visual y accesible de navegación entre rutas en Aura Studio (AR-11).
+ * Indicador visual y accesible de navegación entre rutas en el storefront (AR-11).
  * Detecta clics en enlaces locales y renderiza:
- * 1. Una barra de progreso superior de estética editorial en tono bronce (#926a3c).
- * 2. Un spinner flotante con información de estado ("Cargando prenda...", "Cargando catálogo...").
+ * 1. Una barra de progreso superior de estética editorial en tono bronce (#926a3c) si la carga supera 70ms.
+ * 2. Un spinner flotante con información de estado ("Cargando producto...", "Cargando catálogo...").
  * 3. Región viva aria-live="polite" y aria-busy para lectores de pantalla.
  */
 export function RouteLoadingIndicator() {
@@ -17,9 +17,15 @@ export function RouteLoadingIndicator() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [targetLabel, setTargetLabel] = useState<string>("Cargando...");
   const [progress, setProgress] = useState(0);
+  const pendingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Al completarse la navegación y cambiar de ruta o parámetros, finalizamos la animación
   useEffect(() => {
+    if (pendingTimerRef.current) {
+      clearTimeout(pendingTimerRef.current);
+      pendingTimerRef.current = null;
+    }
+
     if (!isNavigating) return;
 
     let timer: NodeJS.Timeout | undefined;
@@ -28,7 +34,7 @@ export function RouteLoadingIndicator() {
       timer = setTimeout(() => {
         setIsNavigating(false);
         setProgress(0);
-      }, 250);
+      }, 200);
     });
 
     return () => {
@@ -37,7 +43,7 @@ export function RouteLoadingIndicator() {
     };
   }, [pathname, searchParams, isNavigating]);
 
-  // Interceptar clics en enlaces locales para activar la transición inmediata
+  // Interceptar clics en enlaces locales para activar la transición si toma tiempo
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
       // Ignorar clics secundarios (click derecho/central) o con teclas modificadoras
@@ -80,7 +86,7 @@ export function RouteLoadingIndicator() {
         }
 
         // No superponer spinner de storefront dentro del panel administrativo
-        if (url.pathname.startsWith('/admin')) {
+        if (url.pathname.startsWith("/admin")) {
           return;
         }
 
@@ -92,7 +98,7 @@ export function RouteLoadingIndicator() {
         }
 
         // Si es la misma ruta y solo cambian parámetros de consulta (filtros, orden, destacados en catálogo),
-        // dejamos que la transición local optimista maneje la respuesta sin superponer el spinner global de ruta
+        // dejamos que la transición local optimista maneje la respuesta
         if (url.pathname === window.location.pathname) {
           return;
         }
@@ -106,9 +112,12 @@ export function RouteLoadingIndicator() {
           setTargetLabel("Cargando página...");
         }
 
-        // Iniciar estado visual de navegación
-        setIsNavigating(true);
-        setProgress(30);
+        // Debounce de 70ms: no mostrar spinner para transiciones inmediatas de caché
+        if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+        pendingTimerRef.current = setTimeout(() => {
+          setIsNavigating(true);
+          setProgress(35);
+        }, 70);
       } catch {
         // En caso de URL inválida, no interrumpir comportamiento nativo
       }
@@ -117,6 +126,7 @@ export function RouteLoadingIndicator() {
     document.addEventListener("click", handleDocumentClick, true);
     return () => {
       document.removeEventListener("click", handleDocumentClick, true);
+      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
     };
   }, []);
 
@@ -124,20 +134,18 @@ export function RouteLoadingIndicator() {
   useEffect(() => {
     if (!isNavigating) return;
 
-    const step1 = setTimeout(() => setProgress((p) => Math.max(p, 55)), 120);
-    const step2 = setTimeout(() => setProgress((p) => Math.max(p, 80)), 450);
-    const step3 = setTimeout(() => setProgress((p) => Math.max(p, 92)), 1100);
+    const step1 = setTimeout(() => setProgress((p) => Math.max(p, 60)), 150);
+    const step2 = setTimeout(() => setProgress((p) => Math.max(p, 85)), 500);
 
     // Timeout de seguridad en caso de que la navegación se aborte
     const safetyTimeout = setTimeout(() => {
       setIsNavigating(false);
       setProgress(0);
-    }, 8000);
+    }, 6000);
 
     return () => {
       clearTimeout(step1);
       clearTimeout(step2);
-      clearTimeout(step3);
       clearTimeout(safetyTimeout);
     };
   }, [isNavigating]);
@@ -162,29 +170,23 @@ export function RouteLoadingIndicator() {
           aria-valuemax={100}
           aria-valuenow={progress}
           aria-label={targetLabel}
-          aria-busy={isNavigating}
-          className="pointer-events-none fixed inset-x-0 top-0 z-50 select-none"
+          className="fixed top-0 left-0 right-0 z-[100] h-1 bg-transparent pointer-events-none"
         >
-          {/* Barra de progreso superior editorial */}
-          <div className="h-[3px] w-full bg-transparent overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-[#926a3c] via-[#b68c59] to-[#73512b] shadow-xs transition-all duration-300 ease-out"
-              style={{
-                width: `${progress}%`,
-                opacity: progress === 100 ? 0 : 1,
-                transitionProperty: "width, opacity",
-              }}
-            />
-          </div>
+          {/* Barra de progreso de acento bronce (#926a3c) */}
+          <div
+            className="h-full bg-gradient-to-r from-[#926a3c] via-[#b3864f] to-[#d4aa73] transition-all duration-200 ease-out shadow-xs"
+            style={{
+              width: `${progress}%`,
+              opacity: progress === 100 ? 0 : 1,
+              transitionProperty: "width, opacity",
+            }}
+          />
 
-          {/* Spinner flotante sutil con insignia de estado */}
+          {/* Spinner flotante accesible de esquina superior derecha */}
           {isNavigating && (
-            <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-50 flex items-center gap-2 rounded-full border border-[#e7e2da] bg-white/95 px-3 py-1.5 shadow-md backdrop-blur-md transition-all motion-reduce:transition-none">
-              <Loader2
-                className="h-3.5 w-3.5 animate-spin text-[#926a3c] motion-reduce:animate-none"
-                aria-hidden="true"
-              />
-              <span className="font-serif text-xs font-medium text-stone-800">
+            <div className="absolute right-4 top-3 flex items-center gap-2 rounded-full border border-stone-200/80 bg-white/95 px-3 py-1 shadow-md backdrop-blur-md transition-opacity">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-[#926a3c] motion-reduce:animate-none" aria-hidden="true" />
+              <span className="font-serif text-[11px] font-medium tracking-wide text-stone-700">
                 {targetLabel}
               </span>
             </div>

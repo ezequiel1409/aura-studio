@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShieldCheck, ShoppingBag, Plus, Minus, CheckCircle2, ArrowRight, MessageCircle, Info } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 import { ProductColor } from "../../domain/product/types";
+import { resolveColorHex } from "../../lib/format/colors";
 
 interface ProductOrderSectionProps {
   productId: number;
@@ -156,21 +157,26 @@ export function ProductOrderSection({
 
     if (isSelectedOutOfStock || maxStock <= 0 || quantity <= 0) return;
 
+    const safeStock = Number.isFinite(maxStock) && maxStock > 0 ? maxStock : 1;
+    const safeQty = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    const safePrice =
+      priceCents != null && Number.isFinite(priceCents) ? Math.round(priceCents) : null;
+
     addItem(
       {
         productId,
         code,
         formattedCode,
         title,
-        colorName: activeColor?.name || "Único",
+        colorName: (activeColor?.name || "Único").trim(),
         hexCode: activeColor?.hexCode,
-        size: selectedSize || currentSizes[0]?.size || "ÚNICO",
-        maxStock,
-        unitPriceCents: priceCents,
+        size: (selectedSize || currentSizes[0]?.size || "ÚNICO").trim(),
+        maxStock: safeStock,
+        unitPriceCents: safePrice,
         currency,
         photoUrl: photoUrl || null,
       },
-      quantity
+      safeQty
     );
 
     setJustAdded(true);
@@ -223,13 +229,11 @@ export function ProductOrderSection({
                       : "border border-[#e7e2da] bg-[#faf8f5] text-stone-700 hover:border-stone-400 hover:text-stone-900 hover:bg-white"
                   } ${!hasColorStock ? "opacity-60" : ""}`}
                 >
-                  {color.hexCode && (
-                    <span
-                      className="h-3.5 w-3.5 rounded-full border border-black/20 shadow-2xs shrink-0"
-                      style={{ backgroundColor: color.hexCode }}
-                      aria-hidden="true"
-                    />
-                  )}
+                  <span
+                    className="h-3.5 w-3.5 rounded-full border border-black/20 shadow-2xs shrink-0"
+                    style={{ backgroundColor: resolveColorHex(color.name, color.hexCode) }}
+                    aria-hidden="true"
+                  />
                   <span>{color.name}</span>
                 </button>
               );

@@ -54,7 +54,7 @@ export function ArchiveSection({ soldProducts = [] }: ArchiveSectionProps) {
         </div>
 
         <span className="font-mono text-xs text-stone-500 bg-white border border-[#e7e2da] px-3 py-1.5 rounded-full w-fit">
-          Curaduría Histórica
+          Historial de Colecciones
         </span>
       </div>
 

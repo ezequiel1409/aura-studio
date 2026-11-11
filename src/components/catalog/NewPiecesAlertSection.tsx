@@ -16,10 +16,10 @@ export function NewPiecesAlertSection() {
     setLoading(true);
     setTimeout(() => {
       try {
-        const stored = localStorage.getItem("aura_alert_subscribers") || "[]";
+        const stored = localStorage.getItem("app_alert_subscribers") || "[]";
         const list = JSON.parse(stored);
         list.push({ channel, contact: contactValue.trim(), date: new Date().toISOString() });
-        localStorage.setItem("aura_alert_subscribers", JSON.stringify(list));
+        localStorage.setItem("app_alert_subscribers", JSON.stringify(list));
       } catch {}
 
       setLoading(false);

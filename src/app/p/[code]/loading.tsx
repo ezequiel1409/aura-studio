@@ -3,8 +3,7 @@ import Link from "next/link";
 
 /**
  * Fallback de carga instantáneo para la ficha de producto /p/[code] (AR-11).
- * Activado inmediatamente por Next.js App Router cuando el usuario hace clic en una prenda,
- * eliminando cualquier sensación de congelamiento o refresco de pantalla.
+ * Activado inmediatamente por Next.js App Router en el área principal mientras se obtienen los detalles de la pieza.
  */
 export default function ProductDetailLoading() {
   return (
@@ -12,15 +11,12 @@ export default function ProductDetailLoading() {
       role="status"
       aria-live="polite"
       aria-busy="true"
-      className="min-h-screen bg-[#faf8f5] pb-24 text-[#1c1917]"
+      className="flex-1 pb-24 text-[#1c1917]"
     >
-      {/* Barra superior de retorno */}
-      <header
-        role="navigation"
-        aria-label="Navegación de retorno"
-        className="sticky top-0 z-40 border-b border-[#e7e2da] bg-[#faf8f5]/90 backdrop-blur-md"
-      >
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+      {/* Contenedor de la Ficha en Carga */}
+      <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
+        {/* Enlace accesible de retorno al catálogo durante carga */}
+        <div className="mb-4 sm:mb-6 flex items-center justify-between">
           <Link
             href="/"
             aria-label="Volver al catálogo principal"
@@ -37,16 +33,13 @@ export default function ProductDetailLoading() {
             </span>
           </div>
         </div>
-      </header>
 
-      {/* Contenedor de la Ficha en Carga */}
-      <main className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:gap-12 items-start">
           {/* Columna Izquierda: Galería Skeleton con Spinner */}
           <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl border border-[#e7e2da] bg-[#f5f2eb] animate-pulse flex flex-col items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-[#926a3c]/60 motion-reduce:animate-none" aria-hidden="true" />
             <span className="mt-3 font-serif text-xs font-medium tracking-widest text-stone-500 uppercase">
-              Aura Studio
+              Catálogo
             </span>
           </div>
 

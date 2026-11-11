@@ -1,16 +1,11 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 
 // Revalida el catálogo en segundo plano cada 60 segundos en Edge CDN
 export const revalidate = 60;
-import dynamic from "next/dynamic";
-import { Header } from "../../components/layout/Header";
-import { Footer } from "../../components/layout/Footer";
 
-const CartDrawer = dynamic(() =>
-  import("../../components/cart/CartDrawer").then((mod) => mod.CartDrawer)
-);
-import { CartToast } from "../../components/cart/CartToast";
-import { StoreThemeStyles } from "../../components/theme/StoreThemeStyles";
+import { getProductServiceDeps } from "../../infra/db/connection";
+import { getShowroomSettings } from "../../services/settings.service";
 import { CatalogPanelView } from "../../components/catalog/CatalogPanelView";
 import {
   loadCatalogPanelData,
@@ -21,6 +16,47 @@ interface CatalogPageProps {
   searchParams: Promise<RawCatalogSearchParams>;
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  let brandName = process.env.COMMERCE_NAME || "Mi Tienda";
+  let description =
+    "Explorá todas las piezas disponibles filtrando por talle, color, categoría o precio.";
+
+  try {
+    const deps = getProductServiceDeps();
+    const settings = await getShowroomSettings(deps);
+    brandName = settings.showroomName || brandName;
+    if (settings.businessDescriptor || settings.aboutText) {
+      description = settings.businessDescriptor || settings.aboutText || description;
+    }
+  } catch {
+    // Fallback silencioso
+  }
+
+  const title = `Catálogo Completo | ${brandName}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://mitienda.local";
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `${baseUrl}/catalogo`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${baseUrl}/catalogo`,
+      siteName: brandName,
+      locale: "es_AR",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
+
 export default async function CatalogPage({ searchParams }: CatalogPageProps) {
   const resolvedParams = await searchParams;
   const data = await loadCatalogPanelData({
@@ -28,74 +64,29 @@ export default async function CatalogPage({ searchParams }: CatalogPageProps) {
     section: null,
   });
 
-  const brandName = data.settings.showroomName || "Aura Studio";
   const pageTitle = data.activeFilters.q
     ? `Resultados para "${data.activeFilters.q}"`
     : "Catálogo Completo";
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#1c1917] flex flex-col">
-      <StoreThemeStyles
-        paletteId={data.settings.themePalette}
-        primaryColor={data.settings.themePrimaryColor}
-        fontId={data.settings.themeFont}
-      />
-
-      <Header
-        brandName={brandName}
-        logoUrl={data.settings.logoUrl}
-        initialSearch={data.activeFilters.q || ""}
-        sections={data.publicSections}
-        categories={data.categories}
-        announcementBar={data.settings.announcementBar}
-      />
-
-      <main className="flex-1">
-        <Suspense fallback={<div className="mx-auto max-w-6xl p-8">Cargando catálogo...</div>}>
-          <CatalogPanelView
-            title={pageTitle}
-            subtitle="Explorá todas las piezas disponibles filtrando por talle, color, categoría o precio."
-            breadcrumbLabel="Catálogo"
-            products={data.products}
-            totalCount={data.totalCount}
-            pageSize={data.pageSize}
-            currentPage={data.currentPage}
-            facets={data.facets}
-            categories={data.categories}
-            attributeDefinitions={data.attributeDefinitions}
-            enabledFilters={data.enabledFilters}
-            activeFilters={data.activeFilters}
-            defaultSort={data.defaultSort}
-          />
-        </Suspense>
-      </main>
-
-      <CartDrawer
-        showroomAddress={data.settings.address}
-        whatsappNumber={data.settings.whatsappNumber}
-        brandName={brandName}
-      />
-
-      <Footer
-        brandName={brandName}
-        businessDescriptor={data.settings.businessDescriptor}
-        aboutText={data.settings.aboutText}
-        logoUrl={data.settings.logoUrl}
-        whatsappNumber={data.settings.whatsappNumber}
-        instagramHandle={data.settings.instagramHandle}
-        tiktokHandle={data.settings.tiktokHandle}
-        address={data.settings.address}
-        dataFiscalUrl={data.settings.dataFiscalUrl}
-        sections={data.publicSections}
-        storeLocation={data.settings.storeLocation}
-        storeSchedule={data.settings.storeSchedule}
-        mercadopagoEnabled={data.settings.mercadopagoEnabled}
-        transferEnabled={data.settings.transferEnabled}
-        cashEnabled={data.settings.cashEnabled}
-      />
-
-      <CartToast />
-    </div>
+    <main className="flex-1">
+      <Suspense fallback={<div className="mx-auto max-w-6xl p-8">Cargando catálogo...</div>}>
+        <CatalogPanelView
+          title={pageTitle}
+          subtitle="Explorá todas las piezas disponibles filtrando por talle, color, categoría o precio."
+          breadcrumbLabel="Catálogo"
+          products={data.products}
+          totalCount={data.totalCount}
+          pageSize={data.pageSize}
+          currentPage={data.currentPage}
+          facets={data.facets}
+          categories={data.categories}
+          attributeDefinitions={data.attributeDefinitions}
+          enabledFilters={data.enabledFilters}
+          activeFilters={data.activeFilters}
+          defaultSort={data.defaultSort}
+        />
+      </Suspense>
+    </main>
   );
 }
-

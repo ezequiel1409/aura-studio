@@ -12,10 +12,10 @@ interface AnalyticsTrackerProps {
 export function AnalyticsTracker({ type, productId, categoryId }: AnalyticsTrackerProps) {
   useEffect(() => {
     // Genera o recupera sessionId anónimo en el navegador
-    let sessionId = localStorage.getItem("aura_session_id");
+    let sessionId = localStorage.getItem("app_session_id");
     if (!sessionId) {
       sessionId = `sess_${Math.random().toString(36).substring(2)}_${Date.now()}`;
-      localStorage.setItem("aura_session_id", sessionId);
+      localStorage.setItem("app_session_id", sessionId);
     }
 
     const payload = JSON.stringify({
@@ -47,10 +47,10 @@ export function AnalyticsTracker({ type, productId, categoryId }: AnalyticsTrack
 export function trackWhatsAppClick(productId: number) {
   if (typeof window === "undefined") return;
 
-  let sessionId = localStorage.getItem("aura_session_id");
+  let sessionId = localStorage.getItem("app_session_id");
   if (!sessionId) {
     sessionId = `sess_${Math.random().toString(36).substring(2)}_${Date.now()}`;
-    localStorage.setItem("aura_session_id", sessionId);
+    localStorage.setItem("app_session_id", sessionId);
   }
 
   const payload = JSON.stringify({

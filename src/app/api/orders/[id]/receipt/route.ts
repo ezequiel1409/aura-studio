@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
-import { uploadTransferReceipt } from "../../../../../services/order.service";
+import { getTransferReceiptFile, uploadTransferReceipt } from "../../../../../services/order.service";
 import { DomainError, OrderNotFoundError, ValidationError } from "../../../../../domain/errors";
 import { parseOrderCode, sanitizeOrderForResponse } from "../../../../../domain/order";
 import { logger } from "../../../../../lib/logger";
+import { authorizeReceiptAccess } from "../../../../../infra/auth/receipt-guard";
+import { createReceiptSignedUrl } from "../../../../../infra/auth/receipt-signature";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const startTime = performance.now();
@@ -15,54 +17,52 @@ export async function GET(
     const rawId = resolvedParams.id;
     const deps = getProductServiceDeps();
 
-    let order = null;
-    const numId = parseInt(rawId, 10);
-    if (!Number.isNaN(numId) && numId > 0) {
-      order = await deps.orderRepo.findById(numId);
-    }
-    if (!order) {
-      const codeNum = parseOrderCode(rawId);
-      if (codeNum) {
-        order = await deps.orderRepo.findByCode(codeNum);
-      }
-    }
+    const { order, stream, data, size, contentType } = await getTransferReceiptFile(rawId, deps);
 
-    if (!order || !order.transferReceiptUrl) {
+    // BR-08, BR-10, BR-41: Control de autorización de comprobantes
+    // Requiere: sesión de administradora, sesión de clienta dueña de la orden, o enlace firmado válido.
+    const authResult = await authorizeReceiptAccess(req, order);
+    if (!authResult.authorized) {
+      logger.warn("RECEIPT:UNAUTHORIZED_ACCESS", authResult.error || "Acceso denegado", {
+        orderId: order.id,
+        orderCode: order.code,
+        status: authResult.status,
+      });
       return NextResponse.json(
-        { ok: false, error: "Comprobante no encontrado para esta orden." },
-        { status: 404 }
+        { ok: false, error: authResult.error },
+        { status: authResult.status }
       );
     }
 
-    let base64Data = order.transferReceiptUrl;
-    if (base64Data.startsWith("data:")) {
-      base64Data = base64Data.replace(/^data:[^;]+;base64,/, "");
-    }
-
-    const pdfBuffer = Buffer.from(base64Data, "base64");
     const durationMs = Math.round(performance.now() - startTime);
 
     logger.info("RECEIPT:DOWNLOAD", `Comprobante de orden #${order.code} descargado`, {
       orderId: order.id,
       orderCode: order.code,
-      bytes: pdfBuffer.length,
+      bytes: size ?? data?.byteLength ?? 0,
       durationMs,
     });
 
-    return new NextResponse(pdfBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="comprobante-orden-${order.code}.pdf"`,
-        "Content-Length": pdfBuffer.length.toString(),
-        "Cache-Control": "private, max-age=3600",
-      },
-    });
+    const headers: Record<string, string> = {
+      "Content-Type": contentType || "application/pdf",
+      "Content-Disposition": `inline; filename="comprobante-orden-${order.code}.pdf"`,
+      "Cache-Control": "private, max-age=3600",
+    };
+    if (size) {
+      headers["Content-Length"] = size.toString();
+    }
+
+    if (stream) {
+      return new NextResponse(stream, { status: 200, headers });
+    }
+
+    return new NextResponse(data as unknown as BodyInit, { status: 200, headers });
   } catch (error: unknown) {
     const durationMs = Math.round(performance.now() - startTime);
     const message = error instanceof Error ? error.message : "Error al obtener el comprobante";
+    const status = error instanceof OrderNotFoundError ? 404 : error instanceof ValidationError ? 400 : 500;
     logger.error("RECEIPT:DOWNLOAD_ERROR", message, error, { durationMs });
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
 
@@ -97,7 +97,7 @@ export async function POST(
       );
     }
 
-    let receiptBase64 = "";
+    let receiptInput: Uint8Array | string = "";
 
     const contentType = req.headers.get("content-type") || "";
     if (contentType.includes("multipart/form-data")) {
@@ -115,21 +115,25 @@ export async function POST(
           { status: 400 }
         );
       }
-      const buffer = Buffer.from(await file.arrayBuffer());
-      receiptBase64 = `data:application/pdf;base64,${buffer.toString("base64")}`;
+      const arrayBuffer = await file.arrayBuffer();
+      receiptInput = new Uint8Array(arrayBuffer);
     } else {
       const body = await req.json();
-      receiptBase64 = body.receiptBase64 || body.transferReceiptUrl || "";
+      receiptInput = body.receiptBase64 || body.transferReceiptUrl || "";
     }
 
-    if (!receiptBase64) {
+    if (
+      !receiptInput ||
+      (typeof receiptInput === "string" && !receiptInput.trim()) ||
+      (receiptInput instanceof Uint8Array && receiptInput.byteLength === 0)
+    ) {
       return NextResponse.json(
         { ok: false, error: "Debe adjuntar el archivo PDF del comprobante." },
         { status: 400 }
       );
     }
 
-    const updatedOrder = await uploadTransferReceipt(orderId, receiptBase64, deps);
+    const updatedOrder = await uploadTransferReceipt(orderId, receiptInput, deps);
     const durationMs = Math.round(performance.now() - startTime);
 
     logger.info("RECEIPT:UPLOADED", `Comprobante de orden #${updatedOrder.code} cargado exitosamente`, {
@@ -140,11 +144,12 @@ export async function POST(
     });
 
     const sanitizedOrder = sanitizeOrderForResponse(updatedOrder);
+    const signedReceiptUrl = await createReceiptSignedUrl(updatedOrder.id);
 
     return NextResponse.json({
       ok: true,
       message: "Comprobante cargado exitosamente.",
-      receiptUrl: `/api/orders/${updatedOrder.id}/receipt`,
+      receiptUrl: signedReceiptUrl,
       uploadedAt: updatedOrder.transferReceiptUploadedAt,
       order: sanitizedOrder,
     });

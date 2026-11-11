@@ -5,15 +5,22 @@ import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 
+// Mantiene en memoria de cliente el estado de hidratación para evitar parpadeos
+// en navegaciones subsecuentes o re-renderizados del Header
+let hasInitiallyMounted = false;
+
 export function CartHeaderButton() {
   // Selector atómico para evitar re-renders innecesarios
   const totalCount = useCartStore((state) =>
     state.items.reduce((acc, item) => acc + item.quantity, 0)
   );
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(hasInitiallyMounted);
 
   useEffect(() => {
-    setMounted(true);
+    if (!hasInitiallyMounted) {
+      hasInitiallyMounted = true;
+      setMounted(true);
+    }
   }, []);
 
   const count = mounted ? totalCount : 0;

@@ -228,7 +228,9 @@ export function CartDrawer({
               {/* Lista de Prendas */}
               <ul className="divide-y divide-[#e7e2da]/70" role="list">
                 {items.map((item) => {
-                  const isItemOutOfStock = item.maxStock <= 0;
+                  const safeItemQty = Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
+                  const safeItemStock = Number.isFinite(item.maxStock) ? item.maxStock : 1;
+                  const isItemOutOfStock = safeItemStock <= 0;
                   return (
                     <li key={item.key} className="py-4 flex gap-3.5 items-start">
                       {/* Foto con proporción 4:5 */}
@@ -285,7 +287,7 @@ export function CartDrawer({
                           {/* Variantes seleccionadas: Talle y Color */}
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-stone-600">
                             <span className="rounded-md border border-[#e7e2da] bg-white px-2 py-0.5 font-medium">
-                              Talle: <strong>{item.size}</strong>
+                              Talle: <strong>{item.size || "ÚNICO"}</strong>
                             </span>
                             {item.colorName && item.colorName.toLowerCase() !== "único" && (
                               <span className="flex items-center gap-1 rounded-md border border-[#e7e2da] bg-white px-2 py-0.5 font-medium">
@@ -307,27 +309,27 @@ export function CartDrawer({
                             <span className="font-mono text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg">
                               Agotado
                             </span>
-                          ) : item.maxStock > 1 ? (
+                          ) : safeItemStock > 1 ? (
                             <div className="flex items-center rounded-xl border border-[#d8d2c7] bg-white">
                               <button
                                 type="button"
-                                disabled={item.quantity <= 1}
-                                onClick={() => updateQuantity(item.key, item.quantity - 1)}
+                                disabled={safeItemQty <= 1}
+                                onClick={() => updateQuantity(item.key, safeItemQty - 1)}
                                 aria-label="Disminuir cantidad"
                                 className="p-1.5 text-stone-600 hover:text-stone-900 transition-colors cursor-pointer disabled:opacity-40"
                               >
                                 <Minus className="h-3.5 w-3.5" />
                               </button>
                               <span className="w-8 text-center font-mono text-xs font-bold text-stone-900">
-                                {item.quantity}
+                                {safeItemQty}
                               </span>
                               <button
                                 type="button"
-                                disabled={item.quantity >= item.maxStock}
-                                onClick={() => updateQuantity(item.key, item.quantity + 1)}
+                                disabled={safeItemQty >= safeItemStock}
+                                onClick={() => updateQuantity(item.key, safeItemQty + 1)}
                                 aria-label="Aumentar cantidad"
                                 className={`p-1.5 transition-colors cursor-pointer ${
-                                  item.quantity >= item.maxStock
+                                  safeItemQty >= safeItemStock
                                     ? "text-stone-300 cursor-not-allowed"
                                     : "text-stone-600 hover:text-stone-900"
                                 }`}
@@ -342,14 +344,16 @@ export function CartDrawer({
                           )}
 
                           <div className="text-right">
-                            {item.quantity > 1 && !isItemOutOfStock && (
+                            {safeItemQty > 1 && !isItemOutOfStock && (
                               <span className="text-[11px] text-stone-500 block">
-                                {item.quantity} × {formatPrice(item.unitPriceCents, item.currency)}
+                                {safeItemQty} × {formatPrice(item.unitPriceCents, item.currency)}
                               </span>
                             )}
                             <span className={`font-serif text-base font-bold ${isItemOutOfStock ? "text-stone-400 line-through" : "text-stone-900"}`}>
                               {formatPrice(
-                                item.unitPriceCents ? item.unitPriceCents * item.quantity : null,
+                                item.unitPriceCents != null && Number.isFinite(item.unitPriceCents) && safeItemQty > 0
+                                  ? item.unitPriceCents * safeItemQty
+                                  : null,
                                 item.currency
                               )}
                             </span>

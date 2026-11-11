@@ -13,7 +13,7 @@ export function FavoriteButton({ productId, productTitle }: FavoriteButtonProps)
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("aura_saved_pieces");
+      const stored = localStorage.getItem("app_saved_pieces");
       if (stored) {
         const ids = JSON.parse(stored);
         if (Array.isArray(ids)) {
@@ -28,7 +28,7 @@ export function FavoriteButton({ productId, productTitle }: FavoriteButtonProps)
     e.stopPropagation();
 
     try {
-      const stored = localStorage.getItem("aura_saved_pieces");
+      const stored = localStorage.getItem("app_saved_pieces");
       let ids: number[] = [];
       if (stored) {
         ids = JSON.parse(stored);
@@ -44,8 +44,8 @@ export function FavoriteButton({ productId, productTitle }: FavoriteButtonProps)
         setIsSaved(true);
       }
 
-      localStorage.setItem("aura_saved_pieces", JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent("aura_saved_updated", { detail: { savedIds: updated } }));
+      localStorage.setItem("app_saved_pieces", JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent("app_saved_updated", { detail: { savedIds: updated } }));
     } catch {}
   };
 

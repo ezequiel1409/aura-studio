@@ -86,7 +86,7 @@ export function CustomerPortalClient({
   useEffect(() => {
     const loadSaved = () => {
       try {
-        const stored = localStorage.getItem("aura_saved_pieces");
+        const stored = localStorage.getItem("app_saved_pieces");
         if (stored) {
           const ids: number[] = JSON.parse(stored);
           if (Array.isArray(ids)) {
@@ -106,10 +106,10 @@ export function CustomerPortalClient({
 
     loadSaved();
     const handleUpdate = () => loadSaved();
-    window.addEventListener("aura_saved_updated", handleUpdate);
+    window.addEventListener("app_saved_updated", handleUpdate);
     window.addEventListener("storage", handleUpdate);
     return () => {
-      window.removeEventListener("aura_saved_updated", handleUpdate);
+      window.removeEventListener("app_saved_updated", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
     };
   }, [allProducts]);
@@ -119,8 +119,8 @@ export function CustomerPortalClient({
       const updated = savedIds.filter((id) => id !== productId);
       setSavedIds(updated);
       setSavedProducts((prev) => prev.filter((p) => p.id !== productId));
-      localStorage.setItem("aura_saved_pieces", JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent("aura_saved_updated", { detail: { savedIds: updated } }));
+      localStorage.setItem("app_saved_pieces", JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent("app_saved_updated", { detail: { savedIds: updated } }));
     } catch {}
   };
 
@@ -189,21 +189,21 @@ export function CustomerPortalClient({
   // Cargar preferencias iniciales de localStorage
   useEffect(() => {
     try {
-      const storedTheme = localStorage.getItem("aura_client_theme");
+      const storedTheme = localStorage.getItem("app_client_theme");
       if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "system") {
         setPrefTheme(storedTheme);
       }
-      const storedChannel = localStorage.getItem("aura_pref_channel");
+      const storedChannel = localStorage.getItem("app_pref_channel");
       if (storedChannel === "whatsapp" || storedChannel === "email") {
         setPrefChannel(storedChannel);
       }
-      const storedSizes = localStorage.getItem("aura_pref_sizes");
+      const storedSizes = localStorage.getItem("app_pref_sizes");
       if (storedSizes) {
         const parsed = JSON.parse(storedSizes);
         if (parsed.top) setPrefTopSize(parsed.top);
         if (parsed.shoe) setPrefShoeSize(parsed.shoe);
       }
-      const storedDrops = localStorage.getItem("aura_pref_drops");
+      const storedDrops = localStorage.getItem("app_pref_drops");
       if (storedDrops !== null) {
         setPrefDrops(storedDrops === "true");
       }
@@ -213,13 +213,13 @@ export function CustomerPortalClient({
   const handleSavePreferences = (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      localStorage.setItem("aura_client_theme", prefTheme);
-      localStorage.setItem("aura_pref_channel", prefChannel);
+      localStorage.setItem("app_client_theme", prefTheme);
+      localStorage.setItem("app_pref_channel", prefChannel);
       localStorage.setItem(
-        "aura_pref_sizes",
+        "app_pref_sizes",
         JSON.stringify({ top: prefTopSize, shoe: prefShoeSize })
       );
-      localStorage.setItem("aura_pref_drops", String(prefDrops));
+      localStorage.setItem("app_pref_drops", String(prefDrops));
 
       // Aplicar data-theme o clase
       if (prefTheme === "dark") {
@@ -427,18 +427,12 @@ export function CustomerPortalClient({
     setReceiptUploadError((prev) => ({ ...prev, [orderId]: null }));
 
     try {
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error("Error al leer el archivo PDF"));
-      });
-      reader.readAsDataURL(file);
-      const base64 = await base64Promise;
+      const formData = new FormData();
+      formData.append("file", file);
 
       const res = await fetch(`/api/orders/${orderCode}/receipt`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receiptBase64: base64 }),
+        body: formData,
       });
 
       const data = await res.json();
@@ -452,7 +446,8 @@ export function CustomerPortalClient({
           o.id === orderId
             ? {
                 ...o,
-                transferReceiptUrl: data.order?.transferReceiptUrl || base64,
+                transferReceiptUrl:
+                  data.receiptUrl || data.order?.transferReceiptUrl || `/api/orders/${orderCode}/receipt`,
                 transferReceiptUploadedAt: data.order?.transferReceiptUploadedAt || Math.floor(Date.now() / 1000),
               }
             : o

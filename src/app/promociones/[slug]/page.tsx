@@ -1,29 +1,53 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+// Revalida detalle de promoción cada 10 minutos
+export const revalidate = 600;
 import {
   ArrowLeft,
   ArrowRight,
   Calendar,
-  CheckCircle2,
-  CreditCard,
   ExternalLink,
   FileText,
   Landmark,
   ShoppingBag,
 } from "lucide-react";
 import { getProductServiceDeps } from "../../../infra/db/connection";
-import { NavigationService } from "../../../services/navigation.service";
 import { PromotionService } from "../../../services/promotion.service";
 import { getShowroomSettings } from "../../../services/settings.service";
 import { formatPriceARS } from "../../../lib/format/currency";
-import { Header } from "../../../components/layout/Header";
-import { Footer } from "../../../components/layout/Footer";
-import { CartDrawer } from "../../../components/cart/CartDrawer";
-import { CartToast } from "../../../components/cart/CartToast";
-import { StoreThemeStyles } from "../../../components/theme/StoreThemeStyles";
 
 interface PromotionDetailPageProps {
   params: Promise<{ slug: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: PromotionDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const defaultBrand = process.env.COMMERCE_NAME || "Mi Tienda";
+  const deps = getProductServiceDeps();
+  const promotionService = new PromotionService(deps.promotionRepo);
+
+  try {
+    const [promo, settings] = await Promise.all([
+      promotionService.findPublicPromotionBySlug(slug),
+      getShowroomSettings(deps),
+    ]);
+    const brandName = settings.showroomName || defaultBrand;
+    if (!promo) {
+      return { title: `Promoción no encontrada | ${brandName}` };
+    }
+    return {
+      title: `${promo.title} | Promociones · ${brandName}`,
+      description:
+        promo.benefitSummary ||
+        `Conocé los detalles y condiciones de ${promo.title} en ${brandName}.`,
+    };
+  } catch {
+    return { title: `Promociones | ${defaultBrand}` };
+  }
 }
 
 export default async function PromotionDetailPage({
@@ -33,24 +57,13 @@ export default async function PromotionDetailPage({
   const deps = getProductServiceDeps();
 
   const promotionService = new PromotionService(deps.promotionRepo);
-  const navService = new NavigationService({
-    navigationRepo: deps.navigationRepo,
-    productRepo: deps.productRepo,
-    categoryRepo: deps.categoryRepo,
-  });
 
-  const [promo, settings, categories, publicSections] = await Promise.all([
-    promotionService.findPublicPromotionBySlug(slug),
-    getShowroomSettings(deps),
-    deps.categoryRepo.listAll(),
-    navService.listPublicNavigationSections(),
-  ]);
+  const promo = await promotionService.findPublicPromotionBySlug(slug);
 
   if (!promo) {
     notFound();
   }
 
-  const brandName = settings.showroomName || "Aura Studio";
   const bankName =
     promo.bank?.name ||
     (promo.promoType === "STORE" ? "Beneficio Propio" : "Entidad adherida");
@@ -70,7 +83,7 @@ export default async function PromotionDetailPage({
     promo.howToUseSteps && promo.howToUseSteps.length > 0
       ? promo.howToUseSteps
       : [
-          "Elegí tus prendas favoritas en nuestro catálogo y agregalas a la bolsa.",
+          "Elegí tus piezas favoritas en nuestro catálogo y agregalas a la bolsa.",
           "Al confirmar tu pedido, indicanos que abonás con la tarjeta o billetera incluida en la promoción.",
           promo.modality === "INSTANT"
             ? "El descuento se aplica en el acto al momento del cobro."
@@ -78,22 +91,7 @@ export default async function PromotionDetailPage({
         ];
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-[#1c1917] flex flex-col">
-      <StoreThemeStyles
-        paletteId={settings.themePalette}
-        primaryColor={settings.themePrimaryColor}
-        fontId={settings.themeFont}
-      />
-
-      <Header
-        brandName={brandName}
-        logoUrl={settings.logoUrl}
-        sections={publicSections}
-        categories={categories}
-        announcementBar={settings.announcementBar}
-      />
-
-      <main className="flex-1 mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 space-y-8">
+    <main className="flex-1 mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 space-y-8">
         {/* Volver a todas las promociones */}
         <Link
           href="/promociones"
@@ -307,28 +305,6 @@ export default async function PromotionDetailPage({
           </div>
         </section>
       </main>
-
-      <CartDrawer
-        showroomAddress={settings.address}
-        whatsappNumber={settings.whatsappNumber}
-        brandName={brandName}
-      />
-
-      <Footer
-        brandName={brandName}
-        logoUrl={settings.logoUrl}
-        whatsappNumber={settings.whatsappNumber}
-        instagramHandle={settings.instagramHandle}
-        tiktokHandle={settings.tiktokHandle}
-        address={settings.address}
-        dataFiscalUrl={settings.dataFiscalUrl}
-        sections={publicSections}
-        storeLocation={settings.storeLocation}
-        storeSchedule={settings.storeSchedule}
-      />
-
-      <CartToast />
-    </div>
   );
 }
 
