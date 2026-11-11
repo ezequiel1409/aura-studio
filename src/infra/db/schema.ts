@@ -9,17 +9,21 @@ import {
 /**
  * Tabla de Categorías (BR-15, BR-18, BR-19, BR-38)
  */
-export const categories = sqliteTable("categories", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  parentId: integer("parent_id").references((): AnySQLiteColumn => categories.id, {
-    onDelete: "restrict",
-  }),
-  name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
-  position: integer("position").notNull().default(0),
-  isHidden: integer("is_hidden").notNull().default(0),
-  isSystem: integer("is_system").notNull().default(0),
-});
+export const categories = sqliteTable(
+  "categories",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    parentId: integer("parent_id").references((): AnySQLiteColumn => categories.id, {
+      onDelete: "restrict",
+    }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull().unique(),
+    position: integer("position").notNull().default(0),
+    isHidden: integer("is_hidden").notNull().default(0),
+    isSystem: integer("is_system").notNull().default(0),
+  },
+  (table) => [index("categories_position_idx").on(table.position)]
+);
 
 /**
  * Tabla de Productos (previamente garments) (BR-01, BR-02, BR-03, BR-05, BR-20, BR-23)
@@ -318,6 +322,7 @@ export const orders = sqliteTable(
   (table) => [
     index("orders_code_idx").on(table.code),
     index("orders_status_created_at_idx").on(table.status, table.createdAt),
+    index("orders_created_at_idx").on(table.createdAt),
     index("orders_payment_status_idx").on(table.paymentStatus),
     index("orders_customer_id_idx").on(table.customerId),
     index("orders_customer_dni_idx").on(table.customerDni),

@@ -1,11 +1,11 @@
 -- ==========================================
--- SEED DATA: AURA STUDIO (CLOUDFLARE D1 / LOCAL)
+-- SEED DATA: MOTOR DE TIENDA (CLOUDFLARE D1 / LOCAL)
 -- ==========================================
 
 -- 1. Settings (BR-35)
 INSERT OR IGNORE INTO settings (key, value) VALUES
   ('whatsapp_number', '+5491100000000'),
-  ('brand_name', 'Aura Studio'),
+  ('brand_name', 'Mi Tienda'),
   ('reservation_hours', '48');
 
 -- 2. Categories (BR-15, BR-19)
@@ -29,8 +29,7 @@ INSERT OR IGNORE INTO category_stats (category_id, views_count, last_viewed_at) 
   (9, 0, NULL), (10, 0, NULL), (11, 0, NULL), (12, 0, NULL);
 
 -- 3. Admin Users (BR-08, BR-10)
-INSERT OR REPLACE INTO admin_users (id, email, name, password_hash, password_salt, role, status, created_at, updated_at) VALUES (1, 'admin@aurastudio.com', 'Administradora Principal', '778b8c8a828ee3c88f936f703011cd8324c902096a938d54c820dd18e7e8eb3385de948a5b856af18126ee1f4951b880b628306bd8b42a6e92eabba55bac2254', '1731a76f409e2a2a808446ee32ed2812', 'SUPER_ADMIN', 'ACTIVE', 1791548960310, 1791548960310);
-INSERT OR REPLACE INTO admin_users (id, email, name, password_hash, password_salt, role, status, created_at, updated_at) VALUES (2, 'ezequiel140901@gmail.com', 'Ezequiel', 'b5c1f9e37947591bd3a996666cfaa0ee3c47a83fb1658ae6d6855bb017119d90fc949f04ebe2e63ff0a706b0e1d7a0d6b4727931b5dea5edc854a06612b2124d', '199d0778c590702ef49dbc37d3985d78', 'SUPER_ADMIN', 'ACTIVE', 1791665181467, 1791665181467);
+INSERT OR REPLACE INTO admin_users (id, email, name, password_hash, password_salt, role, status, created_at, updated_at) VALUES (1, 'admin@tienda.local', 'Administrador Principal', '778b8c8a828ee3c88f936f703011cd8324c902096a938d54c820dd18e7e8eb3385de948a5b856af18126ee1f4951b880b628306bd8b42a6e92eabba55bac2254', '1731a76f409e2a2a808446ee32ed2812', 'SUPER_ADMIN', 'ACTIVE', 1791548960310, 1791548960310);
 
 -- 4. Counters (BR-01)
 INSERT OR REPLACE INTO counters (name, value) VALUES ('product_code', 5);

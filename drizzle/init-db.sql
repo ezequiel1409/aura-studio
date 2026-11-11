@@ -237,6 +237,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
 CREATE UNIQUE INDEX IF NOT EXISTS `orders_code_unique` ON `orders` (`code`);
 CREATE INDEX IF NOT EXISTS `orders_code_idx` ON `orders` (`code`);
 CREATE INDEX IF NOT EXISTS `orders_status_created_at_idx` ON `orders` (`status`,`created_at`);
+CREATE INDEX IF NOT EXISTS `orders_created_at_idx` ON `orders` (`created_at`);
 CREATE INDEX IF NOT EXISTS `orders_payment_status_idx` ON `orders` (`payment_status`);
 CREATE INDEX IF NOT EXISTS `orders_customer_id_idx` ON `orders` (`customer_id`);
 CREATE INDEX IF NOT EXISTS `orders_customer_dni_idx` ON `orders` (`customer_dni`);
@@ -266,7 +267,7 @@ CREATE INDEX IF NOT EXISTS `order_items_order_id_idx` ON `order_items` (`order_i
 -- Configuración base (BR-35)
 INSERT OR IGNORE INTO settings (key, value) VALUES
   ('whatsapp_number', '+5491100000000'),
-  ('brand_name', 'Aura Studio'),
+  ('brand_name', 'Mi Tienda'),
   ('reservation_hours', '48');
 
 -- Contador atómico correlativo para productos (BR-01)
