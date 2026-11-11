@@ -25,7 +25,7 @@ export function OnboardingChecklist({
   const [currentStatus, setCurrentStatus] = useState<"DRAFT" | "PUBLISHED">(storeStatus);
 
   useEffect(() => {
-    const saved = localStorage.getItem("aura_admin_onboarding_dismissed");
+    const saved = localStorage.getItem("admin_onboarding_dismissed");
     if (saved === "true") {
       setIsDismissed(true);
     }
@@ -79,7 +79,7 @@ export function OnboardingChecklist({
 
   const handleDismiss = () => {
     setIsDismissed(true);
-    localStorage.setItem("aura_admin_onboarding_dismissed", "true");
+    localStorage.setItem("admin_onboarding_dismissed", "true");
   };
 
   const toggleStoreStatus = () => {

@@ -27,6 +27,7 @@ interface AdminNavContextValue {
   refreshPendingOrders: () => Promise<void>;
   isTooltipDismissed: boolean;
   dismissTooltip: () => void;
+  userId?: number | null;
 }
 
 const AdminNavContext = createContext<AdminNavContextValue | undefined>(
@@ -41,6 +42,18 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
   const [pendingOrdersCount, setPendingOrdersCount] = useState<number>(0);
   const [isTooltipDismissed, setIsTooltipDismissed] = useState<boolean>(false);
+  const [userId, setUserId] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/session", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.authenticated && data.user?.userId) {
+          setUserId(data.user.userId);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Cargar estado colapsado desde localStorage al montar
   useEffect(() => {
@@ -154,6 +167,7 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
       refreshPendingOrders,
       isTooltipDismissed,
       dismissTooltip,
+      userId,
     }),
     [
       isCollapsed,
@@ -167,6 +181,7 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
       refreshPendingOrders,
       isTooltipDismissed,
       dismissTooltip,
+      userId,
     ]
   );
 
@@ -189,6 +204,7 @@ const defaultNavContext: AdminNavContextValue = {
   refreshPendingOrders: async () => {},
   isTooltipDismissed: false,
   dismissTooltip: () => {},
+  userId: null,
 };
 
 export function useAdminNav() {

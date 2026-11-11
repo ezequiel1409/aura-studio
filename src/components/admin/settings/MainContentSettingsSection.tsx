@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import {
   ArrowDown,
   ArrowUp,
@@ -420,6 +422,25 @@ export function MainContentSettingsSection({
               Imagen fotográfica de portada completa de temporada con textos superpuestos.
             </p>
           </button>
+        </div>
+
+        {/* Acceso directo a gestión de carrusel multi-banner */}
+        <div className="p-3.5 rounded-xl bg-amber-400/5 border border-amber-400/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <p className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+              <Sparkles size={14} />
+              <span>¿Querés armar un Carrusel con múltiples banners rotativos?</span>
+            </p>
+            <p className="text-[11px] text-zinc-400">
+              Podés adjuntar fotos diferenciadas para celular y computadora, títulos, botones de acción y rotación automática.
+            </p>
+          </div>
+          <Link
+            href="/admin/tienda/portada"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 text-amber-300 text-xs font-semibold transition-colors"
+          >
+            <span>Configurar Carrusel →</span>
+          </Link>
         </div>
 
         {(heroMode === "editorial" || heroMode === "custom_banner") && (

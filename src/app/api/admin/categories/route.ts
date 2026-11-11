@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticatedAdmin } from "../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
 import { createCategory, getCategoryTree } from "../../../../services/category.service";
+import { revalidateCategories } from "../../../../infra/cache/revalidation";
 
 export async function GET(req: NextRequest) {
   const isAuth = await isAuthenticatedAdmin(req);
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
       deps
     );
 
+    revalidateCategories();
     return NextResponse.json({ ok: true, category });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error al crear la categoría";

@@ -17,17 +17,24 @@ export default async function AdminTiendaPortadaPage() {
   const deps = getProductServiceDeps();
   const promotionService = new PromotionService(deps.promotionRepo);
 
-  const [settings, banners, activePromotions] = await Promise.all([
-    getShowroomSettings(deps),
-    deps.promotionRepo.listHomeBanners(),
-    promotionService.listActivePublicPromotions(),
-  ]);
+  const [settings, banners, activePromotions, sections, categories, attributes] =
+    await Promise.all([
+      getShowroomSettings(deps),
+      deps.promotionRepo.listHomeBanners(),
+      promotionService.listActivePublicPromotions(),
+      deps.navigationRepo.listSections(),
+      deps.categoryRepo.listAll(),
+      deps.navigationRepo.listAttributeDefinitions(),
+    ]);
 
   return (
     <AppearanceSettingsClient
       initialSettings={settings}
       initialBanners={banners}
       activePromotions={activePromotions}
+      initialSections={sections}
+      categories={categories}
+      attributes={attributes}
     />
   );
 }

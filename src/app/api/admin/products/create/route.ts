@@ -4,6 +4,7 @@ import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { createProduct } from "../../../../../services/product.service";
 import { CategoryNotFoundError, DomainError } from "../../../../../domain/errors";
 import { Product } from "../../../../../domain/product/types";
+import { revalidateProducts } from "../../../../../infra/cache/revalidation";
 
 // Cache en memoria para deduplicación e idempotencia ante doble clic o reintentos (TTL: 5 min)
 interface CachedSubmission {
@@ -204,6 +205,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    revalidateProducts(product.code);
     return NextResponse.json({ ok: true, product });
   } catch (error: unknown) {
     if (error instanceof CategoryNotFoundError) {

@@ -9,7 +9,7 @@ const useIsomorphicLayoutEffect =
 export function AdminThemeInitializer() {
   useIsomorphicLayoutEffect(() => {
     try {
-      const t = localStorage.getItem("aura_admin_theme") || "light";
+      const t = localStorage.getItem("app_admin_theme") || "light";
       const el = document.getElementById("admin-layout-root");
       if (el) {
         el.setAttribute("data-theme", t);

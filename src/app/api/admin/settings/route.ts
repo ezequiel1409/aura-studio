@@ -5,6 +5,7 @@ import {
   getShowroomSettings,
   updateShowroomSettings,
 } from "../../../../services/settings.service";
+import { revalidateStoreSettings } from "../../../../infra/cache/revalidation";
 
 export async function GET(req: NextRequest) {
   const isAuth = await isAuthenticatedAdmin(req);
@@ -85,10 +86,13 @@ export async function POST(req: NextRequest) {
         ordersPaused: body.ordersPaused !== undefined ? Boolean(body.ordersPaused) : undefined,
         ordersPausedNotice: body.ordersPausedNotice !== undefined ? body.ordersPausedNotice : undefined,
         emailCustomization: body.emailCustomization,
+        footerConfig: body.footerConfig,
+        navbarConfig: body.navbarConfig,
       },
       deps
     );
 
+    revalidateStoreSettings();
     return NextResponse.json({ ok: true, settings });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error al guardar configuración";

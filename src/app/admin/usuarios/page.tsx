@@ -4,9 +4,10 @@ import { getAdminSessionFromToken } from "../../../infra/auth/session";
 import { getProductServiceDeps } from "../../../infra/db/connection";
 import { listAdminUsers } from "../../../services/admin-users.service";
 import { AdminUsersClient } from "../../../components/admin/AdminUsersClient";
+import { ADMIN_SESSION_COOKIE_NAME } from "../../../infra/auth/guard";
 
 export const metadata = {
-  title: "Equipo y Administradores · Aura Studio",
+  title: "Equipo y Administradores · Backoffice",
   description: "Gestión de roles y suspensiones de administradores",
 };
 
@@ -14,7 +15,7 @@ export default async function AdminUsersPage() {
   await connection();
 
   const cookieStore = await cookies();
-  const token = cookieStore.get("aura_admin_token")?.value;
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
   const session = await getAdminSessionFromToken(token);
 
   if (!session || session.role !== "SUPER_ADMIN") {

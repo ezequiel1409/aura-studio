@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAdminSessionFromToken } from "../../../../../infra/auth/session";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { toggleAdminStatus } from "../../../../../services/admin-users.service";
+import { ADMIN_SESSION_COOKIE_NAME } from "../../../../../infra/auth/guard";
 
 export async function PATCH(req: NextRequest) {
   try {
-    const token = req.cookies.get("aura_admin_token")?.value;
+    const token = req.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value;
     const session = await getAdminSessionFromToken(token);
 
     if (!session || session.role !== "SUPER_ADMIN") {

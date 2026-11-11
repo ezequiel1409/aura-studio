@@ -6,6 +6,7 @@ import {
   listAttributeDefinitions,
   upsertAttributeDefinition,
 } from "../../../../services/navigation.service";
+import { revalidateProducts } from "../../../../infra/cache/revalidation";
 
 /**
  * Endpoint dedicado para la gestión de Atributos de Rubro (SOLID - Single Responsibility Principle).
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
       deps
     );
 
+    revalidateProducts();
     return NextResponse.json({ ok: true, attribute });
   } catch (error: unknown) {
     const message =
@@ -101,6 +103,7 @@ export async function DELETE(req: NextRequest) {
 
     const deps = getProductServiceDeps();
     await deleteAttributeDefinition(id, deps);
+    revalidateProducts();
 
     return NextResponse.json({ ok: true, deletedId: id });
   } catch (error: unknown) {

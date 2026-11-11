@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticatedAdmin } from "../../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { toggleProductFeatured } from "../../../../../services/product.service";
+import { revalidateProducts } from "../../../../../infra/cache/revalidation";
 
 export async function POST(req: NextRequest) {
   const isAuth = await isAuthenticatedAdmin(req);
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest) {
 
     const deps = getProductServiceDeps();
     const product = await toggleProductFeatured(productId, deps);
+    revalidateProducts(product.code);
     return NextResponse.json({ ok: true, product });
   } catch (error: unknown) {
     const message =

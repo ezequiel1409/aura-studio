@@ -7,6 +7,7 @@ import {
   upsertPromotion,
 } from "../../../../services/promotion.service";
 import { BenefitType } from "../../../../domain/promotion/types";
+import { revalidatePromotions } from "../../../../infra/cache/revalidation";
 
 function parseTimestamp(val: unknown, fallback: number = Date.now()): number {
   if (typeof val === "number" && !Number.isNaN(val) && val > 0) return val;
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
         isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
       });
       const banks = await deps.promotionRepo.listBanks({ activeOnly: false });
+      revalidatePromotions();
       return NextResponse.json({ ok: true, bank, banks });
     }
 
@@ -70,28 +72,77 @@ export async function POST(req: NextRequest) {
     ) {
       const duplicated = await duplicatePromotion(Number(body.id), deps);
       const promotions = await listAdminPromotions(deps);
+      revalidatePromotions();
       return NextResponse.json({ ok: true, promotion: duplicated, promotions });
     }
 
-    // 3. Manejo de Banners de Inicio
+    // 3. Manejo de Banners de Inicio (Carrusel de Portada)
     if (body.action === "upsert_banner") {
       const banner = await deps.promotionRepo.upsertHomeBanner({
         id: body.id ? Number(body.id) : undefined,
-        placement: body.placement,
-        desktopImageUrl: body.desktopImageUrl,
-        mobileImageUrl: body.mobileImageUrl,
-        title: body.title,
-        subtitle: body.subtitle,
-        ctaLabel: body.ctaLabel,
-        ctaHref: body.ctaHref,
+        placement: body.placement || "HOME_HERO",
+        desktopImageUrl: (body.desktopImageUrl || "").trim(),
+        mobileImageUrl: (body.mobileImageUrl || body.desktopImageUrl || "").trim(),
+        title: (body.title || "").trim(),
+        subtitle: body.subtitle ? body.subtitle.trim() : null,
+        ctaLabel: (body.ctaLabel || "Explorar colección").trim(),
+        ctaHref: (body.ctaHref || "/catalogo").trim(),
         promotionId: body.promotionId ? Number(body.promotionId) : null,
         startsAt: body.startsAt ? parseTimestamp(body.startsAt) : null,
         endsAt: body.endsAt ? parseTimestamp(body.endsAt) : null,
-        position: body.position ?? 0,
+        position: body.position !== undefined ? Number(body.position) : 0,
         isActive: body.isActive !== undefined ? Boolean(body.isActive) : true,
       });
       const banners = await deps.promotionRepo.listHomeBanners({ activeOnly: false });
+      revalidatePromotions();
       return NextResponse.json({ ok: true, banner, banners });
+    }
+
+    if (body.action === "reorder_banners" && Array.isArray(body.banners)) {
+      for (const item of body.banners) {
+        if (item.id) {
+          await deps.promotionRepo.upsertHomeBanner({
+            id: Number(item.id),
+            placement: item.placement || "HOME_HERO",
+            desktopImageUrl: item.desktopImageUrl || "",
+            mobileImageUrl: item.mobileImageUrl || item.desktopImageUrl || "",
+            title: item.title || "",
+            subtitle: item.subtitle || null,
+            ctaLabel: item.ctaLabel || "Explorar",
+            ctaHref: item.ctaHref || "/catalogo",
+            promotionId: item.promotionId ? Number(item.promotionId) : null,
+            position: Number(item.position) || 0,
+            isActive: item.isActive !== undefined ? Boolean(item.isActive) : true,
+          });
+        }
+      }
+      const banners = await deps.promotionRepo.listHomeBanners({ activeOnly: false });
+      revalidatePromotions();
+      return NextResponse.json({ ok: true, banners });
+    }
+
+    if (body.action === "toggle_banner_active" && body.id) {
+      const allBanners = await deps.promotionRepo.listHomeBanners({ activeOnly: false });
+      const target = allBanners.find((b) => b.id === Number(body.id));
+      if (target) {
+        await deps.promotionRepo.upsertHomeBanner({
+          id: target.id,
+          placement: target.placement || "HOME_HERO",
+          desktopImageUrl: target.desktopImageUrl || "",
+          mobileImageUrl: target.mobileImageUrl || target.desktopImageUrl || "",
+          title: target.title,
+          subtitle: target.subtitle,
+          ctaLabel: target.ctaLabel,
+          ctaHref: target.ctaHref,
+          startsAt: target.startsAt,
+          endsAt: target.endsAt,
+          position: target.position,
+          isActive: !target.isActive,
+        });
+      }
+      const banners = await deps.promotionRepo.listHomeBanners({ activeOnly: false });
+      revalidatePromotions();
+      return NextResponse.json({ ok: true, banners });
     }
 
     // 4. Upsert de Promoción
@@ -148,6 +199,7 @@ export async function POST(req: NextRequest) {
     );
 
     const promotions = await listAdminPromotions(deps);
+    revalidatePromotions(promotion.slug);
     return NextResponse.json({ ok: true, promotion, promotions });
   } catch (error: unknown) {
     const message =
@@ -187,6 +239,7 @@ export async function DELETE(req: NextRequest) {
       deps.promotionRepo.listBanks({ activeOnly: false }),
       deps.promotionRepo.listHomeBanners({ activeOnly: false }),
     ]);
+    revalidatePromotions();
 
     return NextResponse.json({ ok: true, promotions, banks, banners });
   } catch (error: unknown) {

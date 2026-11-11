@@ -4,6 +4,7 @@ import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { changeProductStatus } from "../../../../../services/product.service";
 import { ProductStatus } from "../../../../../domain/product/types";
 import { logger } from "../../../../../lib/logger";
+import { revalidateProducts } from "../../../../../infra/cache/revalidation";
 
 export async function POST(req: NextRequest) {
   const startTime = performance.now();
@@ -47,6 +48,7 @@ export async function POST(req: NextRequest) {
       durationMs,
     });
 
+    revalidateProducts(product.code);
     return NextResponse.json({ ok: true, product });
   } catch (error: unknown) {
     const durationMs = Math.round(performance.now() - startTime);

@@ -7,6 +7,7 @@ import {
   bulkMoveProductCategory,
   bulkSetProductFeatured,
 } from "../../../../../services/product.service";
+import { revalidateProducts } from "../../../../../infra/cache/revalidation";
 
 export async function POST(req: NextRequest) {
   const isAuth = await isAuthenticatedAdmin(req);
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
           { productIds, newStatus: body.newStatus, source: "web" },
           deps
         );
+        revalidateProducts();
         return NextResponse.json({ ok: true, ...statusResult });
       }
 
@@ -53,11 +55,13 @@ export async function POST(req: NextRequest) {
           { productIds, targetCategoryId },
           deps
         );
+        revalidateProducts();
         return NextResponse.json({ ok: true, ...categoryResult });
       }
 
       case "delete": {
         const deleteResult = await bulkDeleteProducts({ productIds }, deps);
+        revalidateProducts();
         return NextResponse.json({ ok: true, ...deleteResult });
       }
 
@@ -67,6 +71,7 @@ export async function POST(req: NextRequest) {
           { productIds, isFeatured },
           deps
         );
+        revalidateProducts();
         return NextResponse.json({ ok: true, ...featuredResult });
       }
 

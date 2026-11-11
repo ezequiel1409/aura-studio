@@ -12,9 +12,9 @@ import {
   PanelTop,
   PlusCircle,
   Settings,
-  Settings2,
   ShieldCheck,
   ShoppingBag,
+  SlidersHorizontal,
   Store,
   Tag,
   Truck,
@@ -102,11 +102,11 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
         exact: true,
       },
       {
-        href: "/admin/secciones",
-        label: "Secciones, Atributos y Filtros",
-        description: "Menú, atributos de rubro y catálogo",
-        icon: Compass,
-        matchPrefix: ["/admin/secciones"],
+        href: "/admin/productos/atributos",
+        label: "Atributos y Filtros",
+        description: "Talles, colores y filtros del catálogo",
+        icon: SlidersHorizontal,
+        matchPrefix: ["/admin/productos/atributos", "/admin/secciones"],
       },
       {
         href: "/admin/promociones",
@@ -145,8 +145,8 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
       },
       {
         href: "/admin/tienda/portada",
-        label: "Portada y apariencia",
-        description: "Banners y paleta con contraste AA",
+        label: "Diseño y Personalización",
+        description: "Navbar, secciones, banners y paleta",
         icon: LayoutTemplate,
         exact: true,
       },
@@ -181,7 +181,7 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
       {
         href: "/admin/configuracion?seccion=politicas",
         label: "Políticas de tienda",
-        description: "Cambios, devoluciones y términos legales",
+        description: "Cambios, devoluciones y términos",
         icon: ShieldCheck,
         tabParam: "politicas",
       },
@@ -226,7 +226,7 @@ export function isSubNavItemActive(
     if (subItem.tabParam === "politicas") {
       return (
         pathname === "/admin/configuracion" &&
-        (!currentTab || currentTab === "politicas" || currentTab === "general")
+        (!currentTab || currentTab === "politicas")
       );
     }
     return (

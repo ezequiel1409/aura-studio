@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticatedAdmin } from "../../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { deleteCategory, updateCategory } from "../../../../../services/category.service";
+import { revalidateCategories } from "../../../../../infra/cache/revalidation";
 
 export async function PATCH(
   req: NextRequest,
@@ -33,6 +34,7 @@ export async function PATCH(
       deps
     );
 
+    revalidateCategories();
     return NextResponse.json({ ok: true, category });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error al actualizar la categoría";
@@ -77,6 +79,7 @@ export async function DELETE(
     const deps = getProductServiceDeps();
     const result = await deleteCategory(id, reassignToCategoryId, deps);
 
+    revalidateCategories();
     return NextResponse.json({ ok: true, ...result });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error al eliminar la categoría";

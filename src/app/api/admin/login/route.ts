@@ -3,6 +3,7 @@ import { getProductServiceDeps } from "../../../../infra/db/connection";
 import { loginAdmin } from "../../../../services/auth.service";
 import { getShowroomSettings } from "../../../../services/settings.service";
 import { logger } from "../../../../lib/logger";
+import { ADMIN_SESSION_COOKIE_NAME } from "../../../../infra/auth/guard";
 
 export async function GET() {
   try {
@@ -12,12 +13,14 @@ export async function GET() {
       ok: true,
       storeName: settings.showroomName,
       storeType: settings.storeType || "Showroom",
+      logoUrl: settings.logoUrl || null,
     });
   } catch {
     return NextResponse.json({
       ok: true,
-      storeName: "Aura Studio",
+      storeName: "Mi Tienda",
       storeType: "Showroom",
+      logoUrl: null,
     });
   }
 }
@@ -73,7 +76,7 @@ export async function POST(req: NextRequest) {
     });
 
     const res = NextResponse.json({ ok: true });
-    res.cookies.set("aura_admin_token", result.sessionToken!, {
+    res.cookies.set(ADMIN_SESSION_COOKIE_NAME, result.sessionToken!, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

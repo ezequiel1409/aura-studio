@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticatedAdmin } from "../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
 import {
-  deleteAttributeDefinition,
   deleteNavigationSection,
   listAdminNavigationSections,
-  listAttributeDefinitions,
   reorderNavigationSections,
-  upsertAttributeDefinition,
   upsertNavigationSection,
 } from "../../../../services/navigation.service";
+import { revalidateNavigation } from "../../../../infra/cache/revalidation";
+
+/**
+ * Endpoint dedicado exclusivamente a la gestión de Secciones de la Tienda (Single Responsibility).
+ * Ruta: /api/admin/sections
+ */
 
 export async function GET(req: NextRequest) {
   const isAuth = await isAuthenticatedAdmin(req);
@@ -19,14 +22,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const deps = getProductServiceDeps();
-    const [sections, attributes] = await Promise.all([
-      listAdminNavigationSections(deps),
-      listAttributeDefinitions(deps),
-    ]);
-    return NextResponse.json({ ok: true, sections, attributes });
+    const sections = await listAdminNavigationSections(deps);
+    return NextResponse.json({ ok: true, sections });
   } catch (error: unknown) {
     const message =
-      error instanceof Error ? error.message : "Error al obtener secciones de navegación";
+      error instanceof Error ? error.message : "Error al obtener secciones de la tienda";
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
@@ -43,39 +43,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const deps = getProductServiceDeps();
 
-    if (body.action === "upsert_attribute" || body.entity === "attribute") {
-      const name = (body.name || body.label || "").trim();
-      let options: string[] = [];
-      if (Array.isArray(body.options)) {
-        options = body.options.map((o: unknown) => String(o).trim()).filter(Boolean);
-      } else if (typeof body.options === "string") {
-        options = body.options
-          .split(",")
-          .map((o: string) => o.trim())
-          .filter(Boolean);
-      }
-
-      const attribute = await upsertAttributeDefinition(
-        {
-          id: body.id ? Number(body.id) : undefined,
-          slug: (body.slug || body.key || name).trim(),
-          name,
-          options,
-          isFilterable:
-            body.isFilterable !== undefined ? Boolean(body.isFilterable) : true,
-          position: body.position !== undefined ? Number(body.position) : undefined,
-        },
-        deps
+    // Reordenamiento masivo de secciones
+    if (
+      body.action === "reorder" ||
+      body.action === "reorder_sections" ||
+      (Array.isArray(body.orderedIds) && body.orderedIds.length > 0)
+    ) {
+      const ids: number[] = (body.orderedIds || body.sections || []).map((id: unknown) =>
+        Number(id)
       );
-      return NextResponse.json({ ok: true, attribute });
-    }
-
-    if (body.action === "reorder_sections" && Array.isArray(body.orderedIds)) {
-      await reorderNavigationSections(
-        body.orderedIds.map((id: unknown) => Number(id)),
-        deps
-      );
+      await reorderNavigationSections(ids, deps);
       const sections = await listAdminNavigationSections(deps);
+      revalidateNavigation();
       return NextResponse.json({ ok: true, sections });
     }
 
@@ -88,13 +67,18 @@ export async function POST(req: NextRequest) {
         slug: body.slug,
         seoTitle: body.seoTitle,
         seoDescription: body.seoDescription,
-        ruleType: body.ruleType,
+        ruleType: body.ruleType || "FEATURED",
         ruleConfig: body.ruleConfig || {},
         accentColor: body.accentColor,
         badgeText: body.badgeText,
         coverImageUrl: body.coverImageUrl,
         bannerImageUrl: body.bannerImageUrl,
         showInHomeMosaic: body.showInHomeMosaic,
+        layout: body.layout,
+        targetUrl: body.targetUrl,
+        subtitle: body.subtitle,
+        showProductCount: body.showProductCount,
+        subcategories: body.subcategories,
         subcategoryIds: body.subcategoryIds || [],
         position: body.position,
         isVisible: body.isVisible,
@@ -103,10 +87,11 @@ export async function POST(req: NextRequest) {
     );
 
     const sections = await listAdminNavigationSections(deps);
+    revalidateNavigation(section?.slug);
     return NextResponse.json({ ok: true, section, sections });
   } catch (error: unknown) {
     const message =
-      error instanceof Error ? error.message : "Error al guardar sección o atributo";
+      error instanceof Error ? error.message : "Error al guardar sección";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }
@@ -122,29 +107,17 @@ export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = Number(searchParams.get("id"));
-    const target =
-      searchParams.get("target") ||
-      searchParams.get("entity") ||
-      "section";
     if (!id || Number.isNaN(id)) {
-      return NextResponse.json({ ok: false, error: "ID inválido." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "ID de sección inválido." }, { status: 400 });
     }
 
     const deps = getProductServiceDeps();
-    if (target === "attribute") {
-      await deleteAttributeDefinition(id, deps);
-    } else {
-      await deleteNavigationSection(id, deps);
-    }
-
-    const [sections, attributes] = await Promise.all([
-      listAdminNavigationSections(deps),
-      listAttributeDefinitions(deps),
-    ]);
-    return NextResponse.json({ ok: true, sections, attributes });
+    await deleteNavigationSection(id, deps);
+    const sections = await listAdminNavigationSections(deps);
+    revalidateNavigation();
+    return NextResponse.json({ ok: true, sections });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Error al eliminar";
+    const message = error instanceof Error ? error.message : "Error al eliminar sección";
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }
-

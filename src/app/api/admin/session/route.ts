@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEnv } from "../../../../lib/env";
 import { verifySessionToken } from "../../../../infra/auth/session";
 import { SESSION_INACTIVITY_MS } from "../../../../domain/auth/rules";
+import { ADMIN_SESSION_COOKIE_NAME } from "../../../../infra/auth/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
   try {
-    const token = req.cookies.get("aura_admin_token")?.value;
+    const token = req.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value;
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("cf-connecting-ip") ||

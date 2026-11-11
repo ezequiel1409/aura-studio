@@ -1,17 +1,22 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
+  Compass,
   Eye,
   Image as ImageIcon,
   Laptop,
   Layers,
+  LayoutGrid,
   Loader2,
   Maximize2,
   Moon,
@@ -28,16 +33,36 @@ import {
   Upload,
 } from "lucide-react";
 import { HomeBanner, Promotion } from "../../../domain/promotion/types";
-import { ShowroomSettings, StoreContentWidth, STORE_CONTENT_WIDTHS, DEFAULT_STORE_CONTENT_WIDTH } from "../../../services/settings.service";
+import { NavigationSection, ProductAttributeDefinition } from "../../../domain/navigation/types";
+import { Category } from "../../../domain/category/types";
+import {
+  ShowroomSettings,
+  StoreContentWidth,
+  STORE_CONTENT_WIDTHS,
+  DEFAULT_STORE_CONTENT_WIDTH,
+  DEFAULT_FOOTER_CONFIG,
+  DEFAULT_NAVBAR_CONFIG,
+  FooterConfig,
+  NavbarConfig,
+} from "../../../services/settings.service";
 import { THEME_PALETTES, ThemePalette, hexToRgb, normalizeHexColor } from "../../../lib/theme/palettes";
 import { THEME_FONTS } from "../../../lib/theme/fonts";
 import { calculateContrastRatio } from "../../../lib/theme/contrast";
+import { BannerCarouselManager } from "./BannerCarouselManager";
+import { FooterCmsManager } from "./FooterCmsManager";
+import { NavbarSettingsManager } from "./NavbarSettingsManager";
+import { HomeSectionsManager } from "./HomeSectionsManager";
 
 interface AppearanceSettingsClientProps {
   initialSettings: ShowroomSettings;
   initialBanners: HomeBanner[];
   activePromotions: Promotion[];
+  initialSections?: NavigationSection[];
+  categories?: Category[];
+  attributes?: ProductAttributeDefinition[];
 }
+
+type AppearanceTab = "navbar" | "sections" | "banners" | "appearance" | "footer";
 
 
 interface ColorSettingCardProps {
@@ -140,7 +165,22 @@ export function AppearanceSettingsClient({
   initialSettings,
   initialBanners,
   activePromotions,
+  initialSections = [],
+  categories = [],
+  attributes = [],
 }: AppearanceSettingsClientProps) {
+  const searchParams = useSearchParams();
+  const queryTab = searchParams.get("tab") as AppearanceTab | null;
+  const validTabs: AppearanceTab[] = ["navbar", "sections", "banners", "appearance", "footer"];
+  const [activeTab, setActiveTab] = useState<AppearanceTab>(
+    queryTab && validTabs.includes(queryTab) ? queryTab : "navbar"
+  );
+
+  const [navbarConfig, setNavbarConfig] = useState<NavbarConfig>(
+    () => initialSettings.navbarConfig || DEFAULT_NAVBAR_CONFIG
+  );
+  const [sections, setSections] = useState<NavigationSection[]>(initialSections);
+
   // Estado de Portada / Banners
   const [banners, setBanners] = useState<HomeBanner[]>(initialBanners);
   const [heroTitle, setHeroTitle] = useState(initialSettings.heroTitle || "Nueva Colección 2026");
@@ -165,10 +205,14 @@ export function AppearanceSettingsClient({
   const [contentWidth, setContentWidth] = useState<StoreContentWidth>(
     initialSettings.contentWidth || DEFAULT_STORE_CONTENT_WIDTH
   );
+  const [footerConfig, setFooterConfig] = useState<FooterConfig>(() => {
+    return initialSettings.footerConfig || DEFAULT_FOOTER_CONFIG;
+  });
 
   // Estado de Vista Previa (Escritorio vs Celular, Claro vs Oscuro)
   const [previewViewport, setPreviewViewport] = useState<"desktop" | "mobile">("desktop");
   const [previewThemeMode, setPreviewThemeMode] = useState<"light" | "dark">("light");
+  const [previewSlideIndex, setPreviewSlideIndex] = useState(0);
 
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
@@ -181,7 +225,33 @@ export function AppearanceSettingsClient({
     return calculateContrastRatio(themePrimaryColor, activePalette.bg);
   }, [themePrimaryColor, activePalette]);
 
-  const activeBanner = banners.find((b) => b.isActive) || banners[0] || null;
+  // Slides activos para el carrusel en vivo de la vista previa
+  const activeSlides = useMemo(() => {
+    const active = banners.filter((b) => b.isActive);
+    if (active.length > 0) return active;
+    return [
+      {
+        id: 0,
+        title: heroTitle || "Nueva Colección 2026",
+        subtitle: heroSubtitle || "Piezas seleccionadas en edición limitada",
+        desktopImageUrl: heroBannerUrl,
+        mobileImageUrl: heroBannerUrl,
+        ctaLabel: "Descubrir piezas",
+        ctaHref: "/catalogo",
+        promotionSlug: null,
+        startsAt: null,
+        endsAt: null,
+        position: 0,
+        isActive: true,
+      },
+    ];
+  }, [banners, heroTitle, heroSubtitle, heroBannerUrl]);
+
+  const currentPreviewSlide = activeSlides[previewSlideIndex % activeSlides.length];
+  const previewImageUrl =
+    previewViewport === "mobile" && currentPreviewSlide.mobileImageUrl
+      ? currentPreviewSlide.mobileImageUrl
+      : currentPreviewSlide.desktopImageUrl || heroBannerUrl;
 
   const handlePaletteSelect = (palId: string) => {
     const pal = THEME_PALETTES[palId];
@@ -204,54 +274,59 @@ export function AppearanceSettingsClient({
     setThemeFooterBgColor("");
   };
 
-  const handleToggleBannerActive = (bannerId: number) => {
-    setBanners((prev) =>
-      prev.map((b) => (b.id === bannerId ? { ...b, isActive: !b.isActive } : b))
-    );
-  };
-
-  const handleMoveBanner = (index: number, direction: "up" | "down") => {
-    const targetIdx = direction === "up" ? index - 1 : index + 1;
-    if (targetIdx < 0 || targetIdx >= banners.length) return;
-    const newBanners = [...banners];
-    const temp = newBanners[index];
-    newBanners[index] = newBanners[targetIdx];
-    newBanners[targetIdx] = temp;
-    setBanners(newBanners);
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setSaving(true);
     setFeedback(null);
 
     try {
-      const res = await fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          heroTitle,
-          heroSubtitle,
-          heroBannerUrl,
-          themePalette,
-          themePrimaryColor,
-          themeBgColor: themeBgColor.trim() || null,
-          themeSurfaceColor: themeSurfaceColor.trim() || null,
-          themeHeaderBgColor: themeHeaderBgColor.trim() || null,
-          themeFooterBgColor: themeFooterBgColor.trim() || null,
-          themeFont,
-        }),
-      });
+      if (activeTab === "navbar") {
+        const res = await fetch("/api/admin/nav", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ navbarConfig }),
+        });
 
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "No se pudo guardar la configuración.");
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "No se pudo guardar la configuración de la navegación.");
+        }
+
+        setFeedback({
+          type: "ok",
+          text: "Cabecera y navegación guardadas correctamente en /api/admin/nav.",
+        });
+      } else {
+        const res = await fetch("/api/admin/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            heroTitle,
+            heroSubtitle,
+            heroBannerUrl,
+            themePalette,
+            themePrimaryColor,
+            themeBgColor: themeBgColor.trim() || null,
+            themeSurfaceColor: themeSurfaceColor.trim() || null,
+            themeHeaderBgColor: themeHeaderBgColor.trim() || null,
+            themeFooterBgColor: themeFooterBgColor.trim() || null,
+            themeFont,
+            contentWidth,
+            footerConfig,
+            navbarConfig,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "No se pudo guardar la configuración.");
+        }
+
+        setFeedback({
+          type: "ok",
+          text: "Portada y apariencia guardadas correctamente. Actualizado en la tienda en vivo.",
+        });
       }
-
-      setFeedback({
-        type: "ok",
-        text: "Portada y apariencia guardadas correctamente. Actualizado en la tienda en vivo.",
-      });
     } catch (err: unknown) {
       setFeedback({
         type: "error",
@@ -264,16 +339,16 @@ export function AppearanceSettingsClient({
 
   return (
     <div className="space-y-6">
-      {/* Encabezado */}
+      {/* Encabezado Principal */}
       <div>
         <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-400">
-          Tienda › Portada y Apariencia (ADM-06)
+          Tienda › Portada y Apariencia
         </span>
         <h1 className="text-xl sm:text-2xl font-serif font-light text-zinc-100 mt-1">
-          Editor de Portada, Colores y Vista Previa
+          Diseño y Personalización de la Tienda
         </h1>
         <p className="text-xs text-zinc-400 mt-1">
-          Personalizá los banners de la home y la identidad visual con control de contraste WCAG AA.
+          Configurá los banners de inicio, la paleta de colores y la estructura del pie de página.
         </p>
       </div>
 
@@ -296,144 +371,131 @@ export function AppearanceSettingsClient({
         </div>
       )}
 
-      {/* Editor a 2 Columnas (ADM-06) */}
-      <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Columna Izquierda: Editor (7 cols) */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* SECCIÓN A: Portada (Banners y Carrusel) */}
-          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-5">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
-                <ImageIcon size={15} className="text-amber-400" />
-                <span>Sección A: Portada Principal</span>
-              </h2>
-              <span className="text-[11px] text-zinc-500 font-mono">
-                {banners.length} {banners.length === 1 ? "banner" : "banners"}
-              </span>
-            </div>
+      {/* Pestañas de Navegación de Portada y Apariencia */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab("navbar")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "navbar"
+              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+          }`}
+        >
+          <Compass size={15} />
+          <span>Cabecera y Navbar</span>
+        </button>
 
-            {/* Banner Principal / Fallback */}
-            <div className="space-y-3">
-              <div>
-                <label
-                  htmlFor="hero-title-input"
-                  className="block text-xs font-medium text-zinc-300 mb-1"
-                >
-                  Título del Banner Principal
-                </label>
-                <input
-                  id="hero-title-input"
-                  type="text"
-                  value={heroTitle}
-                  onChange={(e) => setHeroTitle(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus:outline-none"
-                />
-              </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab("sections")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "sections"
+              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+          }`}
+        >
+          <LayoutGrid size={15} />
+          <span>Secciones de la Home</span>
+        </button>
 
-              <div>
-                <label
-                  htmlFor="hero-subtitle-input"
-                  className="block text-xs font-medium text-zinc-300 mb-1"
-                >
-                  Bajada o Subtítulo
-                </label>
-                <input
-                  id="hero-subtitle-input"
-                  type="text"
-                  value={heroSubtitle}
-                  onChange={(e) => setHeroSubtitle(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus:outline-none"
-                />
-              </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab("banners")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "banners"
+              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+          }`}
+        >
+          <ImageIcon size={15} />
+          <span>Banners de Portada</span>
+        </button>
 
-              <div>
-                <label
-                  htmlFor="hero-banner-url-input"
-                  className="block text-xs font-medium text-zinc-300 mb-1"
-                >
-                  URL de Imagen de Fondo (Escritorio)
-                </label>
-                <input
-                  id="hero-banner-url-input"
-                  type="url"
-                  value={heroBannerUrl}
-                  onChange={(e) => setHeroBannerUrl(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 font-mono text-xs focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus:outline-none"
-                />
-              </div>
-            </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab("appearance")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "appearance"
+              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+          }`}
+        >
+          <Palette size={15} />
+          <span>Estilos y Ancho</span>
+        </button>
 
-            {/* Listado de Banners Adicionales */}
-            {banners.length > 0 && (
-              <div className="pt-2 border-t border-zinc-800 space-y-2.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
-                  Slides en carrusel
-                </span>
-                <ul className="space-y-2 list-none p-0 m-0">
-                  {banners.map((banner, idx) => (
-                    <li
-                      key={banner.id}
-                      className="flex items-center justify-between p-3 rounded-xl border border-zinc-800 bg-zinc-950/70 text-xs"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={banner.desktopImageUrl || undefined}
-                          alt={banner.title}
-                          className="h-10 w-14 object-cover rounded-lg shrink-0 border border-zinc-800"
-                        />
-                        <div className="min-w-0">
-                          <p className="font-semibold text-zinc-200 truncate">{banner.title}</p>
-                          <p className="text-[11px] text-zinc-500 truncate">{banner.ctaLabel} → {banner.ctaHref}</p>
-                        </div>
-                      </div>
+        <button
+          type="button"
+          onClick={() => setActiveTab("footer")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === "footer"
+              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+          }`}
+        >
+          <Layers size={15} />
+          <span>Pie de Página (Footer CMS)</span>
+        </button>
+      </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleBannerActive(banner.id)}
-                          className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                            banner.isActive
-                              ? "bg-emerald-950 text-emerald-400 border border-emerald-800"
-                              : "bg-zinc-800 text-zinc-400"
-                          }`}
-                        >
-                          {banner.isActive ? "Activo" : "Pausado"}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={idx === 0}
-                          onClick={() => handleMoveBanner(idx, "up")}
-                          aria-label="Subir orden"
-                          className="p-1 text-zinc-400 hover:text-zinc-100 disabled:opacity-30"
-                        >
-                          <ChevronUp size={14} />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={idx === banners.length - 1}
-                          onClick={() => handleMoveBanner(idx, "down")}
-                          aria-label="Bajar orden"
-                          className="p-1 text-zinc-400 hover:text-zinc-100 disabled:opacity-30"
-                        >
-                          <ChevronDown size={14} />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+      <div className="space-y-6">
+        {activeTab === "navbar" && (
+          <NavbarSettingsManager
+            config={navbarConfig}
+            onChange={setNavbarConfig}
+            sections={sections}
+            categories={categories}
+          />
+        )}
+
+        {activeTab === "sections" && (
+          <HomeSectionsManager
+            sections={sections}
+            onSectionsChange={setSections}
+            categories={categories}
+            attributes={attributes}
+          />
+        )}
+
+        {activeTab === "footer" && (
+          <div className="space-y-4 pt-1">
+            <FooterCmsManager
+              footerConfig={footerConfig}
+              onChange={setFooterConfig}
+              mercadopagoEnabled={initialSettings.mercadopagoEnabled}
+              transferEnabled={initialSettings.transferEnabled}
+              cashEnabled={initialSettings.cashEnabled}
+            />
           </div>
+        )}
 
-          {/* SECCIÓN B: Apariencia y Colores */}
-          <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-5">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
-                <Palette size={15} className="text-amber-400" />
-                <span>Sección B: Apariencia, Colores y Tipografía</span>
-              </h2>
-            </div>
+        {(activeTab === "banners" || activeTab === "appearance") && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Columna Izquierda: Editor (7 cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              {activeTab === "banners" && (
+                <BannerCarouselManager
+                  banners={banners}
+                  onBannersChange={setBanners}
+                  activePromotions={activePromotions}
+                  heroTitle={heroTitle}
+                  heroSubtitle={heroSubtitle}
+                  heroBannerUrl={heroBannerUrl}
+                  onHeroTitleChange={setHeroTitle}
+                  onHeroSubtitleChange={setHeroSubtitle}
+                  onHeroBannerUrlChange={setHeroBannerUrl}
+                />
+              )}
+
+              {activeTab === "appearance" && (
+                <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-5">
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+                      <Palette size={15} className="text-amber-400" />
+                      <span>Identidad Visual, Paleta y Tipografía</span>
+                    </h2>
+                  </div>
 
             {/* Paletas Predefinidas */}
             <div>
@@ -675,71 +737,6 @@ export function AppearanceSettingsClient({
               </div>
             </div>
 
-            {/* ESTRUCTURA Y SECCIONES DEL PIE DE PÁGINA (FOOTER CMS) */}
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 sm:p-5 space-y-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Layers size={16} className="text-amber-400" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-200">
-                    Estructura y Secciones del Pie de Página (Footer CMS)
-                  </h2>
-                </div>
-                <p className="text-[11px] text-zinc-400 mt-1">
-                  Personalizá la estructura de tu pie de página, enlaces institucionales y la visualización de medios de pago en la portada.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                {/* Columna 1: Identidad y Marca */}
-                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
-                  <span className="font-semibold text-zinc-200 block">Columna 1: Marca y Propósito</span>
-                  <p className="text-[11px] text-zinc-400">
-                    Muestra el logotipo de la marca, descripción comercial y enlace a WhatsApp oficial.
-                  </p>
-                  <a href="/admin/tienda/negocio" className="text-[11px] font-semibold text-amber-300 hover:underline inline-flex items-center gap-1 pt-1">
-                    <span>Editar texto y logo</span>
-                    <ArrowRight size={12} />
-                  </a>
-                </div>
-
-                {/* Columna 2: Navegación de Catálogo */}
-                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
-                  <span className="font-semibold text-zinc-200 block">Columna 2: Catálogo y Rubros</span>
-                  <p className="text-[11px] text-zinc-400">
-                    Se sincroniza automáticamente con las categorías y secciones visibles del catálogo.
-                  </p>
-                  <a href="/admin/categorias" className="text-[11px] font-semibold text-amber-300 hover:underline inline-flex items-center gap-1 pt-1">
-                    <span>Gestionar categorías</span>
-                    <ArrowRight size={12} />
-                  </a>
-                </div>
-
-                {/* Columna 3: Información y Medios de Pago */}
-                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
-                  <span className="font-semibold text-zinc-200 block">Columna 3: Información y Pagos</span>
-                  <p className="text-[11px] text-zinc-400">
-                    Los medios de pago mostrados en el pie se sincronizan en vivo según los métodos que tengas habilitados (Transferencia, Mercado Pago, Efectivo).
-                  </p>
-                  <a href="/admin/tienda/pagos" className="text-[11px] font-semibold text-amber-300 hover:underline inline-flex items-center gap-1 pt-1">
-                    <span>Configurar medios de pago</span>
-                    <ArrowRight size={12} />
-                  </a>
-                </div>
-
-                {/* Columna 4: Ubicación y Horarios */}
-                <div className="p-3.5 rounded-xl bg-zinc-950/80 border border-zinc-800 space-y-1.5">
-                  <span className="font-semibold text-zinc-200 block">Columna 4: Local y Retiro</span>
-                  <p className="text-[11px] text-zinc-400">
-                    Dirección física, enlace a Google Maps, horarios de atención y data fiscal AFIP / ARCA.
-                  </p>
-                  <a href="/admin/tienda/contacto" className="text-[11px] font-semibold text-amber-300 hover:underline inline-flex items-center gap-1 pt-1">
-                    <span>Editar ubicación y horarios</span>
-                    <ArrowRight size={12} />
-                  </a>
-                </div>
-              </div>
-            </div>
-
             {/* VALIDADOR DE CONTRASTE WCAG 2.2 (ADM-06) */}
             <div
               className={`p-4 rounded-xl border text-xs space-y-1.5 ${
@@ -753,7 +750,7 @@ export function AppearanceSettingsClient({
               <div className="flex items-center justify-between font-bold">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck size={15} />
-                  <span>Validador de Contraste WCAG 2.2 AA</span>
+                  <span>Legibilidad y Contraste de Marca</span>
                 </span>
                 <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-black/40">
                   {contrastResult.ratioString}
@@ -767,28 +764,8 @@ export function AppearanceSettingsClient({
               )}
             </div>
           </div>
-
-          {/* Botón Guardar */}
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-amber-400 px-6 py-2.5 text-xs font-bold tracking-wider text-zinc-950 uppercase shadow-md hover:bg-amber-300 disabled:opacity-50 transition-all cursor-pointer"
-            >
-              {saving ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Guardando apariencia...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  <span>Guardar portada y apariencia</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        )}
+      </div>
 
         {/* Columna Derecha: Vista Previa Fija (Sticky) de la Home (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
@@ -870,38 +847,78 @@ export function AppearanceSettingsClient({
                   }`}
                 >
                   <span className="font-serif font-bold uppercase tracking-wider text-stone-900 text-xs">
-                    {initialSettings.showroomName || "Aura Studio"}
+                    {initialSettings.showroomName || "Mi Tienda"}
                   </span>
                   <span className="text-[10px] text-stone-500">Bolsa (0)</span>
                 </div>
               </div>
 
-              {/* Hero Banner en vivo */}
+              {/* Hero Banner en vivo (Carrusel Dinámico) */}
               <div
-                className="relative min-h-[160px] sm:min-h-[200px] flex flex-col justify-end p-4 text-white bg-cover bg-center overflow-hidden"
+                className="relative min-h-[170px] sm:min-h-[220px] flex flex-col justify-end p-4 text-white bg-cover bg-center overflow-hidden transition-all duration-300"
                 style={{
-                  backgroundImage: `url(${heroBannerUrl})`,
+                  backgroundImage: `url(${previewImageUrl})`,
                 }}
               >
-                <div className="absolute inset-0 bg-black/45" />
+                <div className="absolute inset-0 bg-gradient-to-t from-stone-950/85 via-stone-950/55 to-stone-950/30" />
                 <div className="relative z-10 space-y-1">
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-amber-300 font-bold block">
-                    Novedades
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-amber-300 font-bold block">
+                      {currentPreviewSlide.promotionSlug ? "Promoción Bancaria" : "Novedades"}
+                    </span>
+                    {activeSlides.length > 1 && (
+                      <span className="text-[9px] font-mono bg-black/60 text-stone-300 px-1.5 py-0.5 rounded">
+                        Slide {(previewSlideIndex % activeSlides.length) + 1} de {activeSlides.length}
+                      </span>
+                    )}
+                  </div>
+
                   <h3 className="font-serif text-lg sm:text-xl font-light text-white leading-tight">
-                    {heroTitle}
+                    {currentPreviewSlide.title}
                   </h3>
-                  <p className="text-[11px] text-stone-200 line-clamp-1">
-                    {heroSubtitle}
-                  </p>
-                  <div className="pt-2">
+                  {currentPreviewSlide.subtitle && (
+                    <p className="text-[11px] text-stone-200 line-clamp-2">
+                      {currentPreviewSlide.subtitle}
+                    </p>
+                  )}
+                  <div className="pt-2 flex items-center justify-between">
                     <span
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase text-white shadow-xs"
                       style={{ backgroundColor: themePrimaryColor }}
                     >
-                      <span>Descubrir piezas</span>
+                      <span>{currentPreviewSlide.ctaLabel || "Explorar"}</span>
                       <ArrowRight size={10} />
                     </span>
+
+                    {/* Controles de navegación en vivo en la vista previa */}
+                    {activeSlides.length > 1 && (
+                      <div className="flex items-center gap-1 bg-black/70 rounded-full px-2 py-0.5 border border-white/20">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewSlideIndex(
+                              (prev) => (prev - 1 + activeSlides.length) % activeSlides.length
+                            )
+                          }
+                          aria-label="Ver slide anterior en vista previa"
+                          className="p-1 hover:text-amber-300 text-white cursor-pointer"
+                        >
+                          <ChevronLeft size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewSlideIndex(
+                              (prev) => (prev + 1) % activeSlides.length
+                            )
+                          }
+                          aria-label="Ver slide siguiente en vista previa"
+                          className="p-1 hover:text-amber-300 text-white cursor-pointer"
+                        >
+                          <ChevronRight size={12} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -950,7 +967,38 @@ export function AppearanceSettingsClient({
             </div>
           </div>
         </div>
-      </form>
+      </div>
+    )}
+
+        {/* Barra de Guardado Global (para navbar, banners, estilos y footer) */}
+        {activeTab !== "sections" && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-800">
+            <p className="text-xs text-zinc-400 text-center sm:text-left">
+              {activeTab === "navbar"
+                ? "Los cambios de navegación se guardan en el endpoint dedicado /api/admin/nav."
+                : "Los cambios se guardan y aplican inmediatamente en la tienda en vivo."}
+            </p>
+            <button
+              type="button"
+              onClick={() => handleSave()}
+              disabled={saving}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-amber-400 px-6 py-2.5 text-xs font-bold tracking-wider text-zinc-950 uppercase shadow-md hover:bg-amber-300 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+            >
+              {saving ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={16} />
+                  <span>Guardar cambios</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

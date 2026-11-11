@@ -4,6 +4,7 @@ import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { createProduct } from "../../../../../services/product.service";
 import { createCategory } from "../../../../../services/category.service";
 import { ValidatedImportItem } from "../../../../../lib/parser/import-template";
+import { revalidateProducts } from "../../../../../infra/cache/revalidation";
 
 export async function POST(req: NextRequest) {
   const isAuth = await isAuthenticatedAdmin(req);
@@ -133,6 +134,10 @@ export async function POST(req: NextRequest) {
           error: err instanceof Error ? err.message : "Error al guardar producto",
         });
       }
+    }
+
+    if (successCount > 0) {
+      revalidateProducts();
     }
 
     return NextResponse.json({

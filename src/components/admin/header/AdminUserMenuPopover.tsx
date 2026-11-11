@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AdminWhatsNewTrigger } from "../onboarding/AdminWhatsNewTrigger";
 import { ArrowUpRight, Clock, LogOut, RefreshCw, Shield, User } from "lucide-react";
 
 interface AdminUserMenuPopoverProps {
@@ -117,8 +118,9 @@ export function AdminUserMenuPopover({
               </button>
             </div>
 
-            {/* Enlace a gestión de equipo y perfil */}
+            {/* Enlace a gestión de equipo, novedades y perfil */}
             <div className="space-y-1">
+              <AdminWhatsNewTrigger variant="menu-item" />
               <Link prefetch={false}
                 href="/admin/usuarios"
                 onClick={onClose}

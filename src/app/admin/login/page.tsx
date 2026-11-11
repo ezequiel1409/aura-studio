@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Mail, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
+import { BrandLogo } from "../../../components/layout/BrandLogo";
 
 export default function AdminLoginPage({
   initialBrandName = "Aura Studio",
@@ -15,6 +16,7 @@ export default function AdminLoginPage({
   const router = useRouter();
   const [storeName, setStoreName] = useState(initialBrandName);
   const [storeType, setStoreType] = useState(initialStoreType);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [email, setEmail] = useState("admin@aurastudio.com");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +32,7 @@ export default function AdminLoginPage({
         if (data.ok) {
           if (data.storeName) setStoreName(data.storeName);
           if (data.storeType) setStoreType(data.storeType);
+          if (data.logoUrl) setLogoUrl(data.logoUrl);
         }
       })
       .catch(() => {});
@@ -105,7 +108,10 @@ export default function AdminLoginPage({
     <div className="min-h-[calc(100vh-8rem)] w-full max-w-full flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm mx-auto">
         {/* Cabecera / Identidad */}
-        <div className="text-center mb-7">
+        <div className="text-center mb-7 flex flex-col items-center">
+          {logoUrl && (
+            <BrandLogo src={logoUrl} alt="" className="h-24 w-24 mb-4" />
+          )}
           <h1 className="font-serif text-3xl font-bold tracking-wide text-zinc-100">
             {storeName}
           </h1>

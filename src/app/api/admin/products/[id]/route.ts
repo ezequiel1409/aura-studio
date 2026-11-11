@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticatedAdmin } from "../../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { deleteProduct, updateProduct } from "../../../../../services/product.service";
+import { revalidateProducts } from "../../../../../infra/cache/revalidation";
 
 export async function GET(
   req: NextRequest,
@@ -50,6 +51,59 @@ export async function PUT(
     const body = await req.json();
     const deps = getProductServiceDeps();
 
+    let categoryId: number | undefined = undefined;
+    if (body.categoryId !== undefined && body.categoryId !== null && body.categoryId !== "") {
+      const num = Number(body.categoryId);
+      if (!Number.isNaN(num) && num > 0) {
+        categoryId = num;
+      }
+    }
+
+    let publishedAt: number | null | undefined = undefined;
+    if (body.publishedAt !== undefined) {
+      if (body.publishedAt === null) {
+        publishedAt = null;
+      } else if (typeof body.publishedAt === "string") {
+        const parsed = Date.parse(body.publishedAt);
+        publishedAt = Number.isNaN(parsed) ? null : parsed;
+      } else if (typeof body.publishedAt === "number") {
+        publishedAt = body.publishedAt;
+      }
+    }
+
+    let colors = undefined;
+    if (Array.isArray(body.colors)) {
+      colors = body.colors.map((c: {
+        name?: unknown;
+        hexCode?: string | null;
+        position?: unknown;
+        sizes?: Array<{ size?: unknown; stock?: unknown; reservedStock?: unknown }>;
+      }, cIdx: number) => ({
+        name: String(c.name || "Único").trim() || "Único",
+        hexCode: c.hexCode || null,
+        position: typeof c.position === "number" ? c.position : cIdx,
+        sizes: Array.isArray(c.sizes)
+          ? c.sizes.map((s) => ({
+              size: String(s.size || "ÚNICO").trim() || "ÚNICO",
+              stock: Math.max(0, parseInt(String(s.stock || 0), 10) || 0),
+              reservedStock: Math.max(0, parseInt(String(s.reservedStock || 0), 10) || 0),
+            }))
+          : [{ size: "ÚNICO", stock: 1, reservedStock: 0 }],
+      }));
+    }
+
+    let attributes: Record<string, string[]> | undefined = undefined;
+    if (body.attributes && typeof body.attributes === "object") {
+      attributes = {};
+      for (const [k, v] of Object.entries(body.attributes)) {
+        if (Array.isArray(v)) {
+          attributes[k] = v.map((item) => String(item).trim()).filter(Boolean);
+        } else if (v !== null && v !== undefined && String(v).trim()) {
+          attributes[k] = [String(v).trim()];
+        }
+      }
+    }
+
     const product = await updateProduct(
       id,
       {
@@ -59,19 +113,20 @@ export async function PUT(
         compareAtPriceCents: body.compareAtPriceCents,
         currency: body.currency,
         size: body.size,
-        categoryId: body.categoryId !== undefined ? Number(body.categoryId) : undefined,
+        categoryId,
         status: body.status,
         isFeatured: body.isFeatured !== undefined ? Boolean(body.isFeatured) : undefined,
         allowReturn: body.allowReturn !== undefined ? Boolean(body.allowReturn) : undefined,
-        publishedAt: body.publishedAt,
-        attributes: body.attributes,
-        colors: body.colors,
+        publishedAt,
+        attributes,
+        colors,
         photos: body.photos,
         source: "web",
       },
       deps
     );
 
+    revalidateProducts(product.code);
     return NextResponse.json({ ok: true, product });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error al actualizar producto";
@@ -97,6 +152,7 @@ export async function DELETE(
   try {
     const deps = getProductServiceDeps();
     await deleteProduct(id, deps);
+    revalidateProducts();
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error al eliminar producto";

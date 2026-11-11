@@ -8,8 +8,10 @@ import {
   CatalogConfig,
   DEFAULT_ANNOUNCEMENT_BAR,
   DEFAULT_CATALOG_CONFIG,
+  DEFAULT_FOOTER_CONFIG,
   DEFAULT_HOME_BLOCKS,
   DEFAULT_SUGGESTED_TERMS,
+  FooterConfig,
   HeroMode,
   HomeBlocksConfig,
   ShowroomSettings,
@@ -22,7 +24,7 @@ import {
 } from "../../lib/schedule/store-schedule";
 import { THEME_PALETTES } from "../../lib/theme/palettes";
 import { TermsContentRenderer } from "../legal/TermsContentRenderer";
-export type SettingsTabId = "top" | "main" | "footer" | "payments" | "general" | "politicas";
+export type SettingsTabId = "top" | "main" | "footer" | "payments" | "politicas";
 import { TopHeaderSettingsSection } from "./settings/TopHeaderSettingsSection";
 import { MainContentSettingsSection } from "./settings/MainContentSettingsSection";
 import { FooterSettingsSection } from "./settings/FooterSettingsSection";
@@ -32,18 +34,18 @@ import { PaymentsSettingsSection } from "./settings/PaymentsSettingsSection";
 interface SettingsClientProps {
   initialSettings: Omit<
     ShowroomSettings,
-    "announcementBar" | "homeBlocks" | "catalogConfig" | "storeLocation" | "storeSchedule"
+    "announcementBar" | "homeBlocks" | "catalogConfig" | "storeLocation" | "storeSchedule" | "footerConfig"
   > &
     Partial<
       Pick<
         ShowroomSettings,
-        "announcementBar" | "homeBlocks" | "catalogConfig" | "storeLocation" | "storeSchedule"
+        "announcementBar" | "homeBlocks" | "catalogConfig" | "storeLocation" | "storeSchedule" | "footerConfig"
       >
     >;
   initialTab?: SettingsTabId;
 }
 
-const VALID_TABS: SettingsTabId[] = ["top", "main", "footer", "payments", "general", "politicas"];
+const VALID_TABS: SettingsTabId[] = ["top", "main", "footer", "payments", "politicas"];
 
 export function SettingsClient({
   initialSettings,
@@ -53,17 +55,19 @@ export function SettingsClient({
   const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
-    const param = searchParams?.get("seccion") as SettingsTabId | null;
+    const param = searchParams?.get("seccion");
     if (param === "general") return "politicas";
-    return param && VALID_TABS.includes(param) ? param : initialTab;
+    return param && VALID_TABS.includes(param as SettingsTabId)
+      ? (param as SettingsTabId)
+      : initialTab;
   });
 
   useEffect(() => {
-    const param = searchParams?.get("seccion") as SettingsTabId | null;
-    if (param === "general") {
+    const param = searchParams?.get("seccion");
+    if (param && VALID_TABS.includes(param as SettingsTabId)) {
+      setActiveTab(param as SettingsTabId);
+    } else if (param === "general") {
       setActiveTab("politicas");
-    } else if (param && VALID_TABS.includes(param)) {
-      setActiveTab(param);
     }
   }, [searchParams]);
 
@@ -113,6 +117,9 @@ export function SettingsClient({
   );
   const [storeSchedule, setStoreSchedule] = useState<StoreScheduleConfig>(
     initialSettings.storeSchedule || DEFAULT_STORE_SCHEDULE
+  );
+  const [footerConfig, setFooterConfig] = useState<FooterConfig>(
+    initialSettings.footerConfig || DEFAULT_FOOTER_CONFIG
   );
 
   // 4. Configuraciones Generales
@@ -245,6 +252,7 @@ export function SettingsClient({
           catalogConfig,
           storeLocation,
           storeSchedule,
+          footerConfig,
         }),
       });
 
@@ -359,14 +367,10 @@ export function SettingsClient({
               ? "Contacto, Showroom y Redes"
               : activeTab === "payments"
               ? "Medios de Pago"
-              : activeTab === "politicas"
-              ? "Políticas de Tienda y Términos"
-              : "Reservas, Inventario y Políticas"}
+              : "Políticas de Tienda y Términos"}
           </h1>
           <p className="text-xs text-zinc-400 mt-1">
-            {activeTab === "general"
-              ? "Ajustes de tiempo de reserva para carritos y stock del sistema."
-              : activeTab === "politicas"
+            {activeTab === "politicas"
               ? "Términos y condiciones legales, políticas de cambios y plazos de devolución."
               : "Configuración específica de la tienda."}
           </p>

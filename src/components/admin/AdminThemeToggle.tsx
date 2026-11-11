@@ -12,7 +12,7 @@ export function AdminThemeToggle() {
   useEffect(() => {
     setMounted(true);
     try {
-      const stored = localStorage.getItem("aura_admin_theme");
+      const stored = localStorage.getItem("app_admin_theme");
       if (stored === "dark" || stored === "light") {
         setTheme(stored);
       }
