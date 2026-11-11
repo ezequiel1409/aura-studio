@@ -78,12 +78,89 @@ export class DrizzleNavigationRepository implements INavigationRepository {
 
   async upsertSection(input: UpsertNavigationSectionInput): Promise<NavigationSection> {
     const slug = slugify(input.slug || input.name) || `seccion-${Date.now()}`;
+
+    if (input.id) {
+      const existing = await this.findSectionById(input.id);
+      const effectiveSlug = input.slug ? slugify(input.slug) : (existing?.slug || slug);
+      const position = input.position !== undefined ? input.position : (existing?.position ?? 0);
+      const ruleType = input.ruleType || existing?.ruleType || "FEATURED";
+      const existingConfig = existing?.ruleConfig || {};
+      const mergedRuleConfig: NavigationRuleConfig = {
+        ...existingConfig,
+        ...(input.ruleConfig || {}),
+        showInHomeMosaic:
+          input.showInHomeMosaic !== undefined
+            ? input.showInHomeMosaic
+            : input.ruleConfig?.showInHomeMosaic ?? existingConfig.showInHomeMosaic ?? true,
+        layout: input.layout || input.ruleConfig?.layout || existingConfig.layout || "2_col",
+        targetUrl:
+          input.targetUrl !== undefined
+            ? input.targetUrl
+            : input.ruleConfig?.targetUrl ?? existingConfig.targetUrl ?? null,
+        subtitle:
+          input.subtitle !== undefined
+            ? input.subtitle
+            : input.ruleConfig?.subtitle ?? existingConfig.subtitle ?? null,
+        showProductCount:
+          input.showProductCount !== undefined
+            ? input.showProductCount
+            : input.ruleConfig?.showProductCount ?? existingConfig.showProductCount ?? false,
+      };
+      const ruleConfigJson = JSON.stringify(mergedRuleConfig);
+      const subcategoriesJson = JSON.stringify(
+        input.subcategories && input.subcategories.length > 0
+          ? input.subcategories
+          : input.subcategoryIds || existing?.subcategories || []
+      );
+      const resolvedCover =
+        input.coverImageUrl !== undefined
+          ? input.coverImageUrl
+          : input.bannerImageUrl !== undefined
+          ? input.bannerImageUrl
+          : existing?.bannerImageUrl ?? existing?.coverImageUrl ?? null;
+
+      const [updated] = await this.db
+        .update(navigationSections)
+        .set({
+          name: input.name ? input.name.trim() : existing?.name || "",
+          slug: effectiveSlug,
+          seoTitle: input.seoTitle !== undefined ? input.seoTitle : existing?.seoTitle ?? null,
+          seoDescription: input.seoDescription !== undefined ? input.seoDescription : existing?.seoDescription ?? null,
+          ruleType,
+          ruleConfigJson,
+          accentColor: input.accentColor !== undefined ? input.accentColor : existing?.accentColor ?? null,
+          badgeText: input.badgeText !== undefined ? input.badgeText : existing?.badgeText ?? null,
+          coverImageUrl: resolvedCover,
+          subcategoriesJson,
+          position,
+          isVisible: input.isVisible !== undefined ? (input.isVisible ? 1 : 0) : (existing?.isVisible ? 1 : 0),
+        })
+        .where(eq(navigationSections.id, input.id))
+        .returning();
+
+      memoryCache.deleteMatching("store_nav_sections_");
+      return this.mapSection(updated);
+    }
+
     const mergedRuleConfig: NavigationRuleConfig = {
       ...(input.ruleConfig || {}),
       showInHomeMosaic:
         input.showInHomeMosaic !== undefined
           ? input.showInHomeMosaic
           : input.ruleConfig?.showInHomeMosaic ?? true,
+      layout: input.layout || input.ruleConfig?.layout || "2_col",
+      targetUrl:
+        input.targetUrl !== undefined
+          ? input.targetUrl
+          : input.ruleConfig?.targetUrl ?? null,
+      subtitle:
+        input.subtitle !== undefined
+          ? input.subtitle
+          : input.ruleConfig?.subtitle ?? null,
+      showProductCount:
+        input.showProductCount !== undefined
+          ? input.showProductCount
+          : input.ruleConfig?.showProductCount ?? false,
     };
     const ruleConfigJson = JSON.stringify(mergedRuleConfig);
     const subcategoriesJson = JSON.stringify(
@@ -96,30 +173,6 @@ export class DrizzleNavigationRepository implements INavigationRepository {
         ? input.coverImageUrl
         : input.bannerImageUrl ?? null;
 
-    if (input.id) {
-      const [updated] = await this.db
-        .update(navigationSections)
-        .set({
-          name: input.name.trim(),
-          slug,
-          seoTitle: input.seoTitle ?? null,
-          seoDescription: input.seoDescription ?? null,
-          ruleType: input.ruleType,
-          ruleConfigJson,
-          accentColor: input.accentColor ?? null,
-          badgeText: input.badgeText ?? null,
-          coverImageUrl: resolvedCover,
-          subcategoriesJson,
-          position: input.position ?? 0,
-          isVisible: input.isVisible === false ? 0 : 1,
-        })
-        .where(eq(navigationSections.id, input.id))
-        .returning();
-
-      memoryCache.deleteMatching("store_nav_sections_");
-      return this.mapSection(updated);
-    }
-
     const [inserted] = await this.db
       .insert(navigationSections)
       .values({
@@ -127,7 +180,7 @@ export class DrizzleNavigationRepository implements INavigationRepository {
         slug,
         seoTitle: input.seoTitle ?? null,
         seoDescription: input.seoDescription ?? null,
-        ruleType: input.ruleType,
+        ruleType: input.ruleType || "FEATURED",
         ruleConfigJson,
         accentColor: input.accentColor ?? null,
         badgeText: input.badgeText ?? null,
@@ -310,6 +363,10 @@ export class DrizzleNavigationRepository implements INavigationRepository {
       bannerImageUrl: row.coverImageUrl,
       showInHomeMosaic:
         ruleConfig.showInHomeMosaic !== undefined ? Boolean(ruleConfig.showInHomeMosaic) : true,
+      layout: ruleConfig.layout || "2_col",
+      targetUrl: ruleConfig.targetUrl || null,
+      subtitle: ruleConfig.subtitle || null,
+      showProductCount: Boolean(ruleConfig.showProductCount),
       subcategoryIds,
       subcategories,
       position: row.position,

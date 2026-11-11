@@ -25,8 +25,8 @@ export interface SeedOptions {
  */
 export async function seedDatabase(db: DbClient, options: SeedOptions = {}): Promise<void> {
   const {
-    whatsappNumber = "+5491100000000",
-    brandName = "Aura Studio",
+    whatsappNumber = process.env.COMMERCE_WHATSAPP || process.env.DEFAULT_WHATSAPP_NUMBER || "+5491100000000",
+    brandName = process.env.COMMERCE_NAME || process.env.DEFAULT_BRAND_NAME || "Mi Tienda",
     reservationHours = 48,
   } = options;
 
@@ -153,17 +153,21 @@ export async function seedDatabase(db: DbClient, options: SeedOptions = {}): Pro
 
   // 6. Super Admin inicial con contraseña hasheada (PBKDF2-HMAC-SHA512) (BR-08, BR-10)
   const now = Date.now();
+  const defaultAdminEmail = process.env.ADMIN_EMAIL || "admin@tienda.local";
+  const defaultAdminPassword = process.env.ADMIN_PASSWORD || "admin-secret-2026";
+  const defaultAdminName = process.env.ADMIN_NAME || "Administrador Principal";
+
   const existingDefaultAdmin = await db
     .select()
     .from(adminUsers)
-    .where(eq(adminUsers.email, "admin@aurastudio.com"))
+    .where(eq(adminUsers.email, defaultAdminEmail))
     .limit(1);
 
   if (existingDefaultAdmin.length === 0) {
-    const { hash, salt } = await hashPassword("aura-admin-secret-2026");
+    const { hash, salt } = await hashPassword(defaultAdminPassword);
     await db.insert(adminUsers).values({
-      email: "admin@aurastudio.com",
-      name: "Administradora Principal",
+      email: defaultAdminEmail,
+      name: defaultAdminName,
       passwordHash: hash,
       passwordSalt: salt,
       role: "SUPER_ADMIN",
@@ -173,36 +177,17 @@ export async function seedDatabase(db: DbClient, options: SeedOptions = {}): Pro
     });
   }
 
-  const existingEzequiel = await db
-    .select()
-    .from(adminUsers)
-    .where(eq(adminUsers.email, "ezequiel140901@gmail.com"))
-    .limit(1);
-
-  if (existingEzequiel.length === 0) {
-    const { hash, salt } = await hashPassword("123456sdf");
-    await db.insert(adminUsers).values({
-      email: "ezequiel140901@gmail.com",
-      name: "Ezequiel",
-      passwordHash: hash,
-      passwordSalt: salt,
-      role: "SUPER_ADMIN",
-      status: "ACTIVE",
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
-
-  // 7. Comercio principal por defecto (Aura Studio)
+  // 7. Comercio principal por defecto
+  const commerceSlug = process.env.COMMERCE_SLUG || "default-store";
   const existingCommerce = await db
     .select()
     .from(commerces)
-    .where(eq(commerces.slug, "aura-studio"))
+    .where(eq(commerces.slug, commerceSlug))
     .limit(1);
 
   if (existingCommerce.length === 0) {
     await db.insert(commerces).values({
-      slug: "aura-studio",
+      slug: commerceSlug,
       name: brandName,
       whatsappNumber: whatsappNumber,
       isActive: 1,

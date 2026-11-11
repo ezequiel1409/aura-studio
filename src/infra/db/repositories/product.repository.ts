@@ -10,7 +10,12 @@ import {
   sql,
   SQL,
 } from "drizzle-orm";
-import { calculateTotalStock, parseProductCode } from "../../../domain/product/rules";
+import {
+  calculateSoldOutAt,
+  calculateTotalStock,
+  deriveStatusFromStock,
+  parseProductCode,
+} from "../../../domain/product/rules";
 import {
   CatalogFacets,
   ListProductsFilter,
@@ -21,6 +26,7 @@ import {
   ProductPhoto,
   ProductStats,
   ProductStatus,
+  VariantStockUpdateInput,
 } from "../../../domain/product/types";
 import {
   BackofficeSummaryCounts,
@@ -39,6 +45,33 @@ import {
   products,
   statusHistory,
 } from "../schema";
+import { memoryCache } from "../../cache/memory-cache";
+
+function serializeFilterForCache(filter: ListProductsFilter, categoryIdsToInclude?: number[]): string {
+  return JSON.stringify({
+    status: filter.status,
+    categoryId: filter.categoryId,
+    categoryIds: filter.categoryIds ? [...filter.categoryIds].sort() : undefined,
+    search: filter.search?.trim().toLowerCase(),
+    sizes: filter.sizes ? [...filter.sizes].sort() : undefined,
+    colors: filter.colors ? [...filter.colors].sort() : undefined,
+    minPriceCents: filter.minPriceCents,
+    maxPriceCents: filter.maxPriceCents,
+    onlyAvailable: filter.onlyAvailable,
+    onlyOnSale: filter.onlyOnSale,
+    lowStockMaxUnits: filter.lowStockMaxUnits,
+    withoutPrice: filter.withoutPrice,
+    expiringBefore: filter.expiringBefore,
+    isFeatured: filter.isFeatured,
+    publishedAfter: filter.publishedAfter,
+    productIds: filter.productIds ? [...filter.productIds].sort() : undefined,
+    attributes: filter.attributes,
+    sortBy: filter.sortBy,
+    page: filter.page,
+    pageSize: filter.pageSize,
+    categoryIdsToInclude: categoryIdsToInclude ? [...categoryIdsToInclude].sort() : undefined,
+  });
+}
 
 export class DrizzleProductRepository implements IProductRepository {
   constructor(private readonly db: DbClient) {}
@@ -68,8 +101,9 @@ export class DrizzleProductRepository implements IProductRepository {
       })
       .returning();
 
-    // Inserta colores y talles
-    const insertedColors: ProductColor[] = [];
+    try {
+      // Inserta colores y talles
+      const insertedColors: ProductColor[] = [];
     if (data.colors && data.colors.length > 0) {
       for (const col of data.colors) {
         const [c] = await this.db
@@ -148,8 +182,15 @@ export class DrizzleProductRepository implements IProductRepository {
     const savedAttributes: Record<string, string[]> = {};
     if (data.attributes) {
       await this.saveAttributesForProduct(inserted.id, data.attributes);
-      for (const [k, vals] of Object.entries(data.attributes)) {
-        const cleanVals = vals.map((v) => v.trim()).filter(Boolean);
+      for (const [k, rawVals] of Object.entries(data.attributes)) {
+        const valuesList = Array.isArray(rawVals)
+          ? rawVals
+          : typeof rawVals === "string"
+          ? [rawVals]
+          : [];
+        const cleanVals = valuesList
+          .map((v) => String(v).trim())
+          .filter(Boolean);
         if (cleanVals.length > 0) {
           savedAttributes[k.trim().toLowerCase()] = cleanVals;
         }
@@ -164,7 +205,7 @@ export class DrizzleProductRepository implements IProductRepository {
       lastViewedAt: null,
     });
 
-    return {
+    const createdEntity: Product = {
       id: inserted.id,
       code: inserted.code,
       rawText: inserted.rawText,
@@ -193,9 +234,22 @@ export class DrizzleProductRepository implements IProductRepository {
         lastViewedAt: null,
       },
     };
+
+    memoryCache.deleteMatching("store_product_");
+    memoryCache.delete("store_related_newest_6");
+
+    return createdEntity;
+    } catch (error) {
+      await this.delete(inserted.id).catch(() => {});
+      throw error;
+    }
   }
 
   async findById(id: number): Promise<Product | null> {
+    const cacheKey = `store_product_id_${id}`;
+    const cached = memoryCache.get<Product>(cacheKey);
+    if (cached) return cached;
+
     const [row] = await this.db
       .select()
       .from(products)
@@ -210,10 +264,17 @@ export class DrizzleProductRepository implements IProductRepository {
       this.getAttributesForProduct(row.id),
     ]);
 
-    return this.mapToEntity(row, photos, stats, colors, attributes);
+    const entity = this.mapToEntity(row, photos, stats, colors, attributes);
+    memoryCache.set(cacheKey, entity, 180);
+    memoryCache.set(`store_product_code_${entity.code}`, entity, 180);
+    return entity;
   }
 
   async findByCode(code: number): Promise<Product | null> {
+    const cacheKey = `store_product_code_${code}`;
+    const cached = memoryCache.get<Product>(cacheKey);
+    if (cached) return cached;
+
     const [row] = await this.db
       .select()
       .from(products)
@@ -228,12 +289,16 @@ export class DrizzleProductRepository implements IProductRepository {
       this.getAttributesForProduct(row.id),
     ]);
 
-    return this.mapToEntity(row, photos, stats, colors, attributes);
+    const entity = this.mapToEntity(row, photos, stats, colors, attributes);
+    memoryCache.set(cacheKey, entity, 180);
+    memoryCache.set(`store_product_id_${entity.id}`, entity, 180);
+    return entity;
   }
 
   async update(
     id: number,
-    data: Partial<Omit<Product, "id" | "code" | "createdAt" | "colors" | "photos">> & {
+    data: Partial<Omit<Product, "id" | "code" | "createdAt" | "colors" | "photos" | "attributes">> & {
+      attributes?: Record<string, string[] | string>;
       colors?: CreateProductColorRepoData[];
       photos?: Array<{
         keyThumb: string;
@@ -324,7 +389,10 @@ export class DrizzleProductRepository implements IProductRepository {
       this.getAttributesForProduct(updated.id),
     ]);
 
-    return this.mapToEntity(updated, photos, stats, colors, attributes);
+    const entity = this.mapToEntity(updated, photos, stats, colors, attributes);
+    memoryCache.deleteMatching("store_product_");
+    memoryCache.delete("store_related_newest_6");
+    return entity;
   }
 
   private buildWhereConditions(
@@ -348,6 +416,29 @@ export class DrizzleProductRepository implements IProductRepository {
     if (filter.onlyOnSale) {
       conditions.push(
         sql`${products.compareAtPriceCents} IS NOT NULL AND ${products.priceCents} IS NOT NULL AND ${products.compareAtPriceCents} > ${products.priceCents}`
+      );
+    }
+
+    if (filter.withoutPrice) {
+      conditions.push(
+        sql`(${products.priceCents} IS NULL OR ${products.priceCents} <= 0)`
+      );
+    }
+
+    if (filter.expiringBefore !== undefined) {
+      conditions.push(
+        sql`${products.status} = 'SOLD_OUT' AND ${products.soldOutAt} IS NOT NULL AND ${products.soldOutAt} <= ${filter.expiringBefore}`
+      );
+    }
+
+    if (filter.lowStockMaxUnits !== undefined && filter.lowStockMaxUnits > 0) {
+      conditions.push(
+        sql`COALESCE((
+          SELECT SUM(pcs.stock)
+          FROM ${productColors} pc
+          INNER JOIN ${productColorSizes} pcs ON pcs.product_color_id = pc.id
+          WHERE pc.product_id = ${products.id}
+        ), 0) BETWEEN 1 AND ${filter.lowStockMaxUnits}`
       );
     }
 
@@ -477,6 +568,11 @@ export class DrizzleProductRepository implements IProductRepository {
     filter: ListProductsFilter,
     categoryIdsToInclude?: number[]
   ): Promise<PaginatedResult<Product>> {
+    const cacheKey =
+      "store_product_list_" + serializeFilterForCache(filter, categoryIdsToInclude);
+    const cached = memoryCache.get<PaginatedResult<Product>>(cacheKey);
+    if (cached) return cached;
+
     const conditions = this.buildWhereConditions(filter, categoryIdsToInclude);
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -562,9 +658,17 @@ export class DrizzleProductRepository implements IProductRepository {
 
     const productIds = rows.map((r) => r.id);
 
-    // 1. Fotos para todos los productos en una sola consulta por lote
+    // 1. Fotos para todos los productos en una sola consulta por lote (proyección liviana para listado)
     const allPhotos = await this.db
-      .select()
+      .select({
+        id: productPhotos.id,
+        productId: productPhotos.productId,
+        productColorId: productPhotos.productColorId,
+        position: productPhotos.position,
+        keyThumb: productPhotos.keyThumb,
+        keyFull: productPhotos.keyThumb, // En listados evitamos transferir MBs de base64 completos
+        createdAt: productPhotos.createdAt,
+      })
       .from(productPhotos)
       .where(inArray(productPhotos.productId, productIds))
       .orderBy(asc(productPhotos.position));
@@ -659,13 +763,22 @@ export class DrizzleProductRepository implements IProductRepository {
 
     const totalPages = Math.ceil(total / pageSize);
 
-    return {
+    const result: PaginatedResult<Product> = {
       items,
       total,
       page,
       pageSize,
       totalPages,
     };
+
+    memoryCache.set(cacheKey, result, 60);
+
+    for (const item of items) {
+      memoryCache.set(`store_product_id_${item.id}`, item, 180);
+      memoryCache.set(`store_product_code_${item.code}`, item, 180);
+    }
+
+    return result;
   }
 
   /**
@@ -675,6 +788,11 @@ export class DrizzleProductRepository implements IProductRepository {
     baseFilter: ListProductsFilter,
     categoryIdsToInclude?: number[]
   ): Promise<CatalogFacets> {
+    const cacheKey =
+      "store_product_facets_" +
+      serializeFilterForCache(baseFilter, categoryIdsToInclude);
+    const cached = memoryCache.get<CatalogFacets>(cacheKey);
+    if (cached) return cached;
     // Usamos las condiciones base (sección, categoría o búsqueda) para calcular facetas contextuales
     const conditions = this.buildWhereConditions(
       {
@@ -709,7 +827,7 @@ export class DrizzleProductRepository implements IProductRepository {
       .orderBy(asc(categories.position));
 
     if (matchingRows.length === 0) {
-      return {
+      const emptyResult: CatalogFacets = {
         categories: allCats.map((c) => ({
           id: c.id,
           name: c.name,
@@ -725,6 +843,8 @@ export class DrizzleProductRepository implements IProductRepository {
         minPriceCents: null,
         maxPriceCents: null,
       };
+      memoryCache.set(cacheKey, emptyResult, 60);
+      return emptyResult;
     }
 
     const productIds = matchingRows.map((r) => r.id);
@@ -849,7 +969,7 @@ export class DrizzleProductRepository implements IProductRepository {
       // Ignorar si la tabla aún no fue inicializada en test aislado
     }
 
-    return {
+    const facetsResult: CatalogFacets = {
       categories: categoryFacets,
       sizes: Array.from(sizeProductMap.entries()).map(([size, set]) => ({
         size,
@@ -866,6 +986,10 @@ export class DrizzleProductRepository implements IProductRepository {
       minPriceCents,
       maxPriceCents,
     };
+
+    memoryCache.set(cacheKey, facetsResult, 60);
+
+    return facetsResult;
   }
 
   async countByCategoryId(categoryId: number): Promise<number> {
@@ -897,6 +1021,8 @@ export class DrizzleProductRepository implements IProductRepository {
 
   async delete(id: number): Promise<void> {
     await this.db.delete(products).where(eq(products.id, id));
+    memoryCache.deleteMatching("store_product_");
+    memoryCache.delete("store_related_newest_6");
   }
 
   async reassignCategory(fromCategoryId: number, toCategoryId: number): Promise<number> {
@@ -906,6 +1032,8 @@ export class DrizzleProductRepository implements IProductRepository {
       .where(eq(products.categoryId, fromCategoryId))
       .returning();
 
+    memoryCache.deleteMatching("store_product_");
+    memoryCache.delete("store_related_newest_6");
     return updated.length;
   }
 
@@ -926,6 +1054,8 @@ export class DrizzleProductRepository implements IProductRepository {
         updatedAt: now,
       })
       .where(inArray(products.id, ids));
+    memoryCache.deleteMatching("store_product_");
+    memoryCache.delete("store_related_newest_6");
   }
 
   async bulkUpdateCategory(ids: number[], categoryId: number, now: number): Promise<void> {
@@ -937,11 +1067,15 @@ export class DrizzleProductRepository implements IProductRepository {
         updatedAt: now,
       })
       .where(inArray(products.id, ids));
+    memoryCache.deleteMatching("store_product_");
+    memoryCache.delete("store_related_newest_6");
   }
 
   async bulkDelete(ids: number[]): Promise<void> {
     if (ids.length === 0) return;
     await this.db.delete(products).where(inArray(products.id, ids));
+    memoryCache.deleteMatching("store_product_");
+    memoryCache.delete("store_related_newest_6");
   }
 
   async getSummaryCounts(
@@ -1032,6 +1166,7 @@ export class DrizzleProductRepository implements IProductRepository {
       }
     }
 
+    memoryCache.deleteMatching("store_product_");
     return { remainingStock, totalProductStock, newProductStatus };
   }
 
@@ -1095,23 +1230,145 @@ export class DrizzleProductRepository implements IProductRepository {
       }
     }
 
+    memoryCache.deleteMatching("store_product_");
     return { newStock, totalProductStock, newProductStatus };
+  }
+
+  /**
+   * Actualiza cantidades de stock por variante en lugar sin recrear filas de color
+   * ni perder relaciones productPhotos.productColorId, derivando el estado de disponibilidad.
+   */
+  async updateVariantStocks(
+    productId: number,
+    updates: VariantStockUpdateInput[],
+    now: number = Date.now()
+  ): Promise<Product> {
+    const [prodRow] = await this.db.select().from(products).where(eq(products.id, productId));
+    if (!prodRow) {
+      throw new Error(`Producto #${productId} no encontrado.`);
+    }
+
+    let existingColors = await this.getColorsForProduct(productId);
+
+    if (existingColors.length === 0 && updates.length > 0) {
+      const [createdColor] = await this.db
+        .insert(productColors)
+        .values({
+          productId,
+          name: updates[0].colorName.trim() || "Único",
+          hexCode: null,
+          position: 0,
+        })
+        .returning();
+
+      existingColors = [
+        {
+          id: createdColor.id,
+          productId,
+          name: createdColor.name,
+          hexCode: createdColor.hexCode,
+          position: createdColor.position,
+          sizes: [],
+        },
+      ];
+    }
+
+    for (const item of updates) {
+      const normalizedStock = Math.max(0, Math.trunc(item.stock));
+      const targetColorName = item.colorName.trim().toLowerCase();
+      const targetSizeName = (item.size.trim() || "ÚNICO").toUpperCase();
+
+      const matchingColor = existingColors.find(
+        (c) => c.name.trim().toLowerCase() === targetColorName
+      );
+      if (!matchingColor) continue;
+
+      const matchingSize = matchingColor.sizes.find(
+        (s) => s.size.trim().toUpperCase() === targetSizeName
+      );
+
+      if (matchingSize) {
+        await this.db
+          .update(productColorSizes)
+          .set({ stock: normalizedStock })
+          .where(eq(productColorSizes.id, matchingSize.id));
+        matchingSize.stock = normalizedStock;
+      } else {
+        const [insertedSize] = await this.db
+          .insert(productColorSizes)
+          .values({
+            productColorId: matchingColor.id,
+            size: targetSizeName,
+            stock: normalizedStock,
+            reservedStock: 0,
+          })
+          .returning();
+        matchingColor.sizes.push({
+          id: insertedSize.id,
+          productColorId: insertedSize.productColorId,
+          size: insertedSize.size,
+          stock: insertedSize.stock,
+          reservedStock: insertedSize.reservedStock,
+        });
+      }
+    }
+
+    const updatedColors = await this.getColorsForProduct(productId);
+    const totalStock = calculateTotalStock(updatedColors);
+    const currentStatus = prodRow.status as ProductStatus;
+    const nextStatus = deriveStatusFromStock(totalStock, currentStatus);
+
+    const productUpdate: Partial<typeof products.$inferInsert> = {
+      updatedAt: now,
+    };
+
+    if (nextStatus !== currentStatus) {
+      productUpdate.status = nextStatus;
+      productUpdate.soldOutAt = calculateSoldOutAt(currentStatus, nextStatus, now);
+      if (nextStatus !== "RESERVED") {
+        productUpdate.reservedUntil = null;
+      }
+
+      await this.db.insert(statusHistory).values({
+        productId: prodRow.id,
+        productCode: prodRow.code,
+        fromStatus: currentStatus,
+        toStatus: nextStatus,
+        at: now,
+        source: "web",
+      });
+    }
+
+    await this.db.update(products).set(productUpdate).where(eq(products.id, productId));
+    memoryCache.deleteMatching("store_product_");
+    memoryCache.delete("store_related_newest_6");
+
+    const updatedProduct = await this.findById(productId);
+    if (!updatedProduct) {
+      throw new Error(`Producto #${productId} no encontrado tras actualizar stock.`);
+    }
+    return updatedProduct;
   }
 
   private async saveAttributesForProduct(
     productId: number,
-    attributes: Record<string, string[]>
+    attributes: Record<string, string[] | string>
   ): Promise<void> {
     try {
       await this.db
         .delete(productAttributeValues)
         .where(eq(productAttributeValues.productId, productId));
 
-      for (const [rawSlug, values] of Object.entries(attributes)) {
+      for (const [rawSlug, rawValues] of Object.entries(attributes)) {
         const attributeSlug = rawSlug.trim().toLowerCase();
-        if (!attributeSlug || !Array.isArray(values)) continue;
+        if (!attributeSlug) continue;
+        const valuesList = Array.isArray(rawValues)
+          ? rawValues
+          : typeof rawValues === "string"
+          ? [rawValues]
+          : [];
         const uniqueValues = Array.from(
-          new Set(values.map((v) => v.trim()).filter(Boolean))
+          new Set(valuesList.map((v) => String(v).trim()).filter(Boolean))
         );
         for (const value of uniqueValues) {
           await this.db.insert(productAttributeValues).values({

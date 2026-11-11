@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySessionToken } from "./infra/auth/session";
+import { ADMIN_SESSION_COOKIE_NAME } from "./infra/auth/guard";
 import { getEnv } from "./lib/env";
 
 /**
@@ -18,7 +19,7 @@ export async function proxy(req: NextRequest) {
   const response = NextResponse.next();
   response.headers.set("X-Robots-Tag", "noindex, nofollow");
 
-  const token = req.cookies.get("aura_admin_token")?.value;
+  const token = req.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value;
   const env = getEnv();
 
   const isAuth = token

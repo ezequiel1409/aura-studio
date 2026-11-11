@@ -3,12 +3,14 @@ import { cookies } from "next/headers";
 import { verifySessionToken } from "./session";
 import { getEnv } from "../../lib/env";
 
+export const ADMIN_SESSION_COOKIE_NAME = "app_admin_token";
+
 /**
  * BR-08, BR-37: Verifica si una petición HTTP entrante cuenta con sesión de administradora válida.
  * Registra advertencias de seguridad si el intento es desautenticado o la sesión expiró.
  */
 export async function isAuthenticatedAdmin(req: NextRequest): Promise<boolean> {
-  const token = req.cookies.get("aura_admin_token")?.value;
+  const token = req.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value;
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("cf-connecting-ip") ||
@@ -37,7 +39,7 @@ export async function isAuthenticatedAdmin(req: NextRequest): Promise<boolean> {
  */
 export async function isServerAdminAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("aura_admin_token")?.value;
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
   if (!token) {
     console.warn("[AUTH] Acceso a Server Component desautenticado (sin token)");
     return false;

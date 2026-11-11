@@ -23,6 +23,8 @@ import {
 import { ProductServiceDeps } from "../../services/product.service";
 import { IEmailService } from "../../domain/ports/email.port";
 import { getEmailService } from "../email/resend.adapter";
+import { IReceiptStorage } from "../../domain/ports/receipt-storage.port";
+import { resolveReceiptStorage } from "../storage";
 
 export interface GlobalAppDeps extends ProductServiceDeps {
   loginAttemptRepo: DrizzleLoginAttemptRepository;
@@ -37,25 +39,40 @@ export interface GlobalAppDeps extends ProductServiceDeps {
   navigationRepo: DrizzleNavigationRepository;
   promotionRepo: DrizzlePromotionRepository;
   emailService?: IEmailService;
+  receiptStorage?: IReceiptStorage;
   db?: DbClient;
 }
 
+const globalForDb = globalThis as unknown as {
+  __storeDb?: DbClient;
+  __storeDeps?: GlobalAppDeps;
+};
+
 let globalDb: DbClient | null = null;
 let globalDeps: GlobalAppDeps | null = null;
+let cachedCloudflareD1Binding: unknown = null;
+let cachedCloudflareD1Db: DbClient | null = null;
+let cachedCloudflareDeps: GlobalAppDeps | null = null;
 
 export function getDb(): DbClient {
   const isCloudflare =
     typeof (globalThis as unknown as { WebSocketPair?: unknown }).WebSocketPair !== "undefined" ||
     (typeof process !== "undefined" && process.env?.NEXT_RUNTIME === "edge");
 
-  // En entorno Cloudflare (Workers / OpenNext), conectamos con D1 usando el contexto actual
+  // En entorno Cloudflare (Workers / OpenNext), conectamos con D1 usando el contexto actual reutilizando el cliente
   if (isCloudflare) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { getCloudflareContext } = require("@opennextjs/cloudflare");
       const cf = getCloudflareContext();
       if (cf?.env?.DB) {
-        return createD1Db(cf.env.DB);
+        if (cachedCloudflareD1Db && cachedCloudflareD1Binding === cf.env.DB) {
+          return cachedCloudflareD1Db;
+        }
+        const client = createD1Db(cf.env.DB);
+        cachedCloudflareD1Db = client;
+        cachedCloudflareD1Binding = cf.env.DB;
+        return client;
       }
       throw new Error(
         "Cloudflare D1 database binding 'DB' was not found on the worker context. Verify wrangler.jsonc or Cloudflare Dashboard settings."
@@ -65,7 +82,9 @@ export function getDb(): DbClient {
     }
   }
 
-  if (globalDb) return globalDb;
+  if (!isCloudflare && (globalDb || globalForDb.__storeDb)) {
+    return globalDb || globalForDb.__storeDb!;
+  }
 
   // En entorno local de Next.js usamos local.sqlite
   // eslint-disable-next-line @typescript-eslint/no-require-imports, no-eval
@@ -74,7 +93,7 @@ export function getDb(): DbClient {
   const { drizzle: drizzleSqlite } = eval("require")("drizzle-orm/better-sqlite3");
 
   const dbPath = path.resolve(process.cwd(), "local.sqlite");
-  const sqlite = new BetterSqlite(dbPath);
+  const sqlite = new BetterSqlite(dbPath, { timeout: 10000 });
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("synchronous = NORMAL");
@@ -359,6 +378,8 @@ export function getDb(): DbClient {
         CREATE INDEX IF NOT EXISTS home_banners_placement_active_idx ON home_banners (placement, is_active, position);
         CREATE INDEX IF NOT EXISTS product_photos_product_id_idx ON product_photos (product_id);
         CREATE INDEX IF NOT EXISTS status_history_product_id_idx ON status_history (product_id);
+        CREATE INDEX IF NOT EXISTS categories_position_idx ON categories (position);
+        CREATE INDEX IF NOT EXISTS orders_created_at_idx ON orders (created_at);
       `);
 
       // Sembrar atributo "Para" y secciones por defecto si están vacíos
@@ -603,11 +624,14 @@ export function getDb(): DbClient {
           .get() as { count: number };
         if (commerceCount && commerceCount.count === 0) {
           const now = Date.now();
+          const slug = process.env.COMMERCE_SLUG || "default-store";
+          const name = process.env.COMMERCE_NAME || "Mi Tienda";
+          const phone = process.env.COMMERCE_WHATSAPP || "+5491100000000";
           sqlite
             .prepare(
               "INSERT OR IGNORE INTO commerces (slug, name, whatsapp_number, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
             )
-            .run("aura-studio", "Aura Studio", "+5491100000000", 1, now, now);
+            .run(slug, name, phone, 1, now, now);
         }
       }
     } catch {
@@ -619,6 +643,7 @@ export function getDb(): DbClient {
 
   const client = drizzleSqlite(sqlite, { schema }) as DbClient;
   globalDb = client;
+  globalForDb.__storeDb = client;
   return client;
 }
 
@@ -627,9 +652,16 @@ export function getProductServiceDeps(): GlobalAppDeps {
     typeof (globalThis as unknown as { WebSocketPair?: unknown }).WebSocketPair !== "undefined" ||
     (typeof process !== "undefined" && process.env?.NEXT_RUNTIME === "edge");
 
-  if (!isCloudflare && globalDeps) return globalDeps;
+  if (!isCloudflare && (globalDeps || globalForDb.__storeDeps)) {
+    return globalDeps || globalForDb.__storeDeps!;
+  }
 
   const db = getDb();
+
+  if (isCloudflare && cachedCloudflareDeps && cachedCloudflareDeps.db === db) {
+    return cachedCloudflareDeps;
+  }
+
   const deps: GlobalAppDeps = {
     productRepo: new DrizzleProductRepository(db),
     categoryRepo: new DrizzleCategoryRepository(db),
@@ -648,14 +680,23 @@ export function getProductServiceDeps(): GlobalAppDeps {
     navigationRepo: new DrizzleNavigationRepository(db),
     promotionRepo: new DrizzlePromotionRepository(db),
     emailService: getEmailService(),
+    receiptStorage: resolveReceiptStorage(),
     db,
   };
 
   if (!isCloudflare) {
     globalDeps = deps;
+    globalForDb.__storeDeps = deps;
+  } else {
+    cachedCloudflareDeps = deps;
   }
 
   return deps;
+}
+
+export function setGlobalAppDepsForTesting(deps: GlobalAppDeps | null): void {
+  globalDeps = deps;
+  globalForDb.__storeDeps = deps || undefined;
 }
 
 

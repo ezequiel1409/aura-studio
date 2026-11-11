@@ -120,20 +120,27 @@ export class ResendEmailAdapter implements IEmailService {
       };
     }
 
+    const replyTo = options.replyTo || getEnvVar("ORDER_NOTIFICATIONS_EMAIL");
+
     try {
+      const payload: Record<string, unknown> = {
+        from: fromEmail,
+        to: [options.to],
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+      };
+      if (replyTo) {
+        payload.reply_to = replyTo;
+      }
+
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [options.to],
-          subject: options.subject,
-          html: options.html,
-          text: options.text,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const durationMs = Math.round(performance.now() - startTime);

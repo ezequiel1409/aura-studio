@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { getEnv } from "../../lib/env";
 
-export const CUSTOMER_SESSION_COOKIE_NAME = "aura_customer_session";
+export const CUSTOMER_SESSION_COOKIE_NAME = "app_customer_session";
 export const CUSTOMER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 días de persistencia
 
 export interface CustomerSessionPayload {

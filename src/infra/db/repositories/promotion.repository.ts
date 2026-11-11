@@ -328,11 +328,11 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
         .update(homeBanners)
         .set({
           placement: input.placement || "HOME_HERO",
-          desktopImageUrl: input.desktopImageUrl.trim(),
-          mobileImageUrl: input.mobileImageUrl.trim() || input.desktopImageUrl.trim(),
-          title: input.title.trim(),
+          desktopImageUrl: (input.desktopImageUrl || "").trim(),
+          mobileImageUrl: (input.mobileImageUrl || "").trim() || (input.desktopImageUrl || "").trim(),
+          title: (input.title || "").trim(),
           subtitle: input.subtitle?.trim() || null,
-          ctaLabel: input.ctaLabel.trim(),
+          ctaLabel: (input.ctaLabel || "").trim(),
           ctaHref,
           promotionId: input.promotionId ?? null,
           startsAt: input.startsAt ?? null,
@@ -351,11 +351,11 @@ export class DrizzlePromotionRepository implements IPromotionRepository {
       .insert(homeBanners)
       .values({
         placement: input.placement || "HOME_HERO",
-        desktopImageUrl: input.desktopImageUrl.trim(),
-        mobileImageUrl: input.mobileImageUrl.trim() || input.desktopImageUrl.trim(),
-        title: input.title.trim(),
+        desktopImageUrl: (input.desktopImageUrl || "").trim(),
+        mobileImageUrl: (input.mobileImageUrl || "").trim() || (input.desktopImageUrl || "").trim(),
+        title: (input.title || "").trim(),
         subtitle: input.subtitle?.trim() || null,
-        ctaLabel: input.ctaLabel.trim(),
+        ctaLabel: (input.ctaLabel || "").trim(),
         ctaHref,
         promotionId: input.promotionId ?? null,
         startsAt: input.startsAt ?? null,

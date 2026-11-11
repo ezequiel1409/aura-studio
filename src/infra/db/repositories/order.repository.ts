@@ -9,6 +9,50 @@ import { PaymentStatus } from "../../../domain/payment/types";
 import { DbClient } from "../client";
 import { orderItems, orders } from "../schema";
 
+const orderColumns = {
+  id: orders.id,
+  code: orders.code,
+  customerName: orders.customerName,
+  customerPhone: orders.customerPhone,
+  customerEmail: orders.customerEmail,
+  customerDni: orders.customerDni,
+  deliveryMethod: orders.deliveryMethod,
+  deliveryAddress: orders.deliveryAddress,
+  deliveryNotes: orders.deliveryNotes,
+  subtotalCents: orders.subtotalCents,
+  discountCents: orders.discountCents,
+  shippingCents: orders.shippingCents,
+  totalCents: orders.totalCents,
+  currency: orders.currency,
+  couponCode: orders.couponCode,
+  status: orders.status,
+  paymentMethod: orders.paymentMethod,
+  paymentStatus: orders.paymentStatus,
+  paymentExternalId: orders.paymentExternalId,
+  paymentDiscountCents: orders.paymentDiscountCents,
+  customerId: orders.customerId,
+  commerceId: orders.commerceId,
+  transferReceiptUrl: orders.transferReceiptUrl,
+  transferReceiptUploadedAt: orders.transferReceiptUploadedAt,
+  notes: orders.notes,
+  createdAt: orders.createdAt,
+  updatedAt: orders.updatedAt,
+};
+
+const orderItemColumns = {
+  id: orderItems.id,
+  orderId: orderItems.orderId,
+  productId: orderItems.productId,
+  productCode: orderItems.productCode,
+  productTitle: orderItems.productTitle,
+  colorName: orderItems.colorName,
+  size: orderItems.size,
+  quantity: orderItems.quantity,
+  unitPriceCents: orderItems.unitPriceCents,
+  subtotalCents: orderItems.subtotalCents,
+  photoUrl: orderItems.photoUrl,
+};
+
 export class DrizzleOrderRepository implements IOrderRepository {
   constructor(private readonly db: DbClient) {}
 
@@ -57,7 +101,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
       })
-      .returning();
+      .returning(orderColumns);
 
     let createdItems: OrderItem[] = [];
     if (data.items && data.items.length > 0) {
@@ -73,7 +117,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
         subtotalCents: item.quantity * item.unitPriceCents,
         photoUrl: item.photoUrl ?? null,
       }));
-      const rows = await this.db.insert(orderItems).values(payload).returning();
+      const rows = await this.db.insert(orderItems).values(payload).returning(orderItemColumns);
       createdItems = rows as OrderItem[];
     }
 
@@ -84,9 +128,9 @@ export class DrizzleOrderRepository implements IOrderRepository {
   }
 
   async findById(id: number): Promise<Order | null> {
-    const [row] = await this.db.select().from(orders).where(eq(orders.id, id));
+    const [row] = await this.db.select(orderColumns).from(orders).where(eq(orders.id, id));
     if (!row) return null;
-    const items = await this.db.select().from(orderItems).where(eq(orderItems.orderId, id));
+    const items = await this.db.select(orderItemColumns).from(orderItems).where(eq(orderItems.orderId, id));
     return {
       ...(row as Order),
       items: items as OrderItem[],
@@ -94,9 +138,9 @@ export class DrizzleOrderRepository implements IOrderRepository {
   }
 
   async findByCode(code: number): Promise<Order | null> {
-    const [row] = await this.db.select().from(orders).where(eq(orders.code, code));
+    const [row] = await this.db.select(orderColumns).from(orders).where(eq(orders.code, code));
     if (!row) return null;
-    const items = await this.db.select().from(orderItems).where(eq(orderItems.orderId, row.id));
+    const items = await this.db.select(orderItemColumns).from(orderItems).where(eq(orderItems.orderId, row.id));
     return {
       ...(row as Order),
       items: items as OrderItem[],
@@ -104,7 +148,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
   }
 
   async list(options?: { status?: OrderStatus; limit?: number; offset?: number }): Promise<Order[]> {
-    let query = this.db.select().from(orders).$dynamic();
+    let query = this.db.select(orderColumns).from(orders).$dynamic();
     if (options?.status) {
       query = query.where(eq(orders.status, options.status));
     }
@@ -120,7 +164,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
 
     const orderIds = rows.map((r) => r.id);
     const allItems = await this.db
-      .select()
+      .select(orderItemColumns)
       .from(orderItems)
       .where(inArray(orderItems.orderId, orderIds));
 
@@ -139,7 +183,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
 
   async listByCustomer(customerId: number): Promise<Order[]> {
     const rows = await this.db
-      .select()
+      .select(orderColumns)
       .from(orders)
       .where(eq(orders.customerId, customerId))
       .orderBy(desc(orders.createdAt));
@@ -148,7 +192,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
 
     const orderIds = rows.map((r) => r.id);
     const allItems = await this.db
-      .select()
+      .select(orderItemColumns)
       .from(orderItems)
       .where(inArray(orderItems.orderId, orderIds));
 
@@ -166,16 +210,25 @@ export class DrizzleOrderRepository implements IOrderRepository {
   }
 
   async updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order> {
-    await this.db
+    const [updated] = await this.db
       .update(orders)
       .set({ status, updatedAt })
-      .where(eq(orders.id, id));
+      .where(eq(orders.id, id))
+      .returning(orderColumns);
 
-    const updated = await this.findById(id);
     if (!updated) {
       throw new Error(`Order ${id} not found`);
     }
-    return updated;
+
+    const items = await this.db
+      .select(orderItemColumns)
+      .from(orderItems)
+      .where(eq(orderItems.orderId, id));
+
+    return {
+      ...(updated as Order),
+      items: items as OrderItem[],
+    };
   }
 
   async updatePayment(
@@ -189,38 +242,55 @@ export class DrizzleOrderRepository implements IOrderRepository {
     if (data.paymentExternalId !== undefined) {
       updatePayload.paymentExternalId = data.paymentExternalId;
     }
-    await this.db
+    const [updated] = await this.db
       .update(orders)
       .set(updatePayload)
-      .where(eq(orders.id, id));
+      .where(eq(orders.id, id))
+      .returning(orderColumns);
 
-    const updated = await this.findById(id);
     if (!updated) {
       throw new Error(`Order ${id} not found`);
     }
-    return updated;
-  }
 
+    const items = await this.db
+      .select(orderItemColumns)
+      .from(orderItems)
+      .where(eq(orderItems.orderId, id));
+
+    return {
+      ...(updated as Order),
+      items: items as OrderItem[],
+    };
+  }
 
   async updateTransferReceipt(
     id: number,
     receiptUrl: string,
     uploadedAt: number
   ): Promise<Order> {
-    await this.db
+    const [updated] = await this.db
       .update(orders)
       .set({
         transferReceiptUrl: receiptUrl,
         transferReceiptUploadedAt: uploadedAt,
         updatedAt: uploadedAt,
       })
-      .where(eq(orders.id, id));
+      .where(eq(orders.id, id))
+      .returning(orderColumns);
 
-    const updated = await this.findById(id);
     if (!updated) {
       throw new Error(`Order ${id} not found`);
     }
-    return updated;
+
+    const items = await this.db
+      .select(orderItemColumns)
+      .from(orderItems)
+      .where(eq(orderItems.orderId, id));
+
+    return {
+      ...(updated as Order),
+      items: items as OrderItem[],
+    };
   }
 }
 
