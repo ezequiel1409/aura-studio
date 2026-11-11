@@ -6,6 +6,7 @@ import {
   Product,
   ProductStatus,
   StatusHistoryEntry,
+  VariantStockUpdateInput,
 } from "../product/types";
 import {
   AdminRole,
@@ -59,7 +60,7 @@ export interface CreateProductRepoData {
   manualFields: string[];
   createdAt: number;
   updatedAt: number;
-  attributes?: Record<string, string[]>;
+  attributes?: Record<string, string[] | string>;
   colors?: CreateProductColorRepoData[];
   photos?: Array<{
     keyThumb: string;
@@ -75,7 +76,8 @@ export interface IProductRepository {
   findByCode(code: number): Promise<Product | null>;
   update(
     id: number,
-    data: Partial<Omit<Product, "id" | "code" | "createdAt" | "colors" | "photos">> & {
+    data: Partial<Omit<Product, "id" | "code" | "createdAt" | "colors" | "photos" | "attributes">> & {
+      attributes?: Record<string, string[] | string>;
       colors?: CreateProductColorRepoData[];
       photos?: Array<{
         keyThumb: string;
@@ -95,6 +97,11 @@ export interface IProductRepository {
   bulkUpdateStatus(ids: number[], newStatus: ProductStatus, soldOutAt: number | null, reservedUntil: number | null, now: number): Promise<void>;
   bulkUpdateCategory(ids: number[], categoryId: number, now: number): Promise<void>;
   bulkDelete(ids: number[]): Promise<void>;
+  updateVariantStocks(
+    productId: number,
+    updates: VariantStockUpdateInput[],
+    now?: number
+  ): Promise<Product>;
   decrementStock(
     productId: number,
     colorName: string,
@@ -307,5 +314,6 @@ export interface IPromotionRepository {
 }
 
 export * from "./email.port";
+export * from "./receipt-storage.port";
 
 

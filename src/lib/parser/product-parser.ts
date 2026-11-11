@@ -102,26 +102,27 @@ export function extractSize(text: string): string | null {
     }
   }
 
-  // Patrones tipo "Talle: M", "Talle M", "T: L", "Talle: 38", "T. 2"
+  // Patrones tipo "Talle: M", "Talle M", "T: L", "Talle: 38", "T. 2", "Talle: XXXL", "Talle: 2XL"
   const sizeMatch = text.match(/(?:talle|t\.)\s*:?\s*([a-z0-9/+-]+)/i);
+  const knownLetterSizes = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "2XL", "3XL", "4XL"];
   if (sizeMatch) {
     const rawSize = sizeMatch[1].trim().toUpperCase();
-    if (["XS", "S", "M", "L", "XL", "XXL"].includes(rawSize)) {
+    if (knownLetterSizes.includes(rawSize)) {
       return rawSize;
     }
     if (/^[0-9]+$/.test(rawSize)) {
       return rawSize;
     }
-    if (["S/M", "M/L", "L/XL"].includes(rawSize)) {
+    if (["S/M", "M/L", "L/XL", "XL/XXL", "XXL/XXXL"].includes(rawSize)) {
       return rawSize;
     }
   }
 
-  // Letra aislada de talle cuando dice "S", "M", "L" precedido por palabra clave
-  const letterMatch = text.match(/\b(?:talles?)\s*:?\s*([xXsSmMlLeE]+)/i);
+  // Letra aislada de talle cuando dice "S", "M", "L", "XL", "XXXL" precedido por palabra clave
+  const letterMatch = text.match(/\b(?:talles?)\s*:?\s*([0-9]?[xXsSmMlLeE]+)/i);
   if (letterMatch) {
     const raw = letterMatch[1].toUpperCase();
-    if (["XS", "S", "M", "L", "XL", "XXL"].includes(raw)) {
+    if (knownLetterSizes.includes(raw)) {
       return raw;
     }
   }
@@ -179,8 +180,8 @@ export function formatSizesForBadge(sizes: string[]): string {
     return `${first} al ${last}`;
   }
 
-  // Si es secuencia estándar de letras
-  const standardLetterOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"];
+  // Si es secuencia estándar de letras (XS a XXXL, etc.)
+  const standardLetterOrder = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "2XL", "3XL", "4XL"];
   if (standardLetterOrder.includes(first) && standardLetterOrder.includes(last)) {
     return `${first} al ${last}`;
   }

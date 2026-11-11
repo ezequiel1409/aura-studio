@@ -19,6 +19,8 @@ export type NavigationRuleType =
   | "FEATURED"
   | "MANUAL";
 
+export type HomeSectionLayout = "1_col" | "2_col" | "3_col" | "4_col";
+
 export interface NavigationRuleConfig {
   attributeSlug?: string;
   attributeKey?: string;
@@ -29,6 +31,10 @@ export interface NavigationRuleConfig {
   daysWindow?: number;
   productIds?: number[];
   showInHomeMosaic?: boolean;
+  layout?: HomeSectionLayout;
+  targetUrl?: string | null;
+  subtitle?: string | null;
+  showProductCount?: boolean;
 }
 
 export interface NavigationSubcategoryItem {
@@ -50,11 +56,15 @@ export interface NavigationSection {
   coverImageUrl?: string | null;
   bannerImageUrl?: string | null;
   showInHomeMosaic?: boolean;
+  layout?: HomeSectionLayout;
+  targetUrl?: string | null;
+  subtitle?: string | null;
   subcategoryIds?: number[];
   subcategories?: NavigationSubcategoryItem[];
   position: number;
   isVisible: boolean;
   productCount?: number;
+  showProductCount?: boolean;
 }
 
 export interface UpsertNavigationSectionInput {
@@ -70,6 +80,10 @@ export interface UpsertNavigationSectionInput {
   coverImageUrl?: string | null;
   bannerImageUrl?: string | null;
   showInHomeMosaic?: boolean;
+  layout?: HomeSectionLayout;
+  targetUrl?: string | null;
+  subtitle?: string | null;
+  showProductCount?: boolean;
   subcategoryIds?: number[];
   subcategories?: NavigationSubcategoryItem[];
   position?: number;

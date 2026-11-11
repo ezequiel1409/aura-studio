@@ -2,19 +2,23 @@ import { z } from "zod";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  COMMERCE_NAME: z.string().default("Mi Tienda"),
+  COMMERCE_SLUG: z.string().default("mi-tienda"),
+  COMMERCE_WHATSAPP: z.string().default("+5491100000000"),
   DEFAULT_WHATSAPP_NUMBER: z.string().default("+5491100000000"),
-  DEFAULT_BRAND_NAME: z.string().default("Aura Studio"),
+  DEFAULT_BRAND_NAME: z.string().default("Mi Tienda"),
   DEFAULT_RESERVATION_HOURS: z.coerce.number().int().positive().default(48),
   DATABASE_URL: z.string().optional(),
-  ADMIN_PASSWORD: z.string().default("aura-admin-secret-2026"),
-  SESSION_SECRET: z.string().default("aura-studio-session-secret-key-at-least-32-chars-long"),
+  ADMIN_EMAIL: z.string().default("admin@tienda.local"),
+  ADMIN_PASSWORD: z.string().default("admin-secret-2026"),
+  SESSION_SECRET: z.string().default("default-session-secret-key-at-least-32-chars-long"),
   MP_ACCESS_TOKEN: z.string().optional(),
   MP_PUBLIC_KEY: z.string().optional(),
   MP_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLIC_KEY: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("Aura Studio <onboarding@resend.dev>"),
+  EMAIL_FROM: z.string().default("Notificaciones <onboarding@resend.dev>"),
   ORDER_NOTIFICATIONS_EMAIL: z.string().optional(),
   ADMIN_RECOVERY_KEY: z.string().optional(),
 });
@@ -32,4 +36,3 @@ export function getEnv(overrideProcessEnv?: Record<string, string | undefined>):
   }
   return parsedEnv;
 }
-

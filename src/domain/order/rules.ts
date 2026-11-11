@@ -83,18 +83,17 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
 
   let subtotal = 0;
   for (const item of input.items) {
-    if (!item.quantity || item.quantity <= 0) {
-      throw new ValidationError(`La cantidad para ${item.productTitle} debe ser al menos 1.`);
-    }
-    if (item.unitPriceCents < 0) {
-      throw new ValidationError(`El precio para ${item.productTitle} no puede ser negativo.`);
-    }
-    subtotal += item.quantity * item.unitPriceCents;
+    const qty = Number.isFinite(item.quantity) && item.quantity > 0 ? Math.floor(item.quantity) : 1;
+    const unitPrice =
+      item.unitPriceCents != null && Number.isFinite(item.unitPriceCents)
+        ? Math.max(0, Math.round(item.unitPriceCents))
+        : 0;
+    subtotal += qty * unitPrice;
   }
 
-  const shippingCents = Math.max(0, input.shippingCents || 0);
-  const discountCents = Math.max(0, input.discountCents || 0);
-  const paymentDiscountCents = Math.max(0, input.paymentDiscountCents || 0);
+  const shippingCents = Number.isFinite(input.shippingCents) ? Math.max(0, input.shippingCents || 0) : 0;
+  const discountCents = Number.isFinite(input.discountCents) ? Math.max(0, input.discountCents || 0) : 0;
+  const paymentDiscountCents = Number.isFinite(input.paymentDiscountCents) ? Math.max(0, input.paymentDiscountCents || 0) : 0;
   const totalCents = Math.max(0, subtotal - discountCents - paymentDiscountCents + shippingCents);
 
   let paymentMethod: PaymentMethod = "WHATSAPP";
@@ -158,16 +157,13 @@ export function isValidOrderStatusTransition(from: OrderStatus, to: OrderStatus)
 
 /**
  * Sanitiza una orden antes de responderla al cliente o serializarla en JSON.
- * Si el comprobante de transferencia contiene un Base64 pesado, lo reemplaza
- * por la URL limpia del endpoint de descarga (/api/orders/:id/receipt).
+ * Siempre devuelve la URL limpia del endpoint de descarga (/api/orders/:id/receipt),
+ * ocultando cualquier clave interna de storage o datos en Base64.
  */
 export function sanitizeOrderForResponse(order: Order): Order {
   if (!order.transferReceiptUrl) return order;
-  if (order.transferReceiptUrl.startsWith("data:") || order.transferReceiptUrl.length > 500) {
-    return {
-      ...order,
-      transferReceiptUrl: `/api/orders/${order.id}/receipt`,
-    };
-  }
-  return order;
+  return {
+    ...order,
+    transferReceiptUrl: `/api/orders/${order.id}/receipt`,
+  };
 }

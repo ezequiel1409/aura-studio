@@ -8,6 +8,7 @@ export interface SendEmailOptions {
   resetLink?: string;
   fromName?: string;
   from?: string;
+  replyTo?: string;
 }
 
 export interface SendEmailResult {

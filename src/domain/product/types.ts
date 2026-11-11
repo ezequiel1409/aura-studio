@@ -106,6 +106,12 @@ export interface CreateProductInput {
   source?: StatusSource;
 }
 
+export interface VariantStockUpdateInput {
+  colorName: string;
+  size: string;
+  stock: number;
+}
+
 export interface UpdateProductInput {
   rawText?: string;
   title?: string | null;
@@ -145,6 +151,9 @@ export interface ListProductsFilter {
   isFeatured?: boolean;
   onlyAvailable?: boolean;
   onlyOnSale?: boolean;
+  lowStockMaxUnits?: number;
+  withoutPrice?: boolean;
+  expiringBefore?: number;
   publishedAfter?: number;
   minPriceCents?: number;
   maxPriceCents?: number;
