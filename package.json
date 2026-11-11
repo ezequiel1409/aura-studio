@@ -1,5 +1,5 @@
 {
-  "name": "aura-studio",
+  "name": "store-engine",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,13 +11,15 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:setup-local": "tsx src/infra/db/setup-local.ts",
+    "db:replicate-local": "node scripts/replicate-prod-to-local.mjs",
+    "db:pull-prod": "npx wrangler d1 export store-db --remote --output backups/backup-prod.sql -y && node scripts/replicate-prod-to-local.mjs",
     "admin:reset-password": "node scripts/reset-admin-password.mjs",
-    "d1:create": "wrangler d1 create aura-studio-db",
-    "d1:migrate": "wrangler d1 migrations apply aura-studio-db --remote",
-    "d1:migrate:orders": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/d1-migration-orders-customers.sql",
-    "d1:seed": "wrangler d1 execute aura-studio-db --remote --file=./drizzle/seed.sql",
+    "d1:create": "wrangler d1 create store-db",
+    "d1:migrate": "wrangler d1 migrations apply store-db --remote",
+    "d1:migrate:orders": "wrangler d1 execute store-db --remote --file=./drizzle/d1-migration-orders-customers.sql",
+    "d1:seed": "wrangler d1 execute store-db --remote --file=./drizzle/seed.sql",
     "postinstall": "node scripts/patch-opennext.mjs",
-    "build:worker": "node scripts/patch-opennext.mjs && opennextjs-cloudflare build",
+    "build:worker": "node scripts/prepare-build-db.mjs && node scripts/patch-opennext.mjs && opennextjs-cloudflare build",
     "preview:worker": "opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare deploy"
   },

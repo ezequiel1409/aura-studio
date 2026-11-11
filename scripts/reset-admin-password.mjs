@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Script de Recuperación y Reseteo de Contraseña de Administrador (Aura Studio)
+ * Script de Recuperación y Reseteo de Contraseña de Administrador
  * 
  * Uso local:
  *   npm run admin:reset-password -- <email> <nueva_contraseña>
- *   node scripts/reset-admin-password.mjs admin@aurastudio.com MiClave1234
+ *   node scripts/reset-admin-password.mjs admin@mitienda.com MiClave1234
  * 
  * Genera el hash criptográfico PBKDF2-HMAC-SHA512 correspondiente (100.000 iteraciones)
  * y actualiza la base de datos local (local.sqlite) además de generar el comando
@@ -22,12 +22,12 @@ const newPassword = args[1]?.trim();
 
 if (!email || !newPassword) {
   console.log(`
-\x1b[33m[Aura Studio - Recuperación de Administrador]\x1b[0m
+\x1b[33m[Recuperación de Administrador]\x1b[0m
 Uso:
   npm run admin:reset-password -- <email> <nueva_contraseña>
 
 Ejemplo:
-  npm run admin:reset-password -- admin@aurastudio.com NuevaContraseñaSegura123
+  npm run admin:reset-password -- admin@mitienda.com NuevaContraseñaSegura123
 `);
   process.exit(1);
 }
@@ -80,6 +80,6 @@ console.log(`
 \x1b[35m=== Para aplicar este cambio en Cloudflare D1 (Producción): ===\x1b[0m
 Ejecutá el siguiente comando en tu terminal:
 
-wrangler d1 execute aura-studio-db --remote --command="UPDATE admin_users SET password_hash='${hash}', password_salt='${salt}', updated_at=${now} WHERE email='${email}';"
+wrangler d1 execute ${process.env.D1_DATABASE_NAME || "store-db"} --remote --command="UPDATE admin_users SET password_hash='${hash}', password_salt='${salt}', updated_at=${now} WHERE email='${email}';"
 `);
 

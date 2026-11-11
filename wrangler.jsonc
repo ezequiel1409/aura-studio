@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "aura-studio",
+  "name": "store-engine",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-03-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -11,10 +11,28 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "aura-studio-db",
+      "database_name": "store-db",
       "database_id": "a682ab60-11d6-4b45-8f51-c43b7b66e568",
       "migrations_dir": "drizzle/migrations"
+    },
+    {
+      "binding": "NEXT_TAG_CACHE_D1",
+      "database_name": "store-db",
+      "database_id": "a682ab60-11d6-4b45-8f51-c43b7b66e568"
     }
-  ]
+  ],
+  "r2_buckets": [
+    {
+      "binding": "RECEIPTS",
+      "bucket_name": "store-receipts"
+    },
+    {
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "store-cache"
+    }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
 }
-
