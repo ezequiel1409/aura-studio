@@ -21,6 +21,7 @@ import {
   ProductStatus,
   StatusSource,
   UpdateProductInput,
+  VariantStockUpdateInput,
 } from "../domain/product/types";
 import { SYSTEM_UNCATEGORIZED_SLUG } from "../domain/category/types";
 import { parseProductText, parseSizesList } from "../lib/parser/product-parser";
@@ -70,7 +71,7 @@ export async function createProduct(
 
   const currency = input.currency || parsed.currency || "ARS";
 
-  const size = input.size !== undefined
+  let size = input.size !== undefined
     ? (manualFields.push("size"), input.size)
     : parsed.size;
 
@@ -116,6 +117,16 @@ export async function createProduct(
         })),
       },
     ];
+  } else if (!size) {
+    const uniqueSizes = new Set<string>();
+    for (const c of colorsData) {
+      for (const s of c.sizes || []) {
+        if (s.size) uniqueSizes.add(s.size.trim().toUpperCase());
+      }
+    }
+    if (uniqueSizes.size > 0) {
+      size = Array.from(uniqueSizes).join(", ");
+    }
   }
 
   // 5. Generación atómica del código correlativo (BR-01)
@@ -154,7 +165,14 @@ export async function createProduct(
     manualFields,
     createdAt: now,
     updatedAt: now,
-    attributes: input.attributes,
+    attributes: input.attributes
+      ? Object.fromEntries(
+          Object.entries(input.attributes).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v : [String(v).trim()],
+          ])
+        )
+      : undefined,
     colors: colorsData.map((c, idx) => ({
       name: c.name,
       hexCode: c.hexCode || null,
@@ -169,14 +187,19 @@ export async function createProduct(
   });
 
   // 7. Auditoría de estado inicial en status_history (BR-28)
-  await statusHistoryRepo.record({
-    productId: created.id,
-    productCode: created.code,
-    fromStatus: null,
-    toStatus: initialStatus,
-    at: now,
-    source: input.source || "web",
-  });
+  try {
+    await statusHistoryRepo.record({
+      productId: created.id,
+      productCode: created.code,
+      fromStatus: null,
+      toStatus: initialStatus,
+      at: now,
+      source: input.source || "web",
+    });
+  } catch (err) {
+    await productRepo.delete(created.id).catch(() => {});
+    throw err;
+  }
 
   return created;
 }
@@ -348,18 +371,28 @@ export async function updateProduct(
 
   const currency = input.currency || existing.currency || "ARS";
 
-  // Talle: Si se pasa explícito en input, es manual.
+  // Talle: Si se pasa explícito en input, es manual. Si se envían colores con talles, sincronizar con ellos.
   let size = existing.size;
   if (input.size !== undefined) {
     manualFields.add("size");
     size = input.size;
+  } else if (input.colors !== undefined && input.colors.length > 0) {
+    const uniqueSizes = new Set<string>();
+    for (const c of input.colors) {
+      for (const s of c.sizes || []) {
+        if (s.size) uniqueSizes.add(s.size.trim().toUpperCase());
+      }
+    }
+    if (uniqueSizes.size > 0) {
+      size = Array.from(uniqueSizes).join(", ");
+    }
   } else if (parsed && !manualFields.has("size") && parsed.size) {
     size = parsed.size;
   }
 
   // Categoría: Si se pasa explícito en input, validar y es manual.
   let categoryId = existing.categoryId;
-  if (input.categoryId !== undefined) {
+  if (input.categoryId !== undefined && input.categoryId !== null) {
     manualFields.add("categoryId");
     const cat = await categoryRepo.findById(input.categoryId);
     if (!cat) {
@@ -459,7 +492,14 @@ export async function updateProduct(
     reservedUntil,
     manualFields: Array.from(manualFields),
     updatedAt: now,
-    attributes: input.attributes,
+    attributes: input.attributes
+      ? Object.fromEntries(
+          Object.entries(input.attributes).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v : [String(v).trim()],
+          ])
+        )
+      : undefined,
     colors: colorsData,
     photos: photosData,
   });
@@ -598,6 +638,33 @@ export async function bulkSetProductFeatured(
   }
 
   return { updatedCount, errors };
+}
+
+/**
+ * Actualización rápida de stock por variante sin sobreescribir fotos, precios ni atributos.
+ * Recalcula estado AVAILABLE / SOLD_OUT según stock total resultante.
+ */
+export async function updateProductVariantStocks(
+  productId: number,
+  updates: VariantStockUpdateInput[],
+  deps: Pick<ProductServiceDeps, "productRepo">
+): Promise<Product> {
+  if (!Array.isArray(updates) || updates.length === 0) {
+    throw new Error("Debes enviar al menos una variante para actualizar el stock.");
+  }
+
+  const normalizedUpdates = updates.map((item) => ({
+    colorName: String(item.colorName || "Único").trim() || "Único",
+    size: String(item.size || "ÚNICO").trim().toUpperCase() || "ÚNICO",
+    stock: Math.max(0, Math.trunc(Number(item.stock ?? 0))),
+  }));
+
+  const existing = await deps.productRepo.findById(productId);
+  if (!existing) {
+    throw new ProductNotFoundError(productId);
+  }
+
+  return deps.productRepo.updateVariantStocks(productId, normalizedUpdates, Date.now());
 }
 
 // Aliases para compatibilidad con nomenclaturas del roadmap

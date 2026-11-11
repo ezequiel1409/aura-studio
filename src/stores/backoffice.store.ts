@@ -62,7 +62,7 @@ function applyThemeToDOM(theme: AdminTheme) {
     }
     document.documentElement.setAttribute("data-admin-theme", theme);
     try {
-      localStorage.setItem("aura_admin_theme", theme);
+      localStorage.setItem("app_admin_theme", theme);
     } catch {}
   }
 }

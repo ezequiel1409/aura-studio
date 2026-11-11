@@ -70,28 +70,51 @@ export const useCartStore = create<CartStoreState>()(
 
       addItem: (itemInput: AddItemInput, quantity = 1) => {
         set((state) => {
-          const key = buildCartItemKey(itemInput.code, itemInput.colorName, itemInput.size);
+          const safeColor = (itemInput.colorName || "Único").trim();
+          const safeSize = (itemInput.size || "ÚNICO").trim().toUpperCase();
+          const safePrice =
+            itemInput.unitPriceCents != null && Number.isFinite(Number(itemInput.unitPriceCents))
+              ? Math.round(Number(itemInput.unitPriceCents))
+              : null;
+          const safeMaxStock =
+            Number.isFinite(Number(itemInput.maxStock)) && Number(itemInput.maxStock) > 0
+              ? Math.floor(Number(itemInput.maxStock))
+              : 1;
+          const safeQty =
+            Number.isFinite(Number(quantity)) && Number(quantity) > 0
+              ? Math.floor(Number(quantity))
+              : 1;
+
+          const key = buildCartItemKey(itemInput.code, safeColor, safeSize);
           const existingIndex = state.items.findIndex((i) => i.key === key);
 
           const toastData: CartToastState = {
             id: Date.now(),
             title: itemInput.title,
             formattedCode: itemInput.formattedCode,
-            colorName: itemInput.colorName,
-            size: itemInput.size,
-            quantity,
+            colorName: safeColor,
+            size: safeSize,
+            quantity: safeQty,
             photoUrl: itemInput.photoUrl,
           };
 
           if (existingIndex >= 0) {
             const existing = state.items[existingIndex];
-            const newQty = clampCartQuantity(existing.quantity + quantity, existing.maxStock);
+            const currentQty =
+              Number.isFinite(existing.quantity) && existing.quantity > 0
+                ? existing.quantity
+                : 1;
+            const effectiveMax =
+              Number.isFinite(existing.maxStock) && existing.maxStock > 0
+                ? existing.maxStock
+                : safeMaxStock;
+            const newQty = clampCartQuantity(currentQty + safeQty, effectiveMax);
             const updated = [...state.items];
-            updated[existingIndex] = { ...existing, quantity: newQty };
+            updated[existingIndex] = { ...existing, quantity: newQty, maxStock: effectiveMax };
             return { items: updated, toast: toastData };
           }
 
-          const clampedQty = clampCartQuantity(quantity, itemInput.maxStock);
+          const clampedQty = clampCartQuantity(safeQty, safeMaxStock);
           if (clampedQty <= 0) {
             return state;
           }
@@ -102,13 +125,13 @@ export const useCartStore = create<CartStoreState>()(
             code: itemInput.code,
             formattedCode: itemInput.formattedCode,
             title: itemInput.title,
-            colorName: itemInput.colorName,
+            colorName: safeColor,
             hexCode: itemInput.hexCode,
-            size: itemInput.size,
+            size: safeSize,
             quantity: clampedQty,
-            maxStock: itemInput.maxStock,
-            unitPriceCents: itemInput.unitPriceCents,
-            currency: itemInput.currency,
+            maxStock: safeMaxStock,
+            unitPriceCents: safePrice,
+            currency: itemInput.currency || "ARS",
             photoUrl: itemInput.photoUrl,
           };
 
@@ -118,15 +141,17 @@ export const useCartStore = create<CartStoreState>()(
 
       updateQuantity: (key: string, quantity: number) => {
         set((state) => {
-          if (quantity <= 0) {
+          if (!Number.isFinite(quantity) || quantity <= 0) {
             return { items: state.items.filter((i) => i.key !== key) };
           }
 
           const updated = state.items.map((item) => {
             if (item.key === key) {
+              const safeMax =
+                Number.isFinite(item.maxStock) && item.maxStock > 0 ? item.maxStock : 99;
               return {
                 ...item,
-                quantity: clampCartQuantity(quantity, item.maxStock),
+                quantity: clampCartQuantity(quantity, safeMax),
               };
             }
             return item;
@@ -139,15 +164,21 @@ export const useCartStore = create<CartStoreState>()(
       syncStock: (stockMap: Record<string, number>) => {
         set((state) => {
           const updated = state.items.map((item) => {
+            const currentQty =
+              Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
             if (item.key in stockMap) {
-              const newMax = Math.max(0, stockMap[item.key]);
+              const rawStock = stockMap[item.key];
+              const newMax = Number.isFinite(rawStock) ? Math.max(0, rawStock) : 0;
               return {
                 ...item,
                 maxStock: newMax,
-                quantity: newMax <= 0 ? 1 : clampCartQuantity(item.quantity, newMax),
+                quantity: newMax <= 0 ? 1 : clampCartQuantity(currentQty, newMax),
               };
             }
-            return item;
+            return {
+              ...item,
+              quantity: currentQty,
+            };
           });
           return { items: updated };
         });
@@ -172,7 +203,7 @@ export const useCartStore = create<CartStoreState>()(
       },
     }),
     {
-      name: "aura_cart_storage",
+      name: "app_cart_storage",
       storage: createJSONStorage(() => (typeof window !== "undefined" ? localStorage : {
         getItem: () => null,
         setItem: () => {},
@@ -181,8 +212,39 @@ export const useCartStore = create<CartStoreState>()(
       partialize: (state) => ({
         items: state.items,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state && Array.isArray(state.items)) {
+          state.items = state.items.map((item) => {
+            const rawPrice = item.unitPriceCents;
+            const safePrice =
+              typeof rawPrice === "number" && Number.isFinite(rawPrice)
+                ? Math.round(rawPrice)
+                : rawPrice != null && !Number.isNaN(Number(rawPrice))
+                ? Math.round(Number(rawPrice))
+                : null;
+            const rawQty = item.quantity;
+            const safeQty =
+              typeof rawQty === "number" && Number.isFinite(rawQty) && rawQty > 0
+                ? Math.floor(rawQty)
+                : 1;
+            const rawStock = item.maxStock;
+            const safeMaxStock =
+              typeof rawStock === "number" && Number.isFinite(rawStock) && rawStock > 0
+                ? Math.floor(rawStock)
+                : 1;
+            return {
+              ...item,
+              size: (item.size || "ÚNICO").trim().toUpperCase(),
+              colorName: (item.colorName || "Único").trim(),
+              quantity: safeQty,
+              maxStock: safeMaxStock,
+              unitPriceCents: safePrice,
+            };
+          });
+        }
+      },
     }),
-    { name: "AuraCartStore", enabled: true }
+    { name: "CartStore", enabled: true }
   )
 );
 

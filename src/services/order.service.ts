@@ -3,6 +3,7 @@ import {
   Order,
   OrderStatus,
   validateCreateOrderInput,
+  parseOrderCode,
 } from "../domain/order";
 import { formatOrderCode } from "../domain/order/rules";
 import { GlobalAppDeps } from "../infra/db/connection";
@@ -17,8 +18,12 @@ import { OrderEmailData } from "../domain/ports/email.port";
 import { getEnvVar } from "../infra/email/resend.adapter";
 import { ShowroomSettings } from "./settings.service";
 import { logger } from "../lib/logger";
+import { resolveReceiptStorage } from "../infra/storage";
+import { isValidReceiptKey } from "../domain/ports/receipt-storage.port";
+import { createReceiptSignedUrl } from "../infra/auth/receipt-signature";
 
-function buildOrderEmailData(order: Order, settings: ShowroomSettings, baseUrl?: string): OrderEmailData {
+async function buildOrderEmailData(order: Order, settings: ShowroomSettings, baseUrl?: string): Promise<OrderEmailData> {
+  const signedReceiptUrl = await createReceiptSignedUrl(order.id, baseUrl);
   return {
     orderId: order.id,
     orderCode: order.code,
@@ -53,10 +58,8 @@ function buildOrderEmailData(order: Order, settings: ShowroomSettings, baseUrl?:
       cuit: settings.transferCuit,
     },
     showroomAddress: settings.address,
-    brandName: settings.showroomName || "Aura Studio",
-    receiptUrl: baseUrl
-      ? `${baseUrl.replace(/\/$/, "")}/api/orders/${order.id}/receipt`
-      : `/api/orders/${order.id}/receipt`,
+    brandName: settings.showroomName || "Mi Tienda",
+    receiptUrl: signedReceiptUrl,
     supportWhatsapp: settings.whatsappNumber,
     emailCustomization: settings.emailCustomization,
   };
@@ -179,7 +182,7 @@ export async function createOrder(
     const now = Math.floor(Date.now() / 1000);
 
     // 4. Persistir orden y sus ítems en la base de datos
-    const order = await deps.orderRepo.create({
+    let order = await deps.orderRepo.create({
       code: nextCode,
       customerId: validated.customerId,
       commerceId: validated.commerceId,
@@ -200,8 +203,8 @@ export async function createOrder(
       paymentMethod: validated.paymentMethod,
       paymentStatus: "PENDING",
       paymentDiscountCents: validated.paymentDiscountCents,
-      transferReceiptUrl: validated.transferReceiptUrl || null,
-      transferReceiptUploadedAt: validated.transferReceiptUploadedAt || null,
+      transferReceiptUrl: null,
+      transferReceiptUploadedAt: null,
       notes: validated.notes,
       createdAt: now,
       updatedAt: now,
@@ -217,6 +220,11 @@ export async function createOrder(
       })),
     });
 
+    // Si se adjuntó comprobante al crear la orden, guardarlo en storage y persistir solo la clave
+    if (validated.transferReceiptUrl) {
+      order = await uploadTransferReceipt(order.id, validated.transferReceiptUrl, deps);
+    }
+
     // 4b. Registrar canje de cupón si aplica (BR-41)
     if (validated.couponCode && deps.couponRepo) {
       try {
@@ -230,7 +238,7 @@ export async function createOrder(
             await deps.couponRepo.recordRedemption({
               couponId: coupon.id,
               orderId: order.id,
-              customerEmail: cleanEmail || "cliente@aurastudio.com",
+              customerEmail: cleanEmail || "cliente@mitienda.local",
               customerPhone: cleanPhone,
               customerDni: cleanDni,
               customerId: validated.customerId,
@@ -309,7 +317,7 @@ export async function createOrder(
 
       // 8. Envío no-bloqueante de confirmación de pedido vía Resend
       if (deps.emailService && order.customerEmail) {
-        const emailData = buildOrderEmailData(order, settings, input.baseUrl);
+        const emailData = await buildOrderEmailData(order, settings, input.baseUrl);
         deps.emailService.sendOrderCreatedEmail?.(order.customerEmail, emailData).catch((err) => {
           console.error("[Email] Error al enviar confirmación de compra a clienta:", err);
         });
@@ -499,11 +507,141 @@ export async function expirePendingTransferOrders(deps: GlobalAppDeps): Promise<
 }
 
 /**
- * Carga y validación estricta de comprobante de transferencia en formato PDF (máx. 10 MB)
+ * Decodifica y valida cualquier entrada de comprobante (Bytes, Buffer o Base64).
+ * Valida formato PDF estricto (%PDF-) y tamaño máximo de 10 MB.
+ */
+export function decodeReceiptInput(input: Uint8Array | Buffer | string): Uint8Array {
+  let bytes: Uint8Array;
+
+  if (typeof input === "string") {
+    let clean = input.trim();
+    if (clean.startsWith("data:")) {
+      if (!clean.startsWith("data:application/pdf;base64,")) {
+        throw new ValidationError("Solo se admiten comprobantes en formato PDF.");
+      }
+      clean = clean.replace(/^data:[^;]+;base64,/, "");
+    }
+    const binarySize = Math.floor((clean.length * 3) / 4);
+    if (binarySize > 10 * 1024 * 1024) {
+      throw new ValidationError("El comprobante PDF supera el tamaño máximo permitido de 10 MB.");
+    }
+    try {
+      bytes = new Uint8Array(Buffer.from(clean, "base64"));
+    } catch {
+      throw new ValidationError("Formato de comprobante Base64 inválido.");
+    }
+  } else if (input instanceof Uint8Array || Buffer.isBuffer(input)) {
+    bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+  } else {
+    throw new ValidationError("Entrada de comprobante inválida.");
+  }
+
+  const MAX_SIZE = 10 * 1024 * 1024;
+  if (bytes.byteLength > MAX_SIZE) {
+    throw new ValidationError("El comprobante PDF supera el tamaño máximo permitido de 10 MB.");
+  }
+
+  if (bytes.byteLength < 4) {
+    throw new ValidationError("El archivo adjunto no es un documento PDF válido.");
+  }
+
+  // Validar cabecera mágica '%PDF' (0x25, 0x50, 0x44, 0x46)
+  if (
+    bytes[0] !== 0x25 ||
+    bytes[1] !== 0x50 ||
+    bytes[2] !== 0x44 ||
+    bytes[3] !== 0x46
+  ) {
+    throw new ValidationError("El archivo adjunto no es un documento PDF válido.");
+  }
+
+  return bytes;
+}
+
+export interface TransferReceiptFileResult {
+  order: Order;
+  data?: Uint8Array | null;
+  stream?: ReadableStream | null;
+  size?: number;
+  contentType: string;
+}
+
+/**
+ * Obtiene el archivo binario o stream del comprobante para servirlo en el endpoint GET.
+ * Si la orden tiene un comprobante legado en Base64 en D1, lo migra al vuelo a storage
+ * y actualiza la orden de manera transparente.
+ */
+export async function getTransferReceiptFile(
+  orderIdOrCode: string | number,
+  deps: GlobalAppDeps
+): Promise<TransferReceiptFileResult> {
+  let order: Order | null = null;
+  if (typeof orderIdOrCode === "number") {
+    order = await deps.orderRepo.findById(orderIdOrCode);
+  } else {
+    const numId = parseInt(orderIdOrCode, 10);
+    if (!Number.isNaN(numId) && numId > 0) {
+      order = await deps.orderRepo.findById(numId);
+    }
+    if (!order) {
+      const codeNum = parseOrderCode(orderIdOrCode);
+      if (codeNum) {
+        order = await deps.orderRepo.findByCode(codeNum);
+      }
+    }
+  }
+
+  if (!order || !order.transferReceiptUrl) {
+    throw new OrderNotFoundError(typeof orderIdOrCode === "number" ? orderIdOrCode : 0);
+  }
+
+  const storage = deps.receiptStorage || resolveReceiptStorage();
+
+  // Caso 1: Comprobante legado en Base64 en la base de datos (migración al vuelo)
+  if (order.transferReceiptUrl.startsWith("data:") || order.transferReceiptUrl.startsWith("JVBERi")) {
+    const pdfBytes = decodeReceiptInput(order.transferReceiptUrl);
+    const newKey = await storage.saveReceipt(order.id, pdfBytes, "pdf");
+    const uploadedAt = order.transferReceiptUploadedAt || Math.floor(Date.now() / 1000);
+    if (typeof deps.orderRepo.updateTransferReceipt === "function") {
+      await deps.orderRepo.updateTransferReceipt(order.id, newKey, uploadedAt);
+      order = (await deps.orderRepo.findById(order.id)) || order;
+    }
+    return {
+      order,
+      data: pdfBytes,
+      stream: new Response(pdfBytes as unknown as BodyInit).body,
+      size: pdfBytes.byteLength,
+      contentType: "application/pdf",
+    };
+  }
+
+  // Caso 2: Clave en R2 / storage
+  if (!isValidReceiptKey(order.transferReceiptUrl)) {
+    throw new ValidationError("Clave de comprobante no válida.");
+  }
+
+  const file = await storage.getReceipt(order.transferReceiptUrl);
+  if (!file) {
+    throw new ValidationError("El archivo del comprobante no fue encontrado en el almacenamiento.");
+  }
+
+  return {
+    order,
+    data: file.data,
+    stream: file.stream,
+    size: file.size,
+    contentType: file.contentType || "application/pdf",
+  };
+}
+
+/**
+ * Carga y validación estricta de comprobante de transferencia en formato PDF (máx. 10 MB).
+ * Guarda el archivo binario en el storage (R2/local/memoria) y persiste únicamente
+ * la clave 'receipts/<orderId>/<uuid>.pdf' en la orden.
  */
 export async function uploadTransferReceipt(
   id: number,
-  receiptBase64: string,
+  receiptInput: Uint8Array | Buffer | string,
   deps: GlobalAppDeps
 ): Promise<Order> {
   const existing = await deps.orderRepo.findById(id);
@@ -520,34 +658,14 @@ export async function uploadTransferReceipt(
     throw new ValidationError("El pago de esta orden ya ha sido verificado y acreditado.");
   }
 
-  let cleanBase64 = receiptBase64.trim();
-  if (cleanBase64.startsWith("data:")) {
-    if (!cleanBase64.startsWith("data:application/pdf;base64,")) {
-      throw new ValidationError("Solo se admiten comprobantes en formato PDF.");
-    }
-    cleanBase64 = cleanBase64.replace("data:application/pdf;base64,", "");
-  }
+  const pdfBytes = decodeReceiptInput(receiptInput);
 
-  // Validar tamaño máximo de 10 MB (10 * 1024 * 1024 bytes)
-  const binarySize = Math.floor((cleanBase64.length * 3) / 4);
-  const MAX_SIZE = 10 * 1024 * 1024;
-  if (binarySize > MAX_SIZE) {
-    throw new ValidationError("El comprobante PDF supera el tamaño máximo permitido de 10 MB.");
-  }
-
-  // Validar cabecera mágica '%PDF-'
-  const header = Buffer.from(cleanBase64.slice(0, 16), "base64").toString("utf-8");
-  if (!header.startsWith("%PDF-")) {
-    throw new ValidationError("El archivo adjunto no es un documento PDF válido.");
-  }
-
-  const formattedUrl = receiptBase64.startsWith("data:")
-    ? receiptBase64
-    : `data:application/pdf;base64,${cleanBase64}`;
+  const storage = deps.receiptStorage || resolveReceiptStorage();
+  const storageKey = await storage.saveReceipt(existing.id, pdfBytes, "pdf");
 
   const now = Math.floor(Date.now() / 1000);
   if (typeof deps.orderRepo.updateTransferReceipt === "function") {
-    return await deps.orderRepo.updateTransferReceipt(id, formattedUrl, now);
+    return await deps.orderRepo.updateTransferReceipt(id, storageKey, now);
   }
 
   return (await deps.orderRepo.findById(id))!;
@@ -590,8 +708,8 @@ export async function updateOrderStatus(
   // Envío no-bloqueante de correo a clienta según cambio de estado
   if (deps.emailService && updated.customerEmail) {
     getShowroomSettings(deps)
-      .then((settings) => {
-        const emailData = buildOrderEmailData(updated, settings);
+      .then(async (settings) => {
+        const emailData = await buildOrderEmailData(updated, settings);
         if (status === "PAID" && existing.paymentStatus !== "PAID") {
           deps.emailService?.sendOrderPaidEmail?.(updated.customerEmail!, emailData).catch((err) => {
             console.error("[Email] Error al enviar email de pago aprobado:", err);

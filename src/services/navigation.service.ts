@@ -98,8 +98,8 @@ function asProductDeps(deps: NavigationServiceDeps) {
 }
 
 /**
- * Lista las secciones públicas visibles que tienen al menos 1 producto.
- * Regla de diseño: una sección vacía se oculta sola para que nunca aparezca un menú hacia una página vacía.
+ * Lista las secciones públicas visibles que tienen al menos 1 producto o destino directo.
+ * Regla de diseño: una sección vacía sin enlace se oculta sola para que nunca aparezca un menú hacia una página vacía.
  */
 export async function listPublicNavigationSections(
   deps: NavigationServiceDeps,
@@ -108,16 +108,53 @@ export async function listPublicNavigationSections(
   const visibleSections = await deps.navigationRepo.listSections({ visibleOnly: true });
   const enriched = await Promise.all(
     visibleSections.map(async (section) => {
-      const filter = buildSectionProductFilter(section, now);
-      const res = await listProducts({ ...filter, page: 1, pageSize: 1 }, asProductDeps(deps));
-      return {
-        ...section,
-        productCount: res.total,
-      };
+      try {
+        const filter = buildSectionProductFilter(section, now);
+        const res = await listProducts({ ...filter, page: 1, pageSize: 1 }, asProductDeps(deps));
+        return {
+          ...section,
+          productCount: res.total,
+        };
+      } catch {
+        return {
+          ...section,
+          productCount: 0,
+        };
+      }
     })
   );
 
-  return enriched.filter((s) => (s.productCount ?? 0) > 0);
+  return enriched.filter((s) => (s.productCount ?? 0) > 0 || Boolean(s.targetUrl));
+}
+
+/**
+ * Lista las secciones visibles para la vidriera de la Home (Mosaico de Portada).
+ * Retorna todas las secciones activas marcadas para portada (showInHomeMosaic !== false),
+ * enriqueciendo el conteo de productos cuando esté disponible sin descartar secciones con enlaces o banners.
+ */
+export async function listHomeSections(
+  deps: NavigationServiceDeps,
+  now: number = Date.now()
+): Promise<NavigationSection[]> {
+  const visibleSections = await deps.navigationRepo.listSections({ visibleOnly: true });
+  const homeSections = visibleSections.filter((s) => s.showInHomeMosaic !== false);
+  return Promise.all(
+    homeSections.map(async (section) => {
+      try {
+        const filter = buildSectionProductFilter(section, now);
+        const res = await listProducts({ ...filter, page: 1, pageSize: 1 }, asProductDeps(deps));
+        return {
+          ...section,
+          productCount: res.total,
+        };
+      } catch {
+        return {
+          ...section,
+          productCount: 0,
+        };
+      }
+    })
+  );
 }
 
 /**
@@ -211,6 +248,10 @@ export class NavigationService {
 
   async listPublicNavigationSections(now?: number): Promise<NavigationSection[]> {
     return listPublicNavigationSections(this.deps, now);
+  }
+
+  async listHomeSections(now?: number): Promise<NavigationSection[]> {
+    return listHomeSections(this.deps, now);
   }
 
   async listAdminSectionsWithCounts(now?: number): Promise<NavigationSection[]> {

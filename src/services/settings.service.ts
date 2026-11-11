@@ -82,6 +82,153 @@ export interface CatalogConfig {
 
 export type CatalogSettingsConfig = CatalogConfig;
 
+export type NavbarAlignment = "left" | "center" | "right" | "second_row";
+
+export interface NavbarSubItemConfig {
+  id: string;
+  label: string;
+  href: string;
+  categorySlug?: string;
+  isSale?: boolean;
+}
+
+export interface NavbarItemConfig {
+  id: string;
+  label: string;
+  href: string;
+  accentColor?: string | null;
+  isSale?: boolean;
+  openInNewTab?: boolean;
+  position: number;
+  subItems?: NavbarSubItemConfig[];
+}
+
+export interface NavbarConfig {
+  enabled: boolean;
+  alignment: NavbarAlignment;
+  items: NavbarItemConfig[];
+  secondRowBgColor?: string | null;
+  secondRowTextColor?: string | null;
+}
+
+export const DEFAULT_NAVBAR_CONFIG: NavbarConfig = {
+  enabled: true,
+  alignment: "left",
+  items: [
+    {
+      id: "nav-catalogo",
+      label: "CATÁLOGO",
+      href: "/catalogo",
+      position: 1,
+      subItems: [
+        { id: "sub-tops", label: "REMERAS Y TOPS", href: "/catalogo?categoria=remeras-y-tops", categorySlug: "remeras-y-tops" },
+        { id: "sub-pantalones", label: "PANTALONES", href: "/catalogo?categoria=pantalones", categorySlug: "pantalones" },
+        { id: "sub-vestidos", label: "VESTIDOS Y ENTERITOS", href: "/catalogo?categoria=vestidos-y-enteritos", categorySlug: "vestidos-y-enteritos" },
+      ],
+    },
+    { id: "nav-recien", label: "RECIÉN LLEGADOS", href: "/recien-llegados", position: 2 },
+    { id: "nav-sale", label: "SALE", href: "/sale", isSale: true, position: 3 },
+  ],
+  secondRowBgColor: null,
+  secondRowTextColor: null,
+};
+
+export interface FooterLinkItem {
+  id: string;
+  label: string;
+  href: string;
+  enabled: boolean;
+  isExternal?: boolean;
+}
+
+export interface FooterConfig {
+  enabled: boolean;
+  sections: {
+    collections: {
+      title: string;
+      subtitle: string;
+      enabled: boolean;
+      showAllCatalogLink: boolean;
+      allCatalogLabel: string;
+      customLinks?: FooterLinkItem[];
+    };
+    help: {
+      title: string;
+      subtitle: string;
+      enabled: boolean;
+      links: FooterLinkItem[];
+    };
+    location: {
+      title: string;
+      subtitle: string;
+      enabled: boolean;
+      showMapButton: boolean;
+      showOpenStatusBadge: boolean;
+      showScheduleSummary: boolean;
+    };
+    payments: {
+      title: string;
+      enabled: boolean;
+      text: string;
+    };
+  };
+  bottomLegal: {
+    enabled: boolean;
+    showTermsLink: boolean;
+    showBankPromosLink: boolean;
+    showConsumerDefenseLink: boolean;
+    showRevocationButton: boolean;
+    copyrightNotice?: string | null;
+  };
+}
+
+export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
+  enabled: true,
+  sections: {
+    collections: {
+      title: "Secciones",
+      subtitle: "Colecciones",
+      enabled: true,
+      showAllCatalogLink: true,
+      allCatalogLabel: "Ver todo el catálogo",
+      customLinks: [],
+    },
+    help: {
+      title: "Ayuda al cliente",
+      subtitle: "Guía & Confianza",
+      enabled: true,
+      links: [
+        { id: "promociones", label: "Promociones bancarias", href: "/promociones", enabled: true },
+        { id: "envios", label: "Entregas y envíos coordinados", href: "/terminos", enabled: true },
+        { id: "cambios", label: "Cambios y asesoramiento", href: "/terminos", enabled: true },
+        { id: "medios-pago", label: "Medios de pago: transferencia, Mercado Pago y efectivo", href: "/terminos", enabled: true },
+        { id: "cuenta", label: "Estado de mi pedido y cuenta", href: "/cuenta", enabled: true },
+      ],
+    },
+    location: {
+      title: "Local y retiro",
+      subtitle: "Ubicación y Horarios",
+      enabled: true,
+      showMapButton: true,
+      showOpenStatusBadge: true,
+      showScheduleSummary: true,
+    },
+    payments: {
+      title: "Medios de pago",
+      enabled: true,
+      text: "Transferencia bancaria, Mercado Pago y efectivo contra entrega.",
+    },
+  },
+  bottomLegal: {
+    enabled: true,
+    showTermsLink: true,
+    showBankPromosLink: true,
+    showConsumerDefenseLink: true,
+    showRevocationButton: true,
+    copyrightNotice: null,
+  },
+};
+
 export const DEFAULT_ANNOUNCEMENT_BAR: AnnouncementBarConfig = {
   enabled: true,
   messages: [
@@ -261,6 +408,10 @@ export interface ShowroomSettings {
   ordersPausedNotice?: string | null;
   // Personalización de correos transaccionales y de marketing
   emailCustomization?: EmailCustomizationConfig;
+  // Estructura configurable del pie de página (CMS / Dinámico)
+  footerConfig: FooterConfig;
+  // Configuración de Barra de Navegación (Navbar)
+  navbarConfig?: NavbarConfig;
 }
 
 export interface UpdateShowroomSettingsInput {
@@ -315,6 +466,8 @@ export interface UpdateShowroomSettingsInput {
   ordersPaused?: boolean;
   ordersPausedNotice?: string | null;
   emailCustomization?: EmailCustomizationConfig;
+  footerConfig?: FooterConfig;
+  navbarConfig?: NavbarConfig;
 }
 
 const DEFAULT_WHATSAPP_NUMBER = "+5491100000000";
@@ -414,6 +567,8 @@ export async function getShowroomSettings(
   let storedOrdersPaused: string | null = null;
   let storedOrdersPausedNotice: string | null = null;
   let storedEmailCustomization: string | null = null;
+  let storedFooterConfig: string | null = null;
+  let storedNavbarConfig: string | null = null;
 
   if (settingsRepo) {
     if (typeof settingsRepo.getAll === "function") {
@@ -469,6 +624,8 @@ export async function getShowroomSettings(
       storedOrdersPaused = all["orders_paused"] ?? null;
       storedOrdersPausedNotice = all["orders_paused_notice"] ?? null;
       storedEmailCustomization = all["email_customization_json"] ?? null;
+      storedFooterConfig = all["footer_config_json"] ?? null;
+      storedNavbarConfig = all["navbar_config_json"] ?? null;
     } else {
       [
         storedWhatsapp,
@@ -521,6 +678,9 @@ export async function getShowroomSettings(
         storedStoreSchedule,
         storedOrdersPaused,
         storedOrdersPausedNotice,
+        storedEmailCustomization,
+        storedFooterConfig,
+        storedNavbarConfig,
       ] = await Promise.all([
         settingsRepo.get("whatsapp_number"),
         settingsRepo.get("showroom_name"),
@@ -573,6 +733,8 @@ export async function getShowroomSettings(
         settingsRepo.get("orders_paused"),
         settingsRepo.get("orders_paused_notice"),
         settingsRepo.get("email_customization_json"),
+        settingsRepo.get("footer_config_json"),
+        settingsRepo.get("navbar_config_json"),
       ]);
     }
   }
@@ -710,6 +872,14 @@ export async function getShowroomSettings(
     emailCustomization: safeJsonParse<EmailCustomizationConfig>(
       storedEmailCustomization,
       DEFAULT_EMAIL_CUSTOMIZATION
+    ),
+    footerConfig: safeJsonParse<FooterConfig>(
+      storedFooterConfig,
+      DEFAULT_FOOTER_CONFIG
+    ),
+    navbarConfig: safeJsonParse<NavbarConfig>(
+      storedNavbarConfig,
+      DEFAULT_NAVBAR_CONFIG
     ),
   };
 
@@ -993,6 +1163,20 @@ export async function updateShowroomSettings(
     await settingsRepo.set(
       "email_customization_json",
       JSON.stringify(input.emailCustomization)
+    );
+  }
+
+  if (input.footerConfig !== undefined) {
+    await settingsRepo.set(
+      "footer_config_json",
+      JSON.stringify(input.footerConfig)
+    );
+  }
+
+  if (input.navbarConfig !== undefined) {
+    await settingsRepo.set(
+      "navbar_config_json",
+      JSON.stringify(input.navbarConfig)
     );
   }
 
