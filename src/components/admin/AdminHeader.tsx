@@ -9,7 +9,10 @@ import { AdminMainSidebar } from "./navigation/AdminMainSidebar";
 import { AdminSecondarySidebar } from "./navigation/AdminSecondarySidebar";
 import { AdminMobileDrawer } from "./header/AdminMobileDrawer";
 import { AdminUserMenuPopover } from "./header/AdminUserMenuPopover";
+import { AdminWhatsNewTrigger } from "./onboarding/AdminWhatsNewTrigger";
 import { useAdminNav } from "./navigation/AdminNavContext";
+import { BrandLogo } from "../layout/BrandLogo";
+import { ModalDialog } from "./ui/ModalDialog";
 
 interface SessionUser {
   userId?: number;
@@ -37,6 +40,7 @@ export function AdminHeader({
   } = useAdminNav();
 
   const [brandName, setBrandName] = useState(initialBrandName || "Aura Studio");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [ordersPaused, setOrdersPaused] = useState(false);
   const [ordersPausedNotice, setOrdersPausedNotice] = useState("");
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
@@ -49,7 +53,9 @@ export function AdminHeader({
   const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(null);
   const [renewingSession, setRenewingSession] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
 
   const hasLoadedSessionRef = useRef(false);
   const hasLoadedBrandRef = useRef(Boolean(initialBrandName));
@@ -114,6 +120,7 @@ export function AdminHeader({
         .then((res) => res.json())
         .then((data) => {
           if (data.ok) {
+            if (data.logoUrl) setLogoUrl(data.logoUrl);
             if (data.storeName && !initialBrandName) setBrandName(data.storeName);
             if (data.storeType && !initialStoreType) setStoreType(data.storeType);
           }
@@ -221,20 +228,32 @@ export function AdminHeader({
     e.preventDefault();
     const query = searchQuery.trim();
     if (!query) return;
+    setIsMobileSearchOpen(false);
     router.push(`/admin/productos?q=${encodeURIComponent(query)}`);
+  };
+
+  const handleToggleMobileSearch = () => {
+    setIsMobileSearchOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setIsMobileDrawerOpen(false);
+        window.requestAnimationFrame(() => mobileSearchInputRef.current?.focus());
+      }
+      return next;
+    });
   };
 
   const userInitial = user?.email ? user.email.charAt(0).toUpperCase() : "A";
   const userRoleDisplay =
     user?.role === "SUPER_ADMIN" ? "Superadmin" : "Administrador";
 
-  // Cálculo de padding dinámico según estado de colapso y presencia de sidebar secundaria
+  // Cálculo de padding dinámico según estado de colapso y presencia de sidebar secundaria (lg+)
   const headerDesktopPaddingClass = isCollapsed
     ? hasSecondary
-      ? "md:pl-[284px]"
+      ? "md:pl-16 lg:pl-[284px]"
       : "md:pl-16"
     : hasSecondary
-    ? "md:pl-[460px]"
+    ? "md:pl-60 lg:pl-[460px]"
     : "md:pl-60";
 
   return (
@@ -243,6 +262,7 @@ export function AdminHeader({
       <AdminMainSidebar
         pathname={pathname}
         brandName={brandName}
+        logoUrl={logoUrl}
         user={user}
         userInitial={userInitial}
         userRoleDisplay={userRoleDisplay}
@@ -269,7 +289,7 @@ export function AdminHeader({
                   ? "Cerrar menú de navegación"
                   : "Abrir menú de navegación"
               }
-              className="p-2.5 rounded-xl text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors cursor-pointer"
+              className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-xl text-zinc-300 hover:text-zinc-100 hover:bg-zinc-900 border border-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors cursor-pointer"
             >
               {isMobileDrawerOpen ? (
                 <X size={18} aria-hidden="true" />
@@ -281,9 +301,10 @@ export function AdminHeader({
             <Link prefetch={false}
               href="/admin"
               aria-label={`${brandName}, ir al panel de administración`}
-              className="font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5"
+              className="flex items-center gap-2 font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5"
             >
-              {brandName}
+              {logoUrl && <BrandLogo src={logoUrl} alt="" className="h-9 w-9" />}
+              <span>{brandName}</span>
             </Link>
           </div>
 
@@ -320,8 +341,19 @@ export function AdminHeader({
             </div>
           </form>
 
-          {/* Lado Derecho: Acciones Rápidas, Enlace Tienda, Tema y Usuario */}
+          {/* Lado Derecho: Búsqueda Móvil, Acciones Rápidas, Enlace Tienda, Tema y Usuario */}
           <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={handleToggleMobileSearch}
+              aria-expanded={isMobileSearchOpen}
+              aria-controls="admin-mobile-search"
+              aria-label={isMobileSearchOpen ? "Cerrar buscador móvil" : "Buscar productos o pedidos"}
+              className="md:hidden min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/80 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none transition-colors cursor-pointer"
+            >
+              {isMobileSearchOpen ? <X size={18} aria-hidden="true" /> : <Search size={18} aria-hidden="true" />}
+            </button>
+
             {/* Botón Kill-Switch: Pausar o Reanudar Ventas */}
             <button
               type="button"
@@ -368,6 +400,7 @@ export function AdminHeader({
             </Link>
 
             {/* Alternador de Tema Oscuro/Claro */}
+            <AdminWhatsNewTrigger userId={user?.userId} />
             <AdminThemeToggle />
 
             {/* Menú de Usuario Popover */}
@@ -387,6 +420,40 @@ export function AdminHeader({
             />
           </div>
         </div>
+
+        {/* Buscador Rápido Móvil (< md) */}
+        {isMobileSearchOpen && (
+          <form
+            id="admin-mobile-search"
+            onSubmit={handleSearchSubmit}
+            className="md:hidden px-4 pb-3 pt-1 border-t border-zinc-800/80 bg-zinc-950"
+          >
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 min-w-0">
+                <Search
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
+                  aria-hidden="true"
+                />
+                <input
+                  ref={mobileSearchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar productos o pedidos..."
+                  aria-label="Buscar productos o pedidos en móvil"
+                  className="w-full min-h-[44px] pl-9 pr-3 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-zinc-100 placeholder-zinc-500 focus:border-amber-400/60 focus:ring-1 focus:ring-amber-400 focus:outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="min-h-[44px] px-4 rounded-xl bg-amber-300 hover:bg-amber-200 text-zinc-950 text-xs font-bold transition-colors cursor-pointer shrink-0"
+              >
+                Buscar
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* 3. Menú Móvil Desplegable */}
         <AdminMobileDrawer
@@ -420,59 +487,56 @@ export function AdminHeader({
         )}
       </header>
 
-      {/* Modal interactivo para pausar ventas con mensaje personalizado */}
-      {isPauseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
-                <PauseCircle size={22} />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-base font-bold text-zinc-100">
-                  ¿Pausar ventas en la tienda?
-                </h3>
-                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                  Los clientes podrán seguir viendo el catálogo en modo escaparate, pero se deshabilitará el checkout.
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-zinc-300 block mb-1.5">
-                Mensaje para los clientes en la tienda:
-              </label>
-              <textarea
-                rows={3}
-                value={modalNoticeInput}
-                onChange={(e) => setModalNoticeInput(e.target.value)}
-                placeholder="ej: Estamos realizando balance de inventario. Las compras se reanudarán en breve."
-                className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:outline-none leading-relaxed"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                disabled={updatingPauseStatus}
-                onClick={() => setIsPauseModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors font-semibold cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={updatingPauseStatus}
-                onClick={handleConfirmPause}
-                className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {updatingPauseStatus && <Loader2 size={13} className="animate-spin" />}
-                <span>Confirmar y Pausar</span>
-              </button>
-            </div>
+      {/* Modal interactivo accesible para pausar ventas con mensaje personalizado */}
+      <ModalDialog
+        isOpen={isPauseModalOpen}
+        onClose={() => setIsPauseModalOpen(false)}
+        title="¿Pausar ventas en la tienda?"
+        subtitle="Los clientes podrán seguir viendo el catálogo en modo escaparate, pero se deshabilitará el checkout."
+        closeDisabled={updatingPauseStatus}
+        closeOnBackdrop={!updatingPauseStatus}
+        closeOnEscape={!updatingPauseStatus}
+        headerIcon={
+          <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+            <PauseCircle size={20} />
           </div>
+        }
+        footer={
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <button
+              type="button"
+              disabled={updatingPauseStatus}
+              onClick={() => setIsPauseModalOpen(false)}
+              className="min-h-[44px] px-4 py-2 rounded-xl border border-zinc-700 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors font-semibold cursor-pointer disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={updatingPauseStatus}
+              onClick={handleConfirmPause}
+              className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              {updatingPauseStatus && <Loader2 size={13} className="animate-spin" />}
+              <span>Confirmar y Pausar</span>
+            </button>
+          </div>
+        }
+      >
+        <div>
+          <label htmlFor="pause-store-notice" className="text-xs font-semibold text-zinc-300 block mb-1.5">
+            Mensaje para los clientes en la tienda:
+          </label>
+          <textarea
+            id="pause-store-notice"
+            rows={3}
+            value={modalNoticeInput}
+            onChange={(e) => setModalNoticeInput(e.target.value)}
+            placeholder="ej: Estamos realizando balance de inventario. Las compras se reanudarán en breve."
+            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:outline-none leading-relaxed"
+          />
         </div>
-      )}
+      </ModalDialog>
     </>
   );
 }

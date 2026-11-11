@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { isSubNavItemActive } from "./header/nav-items";
 import { useAdminNav } from "./navigation/AdminNavContext";
+import { AdminWhatsNewBanner } from "./onboarding/AdminWhatsNewBanner";
 
 export function AdminLayoutFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
@@ -19,10 +20,10 @@ export function AdminLayoutFrame({ children }: { children: React.ReactNode }) {
 
   const desktopPaddingClass = isCollapsed
     ? hasSecondary
-      ? "md:pl-[284px]"
+      ? "md:pl-16 lg:pl-[284px]"
       : "md:pl-16"
     : hasSecondary
-    ? "md:pl-[460px]"
+    ? "md:pl-60 lg:pl-[460px]"
     : "md:pl-60";
 
   return (
@@ -43,9 +44,9 @@ export function AdminLayoutFrame({ children }: { children: React.ReactNode }) {
               : "max-w-6xl mx-auto w-full"
           }
         >
-          {/* Navegación secundaria móvil (pestañas superiores en pantallas angostas - ADM-01) */}
+          {/* Navegación secundaria móvil y tablet (pestañas superiores hasta 1023px) */}
           {!isAuthRoute && hasSecondary && activeGroup?.subItems && (
-            <div className="md:hidden mb-6 -mt-2 pb-2 border-b border-zinc-800">
+            <div className="lg:hidden mb-6 -mt-2 pb-2 border-b border-zinc-800">
               <span className="block text-[10px] uppercase font-bold tracking-wider text-amber-300 mb-1.5">
                 {activeGroup.label}
               </span>
@@ -66,7 +67,7 @@ export function AdminLayoutFrame({ children }: { children: React.ReactNode }) {
                       key={sub.href}
                       href={sub.href}
                       aria-current={isActive ? "page" : undefined}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
+                      className={`inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                         isActive
                           ? "bg-amber-300 text-zinc-950 font-bold shadow-xs"
                           : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800"
@@ -80,6 +81,8 @@ export function AdminLayoutFrame({ children }: { children: React.ReactNode }) {
               </nav>
             </div>
           )}
+
+          {!isAuthRoute && <AdminWhatsNewBanner />}
 
           {children}
         </div>

@@ -16,6 +16,7 @@ import {
   isAdminNavItemActive,
 } from "../header/nav-items";
 import { useAdminNav } from "./AdminNavContext";
+import { BrandLogo } from "../../layout/BrandLogo";
 
 interface SessionUser {
   userId?: number;
@@ -26,6 +27,7 @@ interface SessionUser {
 interface AdminMainSidebarProps {
   pathname: string;
   brandName: string;
+  logoUrl?: string | null;
   user: SessionUser | null;
   userInitial: string;
   userRoleDisplay: string;
@@ -36,6 +38,7 @@ interface AdminMainSidebarProps {
 export function AdminMainSidebar({
   pathname,
   brandName,
+  logoUrl,
   user,
   userInitial,
   userRoleDisplay,
@@ -50,6 +53,13 @@ export function AdminMainSidebar({
   } = useAdminNav();
 
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [tooltipTop, setTooltipTop] = useState<number>(0);
+
+  const showTooltipForItem = (itemId: string, element: HTMLElement) => {
+    const rect = element.getBoundingClientRect();
+    setHoveredItemId(itemId);
+    setTooltipTop(rect.top + rect.height / 2);
+  };
 
   return (
     <aside
@@ -65,9 +75,10 @@ export function AdminMainSidebar({
             <Link prefetch={false}
               href="/admin"
               aria-label={`${brandName}, ir al panel de administración`}
-              className="font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5 truncate"
+              className="flex min-w-0 items-center gap-2.5 font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5"
             >
-              {brandName}
+              {logoUrl && <BrandLogo src={logoUrl} alt="" className="h-10 w-10" />}
+              <span className="truncate">{brandName}</span>
             </Link>
             <button
               type="button"
@@ -119,15 +130,16 @@ export function AdminMainSidebar({
             <div
               key={item.id}
               className="relative"
-              onMouseEnter={() => setHoveredItemId(item.id)}
+              onMouseEnter={(e) => showTooltipForItem(item.id, e.currentTarget)}
               onMouseLeave={() => setHoveredItemId(null)}
             >
               <Link prefetch={false}
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={itemAriaLabel}
+                aria-describedby={isTooltipVisible ? `tooltip-${item.id}` : undefined}
                 title={item.id === "dashboard" ? "Resumen del negocio" : undefined}
-                onFocus={() => setHoveredItemId(item.id)}
+                onFocus={(e) => showTooltipForItem(item.id, e.currentTarget)}
                 onBlur={() => setHoveredItemId(null)}
                 className={`relative flex items-center rounded-xl text-xs font-semibold transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                   isCollapsed
@@ -178,9 +190,9 @@ export function AdminMainSidebar({
                 <div
                   role="tooltip"
                   id={`tooltip-${item.id}`}
-                  className="fixed left-18 z-50 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-medium text-zinc-100 shadow-2xl pointer-events-none flex items-center gap-2 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150"
+                  className="fixed left-[72px] z-50 px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-medium text-zinc-100 shadow-2xl pointer-events-none flex items-center gap-2 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150"
                   style={{
-                    // Centrado vertical aproximado
+                    top: `${tooltipTop}px`,
                     transform: "translateY(-50%)",
                   }}
                 >

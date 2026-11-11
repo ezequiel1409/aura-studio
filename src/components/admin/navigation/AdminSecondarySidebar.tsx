@@ -19,7 +19,7 @@ export function AdminSecondarySidebar() {
   return (
     <aside
       aria-label={`Subsecciones de ${activeGroup.label}`}
-      className={`hidden md:flex flex-col fixed inset-y-0 z-40 bg-zinc-900/95 backdrop-blur-md border-r border-zinc-800 text-zinc-100 select-none w-[220px] transition-all duration-200 ease-in-out ${
+      className={`hidden lg:flex flex-col fixed inset-y-0 z-40 bg-zinc-900/95 backdrop-blur-md border-r border-zinc-800 text-zinc-100 select-none w-[220px] transition-all duration-200 ease-in-out ${
         isCollapsed ? "left-16" : "left-60"
       }`}
     >

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AdminWhatsNewTrigger } from "../onboarding/AdminWhatsNewTrigger";
 import { ArrowUpRight, LogOut } from "lucide-react";
 import {
   ADMIN_PRIMARY_NAV_ITEMS,
@@ -34,8 +35,12 @@ export function AdminMobileDrawer({
   return (
     <div
       id="admin-collapsible-nav"
-      className={`sm:hidden border-t border-zinc-800 transition-all duration-300 overflow-hidden ${
-        isOpen ? "max-h-[620px] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+      inert={!isOpen || undefined}
+      aria-hidden={!isOpen || undefined}
+      className={`md:hidden border-t border-zinc-800 transition-all duration-300 ${
+        isOpen
+          ? "max-h-[75vh] opacity-100 overflow-y-auto"
+          : "max-h-0 opacity-0 pointer-events-none invisible overflow-hidden"
       }`}
     >
       <nav
@@ -110,7 +115,9 @@ export function AdminMobileDrawer({
           })}
         </div>
 
-        <div className="pt-2 border-t border-zinc-800 flex items-center justify-between gap-2 px-1">
+        <div className="pt-2 border-t border-zinc-800 space-y-2">
+          <AdminWhatsNewTrigger variant="menu-item" />
+          <div className="flex items-center justify-between gap-2 px-1">
           <a
             href="/"
             target="_blank"
@@ -130,6 +137,7 @@ export function AdminMobileDrawer({
             <LogOut size={14} aria-hidden="true" />
             <span>{loggingOut ? "Saliendo..." : "Salir"}</span>
           </button>
+          </div>
         </div>
       </nav>
     </div>

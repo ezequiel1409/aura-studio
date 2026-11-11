@@ -32,6 +32,7 @@ import { formatPriceARS } from "../../lib/format/currency";
 
 interface OrdersManagerClientProps {
   initialOrders: Order[];
+  initialTotalCount?: number;
   brandName?: string;
   whatsappNumber?: string;
 }
@@ -72,11 +73,16 @@ const STATUS_CONFIG: Record<
 
 export function OrdersManagerClient({
   initialOrders,
+  initialTotalCount,
   brandName = "Aura Studio",
 }: OrdersManagerClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [totalServerCount, setTotalServerCount] = useState<number>(
+    initialTotalCount ?? initialOrders.length
+  );
+  const [loadingMoreOrders, setLoadingMoreOrders] = useState(false);
 
   // Si llega ?id= desde algún enlace legado, redirigimos a la vista dedicada de página completa
   useEffect(() => {
@@ -114,6 +120,45 @@ export function OrdersManagerClient({
     setExpandedOrderIds((prev) =>
       prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
     );
+  };
+
+  const hasMoreServerOrders = orders.length < totalServerCount;
+
+  const handleLoadMoreOrders = async () => {
+    if (loadingMoreOrders || !hasMoreServerOrders) return;
+    setLoadingMoreOrders(true);
+    setErrorMessage(null);
+    try {
+      const res = await fetch(`/api/admin/orders?limit=100&offset=${orders.length}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "No se pudieron cargar más pedidos.");
+      }
+
+      const fetched = Array.isArray(data.orders) ? (data.orders as Order[]) : [];
+      setOrders((prev) => {
+        const seen = new Set(prev.map((o) => o.id));
+        const merged = [...prev];
+        for (const item of fetched) {
+          if (!seen.has(item.id)) {
+            seen.add(item.id);
+            merged.push(item);
+          }
+        }
+        return merged;
+      });
+      if (typeof data.total === "number") {
+        setTotalServerCount(data.total);
+      }
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Error de conexión al cargar más pedidos."
+      );
+    } finally {
+      setLoadingMoreOrders(false);
+    }
   };
 
   // Actualizar estado de orden inline
@@ -471,7 +516,7 @@ export function OrdersManagerClient({
         </div>
 
         {/* Fila 2: Filtros desplegables en Dropdown (Estado, Entrega, Cobro, Fecha con Desde/Hasta) */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap items-center gap-2.5">
           {/* Dropdown de Estado */}
           <select
             value={activeTab}
@@ -480,7 +525,7 @@ export function OrdersManagerClient({
               setCurrentPage(1);
             }}
             aria-label="Filtrar por estado"
-            className="text-xs py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
+            className="min-h-[44px] text-xs py-2 px-3 rounded-xl bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
           >
             <option value="ALL">Estado: Todos ({counts.ALL})</option>
             <option value="PENDING">Pendientes ({counts.PENDING})</option>
@@ -497,7 +542,7 @@ export function OrdersManagerClient({
               setCurrentPage(1);
             }}
             aria-label="Filtrar por método de entrega"
-            className="text-xs py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
+            className="min-h-[44px] text-xs py-2 px-3 rounded-xl bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
           >
             <option value="ALL">Entrega: Todas</option>
             <option value="PICKUP">Retiro Showroom</option>
@@ -513,7 +558,7 @@ export function OrdersManagerClient({
               setCurrentPage(1);
             }}
             aria-label="Filtrar por estado de cobro"
-            className="text-xs py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
+            className="min-h-[44px] text-xs py-2 px-3 rounded-xl bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
           >
             <option value="ALL">Cobro: Todos</option>
             <option value="PENDING">Por Cobrar</option>
@@ -528,7 +573,7 @@ export function OrdersManagerClient({
               setCurrentPage(1);
             }}
             aria-label="Filtrar por fecha"
-            className="text-xs py-2 px-3 rounded-lg bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
+            className="min-h-[44px] text-xs py-2 px-3 rounded-xl bg-zinc-950 border border-zinc-700 text-zinc-100 focus:outline-none focus:border-amber-400 cursor-pointer font-medium"
           >
             <option value="ALL">Fecha: Todas</option>
             <option value="TODAY">Hoy</option>
@@ -724,7 +769,7 @@ export function OrdersManagerClient({
                                     ? "Ocultar resumen rápido"
                                     : "Desplegar prendas y entrega sin salir de la lista"
                                 }
-                                className="mt-0.5 sm:mt-0 w-7 h-7 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-amber-400/60 flex items-center justify-center text-zinc-300 hover:text-amber-300 text-xs shrink-0 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                                className="min-w-[44px] min-h-[44px] rounded-xl bg-zinc-950 border border-zinc-800 hover:border-amber-400/60 flex items-center justify-center text-zinc-300 hover:text-amber-300 text-xs shrink-0 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                               >
                                 <span aria-hidden="true">
                                   {isExpanded ? "▴" : "▾"}
@@ -845,12 +890,12 @@ export function OrdersManagerClient({
                             </div>
 
                             {/* Columna Derecha: Selector Rápido de Estado + Total + Link a Ficha Completa */}
-                            <div className="flex flex-wrap items-center justify-between lg:justify-end gap-3 shrink-0 border-t lg:border-t-0 pt-2 lg:pt-0 border-zinc-800/60">
-                              {/* Selector Rápido de Estado Inline (Patrón ProductListClient) */}
+                            <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2.5 shrink-0 border-t lg:border-t-0 pt-2.5 lg:pt-0 border-zinc-800/60 w-full lg:w-auto">
+                              {/* Selector Rápido de Estado Inline */}
                               <div
                                 role="group"
                                 aria-label={`Cambiar estado de pedido ${orderCodeLabel}`}
-                                className="inline-flex rounded-lg bg-zinc-950 p-0.5 border border-zinc-800"
+                                className="inline-flex flex-wrap sm:flex-nowrap gap-1 rounded-xl bg-zinc-950 p-1 border border-zinc-800 w-full sm:w-auto"
                               >
                                 {(
                                   [
@@ -868,7 +913,7 @@ export function OrdersManagerClient({
                                       disabled={isUpdating}
                                       onClick={() => handleStatusChange(order.id, st.key)}
                                       aria-pressed={active}
-                                      className={`px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
+                                      className={`min-h-[38px] flex-1 sm:flex-initial px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                                         active
                                           ? st.key === "PAID"
                                             ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold"
@@ -887,14 +932,14 @@ export function OrdersManagerClient({
                               </div>
 
                               {/* Total del Pedido */}
-                              <div className="text-right min-w-[95px]">
+                              <div className="text-left sm:text-right min-w-[95px]">
                                 <p className="font-serif text-sm sm:text-base font-bold text-zinc-100 font-mono lining-nums tabular-nums">
                                   {formatPriceARS(order.totalCents)}
                                 </p>
                               </div>
 
-                              {/* Acciones Directas: WhatsApp Chat de Alta Legibilidad y Ficha Completa */}
-                              <div className="flex items-center gap-2">
+                              {/* Acciones Directas: WhatsApp Chat y Ficha Completa */}
+                              <div className="flex items-center gap-2 ml-auto sm:ml-0">
                                 <a
                                   href={getWhatsAppLink(
                                     order,
@@ -908,7 +953,7 @@ export function OrdersManagerClient({
                                   rel="noopener noreferrer"
                                   title={`Abrir chat de WhatsApp con ${order.customerName}`}
                                   aria-label={`Abrir chat de WhatsApp con ${order.customerName}`}
-                                  className="inline-flex items-center justify-center gap-1.5 px-3 h-8 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none shrink-0 cursor-pointer"
+                                  className="min-h-[44px] inline-flex items-center justify-center gap-1.5 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs shadow-xs transition-colors focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:outline-none shrink-0 cursor-pointer"
                                 >
                                   <MessageCircle size={15} className="fill-white" />
                                   <span className="font-semibold text-xs">Chat</span>
@@ -916,7 +961,7 @@ export function OrdersManagerClient({
 
                                 <Link prefetch={false}
                                   href={`/admin/ordenes/${order.id}`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-amber-300 text-zinc-100 hover:text-zinc-950 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none shrink-0"
+                                  className="min-h-[44px] inline-flex items-center gap-1.5 px-3.5 rounded-xl bg-zinc-800 hover:bg-amber-300 text-zinc-100 hover:text-zinc-950 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none shrink-0"
                                 >
                                   <span>Ver ficha</span>
                                   <ArrowRight size={13} />
@@ -932,7 +977,7 @@ export function OrdersManagerClient({
                                 {/* Prendas del pedido */}
                                 <div className="lg:col-span-2 space-y-2">
                                   <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
-                                    Prendas reservadas ({order.items?.length || 0})
+                                    Prendas del pedido ({order.items?.length || 0})
                                   </span>
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     {(order.items || []).map((item) => (
@@ -1046,8 +1091,8 @@ export function OrdersManagerClient({
         </div>
       )}
 
-      {/* Barra de Paginación Inferior (Para manejar grandes volúmenes sin perder visibilidad) */}
-      {totalPages > 1 && (
+      {/* Barra de Paginación Inferior y Carga Histórica (>100 pedidos) */}
+      {(totalPages > 1 || hasMoreServerOrders) && (
         <nav
           aria-label="Paginación de pedidos"
           className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3 text-xs"
@@ -1055,29 +1100,49 @@ export function OrdersManagerClient({
           <span className="text-zinc-400">
             Página <strong className="text-zinc-100">{safePage}</strong> de{" "}
             <strong className="text-zinc-100">{totalPages}</strong> (
-            {filteredOrders.length} pedidos en total)
+            {filteredOrders.length} mostrados · {totalServerCount} totales)
           </span>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              disabled={safePage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 hover:border-amber-400 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-colors"
-            >
-              <ChevronLeft size={14} />
-              <span>Anterior</span>
-            </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {hasMoreServerOrders && (
+              <button
+                type="button"
+                disabled={loadingMoreOrders}
+                onClick={() => void handleLoadMoreOrders()}
+                className="min-h-[44px] inline-flex items-center gap-1.5 px-3.5 rounded-xl bg-amber-300/15 border border-amber-400/40 text-amber-200 hover:bg-amber-300/25 disabled:opacity-50 cursor-pointer transition-colors font-semibold"
+              >
+                {loadingMoreOrders && <Loader2 size={14} className="animate-spin" />}
+                <span>
+                  {loadingMoreOrders
+                    ? "Cargando..."
+                    : `Cargar más pedidos (${orders.length}/${totalServerCount})`}
+                </span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              disabled={safePage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 hover:border-amber-400 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-colors"
-            >
-              <span>Siguiente</span>
-              <ChevronRight size={14} />
-            </button>
+            {totalPages > 1 && (
+              <>
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="min-h-[44px] inline-flex items-center gap-1 px-3.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 hover:border-amber-400 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-colors"
+                >
+                  <ChevronLeft size={14} />
+                  <span>Anterior</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="min-h-[44px] inline-flex items-center gap-1 px-3.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-200 hover:border-amber-400 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-colors"
+                >
+                  <span>Siguiente</span>
+                  <ChevronRight size={14} />
+                </button>
+              </>
+            )}
           </div>
         </nav>
       )}

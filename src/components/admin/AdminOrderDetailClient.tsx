@@ -32,6 +32,7 @@ import { OrderClaim } from "../../domain/claim/types";
 import { PaymentMethod, PaymentStatus } from "../../domain/payment/types";
 import { formatOrderCode } from "../../domain/order/rules";
 import { formatPriceARS } from "../../lib/format/currency";
+import { ModalDialog } from "./ui/ModalDialog";
 
 interface AdminOrderDetailClientProps {
   initialOrder: Order;
@@ -137,6 +138,11 @@ export function AdminOrderDetailClient({
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
   const [isInspectingClaim, setIsInspectingClaim] = useState(false);
+  const [rejectionClaim, setRejectionClaim] = useState<OrderClaim | null>(null);
+  const [rejectionReason, setRejectionReason] = useState(
+    "Prenda recibida con manchas o señales de uso que impiden su recirculación."
+  );
+  const [rejectionError, setRejectionError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -253,18 +259,28 @@ export function AdminOrderDetailClient({
   };
 
   const handleRejectCondition = (claim: OrderClaim) => {
-    const reason = window.prompt(
-      "Ingresá el motivo del rechazo del producto (ej: Manchas de maquillaje en cuello, olor a perfume, sin etiqueta original):",
-      "Prenda recibida con manchas o señales de uso que impiden su recirculación."
-    );
-    if (reason === null) return;
-    handleInspectClaim(claim.id, "REJECT_CONDITION", reason);
+    setRejectionError(null);
+    setRejectionReason("Prenda recibida con manchas o señales de uso que impiden su recirculación.");
+    setRejectionClaim(claim);
+  };
 
-    const claimPhone = claim.customerPhone.replace(/[^0-9]/g, "");
+  const handleConfirmRejectCondition = async () => {
+    if (!rejectionClaim) return;
+    const cleanReason = rejectionReason.trim();
+    if (!cleanReason) {
+      setRejectionError("Ingresá el motivo del rechazo antes de confirmar.");
+      return;
+    }
+
+    const targetClaim = rejectionClaim;
+    await handleInspectClaim(targetClaim.id, "REJECT_CONDITION", cleanReason);
+    setRejectionClaim(null);
+
+    const claimPhone = targetClaim.customerPhone.replace(/[^0-9]/g, "");
     const waText = encodeURIComponent(
-      `Hola ${claim.customerName.split(" ")[0]}! Te contactamos de ${brandName} por tu trámite ${claim.claimCode}. Recibimos la prenda en el showroom pero durante el control de calidad detectamos que no se encuentra en condiciones de recirculación (${reason}). Te enviamos fotos para coordinar.`
+      `Hola ${targetClaim.customerName.split(" ")[0]}! Te contactamos por tu trámite ${targetClaim.claimCode}. Recibimos la prenda pero durante el control de calidad detectamos que no se encuentra en condiciones de recirculación (${cleanReason}). Te enviamos fotos para coordinar.`
     );
-    window.open(`https://wa.me/${claimPhone}?text=${waText}`, "_blank");
+    window.open(`https://wa.me/${claimPhone}?text=${waText}`, "_blank", "noopener,noreferrer");
   };
 
   const getWhatsAppTemplateLink = (type: "receipt" | "confirmed" | "ready") => {
@@ -898,6 +914,66 @@ export function AdminOrderDetailClient({
           </section>
         </div>
       </div>
+
+      <ModalDialog
+        isOpen={rejectionClaim !== null}
+        onClose={() => setRejectionClaim(null)}
+        title="Rechazar devolución por estado de prenda"
+        subtitle={
+          rejectionClaim
+            ? `Trámite ${rejectionClaim.claimCode} · ${rejectionClaim.customerName}`
+            : undefined
+        }
+        closeDisabled={isInspectingClaim}
+        footer={
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <button
+              type="button"
+              disabled={isInspectingClaim}
+              onClick={() => setRejectionClaim(null)}
+              className="min-h-[44px] px-4 py-2 rounded-xl border border-zinc-700 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={isInspectingClaim}
+              onClick={() => void handleConfirmRejectCondition()}
+              className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
+            >
+              {isInspectingClaim && <Loader2 size={13} className="animate-spin" />}
+              <span>Confirmar rechazo y abrir WhatsApp</span>
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          {rejectionError && (
+            <p role="alert" className="text-xs text-rose-400 font-medium">
+              {rejectionError}
+            </p>
+          )}
+          <div>
+            <label
+              htmlFor="claim-rejection-reason"
+              className="block text-xs font-semibold text-zinc-300 mb-1.5"
+            >
+              Motivo del rechazo:
+            </label>
+            <textarea
+              id="claim-rejection-reason"
+              rows={3}
+              value={rejectionReason}
+              onChange={(e) => {
+                setRejectionReason(e.target.value);
+                if (rejectionError) setRejectionError(null);
+              }}
+              placeholder="Ej: Manchas de maquillaje, olor a perfume o sin etiqueta original."
+              className="w-full rounded-xl bg-zinc-950 border border-zinc-700 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:outline-none leading-relaxed"
+            />
+          </div>
+        </div>
+      </ModalDialog>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Coupon, CouponType } from "../../domain/coupon/types";
 import { formatPriceARS } from "../../lib/format/currency";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 
 interface CouponsManagerClientProps {
   initialCoupons: Coupon[];
@@ -37,6 +38,8 @@ export function CouponsManagerClient({
   // Modal / Drawer state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingDeleteCoupon, setPendingDeleteCoupon] = useState<{ id: number; code: string } | null>(null);
+  const [isDeletingCoupon, setIsDeletingCoupon] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -132,19 +135,25 @@ export function CouponsManagerClient({
     }
   };
 
-  const handleDelete = async (couponId: number, code: string) => {
-    if (!window.confirm(`¿Estás seguro de eliminar permanentemente el cupón ${code}?`)) {
-      return;
-    }
+  const handleDelete = (couponId: number, code: string) => {
+    setPendingDeleteCoupon({ id: couponId, code });
+  };
+
+  const confirmDeleteCoupon = async () => {
+    if (!pendingDeleteCoupon) return;
+    setIsDeletingCoupon(true);
     try {
-      const res = await fetch(`/api/admin/coupons/${couponId}`, {
+      const res = await fetch(`/api/admin/coupons/${pendingDeleteCoupon.id}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        setCouponsList((prev) => prev.filter((c) => c.id !== couponId));
+        setCouponsList((prev) => prev.filter((c) => c.id !== pendingDeleteCoupon.id));
+        setPendingDeleteCoupon(null);
       }
     } catch {
       // Ignorar fallo
+    } finally {
+      setIsDeletingCoupon(false);
     }
   };
 
@@ -780,6 +789,20 @@ export function CouponsManagerClient({
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={pendingDeleteCoupon !== null}
+        onClose={() => setPendingDeleteCoupon(null)}
+        onConfirm={confirmDeleteCoupon}
+        title="Eliminar cupón"
+        message={
+          pendingDeleteCoupon
+            ? `¿Estás seguro de eliminar permanentemente el cupón ${pendingDeleteCoupon.code}?`
+            : ""
+        }
+        confirmLabel="Eliminar cupón"
+        isLoading={isDeletingCoupon}
+      />
     </div>
   );
 }

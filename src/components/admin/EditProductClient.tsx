@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -10,8 +10,8 @@ import {
   ChevronRight,
   ExternalLink,
   Loader2,
-  Minus,
   Plus,
+  PlusCircle,
   Save,
   Sparkles,
   Star,
@@ -24,6 +24,7 @@ import { Product, ProductStatus } from "../../domain/product/types";
 import { compressImageInBrowser } from "../../lib/images/compress";
 import { parseProductText } from "../../lib/parser/product-parser";
 import { ConfirmDeleteProductModal } from "./ConfirmDeleteProductModal";
+import { StockStepperField } from "./ui/StockStepperField";
 
 interface EditProductClientProps {
   product: Product;
@@ -69,6 +70,8 @@ export function EditProductClient({
     };
   }, []);
 
+  const [currentProduct, setCurrentProduct] = useState(product);
+
   // Estado del texto crudo (BR-33)
   const [rawText, setRawText] = useState(product.rawText || "");
 
@@ -82,8 +85,13 @@ export function EditProductClient({
       ? String(product.compareAtPriceCents / 100)
       : ""
   );
+  // Categorías hoja disponibles para prendas (BR-15)
+  const leafCategories: Category[] = useMemo(() => {
+    return categories.filter((c: Category) => !categories.some((child: Category) => child.parentId === c.id));
+  }, [categories]);
+
   const [selectedCategoryId, setSelectedCategoryId] = useState<number>(
-    product.categoryId
+    product.categoryId || (leafCategories[0]?.id ?? 1)
   );
   const [status, setStatus] = useState<ProductStatus>(product.status);
   const [isFeatured, setIsFeatured] = useState<boolean>(product.isFeatured ?? false);
@@ -96,6 +104,59 @@ export function EditProductClient({
     }
     return String(raw).slice(0, 10);
   });
+  const [attrDefs, setAttrDefs] = useState<ProductAttributeDefinition[]>(
+    attributeDefinitions || []
+  );
+  const [addingOptionForDefId, setAddingOptionForDefId] = useState<number | null>(null);
+  const [newOptionValue, setNewOptionValue] = useState("");
+  const [addingOptionLoading, setAddingOptionLoading] = useState(false);
+
+  const handleQuickAddAttributeOption = async (def: ProductAttributeDefinition) => {
+    const trimmed = newOptionValue.trim();
+    if (!trimmed) return;
+
+    if (def.options.some((o) => o.toLowerCase() === trimmed.toLowerCase())) {
+      setAttributes((prev) => ({ ...prev, [def.key]: trimmed }));
+      setAddingOptionForDefId(null);
+      setNewOptionValue("");
+      return;
+    }
+
+    setAddingOptionLoading(true);
+    try {
+      const updatedOptions = [...def.options, trimmed];
+      const res = await fetch("/api/admin/attributes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: def.id,
+          name: def.name || def.label,
+          slug: def.slug || def.key,
+          options: updatedOptions,
+          isFilterable: def.isFilterable,
+          position: def.position,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setAttrDefs((prev) =>
+          prev.map((d) =>
+            d.id === def.id ? { ...d, options: updatedOptions } : d
+          )
+        );
+        setAttributes((prev) => ({ ...prev, [def.key]: trimmed }));
+        setAddingOptionForDefId(null);
+        setNewOptionValue("");
+      } else {
+        alert(data.error || "No se pudo guardar la nueva opción");
+      }
+    } catch {
+      alert("Error de conexión al guardar la opción de atributo.");
+    } finally {
+      setAddingOptionLoading(false);
+    }
+  };
+
   const [attributes, setAttributes] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     for (const [k, v] of Object.entries(product.attributes || {})) {
@@ -144,11 +205,6 @@ export function EditProductClient({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  // Categorías hoja disponibles para prendas (BR-15)
-  const leafCategories = categories.filter((c) => {
-    return !categories.some((child) => child.parentId === c.id);
-  });
 
   // Re-interpretar texto crudo bajo demanda (BR-33)
   const handleReParseText = () => {
@@ -251,6 +307,60 @@ export function EditProductClient({
     );
   };
 
+  const applyPreset = (preset: "clothing" | "clothing-extended" | "shoes" | "single") => {
+    let newSizes: Array<{ id: string; size: string; stock: number }> = [];
+    if (preset === "clothing") {
+      newSizes = ["S", "M", "L", "XL"].map((sz) => ({
+        id: `sz-${sz.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        size: sz,
+        stock: 1,
+      }));
+    } else if (preset === "clothing-extended") {
+      newSizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"].map((sz) => ({
+        id: `sz-${sz.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        size: sz,
+        stock: 1,
+      }));
+    } else if (preset === "shoes") {
+      newSizes = [35, 36, 37, 38, 39, 40].map((num) => ({
+        id: `sz-${num}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        size: String(num),
+        stock: 1,
+      }));
+    } else {
+      newSizes = [{ id: `sz-unico-${Date.now()}`, size: "ÚNICO", stock: 1 }];
+    }
+
+    setColors((prev) =>
+      prev.map((col) => ({
+        ...col,
+        sizes: newSizes.map((s) => ({ ...s, id: `${s.id}-${col.id}` })),
+      }))
+    );
+  };
+
+  const addQuickSize = (colId: string, sizeName: string) => {
+    setColors((prev) =>
+      prev.map((c) => {
+        if (c.id !== colId) return c;
+        if (c.sizes.some((s) => s.size.trim().toUpperCase() === sizeName.toUpperCase())) {
+          return c;
+        }
+        return {
+          ...c,
+          sizes: [
+            ...c.sizes,
+            {
+              id: `sz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+              size: sizeName,
+              stock: 1,
+            },
+          ],
+        };
+      })
+    );
+  };
+
   const handleAddSize = (colId: string) => {
     setColors((prev) =>
       prev.map((c) => {
@@ -279,7 +389,7 @@ export function EditProductClient({
     );
   };
 
-  const handleStockChange = (colId: string, sizeId: string, delta: number) => {
+  const handleSetStock = (colId: string, sizeId: string, nextStock: number) => {
     setColors((prev) =>
       prev.map((c) => {
         if (c.id !== colId) return c;
@@ -287,7 +397,7 @@ export function EditProductClient({
           ...c,
           sizes: c.sizes.map((s) => {
             if (s.id !== sizeId) return s;
-            return { ...s, stock: Math.max(0, s.stock + delta) };
+            return { ...s, stock: Math.max(0, Math.trunc(nextStock)) };
           }),
         };
       })
@@ -336,23 +446,32 @@ export function EditProductClient({
         }
       }
 
-      const cleanAttributes: Record<string, string> = {};
+      const cleanAttributes: Record<string, string[]> = {};
       for (const [k, v] of Object.entries(attributes)) {
         if (v && v.trim()) {
-          cleanAttributes[k] = v.trim();
+          cleanAttributes[k] = [v.trim()];
         }
       }
+
+      const allUniqueSizes = Array.from(
+        new Set(
+          colors.flatMap((c) =>
+            c.sizes.map((s) => s.size.trim().toUpperCase()).filter(Boolean)
+          )
+        )
+      ).join(", ");
 
       const payload = {
         rawText,
         title: title.trim() || null,
         priceCents,
         compareAtPriceCents,
+        size: allUniqueSizes || undefined,
         categoryId: selectedCategoryId,
         status,
         isFeatured,
         allowReturn,
-        publishedAt: publishedAtDate ? `${publishedAtDate}T12:00:00.000Z` : undefined,
+        publishedAt: publishedAtDate ? Date.parse(`${publishedAtDate}T12:00:00.000Z`) : null,
         attributes: cleanAttributes,
         colors: colors.map((c, cIdx) => ({
           name: c.name.trim() || "Único",
@@ -360,7 +479,7 @@ export function EditProductClient({
           position: cIdx,
           sizes: c.sizes.map((s) => ({
             size: s.size.trim() || "ÚNICO",
-            stock: s.stock,
+            stock: Math.max(0, parseInt(String(s.stock || 0), 10) || 0),
           })),
         })),
         photos: photos.map((p, pIdx) => ({
@@ -384,8 +503,11 @@ export function EditProductClient({
       }
 
       if (!isMountedRef.current) return;
+      if (data.product) {
+        setCurrentProduct(data.product);
+      }
       setSavedSuccess(true);
-      // Evitamos router.refresh() para eliminar recargas innecesarias y navegar como SPA pura
+      // Actualizamos estado en cliente para navegar como SPA pura sin recargar la página
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al guardar";
       setErrorMessage(msg);
@@ -432,7 +554,7 @@ export function EditProductClient({
           </span>
         </div>
         <h1 className="font-serif text-2xl md:text-3xl font-bold text-zinc-100 mt-1">
-          {product.title || `Producto ${codeFormatted}`}
+          {title.trim() || currentProduct.title || `Producto ${codeFormatted}`}
         </h1>
         <p className="text-xs text-zinc-400 mt-1">
           Modificá texto crudo, variantes de color, stock y fotos sin perder datos editados a mano.
@@ -566,29 +688,62 @@ export function EditProductClient({
             </div>
 
             {/* Atributos Configurables del Rubro */}
-            {attributeDefinitions.map((def) => (
+            {attrDefs.map((def) => (
               <div key={def.key} className="space-y-1.5">
-                <label htmlFor={`edit-attr-${def.key}`} className="text-xs text-zinc-400">
-                  {def.label}
-                </label>
-                <select
-                  id={`edit-attr-${def.key}`}
-                  value={attributes[def.key] || ""}
-                  onChange={(e) =>
-                    setAttributes((prev) => ({
-                      ...prev,
-                      [def.key]: e.target.value,
-                    }))
-                  }
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
-                >
-                  <option value="">Sin especificar</option>
-                  {def.options.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <label htmlFor={`edit-attr-${def.key}`}>{def.label}</label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setAddingOptionForDefId(
+                        addingOptionForDefId === def.id ? null : def.id
+                      )
+                    }
+                    className="text-amber-300 hover:underline inline-flex items-center gap-1 text-[11px]"
+                  >
+                    <PlusCircle size={11} />
+                    <span>{addingOptionForDefId === def.id ? "Cerrar" : "+ Opción"}</span>
+                  </button>
+                </div>
+
+                {addingOptionForDefId === def.id ? (
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={newOptionValue}
+                      onChange={(e) => setNewOptionValue(e.target.value)}
+                      placeholder={`Nueva opción para ${def.label}...`}
+                      className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100"
+                    />
+                    <button
+                      type="button"
+                      disabled={addingOptionLoading || !newOptionValue.trim()}
+                      onClick={() => handleQuickAddAttributeOption(def)}
+                      className="px-3 py-2 rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs hover:bg-amber-300 disabled:opacity-50"
+                    >
+                      {addingOptionLoading ? "..." : "Agregar"}
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    id={`edit-attr-${def.key}`}
+                    value={attributes[def.key] || ""}
+                    onChange={(e) =>
+                      setAttributes((prev) => ({
+                        ...prev,
+                        [def.key]: e.target.value,
+                      }))
+                    }
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
+                  >
+                    <option value="">Sin especificar</option>
+                    {def.options.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             ))}
 
@@ -740,6 +895,48 @@ export function EditProductClient({
             </button>
           </div>
 
+          {/* Plantillas Rápidas de Talles */}
+          <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-zinc-300">
+                Aplicar talles predeterminados a los colores:
+              </span>
+              <span className="text-[10px] text-zinc-400">
+                1 clic para autocompletar
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => applyPreset("clothing-extended")}
+                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-amber-500/40 text-xs font-semibold text-amber-300 hover:bg-zinc-900 hover:border-amber-400 transition-colors cursor-pointer"
+              >
+                Indumentaria completa (XS a XXXL)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("clothing")}
+                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-amber-300 hover:border-zinc-700 transition-colors cursor-pointer"
+              >
+                Indumentaria estándar (S a XL)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("shoes")}
+                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-amber-300 hover:border-zinc-700 transition-colors cursor-pointer"
+              >
+                Calzado (35 al 40)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("single")}
+                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-amber-300 hover:border-zinc-700 transition-colors cursor-pointer"
+              >
+                Talle Único
+              </button>
+            </div>
+          </div>
+
           <div className="space-y-4">
             {colors.map((c) => (
               <div
@@ -771,8 +968,23 @@ export function EditProductClient({
 
                 {/* Talles del Color */}
                 <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                    <span>Talles y stock disponible:</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold text-zinc-300">Talles:</span>
+                      <div className="flex flex-wrap items-center gap-1">
+                        {["XS", "S", "M", "L", "XL", "XXL", "XXXL"].map((szPill) => (
+                          <button
+                            key={szPill}
+                            type="button"
+                            onClick={() => addQuickSize(c.id, szPill)}
+                            className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-400 text-[10px] font-mono font-bold text-zinc-300 hover:text-amber-300 transition-colors cursor-pointer"
+                            title={`Agregar talle ${szPill}`}
+                          >
+                            +{szPill}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => handleAddSize(c.id)}
@@ -788,57 +1000,50 @@ export function EditProductClient({
                     {c.sizes.map((s) => (
                       <div
                         key={s.id}
-                        className="flex items-center justify-between gap-2 bg-zinc-900/80 border border-zinc-800 rounded-lg p-2"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-zinc-900/80 border border-zinc-800 rounded-xl p-2.5 min-w-0"
                       >
-                        <input
-                          type="text"
-                          value={s.size}
-                          onChange={(e) =>
-                            handleSizeNameChange(c.id, s.id, e.target.value)
-                          }
-                          placeholder="Talle (S, M, 38)"
-                          aria-label={`Nombre de talle para color ${c.name}`}
-                          className="w-20 bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-100 uppercase font-mono font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                        />
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          <input
+                            type="text"
+                            value={s.size}
+                            onChange={(e) =>
+                              handleSizeNameChange(c.id, s.id, e.target.value)
+                            }
+                            placeholder="Talle (S, M, 38)"
+                            aria-label={`Nombre de talle para color ${c.name}`}
+                            className="w-24 min-w-0 min-h-[44px] bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 text-xs text-zinc-100 uppercase font-mono font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                          />
 
-                        {/* Control de Stock +/- */}
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleStockChange(c.id, s.id, -1)}
-                            className="w-7 h-7 flex items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                            aria-label={`Reducir stock del talle ${s.size} para color ${c.name}`}
-                          >
-                            <Minus size={13} aria-hidden="true" />
-                          </button>
-
-                          <span
-                            className="w-8 text-center font-mono font-bold text-xs text-zinc-100"
-                            aria-label={`Stock actual: ${s.stock}`}
-                          >
-                            {s.stock}
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() => handleStockChange(c.id, s.id, 1)}
-                            className="w-7 h-7 flex items-center justify-center rounded bg-zinc-800 text-zinc-300 hover:bg-zinc-700 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                            aria-label={`Aumentar stock del talle ${s.size} para color ${c.name}`}
-                          >
-                            <Plus size={13} aria-hidden="true" />
-                          </button>
+                          {c.sizes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSize(c.id, s.id)}
+                              className="sm:hidden min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 hover:text-rose-400 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                              aria-label={`Eliminar talle ${s.size} del color ${c.name}`}
+                            >
+                              <Trash2 size={14} aria-hidden="true" />
+                            </button>
+                          )}
                         </div>
 
-                        {c.sizes.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSize(c.id, s.id)}
-                            className="text-zinc-500 hover:text-rose-400 p-1.5 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
-                            aria-label={`Eliminar talle ${s.size} del color ${c.name}`}
-                          >
-                            <Trash2 size={13} aria-hidden="true" />
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2 min-w-0 sm:w-44">
+                          <StockStepperField
+                            value={s.stock}
+                            onChange={(nextStock) => handleSetStock(c.id, s.id, nextStock)}
+                            itemLabel={`talle ${s.size} para color ${c.name}`}
+                          />
+
+                          {c.sizes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSize(c.id, s.id)}
+                              className="hidden sm:inline-flex min-w-[44px] min-h-[44px] shrink-0 items-center justify-center text-zinc-500 hover:text-rose-400 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                              aria-label={`Eliminar talle ${s.size} del color ${c.name}`}
+                            >
+                              <Trash2 size={14} aria-hidden="true" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
