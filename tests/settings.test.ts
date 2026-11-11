@@ -305,4 +305,30 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35, ADM-05, ADM
     );
     expect(resumed.ordersPaused).toBe(false);
   });
+
+  it("persiste y recupera la configuración de la Navbar (alineación en segunda fila y enlaces)", async () => {
+    const { deps } = env;
+
+    const saved = await updateShowroomSettings(
+      {
+        navbarConfig: {
+          enabled: true,
+          alignment: "second_row",
+          items: [
+            { id: "1", label: "TOPS", href: "/tops", position: 1 },
+            { id: "2", label: "PANTALONES", href: "/pantalones", position: 2 },
+          ],
+        },
+      },
+      deps
+    );
+
+    expect(saved.navbarConfig?.alignment).toBe("second_row");
+    expect(saved.navbarConfig?.items.length).toBe(2);
+
+    const reloaded = await getShowroomSettings(deps, { bypassCache: true });
+    expect(reloaded.navbarConfig?.alignment).toBe("second_row");
+    expect(reloaded.navbarConfig?.items[0].label).toBe("TOPS");
+    expect(reloaded.navbarConfig?.items[1].label).toBe("PANTALONES");
+  });
 });

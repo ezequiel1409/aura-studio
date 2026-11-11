@@ -23,8 +23,11 @@ import {
   DrizzlePromotionRepository,
 } from "../src/infra/db";
 import { GlobalAppDeps } from "../src/infra/db/connection";
+import { MemoryReceiptStorage } from "../src/infra/storage/memory-receipt.storage";
+import { memoryCache } from "../src/infra/cache/memory-cache";
 
 export function createTestEnvironment() {
+  memoryCache.clear();
   const sqlite = new Database(":memory:");
   sqlite.pragma("foreign_keys = ON");
 
@@ -59,6 +62,7 @@ export function createTestEnvironment() {
   const orderClaimRepo = new DrizzleOrderClaimRepository(db);
   const navigationRepo = new DrizzleNavigationRepository(db);
   const promotionRepo = new DrizzlePromotionRepository(db);
+  const receiptStorage = new MemoryReceiptStorage();
 
   const deps: GlobalAppDeps = {
     productRepo,
@@ -77,6 +81,7 @@ export function createTestEnvironment() {
     orderClaimRepo,
     navigationRepo,
     promotionRepo,
+    receiptStorage,
     db,
   };
 
@@ -84,6 +89,7 @@ export function createTestEnvironment() {
     sqlite,
     db,
     deps,
+    receiptStorage,
     seed: () => seedDatabase(db),
   };
 }

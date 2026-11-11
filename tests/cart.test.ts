@@ -10,6 +10,8 @@ import {
 import { useCartStore } from "../src/stores/cart.store";
 import { CartStepper } from "../src/components/cart/CartStepper";
 import { ProductOrderSection } from "../src/components/catalog/ProductOrderSection";
+import { extractSize, formatSizesForBadge } from "../src/lib/parser/product-parser";
+import { formatPrice } from "../src/lib/format/currency";
 
 describe("Cart Domain & Store (BR-40)", () => {
   beforeEach(() => {
@@ -34,6 +36,10 @@ describe("Cart Domain & Store (BR-40)", () => {
       expect(clampCartQuantity(-2, 5)).toBe(1);
       // Stock 0: agotado -> 0
       expect(clampCartQuantity(1, 0)).toBe(0);
+      // Robustez ante undefined, null o NaN: nunca debe retornar NaN
+      expect(clampCartQuantity(1, undefined as unknown as number)).toBe(1);
+      expect(clampCartQuantity(1, NaN)).toBe(1);
+      expect(clampCartQuantity(NaN, 5)).toBe(1);
     });
 
     it("calcula conteo total de unidades y subtotal en centavos", () => {
@@ -113,6 +119,32 @@ describe("Cart Domain & Store (BR-40)", () => {
       );
 
       expect(useCartStore.getState().items[0].quantity).toBe(3);
+    });
+
+    it("maneja de forma robusta ítems con maxStock indefinido o NaN sin romper quantity ni subtotal", () => {
+      const store = useCartStore.getState();
+
+      store.addItem(
+        {
+          productId: 99,
+          code: 99,
+          formattedCode: "#099",
+          title: "Prenda Test",
+          colorName: "Único",
+          size: "M",
+          maxStock: undefined as unknown as number,
+          unitPriceCents: 5000000,
+          currency: "ARS",
+        },
+        1
+      );
+
+      const items = useCartStore.getState().items;
+      expect(items.length).toBe(1);
+      expect(items[0].quantity).toBe(1);
+      expect(Number.isNaN(items[0].quantity)).toBe(false);
+      expect(useCartStore.getState().getSubtotalCents()).toBe(5000000);
+      expect(useCartStore.getState().getTotalItemsCount()).toBe(1);
     });
 
     it("permite descartar el toast de confirmación del carrito", () => {
@@ -263,6 +295,81 @@ describe("Cart Domain & Store (BR-40)", () => {
       expect(html).toContain("Precio a consultar");
       expect(html).toContain("Consultar precio por WhatsApp");
       expect(html).toContain("disabled");
+    });
+  });
+
+  describe("Soporte de Talles Extendidos hasta XXXL (parser & badges)", () => {
+    it("extrae correctamente talles extendidos como XXXL, XXL, 2XL, 3XL y XXS", () => {
+      expect(extractSize("Remeron oversize talle XXXL")).toBe("XXXL");
+      expect(extractSize("Buzo rustico talle XXL")).toBe("XXL");
+      expect(extractSize("Top basico talle 2XL")).toBe("2XL");
+      expect(extractSize("Musculosa rib talle XXS")).toBe("XXS");
+      expect(extractSize("Pantalon amplio t. 3XL")).toBe("3XL");
+    });
+
+    it("formatea insignias de talles continuos hasta XXXL sin desbordar", () => {
+      const sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+      expect(formatSizesForBadge(sizes)).toBe("XS al XXXL");
+    });
+
+    it("permite agregar talles XL y XXXL al carrito y calcula precios sin generar NaN", () => {
+      const store = useCartStore.getState();
+
+      // Agregar variante en talle XL
+      store.addItem(
+        {
+          productId: 1,
+          code: 1,
+          formattedCode: "#001",
+          title: "Vestido Sirena",
+          colorName: "Negro",
+          size: "XL",
+          maxStock: 5,
+          unitPriceCents: 5000000,
+          currency: "ARS",
+        },
+        1
+      );
+
+      // Agregar variante en talle XXXL
+      store.addItem(
+        {
+          productId: 1,
+          code: 1,
+          formattedCode: "#001",
+          title: "Vestido Sirena",
+          colorName: "Negro",
+          size: "XXXL",
+          maxStock: 5,
+          unitPriceCents: 5000000,
+          currency: "ARS",
+        },
+        2
+      );
+
+      const items = useCartStore.getState().items;
+      expect(items.length).toBe(2);
+
+      const xlItem = items.find((i) => i.size === "XL");
+      expect(xlItem).toBeDefined();
+      expect(xlItem?.quantity).toBe(1);
+      expect(xlItem?.unitPriceCents).toBe(5000000);
+      expect(formatPrice(xlItem?.unitPriceCents, "ARS")).not.toContain("NaN");
+
+      const xxxlItem = items.find((i) => i.size === "XXXL");
+      expect(xxxlItem).toBeDefined();
+      expect(xxxlItem?.quantity).toBe(2);
+      expect(xxxlItem?.unitPriceCents).toBe(5000000);
+      expect(formatPrice(xxxlItem?.unitPriceCents, "ARS")).not.toContain("NaN");
+
+      // Subtotal y conteo total
+      const totalCount = useCartStore.getState().getTotalItemsCount();
+      const subtotalCents = useCartStore.getState().getSubtotalCents();
+
+      expect(totalCount).toBe(3);
+      expect(subtotalCents).toBe(15000000); // 1*50.000 + 2*50.000 = 150.000
+      expect(Number.isFinite(subtotalCents)).toBe(true);
+      expect(formatPrice(subtotalCents, "ARS")).not.toContain("NaN");
     });
   });
 });

@@ -98,6 +98,55 @@ Precio: $ 34.000`;
       expect(product.photos?.length).toBe(2);
       expect(product.photos?.[0].keyThumb).toBe("r2/thumb-1.webp");
     });
+
+    it("ejecuta rollback automático limpiando la base de datos si ocurre un error durante la creación (evita productos huérfanos)", async () => {
+      // Simular fallo en statusHistoryRepo para forzar que el proceso falle
+      const originalRecord = env.deps.statusHistoryRepo.record;
+      env.deps.statusHistoryRepo.record = async () => {
+        throw new Error("Simulated failure during creation flow");
+      };
+
+      try {
+        await expect(
+          createProduct(
+            {
+              rawText: "Prenda Falla Test $10.000",
+              title: "Prenda Falla Test",
+            },
+            env.deps
+          )
+        ).rejects.toThrow("Simulated failure during creation flow");
+
+        // Verificar que no quedó ningún producto fantasma creado
+        const list = await env.deps.productRepo.list({});
+        const orphan = list.items.find((p) => p.title === "Prenda Falla Test");
+        expect(orphan).toBeUndefined();
+      } finally {
+        env.deps.statusHistoryRepo.record = originalRecord;
+      }
+    });
+
+    it("soporta atributos enviados como string simple (formulario admin) o array sin romper con map is not a function", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Short Deportivo AirFlow $25.000",
+          title: "Short Deportivo AirFlow",
+          priceCents: 2500000,
+          attributes: {
+            estilo: "Deportivo",
+            material: "AirFlow",
+            talles_disponibles: ["S", "M", "L"],
+          } as unknown as Record<string, string[]>,
+        },
+        env.deps
+      );
+
+      expect(product.id).toBeDefined();
+      expect(product.attributes).toBeDefined();
+      expect(product.attributes?.estilo).toEqual(["Deportivo"]);
+      expect(product.attributes?.material).toEqual(["AirFlow"]);
+      expect(product.attributes?.talles_disponibles).toEqual(["S", "M", "L"]);
+    });
   });
 
   describe("changeProductStatus (BR-02, BR-03, BR-28)", () => {
@@ -284,6 +333,47 @@ Precio: $ 34.000`;
 
       expect(soldOutProduct.status).toBe("SOLD_OUT");
       expect(soldOutProduct.soldOutAt).not.toBeNull();
+    });
+  });
+
+  describe("Caché en Memoria y Performance de Navegación", () => {
+    it("sirve consultas idénticas de list() y getFacets() desde caché en memoria y las invalida al mutar", async () => {
+      await createProduct(
+        {
+          rawText: "Top Deportivo Negro $15.000",
+          title: "Top Deportivo Negro",
+          priceCents: 1500000,
+        },
+        env.deps
+      );
+
+      // Primer listado: puebla la caché
+      const res1 = await env.deps.productRepo.list({ status: "AVAILABLE" });
+      expect(res1.items.length).toBe(1);
+
+      // Segunda llamada: debe retornar el mismo objeto en memoria (0 consultas adicionales)
+      const res2 = await env.deps.productRepo.list({ status: "AVAILABLE" });
+      expect(res2).toBe(res1);
+
+      // Facetas: primera llamada puebla caché, segunda retorna misma referencia
+      const facets1 = await env.deps.productRepo.getFacets!({ status: "AVAILABLE" });
+      const facets2 = await env.deps.productRepo.getFacets!({ status: "AVAILABLE" });
+      expect(facets2).toBe(facets1);
+
+      // Mutación: crear un producto invalida la caché
+      await createProduct(
+        {
+          rawText: "Calza Ciclista Azul $20.000",
+          title: "Calza Ciclista Azul",
+          priceCents: 2000000,
+        },
+        env.deps
+      );
+
+      // Tercera llamada: ahora debe retornar 2 productos con nueva referencia
+      const res3 = await env.deps.productRepo.list({ status: "AVAILABLE" });
+      expect(res3).not.toBe(res1);
+      expect(res3.items.length).toBe(2);
     });
   });
 });

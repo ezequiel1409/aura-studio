@@ -290,5 +290,83 @@ describe("Home, Catálogo Estilo Panel, Promociones Bancarias y Footer (Fases 1-
       expect(html).toContain("application/ld+json");
       expect(html).toContain("ClothingStore");
     });
+
+    it("respeta la configuración dinámica del Footer CMS activando/desactivando secciones y textos", () => {
+      const customFooterConfig = {
+        enabled: true,
+        sections: {
+          collections: {
+            title: "Líneas Exclusivas",
+            subtitle: "Drop 2026",
+            enabled: true,
+            showAllCatalogLink: true,
+            allCatalogLabel: "Explorar Colección Completa",
+            customLinks: [
+              { id: "remeras", label: "Remeras & Tops", href: "/remeras", enabled: true },
+              { id: "accesorios", label: "Accesorios", href: "/accesorios", enabled: false },
+            ],
+          },
+          help: {
+            title: "Soporte Personalizado",
+            subtitle: "Atención",
+            enabled: true,
+            links: [
+              { id: "preguntas", label: "Preguntas Frecuentes", href: "/faq", enabled: true },
+              { id: "envios", label: "Guía de Envíos", href: "/envios", enabled: false },
+            ],
+          },
+          location: {
+            title: "Showroom Presencial",
+            subtitle: "Visitanos",
+            enabled: false,
+            showMapButton: false,
+            showOpenStatusBadge: false,
+            showScheduleSummary: false,
+          },
+          payments: {
+            title: "Formas de Pago",
+            enabled: true,
+            text: "3 cuotas sin interés y 15% off por transferencia bancaria.",
+          },
+        },
+        bottomLegal: {
+          enabled: true,
+          showTermsLink: true,
+          showBankPromosLink: false,
+          showConsumerDefenseLink: true,
+          showRevocationButton: true,
+          copyrightNotice: "Comercio Demo 2026",
+        },
+      };
+
+      const html = renderToString(
+        React.createElement(Footer, {
+          brandName: "Comercio Demo",
+          whatsappNumber: "+5491112345678",
+          storeLocation: DEFAULT_STORE_LOCATION,
+          storeSchedule: DEFAULT_STORE_SCHEDULE,
+          footerConfig: customFooterConfig,
+        })
+      );
+
+      // Columna de Colecciones personalizada
+      expect(html).toContain("Líneas Exclusivas");
+      expect(html).toContain("Drop 2026");
+      expect(html).toContain("Explorar Colección Completa");
+      expect(html).toContain("Remeras &amp; Tops");
+      expect(html).not.toContain("Accesorios");
+
+      // Columna de Ayuda personalizada
+      expect(html).toContain("Soporte Personalizado");
+      expect(html).toContain("Preguntas Frecuentes");
+      expect(html).not.toContain("Guía de Envíos");
+
+      // Columna de Ubicación desactivada
+      expect(html).not.toContain("Showroom Presencial");
+
+      // Medios de pago y copyright
+      expect(html).toContain("3 cuotas sin interés y 15% off");
+      expect(html).toContain("Comercio Demo 2026");
+    });
   });
 });

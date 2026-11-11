@@ -18,7 +18,7 @@ describe("Instant Navigation & Accessibility (AR-11, BR-09, BR-24)", () => {
       expect(html).toContain('role="status"');
       expect(html).toContain('aria-live="polite"');
       expect(html).toContain('aria-busy="true"');
-      expect(html).toContain("Cargando catálogo completo de Aura Studio");
+      expect(html).toContain("Cargando catálogo completo");
     });
 
     it("incluye spinner y mensaje visual con estética editorial", () => {
@@ -50,7 +50,7 @@ describe("Instant Navigation & Accessibility (AR-11, BR-09, BR-24)", () => {
     it("muestra placeholder con spinner central para la galería", () => {
       const html = renderToString(ProductDetailLoading());
 
-      expect(html).toContain("Aura Studio");
+      expect(html).toContain("Catálogo");
       expect(html).toContain("animate-spin");
     });
   });

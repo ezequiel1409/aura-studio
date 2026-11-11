@@ -288,6 +288,8 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     const { createSessionToken } = await import("../src/infra/auth/session");
     const { getEnv } = await import("../src/lib/env");
 
+    const { ADMIN_SESSION_COOKIE_NAME } = await import("../src/infra/auth/guard");
+
     const token = await createSessionToken(
       getEnv().SESSION_SECRET,
       { email: "admin@aurastudio.com", role: "SUPER_ADMIN" },
@@ -296,7 +298,7 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
 
     const req = new NextRequest("http://localhost:3000/api/admin/payments/status", {
       headers: {
-        cookie: `aura_admin_token=${token}`,
+        cookie: `${ADMIN_SESSION_COOKIE_NAME}=${token}`,
       },
     });
 
@@ -319,6 +321,8 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     const { createSessionToken } = await import("../src/infra/auth/session");
     const { getEnv } = await import("../src/lib/env");
 
+    const { ADMIN_SESSION_COOKIE_NAME } = await import("../src/infra/auth/guard");
+
     const token = await createSessionToken(
       getEnv().SESSION_SECRET,
       { email: "admin@aurastudio.com", role: "SUPER_ADMIN" },
@@ -328,7 +332,7 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     const req = new NextRequest("http://localhost:3000/api/admin/payments/status", {
       method: "POST",
       headers: {
-        cookie: `aura_admin_token=${token}`,
+        cookie: `${ADMIN_SESSION_COOKIE_NAME}=${token}`,
       },
     });
 

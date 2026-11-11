@@ -420,5 +420,186 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(html).toContain("Ver ficha");
       expect(html).not.toContain('id="drawer-order-title"');
     });
+
+    it("ofrece carga incremental de pedidos históricos cuando totalServerCount supera initialOrders", async () => {
+      const { OrdersManagerClient } = await import(
+        "../src/components/admin/OrdersManagerClient"
+      );
+      const html = renderToString(
+        React.createElement(OrdersManagerClient, {
+          initialOrders: [
+            {
+              id: 201,
+              code: 10,
+              customerName: "Camila Ruiz",
+              customerPhone: "+5491144445555",
+              customerDni: "39111222",
+              deliveryMethod: "PICKUP",
+              paymentMethod: "TRANSFER",
+              paymentStatus: "PENDING",
+              status: "PENDING",
+              subtotalCents: 1500000,
+              discountCents: 0,
+              shippingCents: 0,
+              totalCents: 1500000,
+              currency: "ARS",
+              createdAt: Math.floor(Date.now() / 1000),
+              updatedAt: Math.floor(Date.now() / 1000),
+              items: [],
+            } as any,
+          ],
+          initialTotalCount: 150,
+        })
+      );
+
+      expect(html).toContain("Cargar más pedidos (1/150)");
+      expect(html).toContain("min-h-[44px]");
+    });
+  });
+
+  describe("Admin Shell Breakpoints, Primitives & Real Stock Labels (Mobile & Desktop UX)", () => {
+    it("AdminHeader usa md:hidden e inert en el drawer móvil cerrado e incluye botón de buscador móvil", () => {
+      const html = renderToString(React.createElement(AdminHeader));
+
+      expect(html).toContain("md:hidden border-t border-zinc-800");
+      expect(html).not.toContain("sm:hidden border-t border-zinc-800");
+      expect(html).toContain("inert");
+      expect(html).toContain('aria-controls="admin-mobile-search"');
+    });
+
+    it("AdminSecondarySidebar se muestra desde lg:flex para evitar compresión entre 768px y 1023px", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const secSource = fs.readFileSync(
+        path.resolve(__dirname, "../src/components/admin/navigation/AdminSecondarySidebar.tsx"),
+        "utf-8"
+      );
+      const layoutSource = fs.readFileSync(
+        path.resolve(__dirname, "../src/components/admin/AdminLayoutFrame.tsx"),
+        "utf-8"
+      );
+
+      expect(secSource).toContain("hidden lg:flex");
+      expect(layoutSource).toContain("lg:hidden mb-6");
+      expect(layoutSource).toContain("md:pl-16 lg:pl-[284px]");
+      expect(layoutSource).toContain("md:pl-60 lg:pl-[460px]");
+    });
+
+    it("StockStepperField renderiza controles táctiles >= 44px e input con min-w-0 anti-overflow", async () => {
+      const { StockStepperField } = await import("../src/components/admin/ui/StockStepperField");
+      const html = renderToString(
+        React.createElement(StockStepperField, {
+          value: 3,
+          onChange: vi.fn(),
+          itemLabel: "Crudo talle M",
+        })
+      );
+
+      expect(html).toContain("min-w-[44px] min-h-[44px]");
+      expect(html).toContain("min-w-0 w-full flex-1");
+      expect(html).toContain('aria-label="Restar 1 unidad de stock (Crudo talle M)"');
+      expect(html).toContain('aria-label="Sumar 1 unidad de stock (Crudo talle M)"');
+      expect(html).toContain('aria-label="Cantidad en stock (Crudo talle M)"');
+    });
+
+    it("ConfirmDialog expone role alertdialog, aria-modal y botón de cierre >= 44px", async () => {
+      const { ConfirmDialog } = await import("../src/components/admin/ui/ConfirmDialog");
+      const html = renderToString(
+        React.createElement(ConfirmDialog, {
+          isOpen: true,
+          onClose: vi.fn(),
+          onConfirm: vi.fn(),
+          title: "Eliminar elemento",
+          message: "¿Deseás continuar?",
+        })
+      );
+
+      expect(html).toContain('role="alertdialog"');
+      expect(html).toContain('aria-modal="true"');
+      expect(html).toContain('aria-label="Cerrar diálogo"');
+      expect(html).toContain("min-w-[44px] min-h-[44px]");
+    });
+
+    it("ProductListClient muestra etiquetas claras de stock real, botón rápido de Stock y paginación servidor", async () => {
+      const { ProductListClient } = await import("../src/components/admin/ProductListClient");
+
+      const html = renderToString(
+        React.createElement(ProductListClient, {
+          initialProducts: [
+            {
+              id: 1,
+              code: 10,
+              title: "Camisa Crudo",
+              categoryId: 1,
+              status: "AVAILABLE",
+              priceCents: 2000000,
+              currency: "ARS",
+              rawText: "Camisa Crudo",
+              isFeatured: false,
+              soldOutAt: null,
+              photos: [],
+              colors: [
+                {
+                  id: 1,
+                  productId: 1,
+                  name: "Crudo",
+                  position: 0,
+                  sizes: [{ id: 1, productColorId: 1, size: "S", stock: 2, reservedStock: 0 }],
+                },
+              ],
+            },
+            {
+              id: 2,
+              code: 11,
+              title: "Pantalón Lino",
+              categoryId: 1,
+              status: "AVAILABLE",
+              priceCents: 3000000,
+              currency: "ARS",
+              rawText: "Pantalón Lino",
+              isFeatured: false,
+              soldOutAt: null,
+              photos: [],
+              colors: [
+                {
+                  id: 2,
+                  productId: 2,
+                  name: "Arena",
+                  position: 0,
+                  sizes: [{ id: 2, productColorId: 2, size: "M", stock: 10, reservedStock: 0 }],
+                },
+              ],
+            },
+            {
+              id: 3,
+              code: 12,
+              title: "Falda Silk",
+              categoryId: 1,
+              status: "SOLD_OUT",
+              priceCents: 2500000,
+              currency: "ARS",
+              rawText: "Falda Silk",
+              isFeatured: false,
+              soldOutAt: Date.now() - 1000,
+              photos: [],
+              colors: [],
+            },
+          ] as any,
+          categories: [
+            { id: 1, name: "Camisas", slug: "camisas", position: 1, parentId: null, isHidden: false, isSystem: false },
+          ] as any,
+          initialTotal: 45,
+          initialPage: 1,
+          initialTotalPages: 3,
+        })
+      );
+
+      expect(html).toContain("Stock bajo: 2 u.");
+      expect(html).toContain("10 en stock");
+      expect(html).toContain("Sin stock (0 u.)");
+      expect(html).toContain("Stock bajo (&lt;=3)");
+      expect(html).toContain('aria-label="Ajustar stock de Camisa Crudo"');
+      expect(html).toContain('aria-label="Paginación de productos"');
+    });
   });
 });

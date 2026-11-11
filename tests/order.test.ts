@@ -12,10 +12,18 @@ import {
   clearOrderSubmissionsCache,
   uploadTransferReceipt,
   expirePendingTransferOrders,
+  getTransferReceiptFile,
+  decodeReceiptInput,
 } from "../src/services/order.service";
 import * as paymentService from "../src/services/payment.service";
 import { WhatsAppPaymentAdapter } from "../src/infra/payments/whatsapp.adapter";
-import { validateCreateOrderInput, formatOrderCode, parseOrderCode } from "../src/domain/order/rules";
+import {
+  validateCreateOrderInput,
+  formatOrderCode,
+  parseOrderCode,
+  sanitizeOrderForResponse,
+} from "../src/domain/order/rules";
+import { isValidReceiptKey } from "../src/domain/ports/receipt-storage.port";
 import { ValidationError } from "../src/domain/errors";
 import { getShowroomSettings, updateShowroomSettings } from "../src/services/settings.service";
 
@@ -947,7 +955,7 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       );
 
       expect(result.order.id).toBeGreaterThan(0);
-      expect(result.order.transferReceiptUrl).toBe(validPdfBase64);
+      expect(isValidReceiptKey(result.order.transferReceiptUrl)).toBe(true);
       expect(result.order.transferReceiptUploadedAt).toBeGreaterThan(0);
 
       // Stock debitado 3 - 1 = 2
@@ -1002,7 +1010,7 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       const validPdfBase64 = "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmoKPDwvTGVuZ3RoIDM+Pg==";
       const updatedOrder = await uploadTransferReceipt(order.id, validPdfBase64, env.deps);
 
-      expect(updatedOrder.transferReceiptUrl).toBe(validPdfBase64);
+      expect(isValidReceiptKey(updatedOrder.transferReceiptUrl)).toBe(true);
       expect(updatedOrder.transferReceiptUploadedAt).toBeGreaterThan(0);
 
       // Si intentamos subir un archivo que no sea PDF, lanza ValidationError
@@ -1159,6 +1167,201 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       expect(result.order.deliveryMethod).toBe("PICKUP");
       const decoded = decodeURIComponent(result.whatsappUrl);
       expect(decoded).toContain("Retiro / Entrega en el Showroom (A coordinar por WhatsApp)");
+    });
+  });
+
+  describe("Comprobantes de Transferencia en Storage R2 (BR-41)", () => {
+    const dummyPdfBytes = Buffer.from("%PDF-1.4\n1 0 obj\n<< /Title (Receipt) >>\nendobj\ntrailer\n<< >>\n%%EOF");
+
+    it("uploadTransferReceipt con Uint8Array guarda en storage y actualiza la orden con la clave canónica", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Prenda Básica $20.000",
+          colors: [{ name: "Negro", position: 0, sizes: [{ size: "M", stock: 5 }] }],
+        },
+        env.deps
+      );
+      const { order } = await createOrder(
+        {
+          customerName: "Valeria R2",
+          customerPhone: "1122334455",
+          customerEmail: "valeria@example.com",
+          customerDni: "35123456",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [{ productId: product.id, productCode: product.code, productTitle: product.title || "Prenda", colorName: "Negro", size: "M", quantity: 1, unitPriceCents: 2000000 }],
+        },
+        env.deps
+      );
+
+      const updated = await uploadTransferReceipt(order.id, dummyPdfBytes, env.deps);
+      expect(isValidReceiptKey(updated.transferReceiptUrl)).toBe(true);
+      expect(updated.transferReceiptUrl).toContain(`receipts/${order.id}/`);
+
+      const stored = await env.deps.receiptStorage!.getReceipt(updated.transferReceiptUrl!);
+      expect(stored).not.toBeNull();
+      expect(stored?.data).toEqual(new Uint8Array(dummyPdfBytes));
+    });
+
+    it("uploadTransferReceipt con Base64 guarda en storage y valida cabecera %PDF", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Remera Algodón $30.000",
+          colors: [{ name: "Azul", position: 0, sizes: [{ size: "S", stock: 5 }] }],
+        },
+        env.deps
+      );
+      const { order } = await createOrder(
+        {
+          customerName: "Lucía Base64",
+          customerPhone: "1199887766",
+          customerEmail: "lucia.b64@example.com",
+          customerDni: "36123456",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [{ productId: product.id, productCode: product.code, productTitle: product.title || "Prenda", colorName: "Azul", size: "S", quantity: 1, unitPriceCents: 3000000 }],
+        },
+        env.deps
+      );
+
+      const validB64 = `data:application/pdf;base64,${dummyPdfBytes.toString("base64")}`;
+      const updated = await uploadTransferReceipt(order.id, validB64, env.deps);
+      expect(isValidReceiptKey(updated.transferReceiptUrl)).toBe(true);
+
+      // Rechaza archivo corrupto o con cabecera no PDF
+      const invalidB64 = `data:application/pdf;base64,${Buffer.from("NOT_A_PDF_CONTENT").toString("base64")}`;
+      await expect(uploadTransferReceipt(order.id, invalidB64, env.deps)).rejects.toThrow(
+        /no es un documento PDF válido/i
+      );
+    });
+
+    it("getTransferReceiptFile migra al vuelo un comprobante legado en Base64 y actualiza D1 con la clave", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Short Clásico $25.000",
+          colors: [{ name: "Gris", position: 0, sizes: [{ size: "L", stock: 5 }] }],
+        },
+        env.deps
+      );
+      const { order } = await createOrder(
+        {
+          customerName: "Ana Migracion",
+          customerPhone: "1144556677",
+          customerEmail: "ana@example.com",
+          customerDni: "37123456",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [{ productId: product.id, productCode: product.code, productTitle: product.title || "Prenda", colorName: "Gris", size: "L", quantity: 1, unitPriceCents: 2500000 }],
+        },
+        env.deps
+      );
+
+      // Simular comprobante legado en base64 en la base de datos
+      const legacyB64 = `data:application/pdf;base64,${dummyPdfBytes.toString("base64")}`;
+      await env.deps.orderRepo.updateTransferReceipt(order.id, legacyB64, Math.floor(Date.now() / 1000));
+
+      const res = await getTransferReceiptFile(order.id, env.deps);
+      expect(res.contentType).toBe("application/pdf");
+      expect(res.data).toEqual(new Uint8Array(dummyPdfBytes));
+
+      // Verificar que la base de datos fue actualizada automáticamente con la clave canónica de R2
+      const migratedOrder = await env.deps.orderRepo.findById(order.id);
+      expect(isValidReceiptKey(migratedOrder?.transferReceiptUrl)).toBe(true);
+      expect(migratedOrder?.transferReceiptUrl).toContain(`receipts/${order.id}/`);
+    });
+
+    it("getTransferReceiptFile recupera comprobantes correctamente tanto por ID como por código correlativo", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Buzo Oversize $50.000",
+          colors: [{ name: "Verde", position: 0, sizes: [{ size: "U", stock: 3 }] }],
+        },
+        env.deps
+      );
+      const { order } = await createOrder(
+        {
+          customerName: "Paula Code",
+          customerPhone: "1155667788",
+          customerEmail: "paula@example.com",
+          customerDni: "38123456",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [{ productId: product.id, productCode: product.code, productTitle: product.title || "Prenda", colorName: "Verde", size: "U", quantity: 1, unitPriceCents: 5000000 }],
+        },
+        env.deps
+      );
+
+      await uploadTransferReceipt(order.id, dummyPdfBytes, env.deps);
+
+      // Por ID numérico
+      const fileById = await getTransferReceiptFile(order.id, env.deps);
+      expect(fileById.order.id).toBe(order.id);
+
+      // Por código correlativo
+      const fileByCode = await getTransferReceiptFile(order.code, env.deps);
+      expect(fileByCode.order.code).toBe(order.code);
+    });
+
+    it("isValidReceiptKey valida claves canónicas y previene Directory Traversal o extensiones maliciosas", () => {
+      expect(isValidReceiptKey("receipts/1/01234567-89ab-cdef-0123-456789abcdef.pdf")).toBe(true);
+      expect(isValidReceiptKey("receipts/999/comprobante_valido-1.pdf")).toBe(true);
+
+      // Directory traversal
+      expect(isValidReceiptKey("receipts/1/../secret.pdf")).toBe(false);
+      expect(isValidReceiptKey("receipts/1/..\\secret.pdf")).toBe(false);
+      expect(isValidReceiptKey("receipts/1//secret.pdf")).toBe(false);
+
+      // Extensiones no permitidas
+      expect(isValidReceiptKey("receipts/1/archivo.exe")).toBe(false);
+      expect(isValidReceiptKey("receipts/1/archivo.pdf.js")).toBe(false);
+      expect(isValidReceiptKey("receipts/1/sin_extension")).toBe(false);
+
+      // Formatos inválidos o nulos
+      expect(isValidReceiptKey("")).toBe(false);
+      expect(isValidReceiptKey(null)).toBe(false);
+      expect(isValidReceiptKey(undefined)).toBe(false);
+      expect(isValidReceiptKey("/etc/passwd")).toBe(false);
+    });
+
+    it("sanitizeOrderForResponse nunca expone claves internas de R2 ni datos en Base64", async () => {
+      const dummyOrder = {
+        id: 42,
+        code: 101,
+        customerId: null,
+        commerceId: null,
+        customerName: "Test Sanitization",
+        customerPhone: "1100000000",
+        customerEmail: "test@example.com",
+        customerDni: "30000000",
+        deliveryMethod: "PICKUP" as const,
+        deliveryAddress: null,
+        deliveryNotes: null,
+        subtotalCents: 1000,
+        discountCents: 0,
+        paymentDiscountCents: 0,
+        shippingCents: 0,
+        totalCents: 1000,
+        currency: "ARS",
+        couponCode: null,
+        status: "PENDING" as const,
+        paymentMethod: "TRANSFER" as const,
+        paymentStatus: "PENDING" as const,
+        transferReceiptUrl: "receipts/42/secret-internal-uuid.pdf",
+        transferReceiptUploadedAt: 1700000000,
+        notes: null,
+        createdAt: 1700000000,
+        updatedAt: 1700000000,
+        items: [],
+      };
+
+      const sanitized = sanitizeOrderForResponse(dummyOrder);
+      expect(sanitized.transferReceiptUrl).toBe("/api/orders/42/receipt");
+      expect(sanitized.transferReceiptUrl).not.toContain("receipts/42/");
+      expect(sanitized.transferReceiptUrl).not.toContain("secret-internal-uuid");
+
+      // Si no tiene comprobante, permanece null
+      const noReceipt = sanitizeOrderForResponse({ ...dummyOrder, transferReceiptUrl: null });
+      expect(noReceipt.transferReceiptUrl).toBeNull();
     });
   });
 

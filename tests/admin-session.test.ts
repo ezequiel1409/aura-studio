@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 import { GET as sessionGetHandler } from "../src/app/api/admin/session/route";
 import { POST as sessionRefreshHandler } from "../src/app/api/admin/session/refresh/route";
 import { createSessionToken } from "../src/infra/auth/session";
+import { ADMIN_SESSION_COOKIE_NAME } from "../src/infra/auth/guard";
 import { getEnv } from "../src/lib/env";
 import AdminLayout from "../src/app/admin/layout";
 
@@ -52,7 +53,7 @@ describe("Supervisión y Renovación de Sesión en 1 Clic (BR-10, BR-37, AR-11)"
       );
 
       const req = new NextRequest("http://localhost:3000/api/admin/session");
-      req.cookies.set("aura_admin_token", token);
+      req.cookies.set(ADMIN_SESSION_COOKIE_NAME, token);
 
       const res = await sessionGetHandler(req);
       const data = await res.json();
@@ -75,7 +76,7 @@ describe("Supervisión y Renovación de Sesión en 1 Clic (BR-10, BR-37, AR-11)"
       );
 
       const req = new NextRequest("http://localhost:3000/api/admin/session");
-      req.cookies.set("aura_admin_token", pastToken);
+      req.cookies.set(ADMIN_SESSION_COOKIE_NAME, pastToken);
 
       const res = await sessionGetHandler(req);
       const data = await res.json();
@@ -105,7 +106,7 @@ describe("Supervisión y Renovación de Sesión en 1 Clic (BR-10, BR-37, AR-11)"
       const req = new NextRequest("http://localhost:3000/api/admin/session/refresh", {
         method: "POST",
       });
-      req.cookies.set("aura_admin_token", activeToken);
+      req.cookies.set(ADMIN_SESSION_COOKIE_NAME, activeToken);
 
       const res = await sessionRefreshHandler(req);
       const data = await res.json();
@@ -116,7 +117,7 @@ describe("Supervisión y Renovación de Sesión en 1 Clic (BR-10, BR-37, AR-11)"
       expect(data.message).toContain("2 horas");
 
       // Verifica la cookie devuelta
-      const setCookie = res.cookies.get("aura_admin_token");
+      const setCookie = res.cookies.get(ADMIN_SESSION_COOKIE_NAME);
       expect(setCookie).toBeDefined();
       expect(setCookie?.maxAge).toBe(7200);
       expect(setCookie?.httpOnly).toBe(true);
@@ -157,7 +158,7 @@ describe("Supervisión y Renovación de Sesión en 1 Clic (BR-10, BR-37, AR-11)"
       const req = new NextRequest("http://localhost:3000/api/admin/session/refresh", {
         method: "POST",
       });
-      req.cookies.set("aura_admin_token", expiredToken);
+      req.cookies.set(ADMIN_SESSION_COOKIE_NAME, expiredToken);
 
       const res = await sessionRefreshHandler(req);
       const data = await res.json();

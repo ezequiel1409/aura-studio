@@ -8,6 +8,7 @@ import {
 import { changeProductStatus, createProduct } from "../src/services/product.service";
 import { POST as createProductHandler } from "../src/app/api/admin/products/create/route";
 import { createSessionToken } from "../src/infra/auth/session";
+import { ADMIN_SESSION_COOKIE_NAME } from "../src/infra/auth/guard";
 import { getEnv } from "../src/lib/env";
 import { createTestEnvironment } from "./setup-db";
 
@@ -194,7 +195,7 @@ describe("Creación de Productos en Backoffice: API, Validación de Negocio y An
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ rawText: "   " }),
     });
-    req.cookies.set("aura_admin_token", validToken);
+    req.cookies.set(ADMIN_SESSION_COOKIE_NAME, validToken);
 
     const res = await createProductHandler(req);
     const data = await res.json();
@@ -216,7 +217,7 @@ describe("Creación de Productos en Backoffice: API, Validación de Negocio y An
         priceCents: -5000,
       }),
     });
-    req.cookies.set("aura_admin_token", validToken);
+    req.cookies.set(ADMIN_SESSION_COOKIE_NAME, validToken);
 
     const res = await createProductHandler(req);
     const data = await res.json();
@@ -242,7 +243,7 @@ describe("Creación de Productos en Backoffice: API, Validación de Negocio y An
         ],
       }),
     });
-    req.cookies.set("aura_admin_token", validToken);
+    req.cookies.set(ADMIN_SESSION_COOKIE_NAME, validToken);
 
     const res = await createProductHandler(req);
     const data = await res.json();
@@ -269,7 +270,7 @@ describe("Creación de Productos en Backoffice: API, Validación de Negocio y An
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    req1.cookies.set("aura_admin_token", validToken);
+    req1.cookies.set(ADMIN_SESSION_COOKIE_NAME, validToken);
 
     const res1 = await createProductHandler(req1);
     const data1 = await res1.json();
@@ -284,7 +285,7 @@ describe("Creación de Productos en Backoffice: API, Validación de Negocio y An
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    req2.cookies.set("aura_admin_token", validToken);
+    req2.cookies.set(ADMIN_SESSION_COOKIE_NAME, validToken);
 
     const res2 = await createProductHandler(req2);
     const data2 = await res2.json();
