@@ -16,7 +16,10 @@ try {
   });
   console.log("[prepare-build-db] ✔ Snapshot remoto descargado exitosamente.");
 } catch (err) {
-  console.warn("[prepare-build-db] ⚠️ No se pudo exportar D1 en vivo:", (err as Error).message);
+  console.warn(
+    "[prepare-build-db] ⚠️ No se pudo exportar D1 en vivo:",
+    err instanceof Error ? err.message : String(err)
+  );
 }
 
 // 2. Replicar snapshot si existe, o inicializar localmente con migraciones y seed como respaldo
