@@ -172,10 +172,11 @@ describe("Supervisión y Renovación de Sesión en 1 Clic (BR-10, BR-37, AR-11)"
   });
 
   describe("AdminLayout (Montaje de AdminSessionMonitor)", () => {
-    it("incluye el monitor de sesión dentro de la estructura principal del backoffice", () => {
-      const html = renderToString(
-        React.createElement(AdminLayout, null, React.createElement("div", null, "Panel"))
-      );
+    it("incluye el monitor de sesión dentro de la estructura principal del backoffice", async () => {
+      const element = await AdminLayout({
+        children: React.createElement("div", null, "Panel"),
+      });
+      const html = renderToString(element);
 
       expect(html).toContain('id="admin-layout-root"');
       expect(html).toContain("Panel");

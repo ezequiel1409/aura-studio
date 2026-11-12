@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
-import CatalogLoading from "../src/app/loading";
-import ProductDetailLoading from "../src/app/p/[code]/loading";
+import CatalogLoading from "../src/app/(store)/loading";
+import ProductDetailLoading from "../src/app/(store)/p/[code]/loading";
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),

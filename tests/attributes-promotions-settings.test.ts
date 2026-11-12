@@ -128,11 +128,17 @@ describe("SOLID Atributos, Promociones y Configuración de Tienda", () => {
       expect(primaryLabels).toContain("Productos");
       expect(primaryLabels).toContain("Configuración de la Tienda");
 
-      // Tienda y Configuración están unificadas (no hay 2 áreas separadas)
+      // Tienda y Configuración están unificadas (no hay 2 áreas separadas ni ruta legacy /configuracion)
       const storeItem = ADMIN_PRIMARY_NAV_ITEMS.find((item) => item.id === "store");
       expect(storeItem).toBeDefined();
       expect(storeItem?.matchPrefix).toContain("/admin/tienda");
-      expect(storeItem?.matchPrefix).toContain("/admin/configuracion");
+      expect(storeItem?.matchPrefix).not.toContain("/admin/configuracion");
+
+      const policiesSubItem = (storeItem?.subItems || []).find(
+        (s) => s.href === "/admin/tienda/politicas"
+      );
+      expect(policiesSubItem).toBeDefined();
+      expect(policiesSubItem?.label).toBe("Políticas de tienda");
 
       // 2. Medios de pago tiene su propio apartado dedicado
       const subItems = storeItem?.subItems || [];

@@ -15,19 +15,21 @@ vi.mock("next/navigation", () => ({
 
 describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
   describe("AdminLayout (Landmarks & Skip Link)", () => {
-    it("incluye enlace de salto al contenido principal para navegación con teclado (Skip Link)", () => {
-      const html = renderToString(
-        React.createElement(AdminLayout, null, React.createElement("div", null, "Contenido"))
-      );
+    it("incluye enlace de salto al contenido principal para navegación con teclado (Skip Link)", async () => {
+      const element = await AdminLayout({
+        children: React.createElement("div", null, "Contenido"),
+      });
+      const html = renderToString(element);
 
       expect(html).toContain('href="#admin-main"');
       expect(html).toContain("Saltar al contenido principal");
     });
 
-    it("provee landmark <main> con id='admin-main' y tabIndex={-1} para destino de foco", () => {
-      const html = renderToString(
-        React.createElement(AdminLayout, null, React.createElement("div", null, "Contenido"))
-      );
+    it("provee landmark <main> con id='admin-main' y tabIndex={-1} para destino de foco", async () => {
+      const element = await AdminLayout({
+        children: React.createElement("div", null, "Contenido"),
+      });
+      const html = renderToString(element);
 
       expect(html).toContain('<main id="admin-main" tabindex="-1"');
       expect(html).toContain("Contenido");
@@ -181,18 +183,12 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
     });
 
     it("renderiza nombre de tienda, tipo de tienda dinámicos y único enlace sin flecha de retroceso", async () => {
-      const { default: AdminLoginPage } = await import("../src/app/admin/login/page");
+      const { AdminLoginClient } = await import("../src/components/admin/AdminLoginClient");
       const html = renderToString(
-        React.createElement(
-          AdminLoginPage as React.ComponentType<{
-            initialBrandName?: string;
-            initialStoreType?: string;
-          }>,
-          {
-            initialBrandName: "Boutique Elegance",
-            initialStoreType: "Boutique",
-          }
-        )
+        React.createElement(AdminLoginClient, {
+          initialBrandName: "Boutique Elegance",
+          initialStoreType: "Boutique",
+        })
       );
 
       expect(html).toContain("Boutique Elegance");
@@ -223,29 +219,33 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(cssContent).toContain('#admin-layout-root[data-theme="light"] .bg-zinc-950\\/60');
     });
 
-    it("SettingsClient renderiza la vista previa de acento con color de texto accesible y roles correctos", async () => {
-      const { SettingsClient } = await import("../src/components/admin/SettingsClient");
-      const mockSettings = {
-        whatsappNumber: "+5491112345678",
-        showroomName: "Aura Test",
-        logoUrl: "",
-        heroMode: "featured_carousel" as const,
-        themePalette: "lino",
-        themePrimaryColor: "#926a3c",
-        themeFont: "cormorant",
-        mercadopagoEnabled: false,
-        transferEnabled: true,
-        transferDiscountPercent: 10,
-        cashEnabled: true,
-        whatsappPaymentEnabled: true,
-        ordersPaused: false,
-      };
+    it("PoliciesSettingsClient y AppearanceSettingsClient renderizan vista previa y políticas con roles accesibles", async () => {
+      const { getShowroomSettings } = await import("../src/services/settings.service");
+      const { PoliciesSettingsClient } = await import(
+        "../src/components/admin/settings/PoliciesSettingsClient"
+      );
+      const { AppearanceSettingsClient } = await import(
+        "../src/components/admin/settings/AppearanceSettingsClient"
+      );
+      const mockSettings = await getShowroomSettings({});
 
-      const html = renderToString(React.createElement(SettingsClient, { initialSettings: mockSettings }));
-      expect(html).toContain("Vista previa de acento:");
-      expect(html).toContain("Aura Studio");
-      expect(html).toContain('id="primaryColorPicker"');
-      expect(html).toContain('id="rgbRInput"');
+      const policiesHtml = renderToString(
+        React.createElement(PoliciesSettingsClient, { initialSettings: mockSettings })
+      );
+      expect(policiesHtml).toContain("Políticas y Términos Legales");
+      expect(policiesHtml).toContain("Vista Previa en Vivo");
+
+      const appearanceHtml = renderToString(
+        React.createElement(AppearanceSettingsClient, {
+          initialSettings: mockSettings,
+          initialBanners: [],
+          activePromotions: [],
+          initialSections: [],
+          categories: [],
+          attributes: [],
+        })
+      );
+      expect(appearanceHtml).toContain("Diseño y Personalización de la Tienda");
     });
   });
 

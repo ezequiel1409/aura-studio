@@ -19,7 +19,7 @@ describe("Servicio de Configuración del Showroom sin Deploy (BR-35, ADM-05, ADM
 
     const config = await getShowroomSettings(deps);
     expect(config.whatsappNumber).toBeDefined();
-    expect(config.showroomName).toBe("Aura Studio");
+    expect(config.showroomName).toBe("Mi Tienda");
     expect(config.reservationHours).toBe(48);
   });
 
