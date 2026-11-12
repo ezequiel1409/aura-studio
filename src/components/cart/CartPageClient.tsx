@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 import {
   ShoppingBag,
   ArrowRight,
@@ -85,11 +86,17 @@ const SHIPPING_COSTS: Record<DeliveryMethod, number> = {
   MOTORCYCLE: 350000,    // $3.500 ARS
 };
 
+const subscribeNoop = () => () => {};
+
+function createOrderIdempotencyKey(): string {
+  return `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
 export function CartPageClient({
   showroomAddress,
   storeLocation = DEFAULT_STORE_LOCATION,
   storeSchedule = DEFAULT_STORE_SCHEDULE,
-  brandName = "Aura Studio",
+  brandName = DEFAULT_NEUTRAL_BRAND,
   whatsappNumber = "+5491100000000",
   reservationHours = 48,
   ordersPaused = false,
@@ -171,7 +178,7 @@ export function CartPageClient({
     MOTORCYCLE: motorcycleDeliveryCost,
   };
 
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("cart");
 
   // Estimador de CP en Paso 1
@@ -254,15 +261,16 @@ export function CartPageClient({
   const [couponError, setCouponError] = useState<string | null>(null);
 
   useEffect(() => {
-    setMounted(true);
     // Asegurar que al iniciar el método seleccionado sea uno de los habilitados por el comercio
-    if (isPickupEnabled) {
-      setDeliveryMethod("PICKUP");
-    } else if (isHomeDeliveryEnabled) {
-      setDeliveryMethod("HOME_DELIVERY");
-    } else if (isMotorcycleDeliveryEnabled) {
-      setDeliveryMethod("MOTORCYCLE");
-    }
+    const syncDeliveryTimer = setTimeout(() => {
+      if (isPickupEnabled) {
+        setDeliveryMethod("PICKUP");
+      } else if (isHomeDeliveryEnabled) {
+        setDeliveryMethod("HOME_DELIVERY");
+      } else if (isMotorcycleDeliveryEnabled) {
+        setDeliveryMethod("MOTORCYCLE");
+      }
+    }, 0);
 
     // Intentar autocompletar si el cliente tiene sesión activa
     fetch("/api/auth/me")
@@ -315,6 +323,8 @@ export function CartPageClient({
         }
       })
       .catch(() => {});
+
+    return () => clearTimeout(syncDeliveryTimer);
   }, [setDeliveryMethod]);
 
   if (!mounted) {
@@ -597,7 +607,7 @@ export function CartPageClient({
     setIsSubmitting(true);
 
     try {
-      const idempotencyKey = `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const idempotencyKey = createOrderIdempotencyKey();
 
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -706,7 +716,7 @@ export function CartPageClient({
 
       // Si es Mercado Pago, redirigir a la preferencia de cobro
       if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
-        window.location.href = data.paymentPreference.paymentUrl;
+        window.location.assign(data.paymentPreference.paymentUrl);
         return;
       }
 
@@ -785,7 +795,7 @@ export function CartPageClient({
                       </h4>
                       <p className="text-[11px] text-stone-500 mt-0.5">
                         Solo formato <strong>PDF</strong> (máx. 10 MB). También podés subirlo más tarde desde{" "}
-                        <Link prefetch={false} href="/cuenta" className="text-stone-900 font-semibold underline">Mis Pedidos</Link>.
+                        <Link href="/cuenta" className="text-stone-900 font-semibold underline">Mis Pedidos</Link>.
                       </p>
                     </div>
                   </div>
@@ -1055,7 +1065,7 @@ export function CartPageClient({
                   : "Abrir WhatsApp"}
               </span>
             </a>
-            <Link prefetch={false}
+            <Link
               href="/"
               className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center rounded-xl border border-[#e7e2da] bg-white px-6 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
             >
@@ -1077,7 +1087,7 @@ export function CartPageClient({
           </p>
 
           <div className="mt-8 flex justify-center">
-            <Link prefetch={false}
+            <Link
               href="/"
               className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-stone-900 px-7 py-3 text-xs font-semibold tracking-wider text-white uppercase transition-colors hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900 shadow-2xs"
             >
@@ -1173,7 +1183,7 @@ export function CartPageClient({
                                     </span>
                                   )}
                                 </div>
-                                <Link prefetch={false}
+                                <Link
                                   href={`/p/${item.code.toString().padStart(3, "0")}`}
                                   className="block font-serif text-base sm:text-lg font-semibold text-stone-900 hover:text-stone-700 hover:underline"
                                 >
@@ -1829,7 +1839,7 @@ export function CartPageClient({
                     {!customer && (
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 rounded-xl border border-[#e7e2da] bg-[#faf8f5] p-3 text-xs text-stone-600">
                         <span>¿Ya tenés una cuenta en {brandName}?</span>
-                        <Link prefetch={false}
+                        <Link
                           href="/cuenta/ingresar?redirect=/carrito"
                           className="font-semibold text-stone-900 hover:text-stone-700 underline underline-offset-2"
                         >
@@ -2639,7 +2649,7 @@ export function CartPageClient({
                     />
                     <span className="text-[11px] leading-relaxed">
                       Acepto los{" "}
-                      <Link prefetch={false}
+                      <Link
                         href="/terminos"
                         target="_blank"
                         className="underline font-semibold text-stone-900 hover:text-stone-700"

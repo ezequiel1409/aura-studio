@@ -28,7 +28,7 @@ export function HowToBuySection() {
   return (
     <section
       id="como-comprar"
-      aria-label="Cómo comprar en Aura Studio"
+      aria-label="Cómo comprar en la tienda"
       className="my-16 sm:my-20 rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-10 shadow-xs"
     >
       <div className="text-center max-w-xl mx-auto mb-10">

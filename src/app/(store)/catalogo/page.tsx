@@ -4,13 +4,13 @@ import type { Metadata } from "next";
 // Revalida el catálogo en segundo plano cada 60 segundos en Edge CDN
 export const revalidate = 60;
 
-import { getProductServiceDeps } from "../../infra/db/connection";
-import { getShowroomSettings } from "../../services/settings.service";
-import { CatalogPanelView } from "../../components/catalog/CatalogPanelView";
+import { getProductServiceDeps } from "../../../infra/db/connection";
+import { getShowroomSettings } from "../../../services/settings.service";
+import { CatalogPanelView } from "../../../components/catalog/CatalogPanelView";
 import {
   loadCatalogPanelData,
   RawCatalogSearchParams,
-} from "../../lib/catalog/load-catalog-panel";
+} from "../../../lib/catalog/load-catalog-panel";
 
 interface CatalogPageProps {
   searchParams: Promise<RawCatalogSearchParams>;

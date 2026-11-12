@@ -96,13 +96,11 @@ export function CartDrawer({
 
   // Cerrar con Escape y bloquear scroll del body
   useEffect(() => {
-    if (!isOpen) {
-      setConfirmClearPrompt(false);
-      return;
-    }
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        setConfirmClearPrompt(false);
         closeCart();
       }
     };
@@ -264,7 +262,7 @@ export function CartDrawer({
                                   </span>
                                 )}
                               </div>
-                              <Link prefetch={false}
+                              <Link
                                 href={`/p/${item.code.toString().padStart(3, "0")}`}
                                 onClick={closeCart}
                                 className="font-serif text-sm sm:text-base font-semibold text-stone-900 hover:text-stone-700 hover:underline line-clamp-1"
@@ -442,7 +440,6 @@ export function CartDrawer({
                   <Link
                     href="/carrito"
                     onClick={closeCart}
-                    prefetch={false}
                     className="w-full flex min-h-[48px] items-center justify-center gap-2.5 rounded-xl bg-stone-900 px-6 py-3 text-xs font-bold tracking-wider text-white uppercase shadow-sm transition-all hover:bg-stone-800 focus-visible:outline-2 focus-visible:outline-stone-900"
                   >
                     <span>Ir a mi bolsa y continuar</span>

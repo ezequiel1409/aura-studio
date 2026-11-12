@@ -1,7 +1,7 @@
 import { Metadata } from "next";
-import { getProductServiceDeps } from "../../infra/db/connection";
-import { getShowroomSettings } from "../../services/settings.service";
-import { RevocationFormClient } from "../../components/claims/RevocationFormClient";
+import { getProductServiceDeps } from "../../../infra/db/connection";
+import { getShowroomSettings } from "../../../services/settings.service";
+import { RevocationFormClient } from "../../../components/claims/RevocationFormClient";
 
 export async function generateMetadata(): Promise<Metadata> {
   let brandName = process.env.COMMERCE_NAME || "Mi Tienda";

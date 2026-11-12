@@ -25,9 +25,11 @@ import {
   StoreLocationConfig,
   StoreScheduleConfig,
 } from "../../lib/schedule/store-schedule";
+import { DEFAULT_NEUTRAL_BRAND, getPlatformOperatorName } from "../../lib/brand";
 
 export interface FooterProps {
   brandName?: string;
+  operatorName?: string | null;
   businessDescriptor?: string | null;
   aboutText?: string | null;
   logoUrl?: string | null;
@@ -48,7 +50,8 @@ export interface FooterProps {
 }
 
 export function Footer({
-  brandName = "Aura Studio",
+  brandName = DEFAULT_NEUTRAL_BRAND,
+  operatorName,
   businessDescriptor,
   aboutText,
   logoUrl,
@@ -115,6 +118,9 @@ export function Footer({
     resolvedLocation
   );
 
+  const resolvedOperator =
+    operatorName !== undefined ? operatorName : getPlatformOperatorName();
+
   // Variante mínima (para checkout y carrito)
   if (variant === "minimal") {
     return (
@@ -143,8 +149,14 @@ export function Footer({
             <span>Compra protegida</span>
           </div>
           <p className="text-[11px] text-stone-400">
-            © {new Date().getFullYear()} {brandName} · Creado por{" "}
-            <strong className="font-medium text-stone-600">Altum</strong>
+            © {new Date().getFullYear()} {brandName}
+            {resolvedOperator ? (
+              <>
+                {" "}
+                · Creado por{" "}
+                <strong className="font-medium text-stone-600">{resolvedOperator}</strong>
+              </>
+            ) : null}
           </p>
         </div>
       </footer>
@@ -275,9 +287,12 @@ export function Footer({
                 <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span>Stock en tiempo real y reservas garantizadas</span>
               </p>
-              <p>
-                Tienda online operada por <strong className="font-medium text-stone-700">Altum</strong>
-              </p>
+              {resolvedOperator ? (
+                <p>
+                  Tienda online operada por{" "}
+                  <strong className="font-medium text-stone-700">{resolvedOperator}</strong>
+                </p>
+              ) : null}
             </div>
           </div>
 

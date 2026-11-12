@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { HomeBanner } from "../../domain/promotion/types";
+import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 
 export interface HeroBannerCarouselProps {
   banners: HomeBanner[];
@@ -25,7 +26,7 @@ export function HeroBannerCarousel({
   fallbackTitle,
   fallbackSubtitle,
   fallbackBannerUrl,
-  brandName = "Aura Studio",
+  brandName = DEFAULT_NEUTRAL_BRAND,
 }: HeroBannerCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);

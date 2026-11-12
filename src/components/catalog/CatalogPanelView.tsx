@@ -80,26 +80,56 @@ export function CatalogPanelView({
 
   // Estado para hoja inferior móvil (en celular se aplica con botón "Aplicar")
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [draftFilters, setDraftFilters] =
-    useState<ActiveCatalogFilters>(activeFilters);
 
-  // Estado local de inputs de rango de precio (escritorio)
-  const [minPriceInput, setMinPriceInput] = useState(
-    activeFilters.minPrecio || ""
-  );
-  const [maxPriceInput, setMaxPriceInput] = useState(
-    activeFilters.maxPrecio || ""
-  );
+  // Estado local derivado de activeFilters sin setState síncrono en useEffect
+  const activeFiltersKey = JSON.stringify(activeFilters);
+  const [filterDraftOverride, setFilterDraftOverride] = useState<{
+    key: string;
+    draftFilters: ActiveCatalogFilters;
+    minPriceInput: string;
+    maxPriceInput: string;
+  } | null>(null);
+
+  const isOverrideValid = filterDraftOverride?.key === activeFiltersKey;
+  const draftFilters = isOverrideValid ? filterDraftOverride.draftFilters : activeFilters;
+  const minPriceInput = isOverrideValid
+    ? filterDraftOverride.minPriceInput
+    : activeFilters.minPrecio || "";
+  const maxPriceInput = isOverrideValid
+    ? filterDraftOverride.maxPriceInput
+    : activeFilters.maxPrecio || "";
+
+  const setDraftFilters = (next: ActiveCatalogFilters) =>
+    setFilterDraftOverride((prev) => ({
+      key: activeFiltersKey,
+      draftFilters: next,
+      minPriceInput:
+        prev?.key === activeFiltersKey ? prev.minPriceInput : activeFilters.minPrecio || "",
+      maxPriceInput:
+        prev?.key === activeFiltersKey ? prev.maxPriceInput : activeFilters.maxPrecio || "",
+    }));
+
+  const setMinPriceInput = (val: string) =>
+    setFilterDraftOverride((prev) => ({
+      key: activeFiltersKey,
+      draftFilters: prev?.key === activeFiltersKey ? prev.draftFilters : activeFilters,
+      minPriceInput: val,
+      maxPriceInput:
+        prev?.key === activeFiltersKey ? prev.maxPriceInput : activeFilters.maxPrecio || "",
+    }));
+
+  const setMaxPriceInput = (val: string) =>
+    setFilterDraftOverride((prev) => ({
+      key: activeFiltersKey,
+      draftFilters: prev?.key === activeFiltersKey ? prev.draftFilters : activeFilters,
+      minPriceInput:
+        prev?.key === activeFiltersKey ? prev.minPriceInput : activeFilters.minPrecio || "",
+      maxPriceInput: val,
+    }));
 
   // Gestión de foco accesible al cargar más productos
   const prevProductCountRef = useRef<number>(products.length);
   const shouldFocusNewBatchRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    setDraftFilters(activeFilters);
-    setMinPriceInput(activeFilters.minPrecio || "");
-    setMaxPriceInput(activeFilters.maxPrecio || "");
-  }, [activeFilters]);
 
   useEffect(() => {
     if (

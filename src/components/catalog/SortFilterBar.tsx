@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, SlidersHorizontal, Star } from "lucide-react";
 
@@ -18,13 +18,20 @@ export function SortFilterBar({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const paramsKey = searchParams ? searchParams.toString() : "";
   const [isPending, startTransition] = useTransition();
 
-  const [optimisticFeatured, setOptimisticFeatured] = useState<boolean | null>(null);
+  const [optimisticState, setOptimisticState] = useState<{
+    key: string;
+    value: boolean;
+  } | null>(null);
 
-  useEffect(() => {
-    setOptimisticFeatured(null);
-  }, [searchParams]);
+  const optimisticFeatured =
+    optimisticState && optimisticState.key === paramsKey ? optimisticState.value : null;
+
+  const setOptimisticFeatured = (value: boolean) => {
+    setOptimisticState({ key: paramsKey, value });
+  };
 
   const activeFeatured = optimisticFeatured !== null ? optimisticFeatured : isFeaturedOnly;
 

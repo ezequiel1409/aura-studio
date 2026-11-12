@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -217,7 +217,7 @@ export function PromotionsPageClient({
                     </span>
                   </span>
 
-                  <Link prefetch={false}
+                  <Link
                     href={`/promociones/${promo.slug}`}
                     className="inline-flex items-center gap-1 rounded-full bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 transition-colors"
                   >

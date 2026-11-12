@@ -16,6 +16,7 @@ import { Product } from "../../domain/product/types";
 import { formatProductCode } from "../../domain/product/rules";
 import { formatPrice } from "../../lib/format/currency";
 import { HeroMode } from "../../services/settings.service";
+import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 
 interface HomeHeroProps {
   heroMode: HeroMode;
@@ -33,7 +34,7 @@ export function HomeHero({
   heroSubtitle,
   heroBannerUrl,
   featuredProducts = [],
-  brandName = "Aura Studio",
+  brandName = DEFAULT_NEUTRAL_BRAND,
   whatsappNumber = "+5491100000000",
 }: HomeHeroProps) {
   const [currentIndex, setCurrentIndex] = useState(0);

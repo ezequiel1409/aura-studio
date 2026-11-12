@@ -1,8 +1,8 @@
 import { Metadata } from "next";
-import { getProductServiceDeps } from "../../infra/db/connection";
-import { getShowroomSettings } from "../../services/settings.service";
-import { PromotionService } from "../../services/promotion.service";
-import { PromotionsPageClient } from "../../components/promotions/PromotionsPageClient";
+import { getProductServiceDeps } from "../../../infra/db/connection";
+import { getShowroomSettings } from "../../../services/settings.service";
+import { PromotionService } from "../../../services/promotion.service";
+import { PromotionsPageClient } from "../../../components/promotions/PromotionsPageClient";
 
 export const revalidate = 300;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp, Layers, X } from "lucide-react";
@@ -13,15 +13,22 @@ interface CategoryNavProps {
 
 export function CategoryNav({ categories, activeSlug }: CategoryNavProps) {
   const searchParams = useSearchParams();
+  const paramsKey = searchParams ? searchParams.toString() : "";
   const currentSlugFromUrl = searchParams?.get("categoria") || undefined;
   const initialSlug = activeSlug !== undefined ? activeSlug : currentSlugFromUrl;
 
-  const [optimisticSlug, setOptimisticSlug] = useState<string | null | undefined>(undefined);
+  const [optimisticState, setOptimisticState] = useState<{
+    key: string;
+    slug: string | null;
+  } | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    setOptimisticSlug(undefined);
-  }, [searchParams]);
+  const optimisticSlug =
+    optimisticState && optimisticState.key === paramsKey ? optimisticState.slug : undefined;
+
+  const setOptimisticSlug = (slug: string | null) => {
+    setOptimisticState({ key: paramsKey, slug });
+  };
 
   const effectiveActiveSlug =
     optimisticSlug !== undefined ? (optimisticSlug || undefined) : initialSlug;

@@ -1,15 +1,15 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getProductServiceDeps } from "../../infra/db/connection";
-import { getShowroomSettings } from "../../services/settings.service";
-import { getAuthenticatedCustomer } from "../../infra/auth/customer-session";
+import { getProductServiceDeps } from "../../../infra/db/connection";
+import { getShowroomSettings } from "../../../services/settings.service";
+import { getAuthenticatedCustomer } from "../../../infra/auth/customer-session";
 import {
   getCustomerProfile,
   getCustomerOrders,
   getCustomerAddresses,
-} from "../../services/customer.service";
-import { listProducts } from "../../services/product.service";
-import { CustomerPortalClient } from "../../components/customer/CustomerPortalClient";
+} from "../../../services/customer.service";
+import { listProducts } from "../../../services/product.service";
+import { CustomerPortalClient } from "../../../components/customer/CustomerPortalClient";
 
 export async function generateMetadata(): Promise<Metadata> {
   let brandName = process.env.COMMERCE_NAME || "Mi Tienda";

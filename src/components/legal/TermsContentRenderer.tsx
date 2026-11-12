@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
@@ -35,7 +35,7 @@ export function parseInlineTokens(text: string): React.ReactNode[] {
 
       if (isInternal) {
         return (
-          <Link prefetch={false}
+          <Link
             key={`md-link-${index}`}
             href={url}
             className="text-[#926a3c] font-semibold underline underline-offset-4 hover:text-[#785328] transition-colors"

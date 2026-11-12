@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 import {
   Package,
   MapPin,
@@ -63,7 +64,7 @@ export function CustomerPortalClient({
   initialAddresses,
   allProducts = [],
   whatsappNumber = "+5491100000000",
-  brandName = "Aura Studio",
+  brandName = DEFAULT_NEUTRAL_BRAND,
 }: CustomerPortalClientProps) {
   const router = useRouter();
   const [customer, setCustomer] = useState<SafeCustomer>(initialCustomer);
@@ -923,7 +924,7 @@ export function CustomerPortalClient({
               <p className="mx-auto mt-1 max-w-sm text-xs sm:text-sm text-stone-500">
                 Cuando reserves tu primera pieza única, verás aquí su línea de tiempo y estado en tiempo real.
               </p>
-              <Link prefetch={false}
+              <Link
                 href="/"
                 className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors shadow-xs"
               >
@@ -946,7 +947,7 @@ export function CustomerPortalClient({
               <p className="mx-auto mt-2 max-w-sm text-xs sm:text-sm text-stone-500">
                 Tus pedidos aparecerán aquí para que puedas seguir su estado y contactarnos fácilmente.
               </p>
-              <Link prefetch={false}
+              <Link
                 href="/"
                 className="mt-6 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors shadow-xs"
               >
@@ -1221,7 +1222,7 @@ export function CustomerPortalClient({
               <p className="mx-auto mt-2 max-w-sm text-xs sm:text-sm text-stone-500">
                 Tocá el ícono del corazón en cualquier prenda del catálogo para guardarla aquí y no perderla de vista.
               </p>
-              <Link prefetch={false}
+              <Link
                 href="/"
                 className="mt-6 inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-stone-800 transition-colors shadow-xs"
               >
@@ -1296,7 +1297,7 @@ export function CustomerPortalClient({
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-stone-100 flex items-center gap-2">
-                      <Link prefetch={false}
+                      <Link
                         href={`/p/${p.code}`}
                         className="flex-1 inline-flex min-h-[38px] items-center justify-center rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-50 transition-colors"
                       >

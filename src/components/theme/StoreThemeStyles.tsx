@@ -41,6 +41,7 @@ export function StoreThemeStyles({
 }: StoreThemeStylesProps) {
   const theme = resolveStoreTheme(paletteId, primaryColor, bgColor, surfaceColor);
   const font = resolveStoreFont(fontId);
+  const isDarkBg = getContrastColor(theme.bg) === "#ffffff";
   const accentContrast = getContrastColor(theme.accent);
   const headerContrast = getContrastColor(headerBgColor || theme.bg);
   const footerContrast = getContrastColor(footerBgColor || theme.surface);
@@ -145,6 +146,44 @@ export function StoreThemeStyles({
         /* 7. Reemplazo reactivo de utilidades de texto de tienda */
         body:not(:has(#admin-layout-root)) .text-\\[\\#1c1917\\] {
           color: var(--store-text) !important;
+        }
+
+        ${
+          isDarkBg
+            ? `
+        /* 7b. Adaptación automática de contraste para comercios con fondo oscuro */
+        body:not(:has(#admin-layout-root)) h1:not(.bg-white *):not(.store-card *),
+        body:not(:has(#admin-layout-root)) h2:not(.bg-white *):not(.store-card *),
+        body:not(:has(#admin-layout-root)) h3:not(.bg-white *):not(.store-card *),
+        body:not(:has(#admin-layout-root)) h4:not(.bg-white *):not(.store-card *),
+        body:not(:has(#admin-layout-root)) .text-stone-900:not(.bg-white *):not(.store-card *),
+        body:not(:has(#admin-layout-root)) .text-stone-800:not(.bg-white *):not(.store-card *),
+        body:not(:has(#admin-layout-root)) .text-stone-700:not(.bg-white *):not(.store-card *) {
+          color: #ffffff !important;
+        }
+
+        body:not(:has(#admin-layout-root)) .text-stone-600:not(.bg-white *):not(.store-card *),
+        body:not(:has(#admin-layout-root)) .text-stone-500:not(.bg-white *):not(.store-card *) {
+          color: rgba(255, 255, 255, 0.8) !important;
+        }
+
+        body:not(:has(#admin-layout-root)) .text-stone-400:not(.bg-white *):not(.store-card *) {
+          color: rgba(255, 255, 255, 0.6) !important;
+        }
+
+        body:not(:has(#admin-layout-root)) .border-\\[\\#e7e2da\\]:not(.bg-white *):not(.store-card *) {
+          border-color: rgba(255, 255, 255, 0.15) !important;
+        }
+
+        body:not(:has(#admin-layout-root)) header[role="banner"] {
+          border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+        }
+
+        body:not(:has(#admin-layout-root)) footer[role="contentinfo"] {
+          border-top-color: rgba(255, 255, 255, 0.12) !important;
+        }
+        `
+            : ""
         }
 
         /* 8. Reemplazo reactivo de bordes de tienda */

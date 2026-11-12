@@ -1,8 +1,8 @@
 import { Metadata } from "next";
-import { getProductServiceDeps } from "../../infra/db/connection";
-import { getShowroomSettings } from "../../services/settings.service";
-import { getAvailablePaymentMethods } from "../../services/payment.service";
-import { CartPageClient } from "../../components/cart/CartPageClient";
+import { getProductServiceDeps } from "../../../infra/db/connection";
+import { getShowroomSettings } from "../../../services/settings.service";
+import { getAvailablePaymentMethods } from "../../../services/payment.service";
+import { CartPageClient } from "../../../components/cart/CartPageClient";
 
 export async function generateMetadata(): Promise<Metadata> {
   let brandName = process.env.COMMERCE_NAME || "Mi Tienda";

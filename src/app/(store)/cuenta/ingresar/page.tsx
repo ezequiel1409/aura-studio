@@ -1,10 +1,10 @@
 import { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getProductServiceDeps } from "../../../infra/db/connection";
-import { getShowroomSettings } from "../../../services/settings.service";
-import { getAuthenticatedCustomer } from "../../../infra/auth/customer-session";
-import { CustomerAuthClient } from "../../../components/customer/CustomerAuthClient";
+import { getProductServiceDeps } from "../../../../infra/db/connection";
+import { getShowroomSettings } from "../../../../services/settings.service";
+import { getAuthenticatedCustomer } from "../../../../infra/auth/customer-session";
+import { CustomerAuthClient } from "../../../../components/customer/CustomerAuthClient";
 
 export async function generateMetadata(): Promise<Metadata> {
   let brandName = process.env.COMMERCE_NAME || "Mi Tienda";

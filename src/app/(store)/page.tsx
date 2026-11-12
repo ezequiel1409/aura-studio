@@ -1,21 +1,21 @@
 // Revalida en segundo plano cada 60 segundos (Edge ISR - Cloudflare CDN)
 export const revalidate = 60;
 
-import { getProductServiceDeps } from "../infra/db/connection";
-import { listProducts } from "../services/product.service";
-import { getShowroomSettings } from "../services/settings.service";
-import { NavigationService } from "../services/navigation.service";
-import { PromotionService } from "../services/promotion.service";
-import { NewPiecesAlertSection } from "../components/catalog/NewPiecesAlertSection";
-import { HeroBannerCarousel } from "../components/home/HeroBannerCarousel";
-import { BankPromosBlock } from "../components/home/BankPromosBlock";
-import { FeaturedSectionsMosaic } from "../components/home/FeaturedSectionsMosaic";
+import { getProductServiceDeps } from "../../infra/db/connection";
+import { listProducts } from "../../services/product.service";
+import { getShowroomSettings } from "../../services/settings.service";
+import { NavigationService } from "../../services/navigation.service";
+import { PromotionService } from "../../services/promotion.service";
+import { NewPiecesAlertSection } from "../../components/catalog/NewPiecesAlertSection";
+import { HeroBannerCarousel } from "../../components/home/HeroBannerCarousel";
+import { BankPromosBlock } from "../../components/home/BankPromosBlock";
+import { FeaturedSectionsMosaic } from "../../components/home/FeaturedSectionsMosaic";
 import {
   FeaturedProductsBlock,
   NewArrivalsBlock,
   SaleBlock,
   TrustStripBlock,
-} from "../components/home/HomeShowcaseBlocks";
+} from "../../components/home/HomeShowcaseBlocks";
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 

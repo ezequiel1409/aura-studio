@@ -5,22 +5,28 @@ import { logger } from "../../../../lib/logger";
 
 export async function POST(req: NextRequest) {
   const startTime = performance.now();
-  let body: any;
+  let body: Record<string, unknown> | undefined;
   try {
-    body = await req.json();
+    const parsedBody = (await req.json()) as Record<string, unknown>;
+    body = parsedBody;
     const deps = getProductServiceDeps();
+
+    const customerDni = String(parsedBody.customerDni || "");
+    const customerEmail =
+      parsedBody.customerEmail !== undefined ? String(parsedBody.customerEmail) : undefined;
 
     const claim = await createOrderClaim(
       {
-        orderCode: Number(body.orderCode),
-        customerDni: String(body.customerDni || ""),
-        customerEmail: body.customerEmail !== undefined ? String(body.customerEmail) : undefined,
-        customerPhone: body.customerPhone !== undefined ? String(body.customerPhone) : undefined,
-        contactValue: body.contactValue ? String(body.contactValue) : undefined,
-        customerName: body.customerName ? String(body.customerName) : undefined,
-        reason: body.reason ? String(body.reason) : undefined,
-        type: body.type === "EXCHANGE" ? "EXCHANGE" : "REVOCATION",
-        conditionAccepted: Boolean(body.conditionAccepted),
+        orderCode: Number(parsedBody.orderCode),
+        customerDni,
+        customerEmail,
+        customerPhone:
+          parsedBody.customerPhone !== undefined ? String(parsedBody.customerPhone) : undefined,
+        contactValue: parsedBody.contactValue ? String(parsedBody.contactValue) : undefined,
+        customerName: parsedBody.customerName ? String(parsedBody.customerName) : undefined,
+        reason: parsedBody.reason ? String(parsedBody.reason) : undefined,
+        type: parsedBody.type === "EXCHANGE" ? "EXCHANGE" : "REVOCATION",
+        conditionAccepted: Boolean(parsedBody.conditionAccepted),
       },
       deps
     );
@@ -30,8 +36,8 @@ export async function POST(req: NextRequest) {
       claimCode: claim.claimCode,
       orderCode: claim.orderCode,
       type: claim.type,
-      dni: body.customerDni,
-      email: body.customerEmail,
+      dni: customerDni,
+      email: customerEmail,
       durationMs,
       status: 200,
     });
@@ -40,8 +46,12 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const durationMs = Math.round(performance.now() - startTime);
     const message = error instanceof Error ? error.message : "Error al procesar la solicitud.";
+    const rawOrderCode = body?.orderCode;
     logger.warn("CLAIM:CREATE_FAILED", message, {
-      orderCode: body?.orderCode,
+      orderCode:
+        typeof rawOrderCode === "number" || typeof rawOrderCode === "string"
+          ? rawOrderCode
+          : undefined,
       durationMs,
       status: 400,
     });

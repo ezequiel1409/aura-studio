@@ -12,19 +12,24 @@ interface AnnouncementBarProps {
 export function AnnouncementBar({ config }: AnnouncementBarProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [nowMs, setNowMs] = useState<number | null>(null);
 
-  const nowMs = Date.now();
+  useEffect(() => {
+    const timer = setTimeout(() => setNowMs(Date.now()), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
   const rawItems = config?.messages || config?.items || [];
   const validItems = rawItems.filter((item) => {
     if (!item.text?.trim()) return false;
-    if (item.startsAt) {
+    if (nowMs !== null && item.startsAt) {
       const startMs =
         typeof item.startsAt === "number"
           ? item.startsAt
           : Date.parse(item.startsAt);
       if (!Number.isNaN(startMs) && startMs > nowMs) return false;
     }
-    if (item.endsAt) {
+    if (nowMs !== null && item.endsAt) {
       const endMs =
         typeof item.endsAt === "number" ? item.endsAt : Date.parse(item.endsAt);
       if (!Number.isNaN(endMs) && endMs < nowMs) return false;

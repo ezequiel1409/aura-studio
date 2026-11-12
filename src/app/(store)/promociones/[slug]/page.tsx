@@ -13,10 +13,10 @@ import {
   Landmark,
   ShoppingBag,
 } from "lucide-react";
-import { getProductServiceDeps } from "../../../infra/db/connection";
-import { PromotionService } from "../../../services/promotion.service";
-import { getShowroomSettings } from "../../../services/settings.service";
-import { formatPriceARS } from "../../../lib/format/currency";
+import { getProductServiceDeps } from "../../../../infra/db/connection";
+import { PromotionService } from "../../../../services/promotion.service";
+import { getShowroomSettings } from "../../../../services/settings.service";
+import { formatPriceARS } from "../../../../lib/format/currency";
 
 interface PromotionDetailPageProps {
   params: Promise<{ slug: string }>;

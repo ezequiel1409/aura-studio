@@ -1,7 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Heart } from "lucide-react";
+
+const SAVED_PIECES_KEY = "app_saved_pieces";
+const SAVED_PIECES_EVENT = "app:saved-pieces-changed";
+
+function subscribeSavedPieces(callback: () => void) {
+  window.addEventListener(SAVED_PIECES_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(SAVED_PIECES_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function getSavedPiecesRaw(): string {
+  try {
+    return localStorage.getItem(SAVED_PIECES_KEY) || "[]";
+  } catch {
+    return "[]";
+  }
+}
 
 interface FavoriteButtonProps {
   productId: number;
@@ -9,43 +29,38 @@ interface FavoriteButtonProps {
 }
 
 export function FavoriteButton({ productId, productTitle }: FavoriteButtonProps) {
-  const [isSaved, setIsSaved] = useState(false);
+  const savedRaw = useSyncExternalStore(
+    subscribeSavedPieces,
+    getSavedPiecesRaw,
+    () => "[]"
+  );
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("app_saved_pieces");
-      if (stored) {
-        const ids = JSON.parse(stored);
-        if (Array.isArray(ids)) {
-          setIsSaved(ids.includes(productId));
-        }
-      }
-    } catch {}
-  }, [productId]);
+  let isSaved = false;
+  try {
+    const ids = JSON.parse(savedRaw);
+    if (Array.isArray(ids)) {
+      isSaved = ids.includes(productId);
+    }
+  } catch {}
 
   const toggleSave = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     try {
-      const stored = localStorage.getItem("app_saved_pieces");
+      const stored = localStorage.getItem(SAVED_PIECES_KEY);
       let ids: number[] = [];
       if (stored) {
-        ids = JSON.parse(stored);
-        if (!Array.isArray(ids)) ids = [];
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) ids = parsed;
       }
 
-      let updated: number[];
-      if (ids.includes(productId)) {
-        updated = ids.filter((id) => id !== productId);
-        setIsSaved(false);
-      } else {
-        updated = [...ids, productId];
-        setIsSaved(true);
-      }
+      const updated = ids.includes(productId)
+        ? ids.filter((id) => id !== productId)
+        : [...ids, productId];
 
-      localStorage.setItem("app_saved_pieces", JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent("app_saved_updated", { detail: { savedIds: updated } }));
+      localStorage.setItem(SAVED_PIECES_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event(SAVED_PIECES_EVENT));
     } catch {}
   };
 
@@ -53,17 +68,20 @@ export function FavoriteButton({ productId, productTitle }: FavoriteButtonProps)
     <button
       type="button"
       onClick={toggleSave}
-      aria-label={isSaved ? `Quitar ${productTitle} de guardados` : `Guardar ${productTitle} en favoritos`}
+      aria-label={isSaved ? `Quitar ${productTitle} de guardados` : `Guardar ${productTitle}`}
       aria-pressed={isSaved}
-      title={isSaved ? "Quitar de guardados" : "Guardar pieza"}
-      className="absolute right-2.5 top-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-stone-700 shadow-xs backdrop-blur-xs transition-transform hover:scale-110 hover:bg-white active:scale-95 focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer"
+      title={isSaved ? "Guardada" : "Guardar pieza"}
+      className="group/fav flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-stone-700 backdrop-blur-sm border border-[#e7e2da] shadow-2xs transition-all hover:bg-white hover:text-[#926a3c] focus-visible:outline-2 focus-visible:outline-stone-900 cursor-pointer"
     >
       <Heart
-        className={`h-4 w-4 transition-colors ${
-          isSaved ? "fill-rose-500 text-rose-500" : "text-stone-700 hover:text-stone-950"
+        size={15}
+        className={`transition-all ${
+          isSaved
+            ? "fill-[#926a3c] text-[#926a3c] scale-110"
+            : "text-stone-600 group-hover/fav:text-[#926a3c]"
         }`}
+        aria-hidden="true"
       />
     </button>
   );
 }
-

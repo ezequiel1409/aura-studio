@@ -20,6 +20,7 @@ import { formatPriceARS } from "../../lib/format/currency";
 import { CartHeaderButton } from "../cart/CartHeaderButton";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { BrandLogo } from "./BrandLogo";
+import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 
 export interface HeaderProps {
   brandName?: string;
@@ -130,7 +131,7 @@ function isBroadNavigationItem(
 }
 
 export const Header = memo(function Header({
-  brandName = "Aura Studio",
+  brandName = DEFAULT_NEUTRAL_BRAND,
   logoUrl,
   initialSearch = "",
   sections,

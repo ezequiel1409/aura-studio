@@ -26,7 +26,10 @@ const emptySubscribe = () => () => {};
 
 export function ProductGallery({ photos, title, code, selectedColorId }: ProductGalleryProps) {
   const isMounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [gallerySelection, setGallerySelection] = useState<{
+    index: number;
+    colorId: number | null | undefined;
+  }>({ index: 0, colorId: selectedColorId });
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const thumbnailContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -36,20 +39,28 @@ export function ProductGallery({ photos, title, code, selectedColorId }: Product
 
   const totalPhotos = photos?.length || 0;
 
+  const matchedColorIndex =
+    selectedColorId != null && totalPhotos > 0
+      ? photos.findIndex(
+          (p) => p.productColorId != null && p.productColorId === selectedColorId
+        )
+      : -1;
+
+  const currentIndex =
+    gallerySelection.colorId === selectedColorId
+      ? gallerySelection.index
+      : matchedColorIndex !== -1
+      ? matchedColorIndex
+      : gallerySelection.index < totalPhotos
+      ? gallerySelection.index
+      : 0;
+
   const slideTo = useCallback(
     (targetIndex: number) => {
       if (targetIndex < 0 || targetIndex >= totalPhotos) return;
-      setCurrentIndex(targetIndex);
-
-      // Desplazamiento suave de la miniatura activa en el visor
-      if (thumbnailContainerRef.current) {
-        const thumbEl = thumbnailContainerRef.current.children[targetIndex] as HTMLElement | undefined;
-        if (thumbEl && typeof thumbEl.scrollIntoView === "function") {
-          thumbEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-        }
-      }
+      setGallerySelection({ index: targetIndex, colorId: selectedColorId });
     },
-    [totalPhotos]
+    [totalPhotos, selectedColorId]
   );
 
   const nextSlide = useCallback(() => {
@@ -62,16 +73,15 @@ export function ProductGallery({ photos, title, code, selectedColorId }: Product
     slideTo((currentIndex - 1 + totalPhotos) % totalPhotos);
   }, [totalPhotos, currentIndex, slideTo]);
 
-  // Sincronización automática variante de color -> deslizamiento suave hacia la primera imagen de la variante
+  // Sincronización DOM suave de miniatura activa sin setState dentro de useEffect
   useEffect(() => {
-    if (selectedColorId == null || !photos || photos.length === 0) return;
-    const matchingIndex = photos.findIndex(
-      (p) => p.productColorId != null && p.productColorId === selectedColorId
-    );
-    if (matchingIndex !== -1 && matchingIndex !== currentIndex) {
-      slideTo(matchingIndex);
+    if (thumbnailContainerRef.current) {
+      const thumbEl = thumbnailContainerRef.current.children[currentIndex] as HTMLElement | undefined;
+      if (thumbEl && typeof thumbEl.scrollIntoView === "function") {
+        thumbEl.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
     }
-  }, [selectedColorId, photos, currentIndex, slideTo]);
+  }, [currentIndex]);
 
   // Manejo de teclado para el carrusel de página cuando el lightbox no está abierto
   useEffect(() => {

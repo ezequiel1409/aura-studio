@@ -6,9 +6,19 @@ interface ArchiveSectionProps {
   soldProducts?: Product[];
 }
 
+interface ArchiveDisplayItem {
+  id: number;
+  code: number;
+  title: string | null;
+  priceCents: number | null;
+  currency: string;
+  photos?: Array<{ keyThumb: string; keyFull: string }>;
+  photoUrl?: string;
+}
+
 export function ArchiveSection({ soldProducts = [] }: ArchiveSectionProps) {
   // Muestra piezas vendidas reales si existen, o piezas históricas del archivo
-  const displayItems = soldProducts.length > 0 ? soldProducts.slice(0, 4) : [
+  const displayItems: ArchiveDisplayItem[] = soldProducts.length > 0 ? soldProducts.slice(0, 4) : [
     {
       id: 991,
       code: 104,
@@ -61,9 +71,10 @@ export function ArchiveSection({ soldProducts = [] }: ArchiveSectionProps) {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-6">
         {displayItems.map((item) => {
           const formattedCode = formatProductCode(item.code);
-          const photo = "photos" in item && Array.isArray((item as any).photos) && (item as any).photos.length > 0
-            ? (item as any).photos[0].keyThumb || (item as any).photos[0].keyFull
-            : (item as any).photoUrl;
+          const photo =
+            Array.isArray(item.photos) && item.photos.length > 0
+              ? item.photos[0].keyThumb || item.photos[0].keyFull
+              : item.photoUrl;
 
           return (
             <div
@@ -75,13 +86,13 @@ export function ArchiveSection({ soldProducts = [] }: ArchiveSectionProps) {
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src={photo}
-                    alt={`Pieza archivada ${item.title}`}
+                    alt={`Pieza archivada ${item.title || formattedCode}`}
                     className="h-full w-full object-cover grayscale-40"
                     loading="lazy"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center font-serif text-stone-300">
-                    AURA
+                  <div className="flex h-full w-full items-center justify-center font-serif text-stone-300 text-xs uppercase tracking-widest">
+                    Archivo
                   </div>
                 )}
 

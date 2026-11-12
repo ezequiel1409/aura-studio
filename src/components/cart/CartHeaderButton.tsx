@@ -1,34 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
 
-// Mantiene en memoria de cliente el estado de hidratación para evitar parpadeos
-// en navegaciones subsecuentes o re-renderizados del Header
-let hasInitiallyMounted = false;
+const subscribeNoop = () => () => {};
 
 export function CartHeaderButton() {
   // Selector atómico para evitar re-renders innecesarios
   const totalCount = useCartStore((state) =>
     state.items.reduce((acc, item) => acc + item.quantity, 0)
   );
-  const [mounted, setMounted] = useState(hasInitiallyMounted);
-
-  useEffect(() => {
-    if (!hasInitiallyMounted) {
-      hasInitiallyMounted = true;
-      setMounted(true);
-    }
-  }, []);
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
 
   const count = mounted ? totalCount : 0;
 
   return (
     <Link
       href="/carrito"
-      prefetch={false}
       aria-label={`Bolsa de compras con ${count} producto${count === 1 ? "" : "s"}`}
       className="relative flex min-h-[40px] min-w-[40px] items-center justify-center rounded-full border border-[#d8d2c7] bg-white/90 p-2 text-stone-700 shadow-2xs transition-all hover:border-stone-900 hover:text-stone-900 focus-visible:outline-2 focus-visible:outline-stone-900"
     >

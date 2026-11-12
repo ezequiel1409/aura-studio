@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 import {
   ArrowRight,
   Loader2,
@@ -21,7 +22,7 @@ interface CustomerAuthClientProps {
   brandName?: string;
 }
 
-export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthClientProps) {
+export function CustomerAuthClient({ brandName = DEFAULT_NEUTRAL_BRAND }: CustomerAuthClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || "/cuenta";
@@ -496,7 +497,7 @@ export function CustomerAuthClient({ brandName = "Aura Studio" }: CustomerAuthCl
       {/* Enlace para continuar como invitado en checkout */}
       {redirectUrl.includes("carrito") && (
         <div className="mt-6 text-center">
-          <Link prefetch={false}
+          <Link
             href="/carrito"
             className="text-xs text-stone-500 hover:text-stone-800 underline underline-offset-4 transition-colors"
           >

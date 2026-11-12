@@ -1,9 +1,9 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Clock, RotateCcw, ShieldCheck } from "lucide-react";
-import { getProductServiceDeps } from "../../infra/db/connection";
-import { getShowroomSettings, DEFAULT_SUGGESTED_TERMS } from "../../services/settings.service";
-import { TermsContentRenderer } from "../../components/legal/TermsContentRenderer";
+import { getProductServiceDeps } from "../../../infra/db/connection";
+import { getShowroomSettings, DEFAULT_SUGGESTED_TERMS } from "../../../services/settings.service";
+import { TermsContentRenderer } from "../../../components/legal/TermsContentRenderer";
 
 export async function generateMetadata(): Promise<Metadata> {
   let brandName = process.env.COMMERCE_NAME || "Mi Tienda";

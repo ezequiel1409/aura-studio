@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
 import { logger } from "../../../../lib/logger";
+import type { Product, ProductColor, ProductColorSize } from "../../../../domain/product/types";
 
 export async function POST(req: NextRequest) {
   const startTime = performance.now();
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     // Soporte para validación masiva (ej: verificación de bolsa / carrito)
     if (Array.isArray(body.items)) {
-      const productCache = new Map<number, unknown>();
+      const productCache = new Map<number, Product | null>();
 
       const results = await Promise.all(
         body.items.map(async (item: Record<string, unknown>) => {
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
             return { key, productId, available: false, remainingStock: 0, reason: "INVALID" };
           }
 
-          let product: any = productCache.get(productId);
+          let product: Product | null | undefined = productCache.get(productId);
           if (product === undefined) {
             product = await deps.productRepo.findById(productId);
             productCache.set(productId, product);
@@ -41,11 +42,11 @@ export async function POST(req: NextRequest) {
           if (product.colors && product.colors.length > 0) {
             const matchedColor =
               product.colors.find(
-                (c: any) => c.name.trim().toLowerCase() === colorName.toLowerCase()
+                (c: ProductColor) => c.name.trim().toLowerCase() === colorName.toLowerCase()
               ) || product.colors[0];
 
             const matchedSize = matchedColor?.sizes.find(
-              (s: any) => s.size.trim().toUpperCase() === size.toUpperCase()
+              (s: ProductColorSize) => s.size.trim().toUpperCase() === size.toUpperCase()
             );
 
             if (!matchedSize || matchedSize.stock <= 0) {

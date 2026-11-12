@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -13,6 +13,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { OrderClaim } from "../../domain/claim/types";
+import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 
 interface RevocationFormClientProps {
   brandName?: string;
@@ -20,7 +21,7 @@ interface RevocationFormClientProps {
 }
 
 export function RevocationFormClient({
-  brandName = "Aura Studio",
+  brandName = DEFAULT_NEUTRAL_BRAND,
   whatsappNumber,
 }: RevocationFormClientProps) {
   const [orderCode, setOrderCode] = useState("");
@@ -232,7 +233,7 @@ export function RevocationFormClient({
               <span>Avisar por WhatsApp</span>
             </a>
           )}
-          <Link prefetch={false}
+          <Link
             href="/"
             className="w-full sm:w-auto py-3 px-5 rounded-xl border border-[#e7e2da] hover:bg-stone-50 text-stone-700 text-xs font-semibold text-center transition-colors"
           >
