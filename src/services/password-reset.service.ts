@@ -76,11 +76,11 @@ export async function requestPasswordReset(
     const stored = await settingsRepo.get("showroom_name");
     if (stored && stored.trim()) brandName = stored.trim();
   }
-  if (!brandName && typeof process !== "undefined" && process.env?.DEFAULT_BRAND_NAME) {
-    brandName = process.env.DEFAULT_BRAND_NAME;
+  if (!brandName && typeof process !== "undefined") {
+    brandName = process.env?.COMMERCE_NAME || process.env?.DEFAULT_BRAND_NAME;
   }
   if (!brandName) {
-    brandName = "Aura Studio";
+    brandName = "Mi Tienda";
   }
 
   if (emailService) {

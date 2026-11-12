@@ -10,6 +10,7 @@ import {
   DEFAULT_EMAIL_CUSTOMIZATION,
   EmailCustomizationConfig,
 } from "../domain/email/customization";
+import { getDefaultBrandName } from "../lib/brand";
 
 export interface SettingsServiceDeps {
   settingsRepo?: ISettingsRepository;
@@ -471,7 +472,6 @@ export interface UpdateShowroomSettingsInput {
 }
 
 const DEFAULT_WHATSAPP_NUMBER = "+5491100000000";
-const DEFAULT_SHOWROOM_NAME = "Aura Studio";
 const DEFAULT_STORE_TYPE = "Showroom";
 const DEFAULT_RESERVATION_HOURS = 48;
 const DEFAULT_HERO_MODE: HeroMode = "featured_carousel";
@@ -776,10 +776,10 @@ export async function getShowroomSettings(
       DEFAULT_WHATSAPP_NUMBER,
     showroomName:
       storedName ||
+      process.env.COMMERCE_NAME ||
       process.env.NEXT_PUBLIC_STORE_NAME ||
       process.env.STORE_NAME ||
-      (typeof process !== "undefined" ? process.env?.DEFAULT_BRAND_NAME : undefined) ||
-      DEFAULT_SHOWROOM_NAME,
+      getDefaultBrandName(),
     storeType:
       storedStoreType && storedStoreType.trim()
         ? storedStoreType.trim()

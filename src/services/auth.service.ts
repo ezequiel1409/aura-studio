@@ -67,7 +67,7 @@ export async function loginAdmin(
 
   // 2. Si contamos con adminUserRepo, autenticamos contra la tabla de usuarios
   if (adminUserRepo) {
-    const emailToLookup = input.email ? input.email.trim().toLowerCase() : "admin@aurastudio.com";
+    const emailToLookup = input.email ? input.email.trim().toLowerCase() : env.ADMIN_EMAIL;
     const user = await adminUserRepo.findByEmail(emailToLookup);
 
     if (user) {
@@ -131,7 +131,7 @@ export async function loginAdmin(
   // Generar token con rol SUPER_ADMIN por defecto
   const sessionToken = await createSessionToken(
     sessionSecret,
-    { email: "admin@aurastudio.com", role: "SUPER_ADMIN" },
+    { email: env.ADMIN_EMAIL, role: "SUPER_ADMIN" },
     undefined,
     now
   );
