@@ -1,6 +1,9 @@
 import { InvalidStatusTransitionError } from "../errors";
 import { ProductStatus } from "./types";
 
+/** Umbral de stock bajo compartido entre dominio y panel admin. */
+export const LOW_STOCK_THRESHOLD = 3;
+
 /**
  * BR-01: Cada prenda recibe un código único y correlativo (#001, #002...).
  */
