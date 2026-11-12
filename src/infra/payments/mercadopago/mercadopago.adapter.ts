@@ -5,12 +5,14 @@ import {
   PaymentStatus,
   PaymentVerificationResult,
 } from "../../../domain/payment/types";
+import { formatStatementDescriptor } from "../../../lib/brand";
 
 export interface MercadoPagoAdapterConfig {
   accessToken?: string | null;
   publicKey?: string | null;
   webhookSecret?: string | null;
   baseUrl?: string | null;
+  brandName?: string | null;
 }
 
 /**
@@ -70,7 +72,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
       items,
       payer: {
         name: order.customerName,
-        email: order.customerEmail || "cliente@aurastudio.com",
+        email: order.customerEmail || "cliente@tienda.local",
         phone: {
           number: order.customerPhone.replace(/\D/g, ""),
         },
@@ -89,7 +91,9 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
       },
       auto_return: "approved",
       notification_url: `${baseUrl}/api/payments/webhook/mercadopago`,
-      statement_descriptor: "AURA STUDIO",
+      statement_descriptor: formatStatementDescriptor(
+        typeof options?.brandName === "string" ? options.brandName : this.config.brandName
+      ),
     };
 
     try {

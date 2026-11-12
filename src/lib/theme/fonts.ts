@@ -1,5 +1,5 @@
 /**
- * Tipografías de marca curadas para Aura Studio y comercios multirrubro
+ * Tipografías de marca curadas para tiendas y comercios multirrubro
  */
 
 export interface ThemeFont {
@@ -21,7 +21,7 @@ export const THEME_FONTS: Record<string, ThemeFont> = {
     description: "Editorial, refinada y de alta costura. El estándar de showrooms parisinos y marcas de lujo.",
     serifFont: "var(--font-cormorant), Georgia, serif",
     sansFont: "var(--font-geist-sans), system-ui, sans-serif",
-    sampleHeading: "Aura Studio — Colección de Autor",
+    sampleHeading: "Showroom — Colección de Autor",
     sampleSubtitle: "Piezas únicas seleccionadas a mano",
   },
   playfair: {

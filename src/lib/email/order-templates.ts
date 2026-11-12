@@ -1,4 +1,5 @@
 import { OrderEmailData } from "../../domain/ports/email.port";
+import { getDefaultBrandName } from "../brand";
 import { formatPrice } from "../format/currency";
 import {
   EmailCustomizationConfig,
@@ -128,7 +129,7 @@ function renderFooter(brand: string, data: OrderEmailData, layout?: EmailLayoutC
 }
 
 export function generateOrderCreatedTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
-  const brand = data.brandName || "Aura Studio";
+  const brand = data.brandName || getDefaultBrandName();
   const layout = data.emailCustomization?.layout;
   const brandColor = layout?.brandColor || "#1C1917";
   const event = getEventConfig(data.emailCustomization, "order_created");
@@ -275,7 +276,7 @@ Ver tu pedido en línea: ${btnUrl || ""}
 }
 
 export function generateOrderPaidTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
-  const brand = data.brandName || "Aura Studio";
+  const brand = data.brandName || getDefaultBrandName();
   const layout = data.emailCustomization?.layout;
   const brandColor = layout?.brandColor || "#1C1917";
   const event = getEventConfig(data.emailCustomization, "order_paid");
@@ -355,7 +356,7 @@ Ver estado: ${btnUrl || ""}
 }
 
 export function generateOrderShippedTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
-  const brand = data.brandName || "Aura Studio";
+  const brand = data.brandName || getDefaultBrandName();
   const layout = data.emailCustomization?.layout;
   const brandColor = layout?.brandColor || "#1C1917";
   const event = getEventConfig(data.emailCustomization, "order_shipped");
@@ -453,7 +454,7 @@ Ver recibo: ${btnUrl || ""}
 }
 
 export function generateOrderDeliveredTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
-  const brand = data.brandName || "Aura Studio";
+  const brand = data.brandName || getDefaultBrandName();
   const layout = data.emailCustomization?.layout;
   const brandColor = layout?.brandColor || "#1C1917";
   const event = getEventConfig(data.emailCustomization, "order_delivered");
@@ -533,7 +534,7 @@ Ver compra: ${btnUrl || ""}
 }
 
 export function generateOrderCancelledTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
-  const brand = data.brandName || "Aura Studio";
+  const brand = data.brandName || getDefaultBrandName();
   const layout = data.emailCustomization?.layout;
   const brandColor = layout?.brandColor || "#1C1917";
   const event = getEventConfig(data.emailCustomization, "order_cancelled");
@@ -602,7 +603,7 @@ ${bodyText.replace(/<[^>]+>/g, "")}
 }
 
 export function generateAdminNewOrderAlertTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
-  const brand = data.brandName || "Aura Studio";
+  const brand = data.brandName || getDefaultBrandName();
   const layout = data.emailCustomization?.layout;
   const brandColor = layout?.brandColor || "#1C1917";
   const subject = `🎉 Nueva Venta: Pedido #${data.formattedCode} (${data.customerName}) - ${formatPrice(data.totalCents, data.currency)}`;

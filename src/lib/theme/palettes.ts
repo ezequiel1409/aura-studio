@@ -1,5 +1,5 @@
 /**
- * Paletas de colores curadas y utilidades de color RGB / Hex para Aura Studio
+ * Paletas de colores curadas y utilidades de color RGB / Hex para tiendas multirrubro
  */
 
 export interface ThemePalette {

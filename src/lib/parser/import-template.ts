@@ -283,7 +283,7 @@ export function parseAndValidateImport(
         c.slug.toLowerCase() === catName.toLowerCase()
     );
 
-    let categoryId = foundCat?.id;
+    const categoryId = foundCat?.id;
     if (!foundCat && catName !== "Sin clasificar") {
       errors.push({
         column: "categoria",

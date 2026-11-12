@@ -1,5 +1,5 @@
 /**
- * Utilidad centralizada de observabilidad y logging estructurado para Aura Studio.
+ * Utilidad centralizada de observabilidad y logging estructurado de la plataforma.
  * Diseñada para Cloudflare Workers y Node.js (cero dependencias nativas).
  *
  * Principios:

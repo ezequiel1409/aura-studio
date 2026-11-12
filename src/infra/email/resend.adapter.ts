@@ -13,9 +13,10 @@ import {
   generateOrderShippedTemplate,
 } from "../../lib/email/order-templates";
 import { logger, maskEmail } from "../../lib/logger";
+import { getDefaultBrandName } from "../../lib/brand";
 
 /**
- * Extrae la dirección pura de email (ej: "Aura Studio <onboarding@resend.dev>" -> "onboarding@resend.dev")
+ * Extrae la dirección pura de email (ej: "Mi Tienda <onboarding@resend.dev>" -> "onboarding@resend.dev")
  */
 export function extractEmailAddress(raw: string): string {
   const match = raw.match(/<([^>]+)>/);
@@ -32,7 +33,7 @@ export function formatSender(brandName: string | undefined, rawFrom: string): st
   const email = extractEmailAddress(rawFrom);
   const cleanName = brandName?.trim();
   if (!cleanName) {
-    return rawFrom.includes("<") ? rawFrom : `Aura Studio <${email}>`;
+    return rawFrom.includes("<") ? rawFrom : `${getDefaultBrandName()} <${email}>`;
   }
   return `${cleanName} <${email}>`;
 }
@@ -205,7 +206,7 @@ export class ResendEmailAdapter implements IEmailService {
     userName?: string,
     brandName?: string
   ): Promise<SendEmailResult> {
-    const brand = brandName?.trim() || "Aura Studio";
+    const brand = brandName?.trim() || getDefaultBrandName();
     const greeting = userName ? `Hola ${userName},` : "Hola,";
     const subject = `Recuperación de contraseña - ${brand}`;
 

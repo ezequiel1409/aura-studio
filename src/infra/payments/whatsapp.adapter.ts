@@ -1,4 +1,5 @@
 import { CheckoutItem, PaymentAction, PaymentAdapter } from "./payment-adapter.interface";
+import { getDefaultBrandName } from "../../lib/brand";
 
 export interface WhatsAppAdapterOptions {
   whatsappNumber: string;
@@ -17,7 +18,7 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
       /[^0-9]/g,
       ""
     );
-    const brand = options?.brandName || this.defaultOptions.brandName || "Aura Studio";
+    const brand = options?.brandName || this.defaultOptions.brandName || getDefaultBrandName();
 
     const titlePart = item.title ? ` (${item.title})` : "";
     let colorPart = "";
@@ -86,7 +87,7 @@ export class WhatsAppPaymentAdapter implements PaymentAdapter {
       /[^0-9]/g,
       ""
     );
-    const brand = options?.brandName || this.defaultOptions.brandName || "Aura Studio";
+    const brand = options?.brandName || this.defaultOptions.brandName || getDefaultBrandName();
 
     const formattedCode = `#ORD-${order.code.toString().padStart(3, "0")}`;
 

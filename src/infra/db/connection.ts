@@ -403,6 +403,7 @@ export function getDb(): DbClient {
         .prepare("SELECT count(*) as count FROM navigation_sections")
         .get() as { count: number };
       if (!navSectionsCount || navSectionsCount.count === 0) {
+        const defaultBrand = process.env.COMMERCE_NAME || process.env.DEFAULT_BRAND_NAME || "Mi Tienda";
         const insertNav = sqlite.prepare(
           `INSERT OR IGNORE INTO navigation_sections
            (name, slug, seo_title, seo_description, rule_type, rule_config_json, accent_color, badge_text, cover_image_url, subcategories_json, position, is_visible)
@@ -411,7 +412,7 @@ export function getDb(): DbClient {
         insertNav.run(
           "MUJER",
           "mujer",
-          "Colección Mujer | Aura Studio",
+          `Colección Mujer | ${defaultBrand}`,
           "Prendas seleccionadas y sastrería atemporal para mujer.",
           "ATTRIBUTE",
           JSON.stringify({ attributeSlug: "para", attributeValue: "Mujer" }),
@@ -425,7 +426,7 @@ export function getDb(): DbClient {
         insertNav.run(
           "HOMBRE",
           "hombre",
-          "Colección Hombre | Aura Studio",
+          `Colección Hombre | ${defaultBrand}`,
           "Básicos nobles, abrigos y sastrería para hombre y unisex.",
           "ATTRIBUTE",
           JSON.stringify({ attributeSlug: "para", attributeValue: "Hombre" }),
@@ -439,7 +440,7 @@ export function getDb(): DbClient {
         insertNav.run(
           "RECIÉN LLEGADOS",
           "recien-llegados",
-          "Recién Llegados | Aura Studio",
+          `Recién Llegados | ${defaultBrand}`,
           "Nuevas piezas incorporadas en los últimos 30 días.",
           "RECENT",
           JSON.stringify({ days: 30 }),
@@ -453,7 +454,7 @@ export function getDb(): DbClient {
         insertNav.run(
           "SALE",
           "sale",
-          "Sale y Oportunidades | Aura Studio",
+          `Sale y Oportunidades | ${defaultBrand}`,
           "Piezas seleccionadas con descuento sobre su precio anterior.",
           "DISCOUNT",
           JSON.stringify({}),
