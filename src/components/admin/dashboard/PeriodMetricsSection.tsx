@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DollarSign, Eye, ShoppingBag, TrendingUp, Users } from "lucide-react";
 import { formatPriceARS } from "../../../lib/format/currency";
 
@@ -23,8 +23,13 @@ export function PeriodMetricsSection({
   baseStoreVisits = 142,
 }: PeriodMetricsSectionProps) {
   const [period, setPeriod] = useState<PeriodType>("7days");
+  const [nowSec, setNowSec] = useState<number>(0);
 
-  const nowSec = Math.floor(Date.now() / 1000);
+  useEffect(() => {
+    const timer = setTimeout(() => setNowSec(Math.floor(Date.now() / 1000)), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
   const oneDaySec = 86400;
 
   let periodStartSec = nowSec - 7 * oneDaySec;

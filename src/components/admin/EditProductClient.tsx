@@ -5,49 +5,37 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   Loader2,
-  Plus,
-  PlusCircle,
   Save,
   Sparkles,
-  Star,
   Trash2,
-  Upload,
 } from "lucide-react";
 import { Category } from "../../domain/category/types";
 import { ProductAttributeDefinition } from "../../domain/navigation/types";
 import { Product, ProductStatus } from "../../domain/product/types";
-import { compressImageInBrowser } from "../../lib/images/compress";
 import { parseProductText } from "../../lib/parser/product-parser";
 import { ConfirmDeleteProductModal } from "./ConfirmDeleteProductModal";
-import { StockStepperField } from "./ui/StockStepperField";
+import { AdminFeedbackBanner } from "./ui/AdminFeedbackBanner";
+import { BasicDataStep } from "./products/new/BasicDataStep";
+import { MediaUploaderStep, PhotoPreview } from "./products/new/MediaUploaderStep";
+import { ProductAttributesStep } from "./products/new/ProductAttributesStep";
+import { ColorState, StockVariantsStep } from "./products/new/StockVariantsStep";
+import {
+  collectUniqueSizesCsv,
+  filterLeafCategories,
+  parseCompareAtPesosToCents,
+  parsePricePesosToCents,
+  productToFormDefaults,
+  serializeAttributesPayload,
+  serializeColorsPayload,
+  serializePhotosPayload,
+} from "./products/form/product-form.helpers";
 
 interface EditProductClientProps {
   product: Product;
   categories: Category[];
   attributeDefinitions?: ProductAttributeDefinition[];
-}
-
-interface ColorState {
-  id: string;
-  name: string;
-  hexCode?: string | null;
-  sizes: Array<{
-    id: string;
-    size: string;
-    stock: number;
-  }>;
-}
-
-interface PhotoState {
-  id: string;
-  keyThumb: string;
-  keyFull: string;
-  isExisting: boolean;
 }
 
 export function EditProductClient({
@@ -59,7 +47,6 @@ export function EditProductClient({
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Destrucción limpia de memoria al estilo Angular (ngOnDestroy)
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -70,148 +57,67 @@ export function EditProductClient({
     };
   }, []);
 
+  const initialDefaults = useMemo(
+    () => productToFormDefaults(product, categories),
+    [product, categories]
+  );
+
+  const [categoriesList, setCategoriesList] = useState<Category[]>(categories);
+  const leafCategories = useMemo(
+    () => filterLeafCategories(categoriesList),
+    [categoriesList]
+  );
+
   const [currentProduct, setCurrentProduct] = useState(product);
-
-  // Estado del texto crudo (BR-33)
-  const [rawText, setRawText] = useState(product.rawText || "");
-
-  // Campos principales
-  const [title, setTitle] = useState(product.title || "");
-  const [pricePesos, setPricePesos] = useState<string>(
-    product.priceCents !== null ? String(product.priceCents / 100) : ""
+  const [rawText, setRawText] = useState(initialDefaults.rawText);
+  const [title, setTitle] = useState(initialDefaults.title);
+  const [pricePesos, setPricePesos] = useState(initialDefaults.pricePesos);
+  const [compareAtPricePesos, setCompareAtPricePesos] = useState(
+    initialDefaults.compareAtPricePesos
   );
-  const [compareAtPricePesos, setCompareAtPricePesos] = useState<string>(
-    product.compareAtPriceCents && product.compareAtPriceCents > 0
-      ? String(product.compareAtPriceCents / 100)
-      : ""
+  const [isConsultPrice, setIsConsultPrice] = useState(
+    initialDefaults.isConsultPrice
   );
-  // Categorías hoja disponibles para prendas (BR-15)
-  const leafCategories: Category[] = useMemo(() => {
-    return categories.filter((c: Category) => !categories.some((child: Category) => child.parentId === c.id));
-  }, [categories]);
-
   const [selectedCategoryId, setSelectedCategoryId] = useState<number>(
-    product.categoryId || (leafCategories[0]?.id ?? 1)
+    initialDefaults.selectedCategoryId
   );
-  const [status, setStatus] = useState<ProductStatus>(product.status);
-  const [isFeatured, setIsFeatured] = useState<boolean>(product.isFeatured ?? false);
-  const [allowReturn, setAllowReturn] = useState<boolean>(product.allowReturn ?? true);
-  const [publishedAtDate, setPublishedAtDate] = useState<string>(() => {
-    const raw = product.publishedAt || product.createdAt;
-    if (!raw) return new Date().toISOString().slice(0, 10);
-    if (typeof raw === "number") {
-      return new Date(raw).toISOString().slice(0, 10);
-    }
-    return String(raw).slice(0, 10);
-  });
+
+  const [status, setStatus] = useState<ProductStatus>(initialDefaults.status);
+  const [isFeatured, setIsFeatured] = useState<boolean>(
+    initialDefaults.isFeatured
+  );
+  const [allowReturn, setAllowReturn] = useState<boolean>(
+    initialDefaults.allowReturn
+  );
+  const [publishedAtDate, setPublishedAtDate] = useState<string>(
+    initialDefaults.publishedAtDate
+  );
+
   const [attrDefs, setAttrDefs] = useState<ProductAttributeDefinition[]>(
     attributeDefinitions || []
   );
-  const [addingOptionForDefId, setAddingOptionForDefId] = useState<number | null>(null);
-  const [newOptionValue, setNewOptionValue] = useState("");
-  const [addingOptionLoading, setAddingOptionLoading] = useState(false);
+  const [attributes, setAttributes] = useState<Record<string, string>>(
+    initialDefaults.attributes
+  );
 
-  const handleQuickAddAttributeOption = async (def: ProductAttributeDefinition) => {
-    const trimmed = newOptionValue.trim();
-    if (!trimmed) return;
+  const [isSinglePiece, setIsSinglePiece] = useState<boolean>(
+    initialDefaults.isSinglePiece
+  );
+  const [colors, setColors] = useState<ColorState[]>(initialDefaults.colors);
+  const [photos, setPhotos] = useState<PhotoPreview[]>(initialDefaults.photos);
 
-    if (def.options.some((o) => o.toLowerCase() === trimmed.toLowerCase())) {
-      setAttributes((prev) => ({ ...prev, [def.key]: trimmed }));
-      setAddingOptionForDefId(null);
-      setNewOptionValue("");
-      return;
-    }
-
-    setAddingOptionLoading(true);
-    try {
-      const updatedOptions = [...def.options, trimmed];
-      const res = await fetch("/api/admin/attributes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: def.id,
-          name: def.name || def.label,
-          slug: def.slug || def.key,
-          options: updatedOptions,
-          isFilterable: def.isFilterable,
-          position: def.position,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        setAttrDefs((prev) =>
-          prev.map((d) =>
-            d.id === def.id ? { ...d, options: updatedOptions } : d
-          )
-        );
-        setAttributes((prev) => ({ ...prev, [def.key]: trimmed }));
-        setAddingOptionForDefId(null);
-        setNewOptionValue("");
-      } else {
-        alert(data.error || "No se pudo guardar la nueva opción");
-      }
-    } catch {
-      alert("Error de conexión al guardar la opción de atributo.");
-    } finally {
-      setAddingOptionLoading(false);
-    }
-  };
-
-  const [attributes, setAttributes] = useState<Record<string, string>>(() => {
-    const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(product.attributes || {})) {
-      out[k] = Array.isArray(v) ? v[0] || "" : String(v || "");
-    }
-    return out;
-  });
-
-
-  // Variantes de color y talles (BR-20, BR-33)
-  const [colors, setColors] = useState<ColorState[]>(() => {
-    if (product.colors && product.colors.length > 0) {
-      return product.colors.map((c, cIdx) => ({
-        id: `c-${c.id || cIdx}`,
-        name: c.name,
-        hexCode: c.hexCode,
-        sizes: (c.sizes || []).map((s, sIdx) => ({
-          id: `s-${s.id || sIdx}`,
-          size: s.size,
-          stock: s.stock,
-        })),
-      }));
-    }
-    return [
-      {
-        id: "default-col",
-        name: "Único",
-        sizes: [{ id: "default-sz", size: "ÚNICO", stock: 1 }],
-      },
-    ];
-  });
-
-  // Fotos existentes y nuevas
-  const [photos, setPhotos] = useState<PhotoState[]>(() => {
-    return (product.photos || []).map((p, idx) => ({
-      id: `photo-${p.id || idx}`,
-      keyThumb: p.keyThumb,
-      keyFull: p.keyFull,
-      isExisting: true,
-    }));
-  });
-  const [compressing, setCompressing] = useState(false);
-
-  // Estado de guardado
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Re-interpretar texto crudo bajo demanda (BR-33)
+  const codeFormatted = `#${String(product.code).padStart(3, "0")}`;
+  const currentCategoryName =
+    categoriesList.find((c) => c.id === selectedCategoryId)?.name || "";
+
   const handleReParseText = () => {
     if (!rawText.trim()) return;
     const parsed = parseProductText(rawText);
-
-    // Solo actualiza campos que la administradora no haya marcado como manual
     const manualFields = new Set(product.manualFields || []);
 
     if (!manualFields.has("title") && parsed.title) {
@@ -219,9 +125,10 @@ export function EditProductClient({
     }
     if (!manualFields.has("priceCents") && parsed.priceCents !== null) {
       setPricePesos(String(parsed.priceCents / 100));
+      setIsConsultPrice(false);
     }
     if (!manualFields.has("categoryId") && parsed.suggestedCategorySlug) {
-      const suggested = categories.find(
+      const suggested = categoriesList.find(
         (c) => c.slug === parsed.suggestedCategorySlug
       );
       if (suggested && leafCategories.some((leaf) => leaf.id === suggested.id)) {
@@ -230,199 +137,6 @@ export function EditProductClient({
     }
   };
 
-  // Manejo de carga de fotos
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setCompressing(true);
-    setErrorMessage(null);
-
-    try {
-      const newPhotos: PhotoState[] = [];
-      for (const file of Array.from(files)) {
-        const compressed = await compressImageInBrowser(file);
-        newPhotos.push({
-          id: `new-${Date.now()}-${Math.random()}`,
-          keyThumb: compressed.keyThumb,
-          keyFull: compressed.keyFull,
-          isExisting: false,
-        });
-      }
-      setPhotos((prev) => [...prev, ...newPhotos]);
-    } catch {
-      setErrorMessage("No se pudieron procesar algunas imágenes.");
-    } finally {
-      setCompressing(false);
-    }
-  };
-
-  const handleRemovePhoto = (id: string) => {
-    setPhotos((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  // Marcar una foto como portada (posición 0)
-  const handleSetCoverPhoto = (index: number) => {
-    if (index <= 0 || index >= photos.length) return;
-    setPhotos((prev) => {
-      const copy = [...prev];
-      const [selected] = copy.splice(index, 1);
-      return [selected, ...copy];
-    });
-  };
-
-  // Reordenar fotos en la galería (mover izquierda / derecha)
-  const handleMovePhoto = (index: number, direction: "left" | "right") => {
-    const targetIndex = direction === "left" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= photos.length) return;
-    setPhotos((prev) => {
-      const copy = [...prev];
-      const temp = copy[index];
-      copy[index] = copy[targetIndex];
-      copy[targetIndex] = temp;
-      return copy;
-    });
-  };
-
-  // Gestión de variantes
-  const handleAddColor = () => {
-    setColors((prev) => [
-      ...prev,
-      {
-        id: `col-${Date.now()}`,
-        name: `Color ${prev.length + 1}`,
-        sizes: [{ id: `sz-${Date.now()}`, size: "ÚNICO", stock: 1 }],
-      },
-    ]);
-  };
-
-  const handleRemoveColor = (colId: string) => {
-    if (colors.length <= 1) return;
-    setColors((prev) => prev.filter((c) => c.id !== colId));
-  };
-
-  const handleColorNameChange = (colId: string, name: string) => {
-    setColors((prev) =>
-      prev.map((c) => (c.id === colId ? { ...c, name } : c))
-    );
-  };
-
-  const applyPreset = (preset: "clothing" | "clothing-extended" | "shoes" | "single") => {
-    let newSizes: Array<{ id: string; size: string; stock: number }> = [];
-    if (preset === "clothing") {
-      newSizes = ["S", "M", "L", "XL"].map((sz) => ({
-        id: `sz-${sz.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-        size: sz,
-        stock: 1,
-      }));
-    } else if (preset === "clothing-extended") {
-      newSizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"].map((sz) => ({
-        id: `sz-${sz.toLowerCase()}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-        size: sz,
-        stock: 1,
-      }));
-    } else if (preset === "shoes") {
-      newSizes = [35, 36, 37, 38, 39, 40].map((num) => ({
-        id: `sz-${num}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-        size: String(num),
-        stock: 1,
-      }));
-    } else {
-      newSizes = [{ id: `sz-unico-${Date.now()}`, size: "ÚNICO", stock: 1 }];
-    }
-
-    setColors((prev) =>
-      prev.map((col) => ({
-        ...col,
-        sizes: newSizes.map((s) => ({ ...s, id: `${s.id}-${col.id}` })),
-      }))
-    );
-  };
-
-  const addQuickSize = (colId: string, sizeName: string) => {
-    setColors((prev) =>
-      prev.map((c) => {
-        if (c.id !== colId) return c;
-        if (c.sizes.some((s) => s.size.trim().toUpperCase() === sizeName.toUpperCase())) {
-          return c;
-        }
-        return {
-          ...c,
-          sizes: [
-            ...c.sizes,
-            {
-              id: `sz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-              size: sizeName,
-              stock: 1,
-            },
-          ],
-        };
-      })
-    );
-  };
-
-  const handleAddSize = (colId: string) => {
-    setColors((prev) =>
-      prev.map((c) => {
-        if (c.id !== colId) return c;
-        return {
-          ...c,
-          sizes: [
-            ...c.sizes,
-            { id: `sz-${Date.now()}-${Math.random()}`, size: "M", stock: 1 },
-          ],
-        };
-      })
-    );
-  };
-
-  const handleRemoveSize = (colId: string, sizeId: string) => {
-    setColors((prev) =>
-      prev.map((c) => {
-        if (c.id !== colId) return c;
-        if (c.sizes.length <= 1) return c;
-        return {
-          ...c,
-          sizes: c.sizes.filter((s) => s.id !== sizeId),
-        };
-      })
-    );
-  };
-
-  const handleSetStock = (colId: string, sizeId: string, nextStock: number) => {
-    setColors((prev) =>
-      prev.map((c) => {
-        if (c.id !== colId) return c;
-        return {
-          ...c,
-          sizes: c.sizes.map((s) => {
-            if (s.id !== sizeId) return s;
-            return { ...s, stock: Math.max(0, Math.trunc(nextStock)) };
-          }),
-        };
-      })
-    );
-  };
-
-  const handleSizeNameChange = (
-    colId: string,
-    sizeId: string,
-    sizeName: string
-  ) => {
-    setColors((prev) =>
-      prev.map((c) => {
-        if (c.id !== colId) return c;
-        return {
-          ...c,
-          sizes: c.sizes.map((s) =>
-            s.id === sizeId ? { ...s, size: sizeName } : s
-          ),
-        };
-      })
-    );
-  };
-
-  // Guardar cambios (BR-33)
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -430,63 +144,27 @@ export function EditProductClient({
     setSavedSuccess(false);
 
     try {
-      let priceCents: number | null = null;
-      if (pricePesos.trim()) {
-        const parsedPesos = parseFloat(pricePesos.replace(/,/g, "."));
-        if (!Number.isNaN(parsedPesos) && parsedPesos >= 0) {
-          priceCents = Math.round(parsedPesos * 100);
-        }
-      }
-
-      let compareAtPriceCents: number | null = null;
-      if (compareAtPricePesos.trim()) {
-        const parsedCompare = parseFloat(compareAtPricePesos.replace(/,/g, "."));
-        if (!Number.isNaN(parsedCompare) && parsedCompare > 0) {
-          compareAtPriceCents = Math.round(parsedCompare * 100);
-        }
-      }
-
-      const cleanAttributes: Record<string, string[]> = {};
-      for (const [k, v] of Object.entries(attributes)) {
-        if (v && v.trim()) {
-          cleanAttributes[k] = [v.trim()];
-        }
-      }
-
-      const allUniqueSizes = Array.from(
-        new Set(
-          colors.flatMap((c) =>
-            c.sizes.map((s) => s.size.trim().toUpperCase()).filter(Boolean)
-          )
-        )
-      ).join(", ");
+      const priceCents = isConsultPrice ? null : parsePricePesosToCents(pricePesos);
+      const compareAtPriceCents = isConsultPrice
+        ? null
+        : parseCompareAtPesosToCents(compareAtPricePesos);
 
       const payload = {
         rawText,
         title: title.trim() || null,
         priceCents,
         compareAtPriceCents,
-        size: allUniqueSizes || undefined,
+        size: collectUniqueSizesCsv(colors) || undefined,
         categoryId: selectedCategoryId,
         status,
         isFeatured,
         allowReturn,
-        publishedAt: publishedAtDate ? Date.parse(`${publishedAtDate}T12:00:00.000Z`) : null,
-        attributes: cleanAttributes,
-        colors: colors.map((c, cIdx) => ({
-          name: c.name.trim() || "Único",
-          hexCode: c.hexCode || null,
-          position: cIdx,
-          sizes: c.sizes.map((s) => ({
-            size: s.size.trim() || "ÚNICO",
-            stock: Math.max(0, parseInt(String(s.stock || 0), 10) || 0),
-          })),
-        })),
-        photos: photos.map((p, pIdx) => ({
-          keyThumb: p.keyThumb,
-          keyFull: p.keyFull,
-          position: pIdx,
-        })),
+        publishedAt: publishedAtDate
+          ? Date.parse(`${publishedAtDate}T12:00:00.000Z`)
+          : null,
+        attributes: serializeAttributesPayload(attributes),
+        colors: serializeColorsPayload(colors),
+        photos: serializePhotosPayload(photos),
       };
 
       abortControllerRef.current = new AbortController();
@@ -507,22 +185,22 @@ export function EditProductClient({
         setCurrentProduct(data.product);
       }
       setSavedSuccess(true);
-      // Actualizamos estado en cliente para navegar como SPA pura sin recargar la página
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
       const msg = err instanceof Error ? err.message : "Error al guardar";
       setErrorMessage(msg);
     } finally {
-      setSaving(false);
+      if (isMountedRef.current) {
+        setSaving(false);
+      }
     }
   };
-
-  const codeFormatted = `#${String(product.code).padStart(3, "0")}`;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-20">
       {/* Barra Superior de Navegación */}
       <div className="flex items-center justify-between gap-4">
-        <Link prefetch={false}
+        <Link
           href="/admin/productos"
           className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 p-1"
           aria-label="Volver al catálogo de productos"
@@ -564,7 +242,7 @@ export function EditProductClient({
       {/* Formulario Principal */}
       <form onSubmit={handleSave} className="space-y-6">
         {/* Sección: Texto Crudo Original (BR-05, BR-33) */}
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-3">
+        <section className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between">
             <label
               htmlFor="edit-raw-text"
@@ -575,7 +253,7 @@ export function EditProductClient({
             <button
               type="button"
               onClick={handleReParseText}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
               title="Volver a extraer datos sugeridos respetando tus correcciones manuales"
               aria-label="Reinterpretar texto crudo del producto"
             >
@@ -594,597 +272,105 @@ export function EditProductClient({
           <p className="text-[11px] text-zinc-500">
             Al editar el texto crudo, podés pulsar &quot;Reinterpretar texto&quot; para proponer nuevos datos sin pisar lo que hayas corregido a mano.
           </p>
-        </div>
+        </section>
 
-        {/* Sección: Datos Básicos */}
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+        {/* Sección: Datos Principales */}
+        <section className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
             Datos Principales
           </h2>
+          <BasicDataStep
+            title={title}
+            onTitleChange={setTitle}
+            pricePesos={pricePesos}
+            onPriceChange={setPricePesos}
+            compareAtPricePesos={compareAtPricePesos}
+            onCompareAtPriceChange={setCompareAtPricePesos}
+            isConsultPrice={isConsultPrice}
+            onConsultPriceChange={setIsConsultPrice}
+            categories={leafCategories}
+            selectedCategoryId={selectedCategoryId}
+            onCategoryChange={setSelectedCategoryId}
+            onCategoryCreated={(cat) =>
+              setCategoriesList((prev) => [...prev, cat])
+            }
+          />
+        </section>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Título */}
-            <div className="space-y-1.5 sm:col-span-2">
-              <label htmlFor="edit-title" className="text-xs text-zinc-400">
-                Título del Producto
-              </label>
-              <input
-                id="edit-title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ej: Vestido Lino Estampado"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
-              />
-            </div>
+        {/* Sección: Galería de Fotos */}
+        <section className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+            Fotos del Producto
+          </h2>
+          <MediaUploaderStep
+            photos={photos}
+            onPhotosChange={setPhotos}
+            onError={(msg) => setErrorMessage(msg)}
+          />
+        </section>
 
-            {/* Precio en Pesos */}
-            <div className="space-y-1.5">
-              <label htmlFor="edit-price" className="text-xs text-zinc-400">
-                Precio en Pesos (ARS)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-sm text-zinc-500" aria-hidden="true">$</span>
-                <input
-                  id="edit-price"
-                  type="text"
-                  value={pricePesos}
-                  onChange={(e) => setPricePesos(e.target.value)}
-                  placeholder="Ej: 45000 (vacío para 'Consultar')"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3.5 py-2.5 text-sm font-mono text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
-                />
-              </div>
-            </div>
+        {/* Sección: Variantes y Stock */}
+        <section className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+            Variantes de Color, Talles y Stock
+          </h2>
+          <StockVariantsStep
+            isSinglePiece={isSinglePiece}
+            onToggleSinglePiece={setIsSinglePiece}
+            colors={colors}
+            onColorsChange={setColors}
+            categoryName={currentCategoryName}
+          />
+        </section>
 
-            {/* Precio Anterior (Sale) */}
-            <div className="space-y-1.5">
-              <label htmlFor="edit-compare-price" className="text-xs text-zinc-400">
-                Precio Anterior / Sale (ARS)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-sm text-zinc-500" aria-hidden="true">$</span>
-                <input
-                  id="edit-compare-price"
-                  type="text"
-                  value={compareAtPricePesos}
-                  onChange={(e) => setCompareAtPricePesos(e.target.value)}
-                  placeholder="Opcional para Sale (ej: 60000)"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-8 pr-3.5 py-2.5 text-sm font-mono text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
-                />
-              </div>
-            </div>
+        {/* Sección: Visibilidad y Atributos */}
+        <section className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
+            Visibilidad, Políticas y Especificaciones
+          </h2>
+          <ProductAttributesStep
+            initialStatus={status}
+            onStatusChange={setStatus}
+            allowSoldOut
+            publishedAtDate={publishedAtDate}
+            onPublishedAtDateChange={setPublishedAtDate}
+            isFeatured={isFeatured}
+            onFeaturedChange={setIsFeatured}
+            allowReturn={allowReturn}
+            onAllowReturnChange={setAllowReturn}
+            attributes={attributes}
+            onAttributeChange={(k, v) =>
+              setAttributes((prev) => ({ ...prev, [k]: v }))
+            }
+            attributeDefinitions={attrDefs}
+            onAttributeDefinitionsChange={setAttrDefs}
+          />
+        </section>
 
-            {/* Categoría */}
-            <div className="space-y-1.5">
-              <label htmlFor="edit-category" className="text-xs text-zinc-400">
-                Categoría (Nodo Hoja)
-              </label>
-              <select
-                id="edit-category"
-                value={selectedCategoryId}
-                onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
-              >
-                {leafCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Fecha de Publicación */}
-            <div className="space-y-1.5">
-              <label htmlFor="edit-published-at" className="text-xs text-zinc-400">
-                Fecha de Publicación (Recién llegados)
-              </label>
-              <input
-                id="edit-published-at"
-                type="date"
-                value={publishedAtDate}
-                onChange={(e) => setPublishedAtDate(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
-              />
-            </div>
-
-            {/* Atributos Configurables del Rubro */}
-            {attrDefs.map((def) => (
-              <div key={def.key} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <label htmlFor={`edit-attr-${def.key}`}>{def.label}</label>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setAddingOptionForDefId(
-                        addingOptionForDefId === def.id ? null : def.id
-                      )
-                    }
-                    className="text-amber-300 hover:underline inline-flex items-center gap-1 text-[11px]"
-                  >
-                    <PlusCircle size={11} />
-                    <span>{addingOptionForDefId === def.id ? "Cerrar" : "+ Opción"}</span>
-                  </button>
-                </div>
-
-                {addingOptionForDefId === def.id ? (
-                  <div className="flex gap-1.5">
-                    <input
-                      type="text"
-                      value={newOptionValue}
-                      onChange={(e) => setNewOptionValue(e.target.value)}
-                      placeholder={`Nueva opción para ${def.label}...`}
-                      className="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-100"
-                    />
-                    <button
-                      type="button"
-                      disabled={addingOptionLoading || !newOptionValue.trim()}
-                      onClick={() => handleQuickAddAttributeOption(def)}
-                      className="px-3 py-2 rounded-xl bg-amber-400 text-zinc-950 font-bold text-xs hover:bg-amber-300 disabled:opacity-50"
-                    >
-                      {addingOptionLoading ? "..." : "Agregar"}
-                    </button>
-                  </div>
-                ) : (
-                  <select
-                    id={`edit-attr-${def.key}`}
-                    value={attributes[def.key] || ""}
-                    onChange={(e) =>
-                      setAttributes((prev) => ({
-                        ...prev,
-                        [def.key]: e.target.value,
-                      }))
-                    }
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all"
-                  >
-                    <option value="">Sin especificar</option>
-                    {def.options.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            ))}
-
-
-            {/* Estado */}
-            <div className="space-y-1.5 sm:col-span-2">
-              <span id="label-product-status" className="block text-xs text-zinc-400">
-                Estado de Publicación
-              </span>
-              <div
-                role="group"
-                aria-labelledby="label-product-status"
-                className="grid grid-cols-3 gap-2"
-              >
-                <button
-                  type="button"
-                  onClick={() => setStatus("AVAILABLE")}
-                  aria-pressed={status === "AVAILABLE"}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-                    status === "AVAILABLE"
-                      ? "bg-emerald-500 text-zinc-950 border-emerald-400"
-                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700"
-                  }`}
-                >
-                  Disponible
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatus("RESERVED")}
-                  aria-pressed={status === "RESERVED"}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-                    status === "RESERVED"
-                      ? "bg-amber-400 text-zinc-950 border-amber-300"
-                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700"
-                  }`}
-                >
-                  Reservada
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStatus("SOLD_OUT")}
-                  aria-pressed={status === "SOLD_OUT"}
-                  className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-                    status === "SOLD_OUT"
-                      ? "bg-zinc-700 text-zinc-100 border-zinc-600"
-                      : "bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700"
-                  }`}
-                >
-                  Agotada
-                </button>
-              </div>
-            </div>
-
-            {/* Prenda Destacada en el Showroom */}
-            <div className="sm:col-span-2 flex items-center justify-between p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 gap-3">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <Star
-                    size={15}
-                    className={isFeatured ? "text-amber-400 fill-amber-400" : "text-zinc-500"}
-                    aria-hidden="true"
-                  />
-                  <span className="text-xs font-bold text-zinc-200">
-                    Destacar este producto en el catálogo
-                  </span>
-                  {isFeatured && (
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                      Destacado
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-zinc-400">
-                  Aparecerá en los primeros lugares de la tienda y en el filtro de Destacados.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isFeatured}
-                aria-label="Destacar este producto en el catálogo"
-                onClick={() => setIsFeatured((prev) => !prev)}
-                className={`admin-switch-track relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-                  isFeatured ? "bg-amber-400" : "bg-zinc-800"
-                }`}
-              >
-                <span
-                  className={`admin-switch-thumb pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
-                    isFeatured ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Política de Cambios y Devoluciones (Venta Final estilo Adidas) */}
-            <div className="sm:col-span-2 flex items-center justify-between p-3.5 rounded-xl bg-zinc-950 border border-zinc-800 gap-3">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-zinc-200">
-                    Permitir cambios y devoluciones
-                  </span>
-                  {!allowReturn && (
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-rose-400/20 text-rose-300 border border-rose-400/30">
-                      Venta Final
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-zinc-400">
-                  {allowReturn
-                    ? "El cliente podrá solicitar cambio o arrepentimiento legal dentro de los 10 días."
-                    : "🚫 Sin cambio ni devolución: La ficha mostrará el aviso destacado en la tienda."}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                role="switch"
-                aria-checked={allowReturn}
-                aria-label="Permitir cambios y devoluciones para este producto"
-                onClick={() => setAllowReturn((prev) => !prev)}
-                className={`admin-switch-track relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-                  allowReturn ? "bg-amber-400" : "bg-zinc-800"
-                }`}
-              >
-                <span
-                  className={`admin-switch-thumb pointer-events-none inline-block h-5 w-5 transform rounded-full bg-zinc-950 shadow-md ring-0 transition duration-200 ease-in-out ${
-                    allowReturn ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Sección: Variantes de Color y Stock por Talle (BR-20) */}
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              Colores, Talles y Stock
-            </h2>
-            <button
-              type="button"
-              onClick={handleAddColor}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-              aria-label="Agregar nueva variante de color"
-            >
-              <Plus size={14} aria-hidden="true" />
-              <span>+ Color</span>
-            </button>
-          </div>
-
-          {/* Plantillas Rápidas de Talles */}
-          <div className="p-3 rounded-xl bg-zinc-950 border border-zinc-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-zinc-300">
-                Aplicar talles predeterminados a los colores:
-              </span>
-              <span className="text-[10px] text-zinc-400">
-                1 clic para autocompletar
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => applyPreset("clothing-extended")}
-                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-amber-500/40 text-xs font-semibold text-amber-300 hover:bg-zinc-900 hover:border-amber-400 transition-colors cursor-pointer"
-              >
-                Indumentaria completa (XS a XXXL)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("clothing")}
-                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-amber-300 hover:border-zinc-700 transition-colors cursor-pointer"
-              >
-                Indumentaria estándar (S a XL)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("shoes")}
-                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-amber-300 hover:border-zinc-700 transition-colors cursor-pointer"
-              >
-                Calzado (35 al 40)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("single")}
-                className="px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-medium text-zinc-300 hover:text-amber-300 hover:border-zinc-700 transition-colors cursor-pointer"
-              >
-                Talle Único
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {colors.map((c) => (
-              <div
-                key={c.id}
-                className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <input
-                    type="text"
-                    value={c.name}
-                    onChange={(e) => handleColorNameChange(c.id, e.target.value)}
-                    placeholder="Nombre del color (ej: Negro, Blanco)"
-                    aria-label={`Nombre del color ${c.name || ""}`}
-                    className="flex-1 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-100 font-semibold focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400"
-                  />
-
-                  {colors.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveColor(c.id)}
-                      className="text-zinc-500 hover:text-rose-400 p-1.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
-                      title="Eliminar este color"
-                      aria-label={`Eliminar color ${c.name}`}
-                    >
-                      <Trash2 size={15} aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Talles del Color */}
-                <div className="space-y-2 pt-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-400">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-semibold text-zinc-300">Talles:</span>
-                      <div className="flex flex-wrap items-center gap-1">
-                        {["XS", "S", "M", "L", "XL", "XXL", "XXXL"].map((szPill) => (
-                          <button
-                            key={szPill}
-                            type="button"
-                            onClick={() => addQuickSize(c.id, szPill)}
-                            className="px-1.5 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-amber-400 text-[10px] font-mono font-bold text-zinc-300 hover:text-amber-300 transition-colors cursor-pointer"
-                            title={`Agregar talle ${szPill}`}
-                          >
-                            +{szPill}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSize(c.id)}
-                      className="text-amber-200 hover:text-amber-100 font-semibold inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                      aria-label={`Agregar talle al color ${c.name}`}
-                    >
-                      <Plus size={12} aria-hidden="true" />
-                      <span>Agregar talle</span>
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {c.sizes.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-zinc-900/80 border border-zinc-800 rounded-xl p-2.5 min-w-0"
-                      >
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                          <input
-                            type="text"
-                            value={s.size}
-                            onChange={(e) =>
-                              handleSizeNameChange(c.id, s.id, e.target.value)
-                            }
-                            placeholder="Talle (S, M, 38)"
-                            aria-label={`Nombre de talle para color ${c.name}`}
-                            className="w-24 min-w-0 min-h-[44px] bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 text-xs text-zinc-100 uppercase font-mono font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-                          />
-
-                          {c.sizes.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSize(c.id, s.id)}
-                              className="sm:hidden min-w-[44px] min-h-[44px] inline-flex items-center justify-center text-zinc-500 hover:text-rose-400 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
-                              aria-label={`Eliminar talle ${s.size} del color ${c.name}`}
-                            >
-                              <Trash2 size={14} aria-hidden="true" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 min-w-0 sm:w-44">
-                          <StockStepperField
-                            value={s.stock}
-                            onChange={(nextStock) => handleSetStock(c.id, s.id, nextStock)}
-                            itemLabel={`talle ${s.size} para color ${c.name}`}
-                          />
-
-                          {c.sizes.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSize(c.id, s.id)}
-                              className="hidden sm:inline-flex min-w-[44px] min-h-[44px] shrink-0 items-center justify-center text-zinc-500 hover:text-rose-400 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
-                              aria-label={`Eliminar talle ${s.size} del color ${c.name}`}
-                            >
-                              <Trash2 size={14} aria-hidden="true" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Sección: Fotos de la Prenda (BR-07) */}
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-300">
-              Fotos ({photos.length})
-            </h2>
-
-            <label
-              htmlFor="edit-product-photos-input"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-amber-200 text-xs font-semibold cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-amber-400"
-            >
-              <Upload size={14} aria-hidden="true" />
-              <span>{compressing ? "Comprimiendo..." : "+ Subir fotos"}</span>
-              <input
-                id="edit-product-photos-input"
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileChange}
-                disabled={compressing}
-                aria-label="Subir fotos del producto"
-                className="sr-only"
-              />
-            </label>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {photos.map((p, idx) => (
-              <div
-                key={p.id}
-                className={`relative aspect-[3/4] rounded-xl overflow-hidden bg-zinc-950 border group transition-all ${
-                  idx === 0
-                    ? "border-amber-400 shadow-md shadow-amber-950/40 ring-1 ring-amber-400/50"
-                    : "border-zinc-800 hover:border-zinc-700"
-                }`}
-              >
-                <img
-                  src={p.keyThumb}
-                  alt={`Foto ${idx + 1} del producto`}
-                  className="w-full h-full object-cover"
-                />
-
-                {/* Botón Eliminar */}
-                <button
-                  type="button"
-                  onClick={() => handleRemovePhoto(p.id)}
-                  className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-zinc-950/90 text-zinc-300 hover:text-rose-400 opacity-85 group-hover:opacity-100 transition-all focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 z-10"
-                  title="Eliminar foto"
-                  aria-label={`Eliminar foto ${idx + 1}`}
-                >
-                  <Trash2 size={13} aria-hidden="true" />
-                </button>
-
-                {/* Flechas para reordenar */}
-                {photos.length > 1 && (
-                  <div className="absolute top-1.5 left-1.5 flex items-center gap-0.5 z-10 opacity-85 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                    {idx > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => handleMovePhoto(idx, "left")}
-                        aria-label={`Mover foto ${idx + 1} hacia la izquierda`}
-                        title="Mover hacia la izquierda"
-                        className="p-1 rounded bg-zinc-950/90 text-zinc-200 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                      >
-                        <ChevronLeft size={12} aria-hidden="true" />
-                      </button>
-                    )}
-                    {idx < photos.length - 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleMovePhoto(idx, "right")}
-                        aria-label={`Mover foto ${idx + 1} hacia la derecha`}
-                        title="Mover hacia la derecha"
-                        className="p-1 rounded bg-zinc-950/90 text-zinc-200 hover:text-amber-200 hover:bg-zinc-900 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                      >
-                        <ChevronRight size={12} aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Badge de Portada o Botón para Hacer Portada */}
-                {idx === 0 ? (
-                  <div className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-center gap-1 py-0.5 rounded-lg bg-amber-400 text-zinc-950 font-bold text-[10px] shadow-sm">
-                    <Star size={11} className="fill-zinc-950" aria-hidden="true" />
-                    <span>Portada</span>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleSetCoverPhoto(idx)}
-                    aria-label={`Destacar foto ${idx + 1} como portada principal`}
-                    title="Hacer que esta foto sea la portada del producto"
-                    className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-center gap-1 py-0.5 rounded-lg bg-zinc-950/90 text-zinc-300 hover:text-amber-300 hover:bg-zinc-900 border border-zinc-800 text-[10px] font-semibold transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                  >
-                    <Star size={10} aria-hidden="true" />
-                    <span>Destacar</span>
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Mensajes de Feedback */}
         {errorMessage && (
-          <div
-            role="alert"
-            aria-live="assertive"
-            className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs"
-          >
-            {errorMessage}
-          </div>
+          <AdminFeedbackBanner
+            type="error"
+            message={errorMessage}
+            onDismiss={() => setErrorMessage(null)}
+          />
         )}
 
         {savedSuccess && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs animate-in fade-in"
-          >
-            <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} aria-hidden="true" />
-              <span>Producto actualizado con éxito en el catálogo.</span>
+          <div className="space-y-2">
+            <AdminFeedbackBanner
+              type="ok"
+              message="Producto actualizado con éxito en el catálogo."
+              onDismiss={() => setSavedSuccess(false)}
+            />
+            <div className="flex justify-end">
+              <Link
+                href="/admin/productos"
+                className="inline-flex items-center gap-1.5 text-xs text-emerald-300 hover:underline font-semibold"
+              >
+                <span>Volver a la lista de productos</span>
+                <ArrowLeft size={13} className="rotate-180" aria-hidden="true" />
+              </Link>
             </div>
-            <Link prefetch={false}
-              href="/admin/productos"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-            >
-              <span>Volver a la lista de productos</span>
-              <ArrowLeft size={13} className="rotate-180" aria-hidden="true" />
-            </Link>
           </div>
         )}
 
@@ -1200,7 +386,7 @@ export function EditProductClient({
           </button>
 
           <div className="flex items-center gap-3">
-            <Link prefetch={false}
+            <Link
               href="/admin/productos"
               className="px-5 py-2.5 rounded-xl border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             >
@@ -1209,7 +395,7 @@ export function EditProductClient({
 
             <button
               type="submit"
-              disabled={saving || compressing}
+              disabled={saving}
               className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-amber-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
             >
               {saving ? (
@@ -1228,12 +414,13 @@ export function EditProductClient({
         </div>
       </form>
 
-      {/* Modal con Step de Confirmación de Borrado */}
       {showDeleteModal && (
         <ConfirmDeleteProductModal
           product={product}
           onClose={() => setShowDeleteModal(false)}
-          onDeleted={() => { router.push("/admin/productos"); }}
+          onDeleted={() => {
+            router.push("/admin/productos");
+          }}
         />
       )}
     </div>

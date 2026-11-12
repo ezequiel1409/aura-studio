@@ -563,60 +563,65 @@ export function AppearanceSettingsClient({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3.5">
-                {/* 1. Color de Acento / Botones */}
-                <ColorSettingCard
-                  id="accent-color"
-                  label="Acento / Botones de compra"
-                  description="Botones de compra, badges y llamadas a la acción principales"
-                  value={themePrimaryColor}
-                  fallback={activePalette.accent}
-                  onChange={(val) => setThemePrimaryColor(val)}
-                  onReset={() => setThemePrimaryColor(activePalette.accent)}
-                />
-
-                {/* 2. Color de Fondo de Página */}
-                <ColorSettingCard
-                  id="bg-color"
-                  label="Fondo de la Página"
-                  description="Lienzo de fondo del catálogo y páginas públicas"
-                  value={themeBgColor}
-                  fallback={activePalette.bg}
-                  onChange={(val) => setThemeBgColor(val)}
-                  onReset={() => setThemeBgColor("")}
-                />
-
-                {/* 3. Color de Cabecera (Header) */}
-                <ColorSettingCard
-                  id="header-bg"
-                  label="Fondo de Cabecera (Header)"
-                  description="Barra superior fija donde se sitúa el logo y la navegación"
-                  value={themeHeaderBgColor}
-                  fallback={activePalette.bg}
-                  onChange={(val) => setThemeHeaderBgColor(val)}
-                  onReset={() => setThemeHeaderBgColor("")}
-                />
-
-                {/* 4. Color de Superficie / Tarjetas */}
-                <ColorSettingCard
-                  id="surface-color"
-                  label="Superficie / Tarjetas"
-                  description="Fondo de tarjetas de producto, modales y cajones"
-                  value={themeSurfaceColor}
-                  fallback={activePalette.surface}
-                  onChange={(val) => setThemeSurfaceColor(val)}
-                  onReset={() => setThemeSurfaceColor("")}
-                />
-
-                {/* 5. Color de Pie de Página (Footer) */}
-                <ColorSettingCard
-                  id="footer-bg"
-                  label="Fondo de Pie de Página (Footer)"
-                  description="Base del pie de página donde figura la información legal y data fiscal"
-                  value={themeFooterBgColor}
-                  fallback={activePalette.surface}
-                  onChange={(val) => setThemeFooterBgColor(val)}
-                  onReset={() => setThemeFooterBgColor("")}
-                />
+                {[
+                  {
+                    id: "accent-color",
+                    label: "Acento / Botones de compra",
+                    description: "Botones de compra, badges y llamadas a la acción principales",
+                    value: themePrimaryColor,
+                    fallback: activePalette.accent,
+                    onChange: setThemePrimaryColor,
+                    onReset: () => setThemePrimaryColor(activePalette.accent),
+                  },
+                  {
+                    id: "bg-color",
+                    label: "Fondo de la Página",
+                    description: "Lienzo de fondo del catálogo y páginas públicas",
+                    value: themeBgColor,
+                    fallback: activePalette.bg,
+                    onChange: setThemeBgColor,
+                    onReset: () => setThemeBgColor(""),
+                  },
+                  {
+                    id: "header-bg",
+                    label: "Fondo de Cabecera (Header)",
+                    description: "Barra superior fija donde se sitúa el logo y la navegación",
+                    value: themeHeaderBgColor,
+                    fallback: activePalette.bg,
+                    onChange: setThemeHeaderBgColor,
+                    onReset: () => setThemeHeaderBgColor(""),
+                  },
+                  {
+                    id: "surface-color",
+                    label: "Superficie / Tarjetas",
+                    description: "Fondo de tarjetas de producto, modales y cajones",
+                    value: themeSurfaceColor,
+                    fallback: activePalette.surface,
+                    onChange: setThemeSurfaceColor,
+                    onReset: () => setThemeSurfaceColor(""),
+                  },
+                  {
+                    id: "footer-bg",
+                    label: "Fondo de Pie de Página (Footer)",
+                    description:
+                      "Base del pie de página donde figura la información legal y data fiscal",
+                    value: themeFooterBgColor,
+                    fallback: activePalette.surface,
+                    onChange: setThemeFooterBgColor,
+                    onReset: () => setThemeFooterBgColor(""),
+                  },
+                ].map((field) => (
+                  <ColorSettingCard
+                    key={field.id}
+                    id={field.id}
+                    label={field.label}
+                    description={field.description}
+                    value={field.value}
+                    fallback={field.fallback}
+                    onChange={field.onChange}
+                    onReset={field.onReset}
+                  />
+                ))}
 
                 {/* 6. Selector de Tipografía */}
                 <div className="p-3.5 sm:p-4 rounded-2xl bg-zinc-950/80 border border-zinc-800 space-y-2.5 min-w-0 transition-colors hover:border-zinc-700">

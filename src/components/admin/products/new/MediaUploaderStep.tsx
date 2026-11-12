@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Camera,
@@ -39,13 +39,16 @@ export function MediaUploaderStep({
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const photosRef = useRef(photos);
-  photosRef.current = photos;
   const onPhotosChangeRef = useRef(onPhotosChange);
-  onPhotosChangeRef.current = onPhotosChange;
   const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
 
-  const processFiles = async (fileList: FileList | File[]) => {
+  useEffect(() => {
+    photosRef.current = photos;
+    onPhotosChangeRef.current = onPhotosChange;
+    onErrorRef.current = onError;
+  }, [photos, onPhotosChange, onError]);
+
+  const processFiles = useCallback(async (fileList: FileList | File[]) => {
     if (!fileList || fileList.length === 0) return;
     setCompressing(true);
 
@@ -73,10 +76,12 @@ export function MediaUploaderStep({
     } finally {
       setCompressing(false);
     }
-  };
+  }, []);
 
   const processFilesRef = useRef(processFiles);
-  processFilesRef.current = processFiles;
+  useEffect(() => {
+    processFilesRef.current = processFiles;
+  }, [processFiles]);
 
   // Soporte de pegado desde el portapapeles (Ctrl + V)
   useEffect(() => {

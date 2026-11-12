@@ -1,5 +1,7 @@
 import { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { parseOrderCode } from "../../../domain/order";
 import { getProductServiceDeps } from "../../../infra/db/connection";
 import { getOrdersSummaryCounts, listOrders } from "../../../services/order.service";
 import { getShowroomSettings } from "../../../services/settings.service";
@@ -10,7 +12,19 @@ export const metadata: Metadata = {
   description: "Control de órdenes de compra, pagos y logística.",
 };
 
-export default async function AdminOrdersPage() {
+interface AdminOrdersPageProps {
+  searchParams?: Promise<{ id?: string }>;
+}
+
+export default async function AdminOrdersPage({ searchParams }: AdminOrdersPageProps) {
+  const resolvedParams = searchParams ? await searchParams : undefined;
+  if (resolvedParams?.id) {
+    const parsedCode = parseOrderCode(resolvedParams.id);
+    if (parsedCode !== null) {
+      redirect(`/admin/ordenes/${parsedCode}`);
+    }
+  }
+
   await connection();
   const deps = getProductServiceDeps();
 

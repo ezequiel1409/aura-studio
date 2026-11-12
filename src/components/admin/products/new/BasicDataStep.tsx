@@ -38,6 +38,7 @@ export function BasicDataStep({
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [creatingCategoryLoading, setCreatingCategoryLoading] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   const handleQuickCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +46,7 @@ export function BasicDataStep({
     if (!trimmed || creatingCategoryLoading) return;
 
     setCreatingCategoryLoading(true);
+    setCategoryError(null);
     try {
       const res = await fetch("/api/admin/categories", {
         method: "POST",
@@ -58,10 +60,10 @@ export function BasicDataStep({
         setNewCategoryName("");
         setIsCreatingCategory(false);
       } else {
-        alert(data.error || "No se pudo crear la categoría");
+        setCategoryError(data.error || "No se pudo crear la categoría");
       }
     } catch {
-      alert("Error de conexión al crear la categoría.");
+      setCategoryError("Error de conexión al crear la categoría.");
     } finally {
       setCreatingCategoryLoading(false);
     }
@@ -179,26 +181,36 @@ export function BasicDataStep({
         </div>
 
         {isCreatingCategory ? (
-          <form
-            onSubmit={handleQuickCreateCategory}
-            className="flex gap-2"
-          >
-            <input
-              type="text"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Nombre de la nueva categoría..."
-              className="flex-1 px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={creatingCategoryLoading || !newCategoryName.trim()}
-              className="px-4 py-2.5 rounded-xl bg-amber-300 text-zinc-950 text-xs font-bold hover:bg-amber-200 disabled:opacity-50 cursor-pointer transition-colors"
+          <div className="space-y-1.5">
+            <form
+              onSubmit={handleQuickCreateCategory}
+              className="flex gap-2"
             >
-              {creatingCategoryLoading ? "Creando..." : "Crear"}
-            </button>
-          </form>
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={(e) => {
+                  setCategoryError(null);
+                  setNewCategoryName(e.target.value);
+                }}
+                placeholder="Nombre de la nueva categoría..."
+                className="flex-1 px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={creatingCategoryLoading || !newCategoryName.trim()}
+                className="px-4 py-2.5 rounded-xl bg-amber-300 text-zinc-950 text-xs font-bold hover:bg-amber-200 disabled:opacity-50 cursor-pointer transition-colors"
+              >
+                {creatingCategoryLoading ? "Creando..." : "Crear"}
+              </button>
+            </form>
+            {categoryError && (
+              <p role="alert" className="text-[11px] text-rose-400">
+                {categoryError}
+              </p>
+            )}
+          </div>
         ) : (
           <select
             id="step-product-cat"

@@ -1,15 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { isSubNavItemActive } from "./header/nav-items";
+import { usePathname } from "next/navigation";
 import { useAdminNav } from "./navigation/AdminNavContext";
+import { AdminSectionTabs } from "./navigation/AdminSectionTabs";
 import { AdminWhatsNewBanner } from "./onboarding/AdminWhatsNewBanner";
 
-export function AdminLayoutFrame({ children }: { children: React.ReactNode }) {
+export function AdminLayoutFrame({
+  children,
+  operatorName,
+}: {
+  children: React.ReactNode;
+  operatorName?: string | null;
+}) {
   const pathname = usePathname() || "";
-  const searchParams = useSearchParams();
-  const searchParamsString = searchParams ? searchParams.toString() : "";
 
   const isAuthRoute =
     pathname === "/admin/login" ||
@@ -44,45 +47,14 @@ export function AdminLayoutFrame({ children }: { children: React.ReactNode }) {
               : "max-w-6xl mx-auto w-full"
           }
         >
-          {/* Navegación secundaria móvil y tablet (pestañas superiores hasta 1023px) */}
+          {!isAuthRoute && <AdminWhatsNewBanner />}
+
+          {/* Navegación secundaria móvil y tablet (pestañas persistentes hasta 1023px) */}
           {!isAuthRoute && hasSecondary && activeGroup?.subItems && (
             <div className="lg:hidden mb-6 -mt-2 pb-2 border-b border-zinc-800">
-              <span className="block text-[10px] uppercase font-bold tracking-wider text-amber-300 mb-1.5">
-                {activeGroup.label}
-              </span>
-              <nav
-                aria-label={`Subsecciones de ${activeGroup.label}`}
-                className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1"
-              >
-                {activeGroup.subItems.map((sub) => {
-                  const SubIcon = sub.icon;
-                  const isActive = isSubNavItemActive(
-                    pathname,
-                    searchParamsString,
-                    sub
-                  );
-
-                  return (
-                    <Link prefetch={false}
-                      key={sub.href}
-                      href={sub.href}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`inline-flex items-center gap-1.5 min-h-[44px] px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
-                        isActive
-                          ? "bg-amber-300 text-zinc-950 font-bold shadow-xs"
-                          : "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:bg-zinc-800"
-                      }`}
-                    >
-                      <SubIcon size={13} aria-hidden="true" />
-                      <span>{sub.label}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
+              <AdminSectionTabs group={activeGroup} pathname={pathname} />
             </div>
           )}
-
-          {!isAuthRoute && <AdminWhatsNewBanner />}
 
           {children}
         </div>
@@ -96,7 +68,7 @@ export function AdminLayoutFrame({ children }: { children: React.ReactNode }) {
         }
       >
         <span>
-          Creado por <strong className="font-semibold text-zinc-300">Altum</strong>
+          {operatorName ? `Panel de Gestión · ${operatorName}` : "Panel de Gestión"}
         </span>
       </footer>
     </>

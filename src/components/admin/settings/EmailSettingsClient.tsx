@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DEFAULT_NEUTRAL_BRAND } from "../../../lib/brand";
 import {
   AlertCircle,
   Bell,
@@ -36,6 +37,8 @@ import {
   interpolateVariables,
 } from "../../../domain/email/customization";
 import { ShowroomSettings } from "../../../services/settings.service";
+import { ACCEPTED_ADMIN_IMAGE_TYPES, uploadAdminMedia } from "../ui/AdminImageUploadField";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 interface EmailSettingsClientProps {
   initialSettings: ShowroomSettings;
@@ -59,6 +62,9 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
 
   // Estados de guardado
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  const [pendingDeleteEventId, setPendingDeleteEventId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
   // Estados de conexión con Resend (Servidor)
@@ -88,7 +94,7 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
   }, []);
 
   const storeBrandName =
-    initialSettings.showroomName || emailStatus?.brandName || "Aura Studio";
+    initialSettings.showroomName || emailStatus?.brandName || DEFAULT_NEUTRAL_BRAND;
 
   // Manejo de actualización de layout general
   const updateLayout = (updates: Partial<EmailLayoutConfig>) => {
@@ -137,27 +143,37 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
 
   // Eliminar evento personalizado
   const handleDeleteCustomEvent = (eventId: string) => {
-    if (!confirm("¿Estás seguro de que querés eliminar este evento personalizado?")) return;
+    setPendingDeleteEventId(eventId);
+  };
+
+  const confirmDeleteCustomEvent = () => {
+    if (!pendingDeleteEventId) return;
     setCustomization((prev) => ({
       ...prev,
-      events: prev.events.filter((evt) => evt.id !== eventId),
+      events: prev.events.filter((evt) => evt.id !== pendingDeleteEventId),
     }));
     setSelectedEventId("order_created");
+    setPendingDeleteEventId(null);
   };
 
   // Carga de logo de correo
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert("El logo no debe superar los 2 MB.");
-      return;
+
+    setLogoUploadError(null);
+    setUploadingLogo(true);
+    try {
+      const uploaded = await uploadAdminMedia(file, "emails");
+      updateLayout({ logoUrl: uploaded.url });
+    } catch (err: unknown) {
+      setLogoUploadError(
+        err instanceof Error ? err.message : "No se pudo subir el logo del correo."
+      );
+    } finally {
+      setUploadingLogo(false);
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateLayout({ logoUrl: reader.result as string });
-    };
-    reader.readAsDataURL(file);
   };
 
   // Guardar configuración general
@@ -398,16 +414,36 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
                       Actualmente se muestra el nombre de la tienda en texto estilizado:{" "}
                       <strong className="text-zinc-200">{storeBrandName}</strong>
                     </p>
-                    <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 cursor-pointer transition-colors">
-                      <Upload size={14} />
-                      <span>Subir logo personalizado</span>
+                    <label
+                      aria-disabled={uploadingLogo}
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition-colors ${
+                        uploadingLogo ? "opacity-60 pointer-events-none" : "cursor-pointer"
+                      }`}
+                    >
+                      {uploadingLogo ? (
+                        <Loader2 size={14} className="animate-spin text-amber-400" />
+                      ) : (
+                        <Upload size={14} />
+                      )}
+                      <span>{uploadingLogo ? "Subiendo logo..." : "Subir logo personalizado"}</span>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept={ACCEPTED_ADMIN_IMAGE_TYPES}
                         onChange={handleLogoUpload}
+                        disabled={uploadingLogo}
                         className="hidden"
                       />
                     </label>
+                  </div>
+                )}
+
+                {logoUploadError && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-950/50 border border-rose-800/70 text-[11px] text-rose-300"
+                  >
+                    <AlertCircle size={13} className="shrink-0 text-rose-400" />
+                    <span>{logoUploadError}</span>
                   </div>
                 )}
 
@@ -1018,6 +1054,16 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
           </form>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={pendingDeleteEventId !== null}
+        onClose={() => setPendingDeleteEventId(null)}
+        onConfirm={confirmDeleteCustomEvent}
+        title="Eliminar evento personalizado"
+        message="¿Estás seguro de que querés eliminar este evento personalizado? Esta acción quitará la plantilla del editor."
+        confirmLabel="Eliminar evento"
+        variant="danger"
+      />
     </div>
   );
 }

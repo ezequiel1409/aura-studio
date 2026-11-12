@@ -72,7 +72,7 @@ export function AdminMainSidebar({
       <div className="h-16 px-3 border-b border-zinc-800 flex items-center justify-between shrink-0">
         {!isCollapsed ? (
           <div className="flex items-center justify-between w-full min-w-0 pr-1">
-            <Link prefetch={false}
+            <Link
               href="/admin"
               aria-label={`${brandName}, ir al panel de administración`}
               className="flex min-w-0 items-center gap-2.5 font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5"
@@ -133,7 +133,7 @@ export function AdminMainSidebar({
               onMouseEnter={(e) => showTooltipForItem(item.id, e.currentTarget)}
               onMouseLeave={() => setHoveredItemId(null)}
             >
-              <Link prefetch={false}
+              <Link
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 aria-label={itemAriaLabel}
@@ -210,7 +210,7 @@ export function AdminMainSidebar({
 
         {/* Botón de Cargar Producto */}
         <div className="pt-3">
-          <Link prefetch={false}
+          <Link
             href="/admin/productos/nuevo"
             aria-label="Cargar nuevo producto"
             className={`flex items-center justify-center rounded-xl bg-amber-300/10 hover:bg-amber-300/20 border border-amber-400/30 text-amber-300 font-bold transition-all focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer ${

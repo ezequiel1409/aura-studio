@@ -1,7 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, Hash, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
+
+let nextVariantUidSeq = 0;
+function nextVariantUid(prefix: string): string {
+  nextVariantUidSeq += 1;
+  return `${prefix}_${nextVariantUidSeq}`;
+}
+
+function suggestSizeSystemForCategory(categoryName: string): SizeSystemId {
+  const cat = categoryName.toLowerCase();
+  if (cat.includes("niño") || cat.includes("bebe") || cat.includes("infantil") || cat.includes("chicos")) {
+    if (cat.includes("calzado") || cat.includes("zapatilla") || cat.includes("zapato")) return "shoes_kids";
+    return "clothing_kids";
+  }
+  if (cat.includes("calzado") || cat.includes("zapatilla") || cat.includes("zapato") || cat.includes("bota") || cat.includes("sandalia")) {
+    return "shoes_adult";
+  }
+  if (cat.includes("pantalon") || cat.includes("jean") || cat.includes("denim") || cat.includes("short") || cat.includes("bermuda")) {
+    return "pants";
+  }
+  return "clothing_adult";
+}
 
 export interface ColorState {
   id: string;
@@ -108,25 +129,25 @@ export function StockVariantsStep({
   onColorsChange,
   categoryName = "",
 }: StockVariantsStepProps) {
-  const [selectedSystem, setSelectedSystem] = useState<SizeSystemId>(() => {
-    const cat = categoryName.toLowerCase();
-    if (cat.includes("niño") || cat.includes("bebe") || cat.includes("infantil") || cat.includes("chicos")) {
-      if (cat.includes("calzado") || cat.includes("zapatilla") || cat.includes("zapato")) return "shoes_kids";
-      return "clothing_kids";
-    }
-    if (cat.includes("calzado") || cat.includes("zapatilla") || cat.includes("zapato") || cat.includes("bota") || cat.includes("sandalia")) {
-      return "shoes_adult";
-    }
-    if (cat.includes("pantalon") || cat.includes("jean") || cat.includes("denim") || cat.includes("short") || cat.includes("bermuda")) {
-      return "pants";
-    }
-    return "clothing_adult";
-  });
+  const [manualSystem, setManualSystem] = useState<{
+    categoryName: string;
+    system: SizeSystemId;
+  } | null>(null);
+
+  const selectedSystem =
+    manualSystem && manualSystem.categoryName === categoryName
+      ? manualSystem.system
+      : suggestSizeSystemForCategory(categoryName);
+
+  const setSelectedSystem = (system: SizeSystemId) => {
+    setManualSystem({ categoryName, system });
+  };
 
   // Generador de Rangos Numéricos libres (ej: de 1 a 5, de 20 a 30, etc.)
   const [rangeFrom, setRangeFrom] = useState("1");
   const [rangeTo, setRangeTo] = useState("5");
   const [rangeStep, setRangeStep] = useState<"1" | "2">("1");
+  const [rangeError, setRangeError] = useState<string | null>(null);
 
   // Entrada libre rápida (separada por comas o espacios)
   const [quickPasteInput, setQuickPasteInput] = useState("");
@@ -135,22 +156,6 @@ export function StockVariantsStep({
   // Input de talle libre por color
   const [addingCustomSizeForColorId, setAddingCustomSizeForColorId] = useState<string | null>(null);
   const [newCustomSizeValue, setNewCustomSizeValue] = useState("");
-
-  // Sugerir sistema de talles si cambia la categoría
-  useEffect(() => {
-    const cat = categoryName.toLowerCase();
-    if (cat.includes("niño") || cat.includes("bebe") || cat.includes("infantil") || cat.includes("chicos")) {
-      if (cat.includes("calzado") || cat.includes("zapatilla") || cat.includes("zapato")) {
-        setSelectedSystem("shoes_kids");
-      } else {
-        setSelectedSystem("clothing_kids");
-      }
-    } else if (cat.includes("calzado") || cat.includes("zapatilla") || cat.includes("zapato") || cat.includes("bota") || cat.includes("sandalia")) {
-      setSelectedSystem("shoes_adult");
-    } else if (cat.includes("pantalon") || cat.includes("jean") || cat.includes("denim") || cat.includes("short") || cat.includes("bermuda")) {
-      setSelectedSystem("pants");
-    }
-  }, [categoryName]);
 
   // Talle actual en modo Pieza Única (80% de los casos)
   const currentSingleSize =
@@ -174,9 +179,10 @@ export function StockVariantsStep({
     const step = parseInt(rangeStep, 10) || 1;
 
     if (isNaN(from) || isNaN(to) || from > to) {
-      alert("Por favor ingresá un rango numérico válido (ej: Desde 1 Hasta 5)");
+      setRangeError("Por favor ingresá un rango numérico válido (ej: Desde 1 Hasta 5)");
       return;
     }
+    setRangeError(null);
 
     const generatedSizes: string[] = [];
     for (let i = from; i <= to; i += step) {
@@ -271,18 +277,18 @@ export function StockVariantsStep({
     const baseSizes =
       colors[0]?.sizes.length > 0
         ? colors[0].sizes.map((s) => ({
-            id: `sz_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: nextVariantUid("sz"),
             size: s.size,
             stock: 1,
           }))
         : [
-            { id: `sz_s_${Date.now()}`, size: "S", stock: 1 },
-            { id: `sz_m_${Date.now()}`, size: "M", stock: 1 },
-            { id: `sz_l_${Date.now()}`, size: "L", stock: 1 },
+            { id: nextVariantUid("sz_s"), size: "S", stock: 1 },
+            { id: nextVariantUid("sz_m"), size: "M", stock: 1 },
+            { id: nextVariantUid("sz_l"), size: "L", stock: 1 },
           ];
 
     const newColor: ColorState = {
-      id: `col_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      id: nextVariantUid("col"),
       name: presetName || `Color ${colors.length + 1}`,
       hexCode: presetHex || "#111111",
       sizes: baseSizes,
@@ -483,6 +489,11 @@ export function StockVariantsStep({
               Generar talles
             </button>
           </div>
+          {rangeError && (
+            <p role="alert" className="text-[11px] text-rose-400">
+              {rangeError}
+            </p>
+          )}
         </div>
       )}
 

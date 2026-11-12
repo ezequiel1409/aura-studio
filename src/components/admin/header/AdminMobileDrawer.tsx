@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AdminWhatsNewTrigger } from "../onboarding/AdminWhatsNewTrigger";
 import { ArrowUpRight, LogOut } from "lucide-react";
+import { AdminSubNavLink } from "../navigation/AdminSubNavLink";
 import {
   ADMIN_PRIMARY_NAV_ITEMS,
   ADMIN_QUICK_CREATE_ITEM,
@@ -61,7 +62,7 @@ export function AdminMobileDrawer({
             </div>
           </div>
 
-          <Link prefetch={false}
+          <Link
             href={ADMIN_QUICK_CREATE_ITEM.href}
             onClick={onClose}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-200 text-zinc-950 text-xs font-bold shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
@@ -78,7 +79,7 @@ export function AdminMobileDrawer({
             const isActive = isAdminNavItemActive(pathname, item);
             return (
               <div key={item.id} className="space-y-1.5">
-                <Link prefetch={false}
+                <Link
                   href={item.href}
                   onClick={onClose}
                   aria-current={isActive ? "page" : undefined}
@@ -94,20 +95,15 @@ export function AdminMobileDrawer({
 
                 {isActive && item.subItems && (
                   <div className="grid grid-cols-2 gap-1.5 pl-4 pr-1 py-1">
-                    {item.subItems.map((sub) => {
-                      const SubIcon = sub.icon;
-                      return (
-                        <Link prefetch={false}
-                          key={sub.href}
-                          href={sub.href}
-                          onClick={onClose}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-medium text-zinc-200 hover:text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                        >
-                          <SubIcon size={13} className="text-amber-300 shrink-0" aria-hidden="true" />
-                          <span className="truncate">{sub.label}</span>
-                        </Link>
-                      );
-                    })}
+                    {item.subItems.map((sub) => (
+                      <AdminSubNavLink
+                        key={sub.href}
+                        item={sub}
+                        pathname={pathname}
+                        variant="drawer"
+                        onClick={onClose}
+                      />
+                    ))}
                   </div>
                 )}
               </div>

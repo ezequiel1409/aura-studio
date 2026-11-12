@@ -21,7 +21,7 @@ export default async function AdminDashboardPage() {
   ]);
 
   const storeType = settings.storeType || "Showroom";
-  const brandName = settings.showroomName || "Aura Studio";
+  const brandName = settings.showroomName || "Mi Tienda";
 
   // Cálculos para la lista de pendientes y métricas
   const pendingOrders = allOrders.filter((o) => o.status === "PENDING");

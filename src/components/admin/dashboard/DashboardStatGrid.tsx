@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRight,
@@ -77,7 +77,7 @@ export function DashboardStatGrid({ summary }: DashboardStatGridProps) {
       {statCards.map((card) => {
         const Icon = card.icon;
         return (
-          <Link prefetch={false}
+          <Link
             key={card.title}
             href={card.href}
             aria-label={`${card.title}: ${card.count} productos. ${card.description}. Ver listado filtrado.`}

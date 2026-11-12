@@ -5,43 +5,31 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   AlertTriangle,
-  Check,
   CheckCircle2,
   CheckSquare,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
-  Clock,
-  Edit2,
-  ExternalLink,
-  Eye,
   Folder,
-  FolderInput,
-  History,
   Layers,
   Loader2,
-  MessageCircle,
-  MoreVertical,
   Package,
-  PackageCheck,
   Plus,
-  RefreshCw,
   Search,
   Square,
-  Star,
   Tag,
-  Trash2,
   X,
 } from "lucide-react";
 import { Category } from "../../domain/category/types";
 import { BackofficeSummaryCounts } from "../../domain/ports/repositories.port";
-import { calculateTotalStock } from "../../domain/product/rules";
+import { calculateTotalStock, LOW_STOCK_THRESHOLD } from "../../domain/product/rules";
 import { Product, ProductStatus } from "../../domain/product/types";
-import { formatPriceARS } from "../../lib/format/currency";
 import { useBackofficeStore } from "../../stores/backoffice.store";
 import { QuickStockModal } from "./QuickStockModal";
 import { UndoAction, UndoToast } from "./UndoToast";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
+import { AdminPaginationBar } from "./ui/AdminPaginationBar";
+import { ProductInventoryRowCard } from "./products/list/ProductInventoryRowCard";
+import { ProductBulkActionBar } from "./products/list/ProductBulkActionBar";
 
 const StatusHistoryModal = dynamic(
   () => import("./StatusHistoryModal").then((mod) => mod.StatusHistoryModal),
@@ -54,8 +42,6 @@ const ConfirmDeleteProductModal = dynamic(
 );
 
 export type GroupByMode = "category" | "status" | "none";
-
-const LOW_STOCK_THRESHOLD = 3;
 
 interface ProductListClientProps {
   initialProducts: Product[];
@@ -76,25 +62,6 @@ function resolveInitialTab(initialStatus?: string, initialFilter?: string): stri
   if (normalizedStatus === "RESERVED") return "reservadas";
   if (normalizedStatus === "SOLD_OUT") return "agotadas";
   return initialFilter?.trim().toLowerCase() || "todas";
-}
-
-function getStockBadgeInfo(totalStock: number) {
-  if (totalStock <= 0) {
-    return {
-      label: "Sin stock (0 u.)",
-      className: "bg-red-500/15 border-red-500/30 text-red-300",
-    };
-  }
-  if (totalStock <= LOW_STOCK_THRESHOLD) {
-    return {
-      label: `Stock bajo: ${totalStock} u.`,
-      className: "bg-amber-500/15 border-amber-500/30 text-amber-300",
-    };
-  }
-  return {
-    label: `${totalStock} en stock`,
-    className: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300",
-  };
 }
 
 export function ProductListClient({
@@ -836,7 +803,6 @@ export function ProductListClient({
           )}
 
           <Link
-            prefetch={false}
             href="/admin/productos/nuevo"
             className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-300 text-zinc-950 font-bold text-xs hover:bg-amber-200 transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
@@ -1125,481 +1091,43 @@ export function ProductListClient({
                     id={`group-content-${group.id}`}
                     className="p-2.5 sm:p-3 space-y-2.5"
                   >
-                    {group.products.map((p) => {
-                      const codeFormatted = `#${String(p.code).padStart(3, "0")}`;
-                      const category = categoryMap.get(p.categoryId);
-                      const thumbUrl = p.photos?.[0]?.keyThumb;
-                      const isSelected = isProductSelected(p.id);
-                      const isDetailsExpanded = expandedProductIds.has(p.id);
-                      const totalStock = calculateTotalStock(p.colors);
-                      const stockBadge = getStockBadgeInfo(totalStock);
-
-                      return (
-                        <div
-                          key={p.id}
-                          className={`border rounded-xl transition-all ${
-                            isSelected
-                              ? "bg-amber-950/20 border-amber-500/60 shadow-sm"
-                              : "bg-zinc-900/75 border-zinc-800/90 hover:border-zinc-700/80"
-                          }`}
-                        >
-                          {/* Fila Responsiva en 2 Bloques (< lg apilado limpio, >= lg fila horizontal) */}
-                          <div
-                            className={`${
-                              density === "compact" ? "p-2.5 sm:p-3" : "p-3 sm:p-3.5"
-                            } flex flex-col lg:flex-row lg:items-center justify-between gap-3`}
-                          >
-                            {/* Bloque 1: Checkbox + Foto + Datos principales y Stock */}
-                            <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-                              <button
-                                type="button"
-                                role="checkbox"
-                                aria-checked={isSelected}
-                                onClick={() => toggleProductSelection(p.id)}
-                                className="min-w-[44px] min-h-[44px] -ml-1 inline-flex items-center justify-center shrink-0 rounded-xl text-zinc-500 hover:text-amber-200 hover:bg-zinc-800/70 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                                aria-label={`${
-                                  isSelected ? "Deseleccionar" : "Seleccionar"
-                                } producto ${codeFormatted}`}
-                              >
-                                {isSelected ? (
-                                  <CheckSquare size={18} className="text-amber-300" aria-hidden="true" />
-                                ) : (
-                                  <Square size={18} className="text-zinc-500" aria-hidden="true" />
-                                )}
-                              </button>
-
-                              <Link
-                                href={`/admin/productos/${p.code}/editar`}
-                                prefetch={false}
-                                className={`relative block ${
-                                  density === "compact"
-                                    ? "w-11 h-13"
-                                    : "w-12 h-14 sm:w-14 sm:h-16"
-                                } rounded-xl overflow-hidden bg-zinc-950 border border-zinc-800 shrink-0 group/thumb hover:border-amber-400/80 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400`}
-                                title={`Editar ficha ${codeFormatted}`}
-                              >
-                                {thumbUrl ? (
-                                  <img
-                                    src={thumbUrl}
-                                    alt={p.title || codeFormatted}
-                                    className="w-full h-full object-cover transition-transform group-hover/thumb:scale-105"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-zinc-500">
-                                    <Package size={18} />
-                                  </div>
-                                )}
-                                <span className="absolute bottom-0.5 left-0.5 right-0.5 text-center text-[9px] font-mono font-bold bg-zinc-950/90 text-amber-200 rounded">
-                                  {codeFormatted}
-                                </span>
-                              </Link>
-
-                              <div className="flex-1 min-w-0 space-y-1">
-                                <div className="flex items-start sm:items-center gap-1.5 min-w-0">
-                                  <Link
-                                    href={`/admin/productos/${p.code}/editar`}
-                                    prefetch={false}
-                                    className="text-sm font-bold text-zinc-100 hover:text-amber-300 transition-colors line-clamp-2 sm:truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded"
-                                    title={`Editar ${p.title || codeFormatted}`}
-                                  >
-                                    {p.title || "Producto sin título"}
-                                  </Link>
-                                  {p.isFeatured && (
-                                    <span
-                                      className="shrink-0 p-0.5 text-amber-400 mt-0.5 sm:mt-0"
-                                      title="Prenda destacada en portada"
-                                    >
-                                      <Star
-                                        size={13}
-                                        className="fill-amber-400"
-                                        aria-hidden="true"
-                                      />
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-                                  {/* Edición rápida de precio en línea */}
-                                  {editingPriceId === p.id ? (
-                                    <span className="inline-flex items-center gap-1 bg-zinc-950 border border-amber-400/80 rounded-xl p-1">
-                                      <span className="text-zinc-400 font-mono text-xs pl-1">
-                                        $
-                                      </span>
-                                      <input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={inlinePriceInput}
-                                        aria-label={`Precio de ${p.title || codeFormatted}`}
-                                        onChange={(e) => setInlinePriceInput(e.target.value)}
-                                        onKeyDown={(e) => {
-                                          if (e.key === "Enter") {
-                                            void handleSaveInlinePrice(p.id, inlinePriceInput);
-                                          } else if (e.key === "Escape") {
-                                            setEditingPriceId(null);
-                                          }
-                                        }}
-                                        autoFocus
-                                        className="w-24 min-h-[36px] px-2 rounded-lg bg-zinc-900 border border-zinc-700 text-xs font-mono text-zinc-100 focus:outline-none"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          void handleSaveInlinePrice(p.id, inlinePriceInput)
-                                        }
-                                        aria-label="Guardar precio"
-                                        title="Guardar precio"
-                                        className="min-w-[36px] min-h-[36px] inline-flex items-center justify-center rounded-lg bg-amber-300 text-zinc-950 hover:bg-amber-200 cursor-pointer"
-                                      >
-                                        <Check size={13} aria-hidden="true" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditingPriceId(null)}
-                                        aria-label="Cancelar edición de precio"
-                                        title="Cancelar edición"
-                                        className="min-w-[36px] min-h-[36px] inline-flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-200 cursor-pointer"
-                                      >
-                                        <X size={13} aria-hidden="true" />
-                                      </button>
-                                    </span>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setEditingPriceId(p.id);
-                                        setInlinePriceInput(
-                                          p.priceCents !== null
-                                            ? String(p.priceCents / 100)
-                                            : ""
-                                        );
-                                      }}
-                                      className="font-mono font-bold text-amber-200 hover:underline inline-flex items-center gap-1 group/price cursor-pointer py-0.5"
-                                      title="Clic para editar precio rápidamente"
-                                    >
-                                      <span>
-                                        {p.priceCents !== null
-                                          ? formatPriceARS(p.priceCents, p.currency)
-                                          : "Consultar precio"}
-                                      </span>
-                                      <Edit2
-                                        size={11}
-                                        className="opacity-60 sm:opacity-0 group-hover/price:opacity-100 text-amber-400 transition-opacity"
-                                        aria-hidden="true"
-                                      />
-                                    </button>
-                                  )}
-
-                                  <span className="text-zinc-600" aria-hidden="true">
-                                    •
-                                  </span>
-                                  <span className="text-zinc-400 truncate max-w-[140px]">
-                                    {category?.name || "Sin clasificar"}
-                                  </span>
-
-                                  <span
-                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-bold tabular-nums ${stockBadge.className}`}
-                                  >
-                                    {stockBadge.label}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Bloque 2: Controles de estado, stock rápido y menú */}
-                            <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2 pt-2.5 lg:pt-0 border-t border-zinc-800/70 lg:border-t-0 shrink-0">
-                              {/* Selector Rápido de Estado */}
-                              <div
-                                role="group"
-                                aria-label={`Estado de ${codeFormatted}`}
-                                className="inline-flex items-center gap-0.5 p-0.5 rounded-xl bg-zinc-950 border border-zinc-800 text-[11px]"
-                              >
-                                <button
-                                  type="button"
-                                  aria-pressed={p.status === "AVAILABLE"}
-                                  aria-label={`Marcar disponible ${codeFormatted}`}
-                                  onClick={() => void handleStatusChange(p.id, "AVAILABLE")}
-                                  className={`min-h-[38px] px-2.5 rounded-lg font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-                                    p.status === "AVAILABLE"
-                                      ? "bg-emerald-600 text-white shadow-xs"
-                                      : "text-zinc-400 hover:text-zinc-200"
-                                  }`}
-                                >
-                                  <span className="hidden sm:inline">Disponible</span>
-                                  <span className="sm:hidden">Disp.</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  aria-pressed={p.status === "RESERVED"}
-                                  aria-label={`Marcar reservada ${codeFormatted}`}
-                                  onClick={() => void handleStatusChange(p.id, "RESERVED")}
-                                  className={`min-h-[38px] px-2.5 rounded-lg font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 ${
-                                    p.status === "RESERVED"
-                                      ? "bg-amber-500 text-stone-950 shadow-xs"
-                                      : "text-zinc-400 hover:text-zinc-200"
-                                  }`}
-                                >
-                                  <span className="hidden sm:inline">Reservado</span>
-                                  <span className="sm:hidden">Res.</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  aria-pressed={p.status === "SOLD_OUT"}
-                                  aria-label={`Marcar agotada ${codeFormatted}`}
-                                  onClick={() => void handleStatusChange(p.id, "SOLD_OUT")}
-                                  className={`min-h-[38px] px-2.5 rounded-lg font-semibold transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-stone-400 ${
-                                    p.status === "SOLD_OUT"
-                                      ? "bg-stone-600 text-white shadow-xs"
-                                      : "text-zinc-400 hover:text-zinc-200"
-                                  }`}
-                                >
-                                  <span className="hidden sm:inline">Agotado</span>
-                                  <span className="sm:hidden">Agot.</span>
-                                </button>
-                              </div>
-
-                              <div className="flex items-center gap-1 ml-auto lg:ml-0">
-                                {/* Ajuste rápido de stock por variante */}
-                                <button
-                                  type="button"
-                                  onClick={() => setQuickStockProduct(p)}
-                                  aria-label={`Ajustar stock de ${p.title || codeFormatted}`}
-                                  className="min-h-[44px] inline-flex items-center gap-1.5 px-3 rounded-xl bg-zinc-950 border border-zinc-700 text-xs font-bold text-zinc-200 hover:border-amber-400/70 hover:text-amber-300 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                                >
-                                  <PackageCheck size={15} className="text-amber-300" aria-hidden="true" />
-                                  <span>Stock</span>
-                                </button>
-
-                                {/* Acordeón detalles */}
-                                <button
-                                  type="button"
-                                  onClick={() => toggleProductExpanded(p.id)}
-                                  aria-expanded={isDetailsExpanded}
-                                  aria-controls={`details-content-${p.id}`}
-                                  aria-label={
-                                    isDetailsExpanded
-                                      ? `Ocultar detalles de ${codeFormatted}`
-                                      : `Ver detalles y stock de ${codeFormatted}`
-                                  }
-                                  className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-xl text-zinc-400 hover:text-amber-200 hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                                  title={isDetailsExpanded ? "Ocultar detalles" : "Ver detalles"}
-                                >
-                                  <ChevronDown
-                                    size={17}
-                                    className={`transition-transform duration-200 ${
-                                      isDetailsExpanded ? "rotate-180 text-amber-300" : ""
-                                    }`}
-                                    aria-hidden="true"
-                                  />
-                                </button>
-
-                                {/* Menú contextual de acciones secundarias */}
-                                <div className="relative">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setOpenMenuProductId(
-                                        openMenuProductId === p.id ? null : p.id
-                                      )
-                                    }
-                                    aria-haspopup="true"
-                                    aria-expanded={openMenuProductId === p.id}
-                                    aria-label={`Más opciones para ${codeFormatted}`}
-                                    className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                                  >
-                                    <MoreVertical size={17} aria-hidden="true" />
-                                  </button>
-
-                                  {openMenuProductId === p.id && (
-                                    <>
-                                      <div
-                                        className="fixed inset-0 z-30"
-                                        onClick={() => setOpenMenuProductId(null)}
-                                        aria-hidden="true"
-                                      />
-                                      <div
-                                        role="menu"
-                                        aria-label={`Acciones de ${codeFormatted}`}
-                                        className="absolute right-0 top-full mt-1 w-48 z-40 bg-zinc-900 border border-zinc-700 rounded-xl p-1 shadow-2xl space-y-0.5"
-                                      >
-                                        <Link
-                                          prefetch={false}
-                                          href={`/admin/productos/${p.code}/editar`}
-                                          role="menuitem"
-                                          onClick={() => setOpenMenuProductId(null)}
-                                          className="flex items-center gap-2 min-h-[40px] px-3 py-1.5 rounded-lg text-xs text-zinc-200 hover:bg-zinc-800 hover:text-amber-200 transition-colors"
-                                        >
-                                          <Edit2 size={14} className="text-zinc-400" aria-hidden="true" />
-                                          <span>Editar ficha completa</span>
-                                        </Link>
-
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          onClick={() => {
-                                            setOpenMenuProductId(null);
-                                            setQuickStockProduct(p);
-                                          }}
-                                          className="w-full flex items-center gap-2 min-h-[40px] px-3 py-1.5 rounded-lg text-xs text-zinc-200 hover:bg-zinc-800 hover:text-amber-200 transition-colors text-left cursor-pointer"
-                                        >
-                                          <PackageCheck size={14} className="text-amber-300" aria-hidden="true" />
-                                          <span>Ajustar stock rápido</span>
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          onClick={() => {
-                                            setOpenMenuProductId(null);
-                                            void handleToggleFeatured(p.id);
-                                          }}
-                                          className="w-full flex items-center gap-2 min-h-[40px] px-3 py-1.5 rounded-lg text-xs text-zinc-200 hover:bg-zinc-800 hover:text-amber-200 transition-colors text-left cursor-pointer"
-                                        >
-                                          <Star
-                                            size={14}
-                                            className={
-                                              p.isFeatured
-                                                ? "fill-amber-400 text-amber-400"
-                                                : "text-zinc-400"
-                                            }
-                                            aria-hidden="true"
-                                          />
-                                          <span>
-                                            {p.isFeatured ? "Quitar destacado" : "Destacar en portada"}
-                                          </span>
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          onClick={() => {
-                                            setOpenMenuProductId(null);
-                                            setHistoryTarget({
-                                              id: p.id,
-                                              code: p.code,
-                                              title: p.title,
-                                            });
-                                          }}
-                                          className="w-full flex items-center gap-2 min-h-[40px] px-3 py-1.5 rounded-lg text-xs text-zinc-200 hover:bg-zinc-800 hover:text-amber-200 transition-colors text-left cursor-pointer"
-                                        >
-                                          <History size={14} className="text-zinc-400" aria-hidden="true" />
-                                          <span>Historial de cambios</span>
-                                        </button>
-
-                                        <a
-                                          href={`/p/${String(p.code).padStart(3, "0")}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          role="menuitem"
-                                          onClick={() => setOpenMenuProductId(null)}
-                                          className="flex items-center gap-2 min-h-[40px] px-3 py-1.5 rounded-lg text-xs text-zinc-200 hover:bg-zinc-800 hover:text-amber-200 transition-colors"
-                                        >
-                                          <ExternalLink size={14} className="text-zinc-400" aria-hidden="true" />
-                                          <span>Ver en tienda</span>
-                                        </a>
-
-                                        <div className="border-t border-zinc-800 my-1" />
-
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          onClick={() => {
-                                            setOpenMenuProductId(null);
-                                            setProductToDelete(p);
-                                          }}
-                                          className="w-full flex items-center gap-2 min-h-[40px] px-3 py-1.5 rounded-lg text-xs text-rose-300 hover:bg-rose-950/60 hover:text-rose-200 transition-colors text-left font-semibold cursor-pointer"
-                                        >
-                                          <Trash2 size={14} className="text-rose-400" aria-hidden="true" />
-                                          <span>Eliminar producto...</span>
-                                        </button>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Detalles desplegables */}
-                          {isDetailsExpanded && (
-                            <div
-                              id={`details-content-${p.id}`}
-                              className="px-3 pb-3 sm:px-4 sm:pb-3.5 pt-2.5 border-t border-zinc-800/60 space-y-3 bg-zinc-950/35 rounded-b-xl"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] uppercase font-bold text-zinc-400 tracking-wider">
-                                  Stock actual por color y talle
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setQuickStockProduct(p)}
-                                  className="text-xs font-semibold text-amber-300 hover:underline cursor-pointer"
-                                >
-                                  Editar unidades →
-                                </button>
-                              </div>
-
-                              {p.colors && p.colors.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                  {p.colors.map((col) => (
-                                    <div
-                                      key={col.id || col.name}
-                                      className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs flex items-center gap-1.5"
-                                    >
-                                      <span className="font-semibold text-zinc-200">
-                                        {col.name}:
-                                      </span>
-                                      <span className="text-zinc-300 font-mono">
-                                        {col.sizes
-                                          ?.map((sz) => `${sz.size} (${sz.stock} u.)`)
-                                          .join(", ") || "Sin talles"}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-zinc-400">
-                                  Stock total sin variantes: {totalStock} unidades
-                                </p>
-                              )}
-
-                              <div className="flex flex-wrap items-center justify-between gap-3 pt-1.5 text-xs border-t border-zinc-800/50">
-                                <div className="flex items-center gap-4 text-zinc-400 text-[11px]">
-                                  <span
-                                    className="flex items-center gap-1.5"
-                                    title="Visitas totales a la ficha del producto"
-                                  >
-                                    <Eye size={13} className="text-zinc-500" aria-hidden="true" />
-                                    <span>{p.stats?.viewsCount ?? 0} vistas</span>
-                                  </span>
-                                  <span
-                                    className="flex items-center gap-1.5"
-                                    title="Consultas iniciadas por WhatsApp"
-                                  >
-                                    <MessageCircle
-                                      size={13}
-                                      className="text-emerald-400/80"
-                                      aria-hidden="true"
-                                    />
-                                    <span>{p.stats?.whatsappClicks ?? 0} consultas WhatsApp</span>
-                                  </span>
-                                </div>
-
-                                {p.status === "SOLD_OUT" && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setProductToDelete(p)}
-                                    className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-amber-300 transition-colors cursor-pointer"
-                                  >
-                                    <Clock size={12} aria-hidden="true" />
-                                    <span>Archivar pieza</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {group.products.map((p) => (
+                      <ProductInventoryRowCard
+                        key={p.id}
+                        product={p}
+                        categoryName={categoryMap.get(p.categoryId)?.name}
+                        density={density}
+                        isSelected={isProductSelected(p.id)}
+                        isDetailsExpanded={expandedProductIds.has(p.id)}
+                        isMenuOpen={openMenuProductId === p.id}
+                        isEditingPrice={editingPriceId === p.id}
+                        inlinePriceInput={inlinePriceInput}
+                        onToggleSelect={toggleProductSelection}
+                        onToggleDetails={toggleProductExpanded}
+                        onToggleMenu={(productId) =>
+                          setOpenMenuProductId((prev) => (prev === productId ? null : productId))
+                        }
+                        onCloseMenu={() => setOpenMenuProductId(null)}
+                        onStartEditPrice={(product) => {
+                          setEditingPriceId(product.id);
+                          setInlinePriceInput(
+                            product.priceCents !== null ? String(product.priceCents / 100) : ""
+                          );
+                        }}
+                        onInlinePriceChange={setInlinePriceInput}
+                        onSaveInlinePrice={(productId, price) =>
+                          void handleSaveInlinePrice(productId, price)
+                        }
+                        onCancelEditPrice={() => setEditingPriceId(null)}
+                        onStatusChange={(productId, status) =>
+                          void handleStatusChange(productId, status)
+                        }
+                        onOpenQuickStock={setQuickStockProduct}
+                        onToggleFeatured={(productId) => void handleToggleFeatured(productId)}
+                        onOpenHistory={setHistoryTarget}
+                        onRequestDelete={setProductToDelete}
+                      />
+                    ))}
                   </div>
                 )}
               </section>
@@ -1610,184 +1138,38 @@ export function ProductListClient({
 
       {/* Paginación en servidor */}
       {isServerPaginated && totalPages > 1 && (
-        <nav
-          aria-label="Paginación de productos"
-          className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-2xl bg-zinc-900/70 border border-zinc-800 text-xs"
-        >
-          <span className="text-zinc-400 tabular-nums">
-            Página <strong className="text-zinc-100">{page}</strong> de{" "}
-            <strong className="text-zinc-100">{totalPages}</strong> · {total} productos
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={page <= 1 || loadingList}
-              onClick={() => handlePageChange(page - 1)}
-              className="min-h-[44px] inline-flex items-center gap-1.5 px-4 rounded-xl border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-semibold transition-colors"
-            >
-              <ChevronLeft size={15} aria-hidden="true" />
-              <span>Anterior</span>
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages || loadingList}
-              onClick={() => handlePageChange(page + 1)}
-              className="min-h-[44px] inline-flex items-center gap-1.5 px-4 rounded-xl border border-zinc-700 bg-zinc-950 text-zinc-200 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-semibold transition-colors"
-            >
-              <span>Siguiente</span>
-              <ChevronRight size={15} aria-hidden="true" />
-            </button>
-          </div>
-        </nav>
+        <AdminPaginationBar
+          page={page}
+          totalPages={totalPages}
+          totalItems={total}
+          itemLabel="productos"
+          ariaLabel="Paginación de productos"
+          onPageChange={handlePageChange}
+          disabled={loadingList}
+        />
       )}
 
-      {/* Barra Flotante de Acciones en Lote (BR-29) */}
-      {selectedProductIds.length > 0 && (
-        <aside
-          aria-label="Barra de acciones en lote para productos seleccionados"
-          className="fixed bottom-4 inset-x-4 lg:left-[264px] lg:right-6 max-w-2xl mx-auto z-40 bg-zinc-950/95 border border-amber-400/50 rounded-2xl p-3 shadow-2xl backdrop-blur-md flex flex-wrap items-center justify-between gap-2.5 text-xs"
-        >
-          <div className="flex items-center gap-2">
-            <span
-              className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-300 text-zinc-950 font-bold text-xs"
-              aria-hidden="true"
-            >
-              {selectedProductIds.length}
-            </span>
-            <span className="font-semibold text-zinc-200">
-              {selectedProductIds.length === 1
-                ? "1 producto seleccionado"
-                : `${selectedProductIds.length} productos seleccionados`}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <div className="relative">
-              <button
-                type="button"
-                aria-haspopup="true"
-                aria-expanded={bulkStatusOpen}
-                aria-label="Cambiar estado de productos seleccionados en lote"
-                onClick={() => {
-                  setBulkStatusOpen(!bulkStatusOpen);
-                  setBulkCategoryOpen(false);
-                }}
-                disabled={isBulkProcessing}
-                className="min-h-[44px] inline-flex items-center gap-1.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-              >
-                <RefreshCw size={13} aria-hidden="true" />
-                <span>Estado</span>
-              </button>
-
-              {bulkStatusOpen && (
-                <div
-                  role="menu"
-                  aria-label="Opciones de estado para lote"
-                  className="absolute bottom-full mb-2 left-0 w-36 bg-zinc-900 border border-zinc-700 rounded-xl p-1 shadow-xl space-y-1"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => void handleBulkStatus("AVAILABLE")}
-                    className="w-full min-h-[38px] text-left px-2.5 py-1.5 rounded-lg text-emerald-300 hover:bg-zinc-800 transition-colors text-xs font-semibold cursor-pointer"
-                  >
-                    Disponible
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => void handleBulkStatus("RESERVED")}
-                    className="w-full min-h-[38px] text-left px-2.5 py-1.5 rounded-lg text-amber-300 hover:bg-zinc-800 transition-colors text-xs font-semibold cursor-pointer"
-                  >
-                    Reservada
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => void handleBulkStatus("SOLD_OUT")}
-                    className="w-full min-h-[38px] text-left px-2.5 py-1.5 rounded-lg text-zinc-400 hover:bg-zinc-800 transition-colors text-xs font-semibold cursor-pointer"
-                  >
-                    Agotada
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="relative">
-              <button
-                type="button"
-                aria-haspopup="true"
-                aria-expanded={bulkCategoryOpen}
-                aria-label="Mover productos seleccionados a otra categoría en lote"
-                onClick={() => {
-                  setBulkCategoryOpen(!bulkCategoryOpen);
-                  setBulkStatusOpen(false);
-                }}
-                disabled={isBulkProcessing}
-                className="min-h-[44px] inline-flex items-center gap-1.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-              >
-                <FolderInput size={13} aria-hidden="true" />
-                <span>Mover</span>
-              </button>
-
-              {bulkCategoryOpen && (
-                <div
-                  role="menu"
-                  aria-label="Opciones de categoría para lote"
-                  className="absolute bottom-full mb-2 left-0 w-48 max-h-56 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-xl p-1 shadow-xl space-y-1"
-                >
-                  <div className="px-2 py-1 text-[10px] uppercase font-bold text-zinc-500">
-                    Mover a:
-                  </div>
-                  {leafCategories.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => void handleBulkMoveCategory(c.id)}
-                      className="w-full min-h-[38px] text-left px-2.5 py-1.5 rounded-lg text-zinc-200 hover:bg-zinc-800 transition-colors text-xs truncate cursor-pointer"
-                    >
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void handleBulkFeatured(true)}
-              disabled={isBulkProcessing}
-              aria-label={`Destacar ${selectedProductIds.length} producto(s) seleccionado(s) en lote`}
-              className="min-h-[44px] inline-flex items-center gap-1.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-amber-200 font-medium transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-            >
-              <Star size={13} className="fill-amber-300" aria-hidden="true" />
-              <span>Destacar</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setBulkDeleteConfirmOpen(true)}
-              disabled={isBulkProcessing}
-              aria-label={`Eliminar ${selectedProductIds.length} producto(s) seleccionado(s) en lote`}
-              className="min-h-[44px] inline-flex items-center gap-1.5 px-3 rounded-xl bg-rose-950/70 text-rose-300 border border-rose-800/80 hover:bg-rose-900 transition-colors font-medium cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
-            >
-              <Trash2 size={13} aria-hidden="true" />
-              <span>Eliminar</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={clearSelection}
-              aria-label="Cancelar y deseleccionar todos los productos"
-              className="min-w-[44px] min-h-[44px] inline-flex items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-              title="Cancelar selección"
-            >
-              <X size={16} aria-hidden="true" />
-            </button>
-          </div>
-        </aside>
-      )}
+      {/* Barra Flotante de Acciones en Lote */}
+      <ProductBulkActionBar
+        selectedCount={selectedProductIds.length}
+        leafCategories={leafCategories}
+        isBulkProcessing={isBulkProcessing}
+        bulkStatusOpen={bulkStatusOpen}
+        bulkCategoryOpen={bulkCategoryOpen}
+        onToggleStatusOpen={() => {
+          setBulkStatusOpen((prev) => !prev);
+          setBulkCategoryOpen(false);
+        }}
+        onToggleCategoryOpen={() => {
+          setBulkCategoryOpen((prev) => !prev);
+          setBulkStatusOpen(false);
+        }}
+        onBulkStatus={(status) => void handleBulkStatus(status)}
+        onBulkMoveCategory={(categoryId) => void handleBulkMoveCategory(categoryId)}
+        onBulkFeatured={(isFeatured) => void handleBulkFeatured(isFeatured)}
+        onRequestBulkDelete={() => setBulkDeleteConfirmOpen(true)}
+        onClearSelection={clearSelection}
+      />
 
       <QuickStockModal
         product={quickStockProduct}

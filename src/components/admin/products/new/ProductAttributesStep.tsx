@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { PlusCircle, Star } from "lucide-react";
 import { ProductAttributeDefinition } from "../../../../domain/navigation/types";
+import { ProductStatus } from "../../../../domain/product/types";
 
 interface ProductAttributesStepProps {
-  initialStatus: "AVAILABLE" | "RESERVED";
-  onStatusChange: (status: "AVAILABLE" | "RESERVED") => void;
+  initialStatus: ProductStatus;
+  onStatusChange: (status: ProductStatus) => void;
+  allowSoldOut?: boolean;
+  publishedAtDate?: string;
+  onPublishedAtDateChange?: (date: string) => void;
   isFeatured: boolean;
   onFeaturedChange: (featured: boolean) => void;
   allowReturn: boolean;
@@ -20,6 +24,9 @@ interface ProductAttributesStepProps {
 export function ProductAttributesStep({
   initialStatus,
   onStatusChange,
+  allowSoldOut = false,
+  publishedAtDate,
+  onPublishedAtDateChange,
   isFeatured,
   onFeaturedChange,
   allowReturn,
@@ -32,11 +39,13 @@ export function ProductAttributesStep({
   const [addingOptionForDefId, setAddingOptionForDefId] = useState<number | null>(null);
   const [newOptionValue, setNewOptionValue] = useState("");
   const [addingOptionLoading, setAddingOptionLoading] = useState(false);
+  const [optionError, setOptionError] = useState<string | null>(null);
 
   const handleQuickAddOption = async (def: ProductAttributeDefinition) => {
     const trimmed = newOptionValue.trim();
     if (!trimmed) return;
 
+    setOptionError(null);
     if (def.options.some((o) => o.toLowerCase() === trimmed.toLowerCase())) {
       onAttributeChange(def.key, trimmed);
       setAddingOptionForDefId(null);
@@ -70,10 +79,10 @@ export function ProductAttributesStep({
         setAddingOptionForDefId(null);
         setNewOptionValue("");
       } else {
-        alert(data.error || "No se pudo guardar la nueva opción");
+        setOptionError(data.error || "No se pudo guardar la nueva opción");
       }
     } catch {
-      alert("Error de conexión al guardar la opción de atributo.");
+      setOptionError("Error de conexión al guardar la opción de atributo.");
     } finally {
       setAddingOptionLoading(false);
     }
@@ -86,10 +95,11 @@ export function ProductAttributesStep({
         <label className="block text-xs font-bold text-zinc-200">
           Estado de publicación
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${allowSoldOut ? "grid-cols-3" : "grid-cols-2"}`}>
           <button
             type="button"
             onClick={() => onStatusChange("AVAILABLE")}
+            aria-pressed={initialStatus === "AVAILABLE"}
             className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
               initialStatus === "AVAILABLE"
                 ? "bg-emerald-950/40 border-emerald-500/80 text-emerald-200 ring-1 ring-emerald-500"
@@ -103,17 +113,54 @@ export function ProductAttributesStep({
           <button
             type="button"
             onClick={() => onStatusChange("RESERVED")}
+            aria-pressed={initialStatus === "RESERVED"}
             className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
               initialStatus === "RESERVED"
                 ? "bg-amber-950/40 border-amber-500/80 text-amber-200 ring-1 ring-amber-500"
                 : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
             }`}
           >
-            <p className="text-xs font-bold">Borrador / Reservado</p>
+            <p className="text-xs font-bold">
+              {allowSoldOut ? "Reservada" : "Borrador / Reservado"}
+            </p>
             <p className="text-[10px] opacity-80 mt-0.5">Oculto temporalmente</p>
           </button>
+
+          {allowSoldOut && (
+            <button
+              type="button"
+              onClick={() => onStatusChange("SOLD_OUT")}
+              aria-pressed={initialStatus === "SOLD_OUT"}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                initialStatus === "SOLD_OUT"
+                  ? "bg-zinc-800 border-zinc-500 text-zinc-100 ring-1 ring-zinc-500"
+                  : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+              }`}
+            >
+              <p className="text-xs font-bold">Agotada</p>
+              <p className="text-[10px] opacity-80 mt-0.5">Sin stock disponible</p>
+            </button>
+          )}
         </div>
       </div>
+
+      {publishedAtDate !== undefined && onPublishedAtDateChange && (
+        <div className="space-y-1.5 pt-1 border-t border-zinc-800/80">
+          <label
+            htmlFor="step-published-at"
+            className="block text-xs font-bold text-zinc-300"
+          >
+            Fecha de Publicación (Recién llegados)
+          </label>
+          <input
+            id="step-published-at"
+            type="date"
+            value={publishedAtDate}
+            onChange={(e) => onPublishedAtDateChange(e.target.value)}
+            className="w-full sm:w-64 px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"
+          />
+        </div>
+      )}
 
       {/* Switches rápidos: Destacado y Devolución */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-zinc-800/80">
@@ -169,22 +216,32 @@ export function ProductAttributesStep({
                 </div>
 
                 {addingOptionForDefId === def.id ? (
-                  <div className="flex gap-1.5">
-                    <input
-                      type="text"
-                      value={newOptionValue}
-                      onChange={(e) => setNewOptionValue(e.target.value)}
-                      placeholder={`Nueva opción para ${def.label}...`}
-                      className="flex-1 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-700 text-xs text-zinc-100"
-                    />
-                    <button
-                      type="button"
-                      disabled={addingOptionLoading || !newOptionValue.trim()}
-                      onClick={() => handleQuickAddOption(def)}
-                      className="px-2.5 py-1.5 rounded-lg bg-amber-400 text-zinc-950 font-bold text-xs hover:bg-amber-300 disabled:opacity-50"
-                    >
-                      {addingOptionLoading ? "..." : "Agregar"}
-                    </button>
+                  <div className="space-y-1">
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        value={newOptionValue}
+                        onChange={(e) => {
+                          setOptionError(null);
+                          setNewOptionValue(e.target.value);
+                        }}
+                        placeholder={`Nueva opción para ${def.label}...`}
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-700 text-xs text-zinc-100"
+                      />
+                      <button
+                        type="button"
+                        disabled={addingOptionLoading || !newOptionValue.trim()}
+                        onClick={() => handleQuickAddOption(def)}
+                        className="px-2.5 py-1.5 rounded-lg bg-amber-400 text-zinc-950 font-bold text-xs hover:bg-amber-300 disabled:opacity-50"
+                      >
+                        {addingOptionLoading ? "..." : "Agregar"}
+                      </button>
+                    </div>
+                    {optionError && (
+                      <p role="alert" className="text-[11px] text-rose-400">
+                        {optionError}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <select

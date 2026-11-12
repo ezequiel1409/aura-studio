@@ -188,6 +188,18 @@ export function PaymentsSettingsSection({
       const res = await fetch("/api/admin/payments/status", { method: "POST" });
       const data = await res.json();
       setDiagnostic(data);
+      if (data.ok) {
+        setServerStatus((prev) => ({
+          configured: true,
+          tokenMasked: data.collectorId
+            ? `ID: ${data.collectorId} (${data.nickname || data.email || "Conectado"})`
+            : (prev?.tokenMasked ?? "••••••••"),
+          publicKeyConfigured: prev?.publicKeyConfigured ?? false,
+          publicKey: prev?.publicKey ?? null,
+          webhookSecretConfigured: prev?.webhookSecretConfigured ?? false,
+          environment: prev?.environment ?? "production",
+        }));
+      }
     } catch (err: unknown) {
       setDiagnostic({
         ok: false,
@@ -332,7 +344,7 @@ export function PaymentsSettingsSection({
                 <input
                   id="transferAccountHolderInput"
                   type="text"
-                  placeholder="Ej. Aura Studio SRL o Martina Gómez"
+                  placeholder="Ej. Mi Tienda SRL o Nombre Titular"
                   value={transferAccountHolder}
                   onChange={(e) => onTransferAccountHolderChange(e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-amber-400"

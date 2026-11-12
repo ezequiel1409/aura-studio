@@ -3,8 +3,19 @@ import { isAuthenticatedAdmin } from "../../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { createProduct } from "../../../../../services/product.service";
 import { CategoryNotFoundError, DomainError } from "../../../../../domain/errors";
-import { Product } from "../../../../../domain/product/types";
+import { CreateProductInput, Product } from "../../../../../domain/product/types";
 import { revalidateProducts } from "../../../../../infra/cache/revalidation";
+
+interface CreateProductRequestBody extends Partial<Omit<CreateProductInput, "rawText" | "colors">> {
+  clientSubmissionId?: string;
+  rawText?: unknown;
+  colors?: Array<{
+    name?: string;
+    hexCode?: string | null;
+    position?: number;
+    sizes?: Array<{ size?: string; stock?: unknown; reservedStock?: number }>;
+  }>;
+}
 
 // Cache en memoria para deduplicación e idempotencia ante doble clic o reintentos (TTL: 5 min)
 interface CachedSubmission {
@@ -42,9 +53,9 @@ export async function POST(req: NextRequest) {
 
   cleanupOldSubmissions();
 
-  let body: any;
+  let body: CreateProductRequestBody;
   try {
-    body = await req.json();
+    body = (await req.json()) as CreateProductRequestBody;
   } catch {
     return NextResponse.json(
       {
@@ -189,7 +200,16 @@ export async function POST(req: NextRequest) {
         allowReturn: body.allowReturn !== undefined ? Boolean(body.allowReturn) : true,
         publishedAt: body.publishedAt ?? undefined,
         attributes: body.attributes,
-        colors: body.colors,
+        colors: body.colors?.map((col) => ({
+          name: String(col.name || "").trim(),
+          hexCode: col.hexCode,
+          position: col.position,
+          sizes: col.sizes?.map((sz) => ({
+            size: String(sz.size || "").trim(),
+            stock: Number(sz.stock || 0),
+            reservedStock: sz.reservedStock,
+          })),
+        })),
         photos: body.photos,
         source: "web",
       },

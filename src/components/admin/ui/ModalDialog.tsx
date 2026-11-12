@@ -8,6 +8,7 @@ const SIZE_CLASSES = {
   md: "max-w-md",
   lg: "max-w-lg",
   xl: "max-w-2xl",
+  "4xl": "max-w-4xl",
 } as const;
 
 const FOCUSABLE_SELECTOR =
@@ -17,6 +18,7 @@ export interface ModalDialogProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  titleId?: string;
   subtitle?: string;
   size?: keyof typeof SIZE_CLASSES;
   closeOnBackdrop?: boolean;
@@ -25,6 +27,7 @@ export interface ModalDialogProps {
   initialFocusRef?: React.RefObject<HTMLElement | null>;
   headerIcon?: React.ReactNode;
   footer?: React.ReactNode;
+  contentClassName?: string;
   role?: "dialog" | "alertdialog";
   children: React.ReactNode;
 }
@@ -37,6 +40,7 @@ export function ModalDialog({
   isOpen,
   onClose,
   title,
+  titleId: customTitleId,
   subtitle,
   size = "md",
   closeOnBackdrop = true,
@@ -45,10 +49,12 @@ export function ModalDialog({
   initialFocusRef,
   headerIcon,
   footer,
+  contentClassName,
   role = "dialog",
   children,
 }: ModalDialogProps) {
   const autoTitleId = useId();
+  const resolvedTitleId = customTitleId ?? autoTitleId;
   const autoDescId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -134,7 +140,7 @@ export function ModalDialog({
         ref={panelRef}
         role={role}
         aria-modal="true"
-        aria-labelledby={autoTitleId}
+        aria-labelledby={resolvedTitleId}
         aria-describedby={subtitle ? autoDescId : undefined}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
@@ -144,7 +150,7 @@ export function ModalDialog({
           <div className="flex items-start gap-3 min-w-0">
             {headerIcon && <div className="shrink-0 mt-0.5">{headerIcon}</div>}
             <div className="min-w-0">
-              <h2 id={autoTitleId} className="text-base font-bold text-zinc-100 leading-snug">
+              <h2 id={resolvedTitleId} className="text-base font-bold text-zinc-100 leading-snug">
                 {title}
               </h2>
               {subtitle && (
@@ -166,7 +172,9 @@ export function ModalDialog({
           </button>
         </div>
 
-        <div className="px-4 sm:px-5 py-4 overflow-y-auto flex-1">{children}</div>
+        <div className={contentClassName || "px-4 sm:px-5 py-4 overflow-y-auto flex-1"}>
+          {children}
+        </div>
 
         {footer && (
           <div className="px-4 sm:px-5 py-3.5 border-t border-zinc-800 bg-zinc-950/60 shrink-0">

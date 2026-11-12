@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Sparkles } from "lucide-react";
 import {
   getUnreadReleasesCount,
 } from "../../../lib/changelog/releases";
 import { useAdminNav } from "../navigation/AdminNavContext";
 import { AdminWhatsNewModal } from "./AdminWhatsNewModal";
+
+function subscribeChangelogUpdates(callback: () => void) {
+  window.addEventListener("app_changelog_updated", callback);
+  return () => window.removeEventListener("app_changelog_updated", callback);
+}
 
 interface AdminWhatsNewTriggerProps {
   userId?: number | string | null;
@@ -22,21 +27,12 @@ export function AdminWhatsNewTrigger({
   const { userId: navUserId } = useAdminNav();
   const userId = propUserId ?? navUserId;
 
-  const [unreadCount, setUnreadCount] = useState<number>(() => {
-    return getUnreadReleasesCount(userId);
-  });
+  const unreadCount = useSyncExternalStore(
+    subscribeChangelogUpdates,
+    () => getUnreadReleasesCount(userId),
+    () => 0
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const checkUnread = useCallback(() => {
-    setUnreadCount(getUnreadReleasesCount(userId));
-  }, [userId]);
-
-  useEffect(() => {
-    checkUnread();
-    const handleUpdate = () => checkUnread();
-    window.addEventListener("app_changelog_updated", handleUpdate);
-    return () => window.removeEventListener("app_changelog_updated", handleUpdate);
-  }, [checkUnread]);
 
   if (variant === "menu-item") {
     return (

@@ -24,6 +24,13 @@ import { ColorState, StockVariantsStep } from "./products/new/StockVariantsStep"
 import { ProductAttributesStep } from "./products/new/ProductAttributesStep";
 import { ProductPreviewCard } from "./products/new/ProductPreviewCard";
 import { MobileProductPreviewSheet } from "./products/new/MobileProductPreviewSheet";
+import {
+  collectUniqueSizesCsv,
+  parseCompareAtPesosToCents,
+  parsePricePesosToCents,
+  serializeColorsPayload,
+  serializePhotosPayload,
+} from "./products/form/product-form.helpers";
 
 interface NewProductClientProps {
   categories: Category[];
@@ -125,63 +132,66 @@ export function NewProductClient({
   // 1. Restaurar borrador de localStorage al montar
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
-      if (saved) {
-        const draft = JSON.parse(saved);
-        let restoredAny = false;
+    const timer = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+        if (saved) {
+          const draft = JSON.parse(saved);
+          let restoredAny = false;
 
-        if (draft.title && typeof draft.title === "string") {
-          setTitle(draft.title);
-          restoredAny = true;
-        }
-        if (draft.pricePesos && typeof draft.pricePesos === "string") {
-          setPricePesos(draft.pricePesos);
-          restoredAny = true;
-        }
-        if (draft.compareAtPricePesos && typeof draft.compareAtPricePesos === "string") {
-          setCompareAtPricePesos(draft.compareAtPricePesos);
-        }
-        if (typeof draft.isConsultPrice === "boolean") {
-          setIsConsultPrice(draft.isConsultPrice);
-        }
-        if (typeof draft.selectedCategoryId === "number" && draft.selectedCategoryId > 0) {
-          setSelectedCategoryId(draft.selectedCategoryId);
-        }
-        if (typeof draft.isSinglePiece === "boolean") {
-          setIsSinglePiece(draft.isSinglePiece);
-        }
-        if (Array.isArray(draft.colors) && draft.colors.length > 0) {
-          setColors(draft.colors);
-          restoredAny = true;
-        }
-        if (Array.isArray(draft.photos) && draft.photos.length > 0) {
-          setPhotos(draft.photos);
-          restoredAny = true;
-        }
-        if (draft.initialStatus === "AVAILABLE" || draft.initialStatus === "RESERVED") {
-          setInitialStatus(draft.initialStatus);
-        }
-        if (typeof draft.isFeatured === "boolean") {
-          setIsFeatured(draft.isFeatured);
-        }
-        if (typeof draft.allowReturn === "boolean") {
-          setAllowReturn(draft.allowReturn);
-        }
-        if (draft.attributes && typeof draft.attributes === "object") {
-          setAttributes(draft.attributes);
-        }
+          if (draft.title && typeof draft.title === "string") {
+            setTitle(draft.title);
+            restoredAny = true;
+          }
+          if (draft.pricePesos && typeof draft.pricePesos === "string") {
+            setPricePesos(draft.pricePesos);
+            restoredAny = true;
+          }
+          if (draft.compareAtPricePesos && typeof draft.compareAtPricePesos === "string") {
+            setCompareAtPricePesos(draft.compareAtPricePesos);
+          }
+          if (typeof draft.isConsultPrice === "boolean") {
+            setIsConsultPrice(draft.isConsultPrice);
+          }
+          if (typeof draft.selectedCategoryId === "number" && draft.selectedCategoryId > 0) {
+            setSelectedCategoryId(draft.selectedCategoryId);
+          }
+          if (typeof draft.isSinglePiece === "boolean") {
+            setIsSinglePiece(draft.isSinglePiece);
+          }
+          if (Array.isArray(draft.colors) && draft.colors.length > 0) {
+            setColors(draft.colors);
+            restoredAny = true;
+          }
+          if (Array.isArray(draft.photos) && draft.photos.length > 0) {
+            setPhotos(draft.photos);
+            restoredAny = true;
+          }
+          if (draft.initialStatus === "AVAILABLE" || draft.initialStatus === "RESERVED") {
+            setInitialStatus(draft.initialStatus);
+          }
+          if (typeof draft.isFeatured === "boolean") {
+            setIsFeatured(draft.isFeatured);
+          }
+          if (typeof draft.allowReturn === "boolean") {
+            setAllowReturn(draft.allowReturn);
+          }
+          if (draft.attributes && typeof draft.attributes === "object") {
+            setAttributes(draft.attributes);
+          }
 
-        if (restoredAny) {
-          setHasRestoredDraft(true);
-          setLastDraftSavedAt(draft.savedAt || Date.now());
+          if (restoredAny) {
+            setHasRestoredDraft(true);
+            setLastDraftSavedAt(draft.savedAt || Date.now());
+          }
         }
+      } catch {
+        localStorage.removeItem(DRAFT_STORAGE_KEY);
+      } finally {
+        isDraftInitializedRef.current = true;
       }
-    } catch {
-      localStorage.removeItem(DRAFT_STORAGE_KEY);
-    } finally {
-      isDraftInitializedRef.current = true;
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // 2. Auto-guardado en localStorage ante cambios en el formulario
@@ -201,11 +211,13 @@ export function NewProductClient({
     );
 
     if (!hasContent) {
-      try {
-        localStorage.removeItem(DRAFT_STORAGE_KEY);
-      } catch {}
-      setLastDraftSavedAt(null);
-      return;
+      const clearTimer = setTimeout(() => {
+        try {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch {}
+        setLastDraftSavedAt(null);
+      }, 0);
+      return () => clearTimeout(clearTimer);
     }
 
     const timer = setTimeout(() => {
@@ -342,15 +354,10 @@ export function NewProductClient({
     }, 12000);
 
     try {
-      const priceCents =
-        !isConsultPrice && pricePesos.trim()
-          ? Math.round(parseFloat(pricePesos.replace(/,/g, ".")) * 100)
-          : null;
-
-      const compareAtPriceCents =
-        !isConsultPrice && compareAtPricePesos.trim()
-          ? Math.round(parseFloat(compareAtPricePesos.replace(/,/g, ".")) * 100)
-          : null;
+      const priceCents = isConsultPrice ? null : parsePricePesosToCents(pricePesos);
+      const compareAtPriceCents = isConsultPrice
+        ? null
+        : parseCompareAtPesosToCents(compareAtPricePesos);
 
       const finalStatus = statusOverride || initialStatus;
       const cleanAttributes: Record<string, string> = {};
@@ -360,14 +367,6 @@ export function NewProductClient({
         }
       }
 
-      const allUniqueSizes = Array.from(
-        new Set(
-          colors.flatMap((c) =>
-            c.sizes.map((s) => s.size.trim().toUpperCase()).filter(Boolean)
-          )
-        )
-      ).join(", ");
-
       const payload = {
         clientSubmissionId,
         rawText: trimmedTitle,
@@ -375,27 +374,15 @@ export function NewProductClient({
         priceCents,
         compareAtPriceCents,
         currency: "ARS",
-        size: allUniqueSizes || undefined,
+        size: collectUniqueSizesCsv(colors) || undefined,
         categoryId: selectedCategoryId,
         status: finalStatus,
         isFeatured,
         allowReturn,
         publishedAt: new Date().toISOString(),
         attributes: cleanAttributes,
-        colors: colors.map((c, cIdx) => ({
-          name: c.name.trim() || "Único",
-          hexCode: c.hexCode || null,
-          position: cIdx,
-          sizes: c.sizes.map((s) => ({
-            size: s.size.trim() || "ÚNICO",
-            stock: Number.isNaN(Number(s.stock)) ? 0 : Math.max(0, Number(s.stock)),
-          })),
-        })),
-        photos: photos.map((p, idx) => ({
-          keyThumb: p.keyThumb,
-          keyFull: p.keyFull,
-          position: idx,
-        })),
+        colors: serializeColorsPayload(colors),
+        photos: serializePhotosPayload(photos),
       };
 
       const res = await fetch("/api/admin/products/create", {
@@ -479,9 +466,12 @@ export function NewProductClient({
   };
 
   const isFormValidRef = useRef(isFormValid);
-  isFormValidRef.current = isFormValid;
   const submitProductRef = useRef(submitProduct);
-  submitProductRef.current = submitProduct;
+
+  useEffect(() => {
+    isFormValidRef.current = isFormValid;
+    submitProductRef.current = submitProduct;
+  });
 
   // Atajos de teclado Desktop con detección de Shift:
   // - Ctrl + Enter => Publicar pieza
@@ -549,7 +539,6 @@ export function NewProductClient({
           </button>
 
           <Link
-            prefetch={false}
             href="/admin/productos"
             className="w-full sm:w-auto px-6 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-semibold text-sm transition-all"
           >
@@ -566,7 +555,6 @@ export function NewProductClient({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <div className="flex items-center gap-3">
           <Link
-            prefetch={false}
             href="/admin/productos"
             className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             aria-label="Volver al catálogo"
@@ -593,7 +581,6 @@ export function NewProductClient({
         {/* Acciones Superiores Desktop (Patrón Shopify / Linear) */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <Link
-            prefetch={false}
             href="/admin/productos/importar"
             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-semibold transition-colors"
           >
@@ -914,7 +901,9 @@ export function NewProductClient({
             >
               <ProductAttributesStep
                 initialStatus={initialStatus}
-                onStatusChange={setInitialStatus}
+                onStatusChange={(next) =>
+                  setInitialStatus(next === "SOLD_OUT" ? "RESERVED" : next)
+                }
                 isFeatured={isFeatured}
                 onFeaturedChange={setIsFeatured}
                 allowReturn={allowReturn}

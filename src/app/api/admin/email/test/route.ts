@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const deps = getProductServiceDeps();
     const settings = await getShowroomSettings(deps);
-    const brandName = settings.showroomName || "Aura Studio";
+    const brandName = settings.showroomName || "Mi Tienda";
 
     const emailService = getEmailService();
     const apiKey = emailService.getApiKey();

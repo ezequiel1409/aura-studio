@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const deps = getProductServiceDeps();
   const settings = await getShowroomSettings(deps);
-  const brandName = settings.showroomName || "Aura Studio";
+  const brandName = settings.showroomName || "Mi Tienda";
 
   const emailService = getEmailService();
   const status = emailService.getStatus(brandName);

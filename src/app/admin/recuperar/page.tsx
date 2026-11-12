@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -138,7 +138,7 @@ export default function AdminRecoverPasswordPage() {
 
   const cleanPhone = supportPhone.replace(/\D/g, "");
   const whatsappHelpUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-    "Hola, necesito asistencia con el acceso de administrador en Aura Studio."
+    "Hola, necesito asistencia con el acceso de administrador."
   )}`;
 
   return (
@@ -154,7 +154,7 @@ export default function AdminRecoverPasswordPage() {
             <KeyRound size={26} strokeWidth={1.75} aria-hidden="true" />
           </div>
           <h1 className="font-serif text-3xl font-bold tracking-wide text-zinc-100">
-            Aura Studio
+            Panel de Administración
           </h1>
           <p className="text-xs text-zinc-400 mt-1.5 uppercase tracking-widest font-semibold">
             Recuperar Contraseña
@@ -238,7 +238,7 @@ export default function AdminRecoverPasswordPage() {
                   )}
 
                   <div className="pt-2">
-                    <Link prefetch={false}
+                    <Link
                       href="/admin/login"
                       className="inline-flex items-center justify-center gap-2 text-xs font-semibold text-zinc-200 hover:text-zinc-100 py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-colors w-full border border-zinc-700 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
                     >
@@ -267,7 +267,7 @@ export default function AdminRecoverPasswordPage() {
                         disabled={loadingEmail}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="admin@aurastudio.com"
+                        placeholder="admin@tienda.local"
                         className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all disabled:opacity-50"
                         autoFocus
                         required
@@ -326,7 +326,7 @@ export default function AdminRecoverPasswordPage() {
                     {masterSuccess}
                   </p>
                   <div className="pt-2">
-                    <Link prefetch={false}
+                    <Link
                       href="/admin/login"
                       className="inline-flex items-center justify-center gap-2 text-xs font-bold text-zinc-950 py-3 px-4 rounded-xl bg-amber-200 hover:bg-amber-100 transition-colors w-full focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none shadow-sm"
                     >
@@ -355,7 +355,7 @@ export default function AdminRecoverPasswordPage() {
                       disabled={loadingMaster}
                       value={masterEmail}
                       onChange={(e) => setMasterEmail(e.target.value)}
-                      placeholder="admin@aurastudio.com"
+                      placeholder="admin@tienda.local"
                       className="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400 transition-all disabled:opacity-50"
                       required
                     />
@@ -453,7 +453,7 @@ export default function AdminRecoverPasswordPage() {
           {/* Enlace para volver */}
           {!emailSuccess && !masterSuccess && (
             <div className="text-center pt-4 border-t border-zinc-800/80 mt-5">
-              <Link prefetch={false}
+              <Link
                 href="/admin/login"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-zinc-100 transition-colors py-2 px-3 rounded-lg hover:bg-zinc-800 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
               >

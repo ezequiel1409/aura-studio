@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { ArrowLeft, FileQuestion, LayoutDashboard, Package, ShoppingBag } from "lucide-react";
 
 export default function AdminNotFound() {
@@ -22,7 +22,7 @@ export default function AdminNotFound() {
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-2.5">
-          <Link prefetch={false}
+          <Link
             href="/admin"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-zinc-950 hover:bg-amber-300 transition-colors cursor-pointer"
           >
@@ -30,7 +30,7 @@ export default function AdminNotFound() {
             <span>Panel General</span>
           </Link>
 
-          <Link prefetch={false}
+          <Link
             href="/admin/ordenes"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/80 px-4 py-2.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-750 hover:text-white transition-colors"
           >
@@ -38,7 +38,7 @@ export default function AdminNotFound() {
             <span>Ir a Pedidos</span>
           </Link>
 
-          <Link prefetch={false}
+          <Link
             href="/admin/productos"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800/80 px-4 py-2.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-750 hover:text-white transition-colors"
           >

@@ -5,6 +5,7 @@ import { getProductServiceDeps } from "../../../../infra/db/connection";
 import { getShowroomSettings } from "../../../../services/settings.service";
 import { parseOrderCode, formatOrderCode } from "../../../../domain/order";
 import { AdminOrderDetailClient } from "../../../../components/admin/AdminOrderDetailClient";
+import { getDefaultBrandName } from "../../../../lib/brand";
 
 interface OrderDetailPageProps {
   params: Promise<{
@@ -76,7 +77,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
   return (
     <AdminOrderDetailClient
       initialOrder={order}
-      brandName={settings.showroomName || "Aura Studio"}
+      brandName={settings.showroomName || getDefaultBrandName()}
       whatsappNumber={settings.whatsappNumber}
       showroomAddress={settings.address}
     />

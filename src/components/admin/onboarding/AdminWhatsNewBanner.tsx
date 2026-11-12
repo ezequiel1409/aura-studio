@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import { Sparkles, Check, ArrowRight, X } from "lucide-react";
 import {
   ADMIN_CHANGELOG_RELEASES,
-  AdminReleaseItem,
   getAcknowledgedReleaseIds,
   acknowledgeRelease,
 } from "../../../lib/changelog/releases";
 import { useAdminNav } from "../navigation/AdminNavContext";
 import { AdminWhatsNewModal } from "./AdminWhatsNewModal";
+
+function subscribeChangelogUpdates(callback: () => void) {
+  window.addEventListener("app_changelog_updated", callback);
+  return () => window.removeEventListener("app_changelog_updated", callback);
+}
 
 interface AdminWhatsNewBannerProps {
   userId?: number | string | null;
@@ -19,34 +23,22 @@ export function AdminWhatsNewBanner({ userId: propUserId }: AdminWhatsNewBannerP
   const { userId: navUserId } = useAdminNav();
   const userId = propUserId ?? navUserId;
 
-  const [unreadReleases, setUnreadReleases] = useState<AdminReleaseItem[]>(() => {
-    if (typeof window === "undefined") return ADMIN_CHANGELOG_RELEASES;
-    const acknowledged = getAcknowledgedReleaseIds(userId);
+  const acknowledgedJson = useSyncExternalStore(
+    subscribeChangelogUpdates,
+    () => JSON.stringify(getAcknowledgedReleaseIds(userId)),
+    () => "[]"
+  );
+  const unreadReleases = useMemo(() => {
+    const acknowledged = JSON.parse(acknowledgedJson) as string[];
     return ADMIN_CHANGELOG_RELEASES.filter((r) => !acknowledged.includes(r.id));
-  });
+  }, [acknowledgedJson]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReleaseId, setSelectedReleaseId] = useState<string | undefined>(undefined);
   const [dismissedTemporarily, setDismissedTemporarily] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
-
-  const calculateUnread = useCallback(() => {
-    const acknowledged = getAcknowledgedReleaseIds(userId);
-    const unread = ADMIN_CHANGELOG_RELEASES.filter((r) => !acknowledged.includes(r.id));
-    setUnreadReleases(unread);
-    if (unread.length === 0) {
-      setIsDismissed(true);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    calculateUnread();
-    const handleUpdate = () => calculateUnread();
-    window.addEventListener("app_changelog_updated", handleUpdate);
-    return () => window.removeEventListener("app_changelog_updated", handleUpdate);
-  }, [calculateUnread]);
 
   // Si ya se descartó, no hay novedades pendientes o el usuario minimizó el aviso
-  if (isDismissed || unreadReleases.length === 0 || dismissedTemporarily) {
+  if (unreadReleases.length === 0 || dismissedTemporarily) {
     return (
       <AdminWhatsNewModal
         isOpen={isModalOpen}
@@ -64,9 +56,7 @@ export function AdminWhatsNewBanner({ userId: propUserId }: AdminWhatsNewBannerP
       e.preventDefault();
       e.stopPropagation();
     }
-    // Desaparición inmediata (0ms)
-    setIsDismissed(true);
-    setUnreadReleases([]);
+    setDismissedTemporarily(true);
     if (latestUnread) {
       acknowledgeRelease(latestUnread.id, userId);
     }
@@ -82,7 +72,6 @@ export function AdminWhatsNewBanner({ userId: propUserId }: AdminWhatsNewBannerP
       e.preventDefault();
       e.stopPropagation();
     }
-    setIsDismissed(true);
     setDismissedTemporarily(true);
   };
 

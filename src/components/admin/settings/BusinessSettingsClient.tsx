@@ -2,22 +2,22 @@
 
 import { useState } from "react";
 import {
-  AlertCircle,
   Info,
   PauseCircle,
   PlayCircle,
   Building2,
-  CheckCircle2,
   Eye,
   FileText,
   Image as ImageIcon,
   Loader2,
   Save,
   Store,
-  Trash2,
-  Upload,
 } from "lucide-react";
 import { ShowroomSettings } from "../../../services/settings.service";
+import { useAdminSettingsForm } from "../../../hooks/useAdminSettingsForm";
+import { AdminImageUploadField } from "../ui/AdminImageUploadField";
+import { AdminPageHeader } from "../ui/AdminPageHeader";
+import { AdminFeedbackBanner } from "../ui/AdminFeedbackBanner";
 
 interface BusinessSettingsClientProps {
   initialSettings: ShowroomSettings;
@@ -48,28 +48,13 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
       "Estamos realizando tareas de mantenimiento y balance de stock. Las compras online se reanudarán en breve."
   );
 
-  const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    type: "ok" | "error";
-    text: string;
-  } | null>(null);
+  const { saving, feedback, setFeedback, clearFeedback, saveSettings } = useAdminSettingsForm({
+    defaultSuccessMessage:
+      "Configuración de negocio guardada con éxito. Ya impacta en la tienda pública.",
+  });
 
   const descriptorChars = businessDescriptor.length;
   const aboutChars = aboutText.length;
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      setFeedback({ type: "error", text: "La imagen no debe superar los 2 MB." });
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setLogoUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,75 +63,31 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
       return;
     }
 
-    setSaving(true);
-    setFeedback(null);
-
-    try {
-      const res = await fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          showroomName: showroomName.trim(),
-          businessVertical,
-          businessDescriptor: businessDescriptor.trim() || "",
-          aboutText: aboutText.trim() || "",
-          logoUrl: logoUrl.trim() || "",
-          ordersPaused,
-          ordersPausedNotice: ordersPausedNotice.trim() || "",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || "No se pudo guardar la configuración.");
-      }
-
-      setFeedback({
-        type: "ok",
-        text: "Configuración de negocio guardada con éxito. Ya impacta en la tienda pública.",
-      });
-    } catch (err: unknown) {
-      setFeedback({
-        type: "error",
-        text: err instanceof Error ? err.message : "Error al conectar con el servidor.",
-      });
-    } finally {
-      setSaving(false);
-    }
+    await saveSettings({
+      showroomName: showroomName.trim(),
+      businessVertical,
+      businessDescriptor: businessDescriptor.trim() || "",
+      aboutText: aboutText.trim() || "",
+      logoUrl: logoUrl.trim() || "",
+      ordersPaused,
+      ordersPausedNotice: ordersPausedNotice.trim() || "",
+    });
   };
 
   return (
     <div className="space-y-6">
-      {/* Encabezado */}
-      <div>
-        <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-400">
-          Tienda › Negocio (ADM-05)
-        </span>
-        <h1 className="text-xl sm:text-2xl font-serif font-light text-zinc-100 mt-1">
-          Identidad, Rubro y Pie de Página
-        </h1>
-        <p className="text-xs text-zinc-400 mt-1">
-          Definí el nombre de tu marca, el descriptor bajo el logo y el texto descriptivo del pie.
-        </p>
-      </div>
+      <AdminPageHeader
+        eyebrow="Tienda › Negocio (ADM-05)"
+        title="Identidad, Rubro y Pie de Página"
+        description="Definí el nombre de tu marca, el descriptor bajo el logo y el texto descriptivo del pie."
+      />
 
       {feedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`p-4 rounded-xl text-xs flex items-center gap-2.5 ${
-            feedback.type === "ok"
-              ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-              : "bg-rose-950/60 border border-rose-800 text-rose-300"
-          }`}
-        >
-          {feedback.type === "ok" ? (
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-          ) : (
-            <AlertCircle size={16} className="shrink-0 text-rose-400" />
-          )}
-          <span>{feedback.text}</span>
-        </div>
+        <AdminFeedbackBanner
+          type={feedback.type}
+          message={feedback.text}
+          onDismiss={clearFeedback}
+        />
       )}
 
       <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -172,39 +113,24 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
                 required
                 value={showroomName}
                 onChange={(e) => setShowroomName(e.target.value)}
-                placeholder="Ej: Aura Studio"
+                placeholder="Ej: Mi Tienda"
                 className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus:outline-none"
               />
             </div>
 
             {/* Logo */}
-            <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">
-                Logotipo (PNG transparente recomendado)
-              </label>
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium cursor-pointer transition-colors">
-                  <Upload size={14} />
-                  <span>Subir imagen</span>
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                    onChange={handleLogoUpload}
-                    className="sr-only"
-                  />
-                </label>
-                {logoUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setLogoUrl("")}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-rose-400 hover:bg-rose-950/40 text-xs transition-colors"
-                  >
-                    <Trash2 size={14} />
-                    <span>Quitar logo</span>
-                  </button>
-                )}
-              </div>
-            </div>
+            <AdminImageUploadField
+              label="Logotipo (PNG o WebP transparente recomendado)"
+              folder="brand"
+              allowUrlInput={false}
+              uploadLabel="Subir imagen"
+              clearLabel="Quitar logo"
+              previewVariant="logo"
+              previewAlt="Vista previa del logotipo"
+              value={logoUrl}
+              onChange={setLogoUrl}
+              onError={(msg) => setFeedback({ type: "error", text: msg })}
+            />
           </div>
 
           {/* Bloque 2: ¿Qué comercio es? (Rubro y Descriptor) */}

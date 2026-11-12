@@ -13,6 +13,8 @@ import { AdminWhatsNewTrigger } from "./onboarding/AdminWhatsNewTrigger";
 import { useAdminNav } from "./navigation/AdminNavContext";
 import { BrandLogo } from "../layout/BrandLogo";
 import { ModalDialog } from "./ui/ModalDialog";
+import { ADMIN_SESSION_REFRESHED_EVENT } from "./AdminSessionMonitor";
+import type { AdminSessionDTO } from "../../infra/auth/dal";
 
 interface SessionUser {
   userId?: number;
@@ -23,11 +25,21 @@ interface SessionUser {
 interface AdminHeaderProps {
   brandName?: string;
   storeType?: string;
+  logoUrl?: string | null;
+  initialSession?: AdminSessionDTO | null;
+  initialOrdersPaused?: boolean;
+  initialOrdersPausedNotice?: string | null;
+  hasServerData?: boolean;
 }
 
 export function AdminHeader({
   brandName: initialBrandName,
   storeType: initialStoreType,
+  logoUrl: initialLogoUrl,
+  initialSession,
+  initialOrdersPaused,
+  initialOrdersPausedNotice,
+  hasServerData = false,
 }: AdminHeaderProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
@@ -39,26 +51,41 @@ export function AdminHeader({
     hasSecondary,
   } = useAdminNav();
 
-  const [brandName, setBrandName] = useState(initialBrandName || "Aura Studio");
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [ordersPaused, setOrdersPaused] = useState(false);
-  const [ordersPausedNotice, setOrdersPausedNotice] = useState("");
+  const [brandName, setBrandName] = useState(initialBrandName || "Mi Tienda");
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
+  const [ordersPaused, setOrdersPaused] = useState(Boolean(initialOrdersPaused));
+  const [ordersPausedNotice, setOrdersPausedNotice] = useState(
+    initialOrdersPausedNotice || ""
+  );
   const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
-  const [modalNoticeInput, setModalNoticeInput] = useState("");
+  const [modalNoticeInput, setModalNoticeInput] = useState(
+    initialOrdersPausedNotice ||
+      "Estamos realizando balance de stock. Las compras online se reanudan en breve."
+  );
   const [updatingPauseStatus, setUpdatingPauseStatus] = useState(false);
   const [, setStoreType] = useState(initialStoreType || "Showroom");
   const [loggingOut, setLoggingOut] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(
+    initialSession
+      ? {
+          userId: initialSession.userId,
+          email: initialSession.email,
+          role: initialSession.role,
+        }
+      : null
+  );
+  const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(
+    initialSession?.expiresInSeconds ?? null
+  );
   const [renewingSession, setRenewingSession] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement>(null);
 
-  const hasLoadedSessionRef = useRef(false);
-  const hasLoadedBrandRef = useRef(Boolean(initialBrandName));
+  const hasLoadedSessionRef = useRef(hasServerData);
+  const hasLoadedBrandRef = useRef(hasServerData || Boolean(initialBrandName));
 
   // Consulta de datos de sesión del usuario logueado
   const fetchSession = useCallback(async () => {
@@ -70,6 +97,17 @@ export function AdminHeader({
           setUser(data.user);
           setExpiresInSeconds(data.expiresInSeconds);
           hasLoadedSessionRef.current = true;
+          if (typeof data.expiresInSeconds === "number") {
+            const current = Date.now();
+            window.dispatchEvent(
+              new CustomEvent(ADMIN_SESSION_REFRESHED_EVENT, {
+                detail: {
+                  expiresAtMs: current + data.expiresInSeconds * 1000,
+                  expiresInSeconds: data.expiresInSeconds,
+                },
+              })
+            );
+          }
         }
       }
     } catch {
@@ -77,8 +115,23 @@ export function AdminHeader({
     }
   }, []);
 
-  // Cargar sesión solo 1 vez al montar
+  // Escuchar renovaciones de sesión iniciadas desde AdminSessionMonitor
   useEffect(() => {
+    const handleSessionRefreshed = (event: Event) => {
+      const detail = (event as CustomEvent<{ expiresInSeconds?: number }>).detail;
+      if (typeof detail?.expiresInSeconds === "number") {
+        setExpiresInSeconds(detail.expiresInSeconds);
+      }
+    };
+    window.addEventListener(ADMIN_SESSION_REFRESHED_EVENT, handleSessionRefreshed);
+    return () => {
+      window.removeEventListener(ADMIN_SESSION_REFRESHED_EVENT, handleSessionRefreshed);
+    };
+  }, []);
+
+  // Cargar sesión solo si no vino hidratada del servidor (fallback para renders standalone)
+  useEffect(() => {
+    if (hasServerData) return;
     const isAuthRoute =
       pathname === "/admin/login" ||
       pathname === "/admin/recuperar" ||
@@ -90,12 +143,16 @@ export function AdminHeader({
     }
 
     if (!hasLoadedSessionRef.current) {
-      fetchSession();
+      const timer = setTimeout(() => {
+        void fetchSession();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [pathname, fetchSession]);
+  }, [hasServerData, pathname, fetchSession]);
 
-  // Cargar estado de pausa de ventas
+  // Cargar estado de pausa de ventas solo si no vino del servidor
   useEffect(() => {
+    if (hasServerData) return;
     fetch("/api/admin/settings")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
@@ -110,24 +167,23 @@ export function AdminHeader({
         }
       })
       .catch(() => {});
-  }, []);
+  }, [hasServerData]);
 
-  // Cargar nombre de tienda si no vino por props
+  // Cargar nombre de tienda solo si no vino hidratado del servidor
   useEffect(() => {
-    if (!hasLoadedBrandRef.current) {
-      hasLoadedBrandRef.current = true;
-      fetch("/api/admin/login")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.ok) {
-            if (data.logoUrl) setLogoUrl(data.logoUrl);
-            if (data.storeName && !initialBrandName) setBrandName(data.storeName);
-            if (data.storeType && !initialStoreType) setStoreType(data.storeType);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [initialBrandName, initialStoreType]);
+    if (hasServerData || hasLoadedBrandRef.current) return;
+    hasLoadedBrandRef.current = true;
+    fetch("/api/admin/login")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok) {
+          if (data.logoUrl) setLogoUrl(data.logoUrl);
+          if (data.storeName && !initialBrandName) setBrandName(data.storeName);
+          if (data.storeType && !initialStoreType) setStoreType(data.storeType);
+        }
+      })
+      .catch(() => {});
+  }, [hasServerData, initialBrandName, initialStoreType]);
 
   // Teclas rápidas: Escape para cerrar menús, '/' para buscador
   useEffect(() => {
@@ -298,7 +354,7 @@ export function AdminHeader({
               )}
             </button>
 
-            <Link prefetch={false}
+            <Link
               href="/admin"
               aria-label={`${brandName}, ir al panel de administración`}
               className="flex items-center gap-2 font-serif text-lg tracking-wider text-zinc-100 font-bold hover:opacity-90 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none rounded-lg px-1 py-0.5"
@@ -387,7 +443,7 @@ export function AdminHeader({
             </button>
 
             {/* Botón Ver Tienda Pública */}
-            <Link prefetch={false}
+            <Link
               href="/"
               target="_blank"
               rel="noreferrer"

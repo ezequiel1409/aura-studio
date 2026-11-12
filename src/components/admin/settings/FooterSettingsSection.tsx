@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Clock,
   ExternalLink,
   Truck,
@@ -354,7 +355,7 @@ export function FooterSettingsSection({
                     <div>
                       <span className="font-semibold block text-zinc-200">Publicar dirección exacta</span>
                       <span className="text-[11px] text-zinc-400 block mt-0.5 leading-relaxed">
-                        Muestra la calle, localidad y botón "Cómo llegar" de Google Maps en el checkout.
+                        Muestra la calle, localidad y botón &ldquo;Cómo llegar&rdquo; de Google Maps en el checkout.
                       </span>
                     </div>
                   </label>
@@ -406,13 +407,13 @@ export function FooterSettingsSection({
                 </p>
               </div>
             </div>
-            <a
+            <Link
               href="/admin/tienda/envios"
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs uppercase tracking-wider transition-colors shrink-0 shadow-sm"
             >
               <span>Configurar envíos</span>
               <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -435,7 +436,7 @@ export function FooterSettingsSection({
                 type="text"
                 value={instagramHandle}
                 onChange={(e) => onInstagramHandleChange(e.target.value)}
-                placeholder="@aurastudio o URL"
+                placeholder="@mitienda o URL"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400"
               />
             </div>
@@ -452,7 +453,7 @@ export function FooterSettingsSection({
                 type="text"
                 value={tiktokHandle}
                 onChange={(e) => onTiktokHandleChange(e.target.value)}
-                placeholder="@aurastudio o URL"
+                placeholder="@mitienda o URL"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400"
               />
             </div>

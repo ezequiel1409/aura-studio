@@ -19,7 +19,6 @@ import {
   RefreshCw,
   Sparkles,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import {
@@ -29,6 +28,7 @@ import {
   NavigationSection,
   ProductAttributeDefinition,
 } from "../../../domain/navigation/types";
+import { AdminImageUploadField } from "../ui/AdminImageUploadField";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Category } from "../../../domain/category/types";
 
@@ -94,7 +94,6 @@ export function HomeSectionsManager({
   const [showProductCount, setShowProductCount] = useState(false);
   const [accentColor, setAccentColor] = useState("");
 
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
@@ -127,47 +126,6 @@ export function HomeSectionsManager({
     setAccentColor(sec.accentColor || "");
     setIsFormOpen(true);
     window.scrollTo({ top: 200, behavior: "smooth" });
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingImage(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        // Fallback a Base64 si el endpoint no está disponible
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setImageUrl(event.target?.result as string);
-          setUploadingImage(false);
-        };
-        reader.readAsDataURL(file);
-        return;
-      }
-
-      const data = await res.json();
-      if (data.url) {
-        setImageUrl(data.url);
-      }
-    } catch {
-      // Fallback a base64
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImageUrl(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    } finally {
-      setUploadingImage(false);
-    }
   };
 
   const handleSaveSection = async (e: React.FormEvent) => {
@@ -541,32 +499,17 @@ export function HomeSectionsManager({
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    id="section-image-file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <label
-                    htmlFor="section-image-file"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold cursor-pointer border border-zinc-700 transition-colors"
-                  >
-                    {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                    <span>{uploadingImage ? "Subiendo..." : "Subir archivo de imagen"}</span>
-                  </label>
-                  <span className="text-xs text-zinc-500">o ingresá una URL:</span>
-                </div>
-                <input
-                  type="text"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://... o /images/..."
-                  className="w-full px-3 py-2 text-xs font-mono rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:border-amber-400 focus:outline-none"
-                />
-              </div>
+              <AdminImageUploadField
+                id="section-image-url"
+                folder="sections"
+                value={imageUrl}
+                onChange={setImageUrl}
+                uploadLabel="Subir archivo de imagen"
+                clearLabel="Quitar foto"
+                urlPlaceholder="https://... o /images/... o /api/media/..."
+                previewVariant="none"
+                onError={(msg) => setFeedback({ type: "error", text: msg })}
+              />
 
               {/* Vista Previa de la tarjeta con contraste */}
               <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 min-h-[110px] p-4 flex flex-col justify-between shadow-inner">

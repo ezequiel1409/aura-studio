@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   Copy,
@@ -21,6 +21,7 @@ import {
 import { Coupon, CouponType } from "../../domain/coupon/types";
 import { formatPriceARS } from "../../lib/format/currency";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
+import { ModalDialog } from "./ui/ModalDialog";
 
 interface CouponsManagerClientProps {
   initialCoupons: Coupon[];
@@ -43,6 +44,12 @@ export function CouponsManagerClient({
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setNowMs(Date.now()), 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -368,7 +375,8 @@ export function CouponsManagerClient({
               </thead>
               <tbody className="divide-y divide-zinc-800/60">
                 {filteredCoupons.map((coupon) => {
-                  const isExpired = coupon.expiresAt && Date.now() > coupon.expiresAt;
+                  const isExpired =
+                    nowMs !== null && Boolean(coupon.expiresAt && nowMs > coupon.expiresAt);
                   const isExhausted =
                     coupon.usageLimit !== null &&
                     coupon.usageLimit !== undefined &&
@@ -513,22 +521,15 @@ export function CouponsManagerClient({
       )}
 
       {/* 5. Modal / Drawer para Crear Nuevo Cupón */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-              <div className="flex items-center gap-2">
-                <Tag className="w-5 h-5 text-amber-400" />
-                <h2 className="text-base font-bold text-zinc-100">Crear Nuevo Cupón</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <ModalDialog
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Crear Nuevo Cupón"
+        size="lg"
+        closeDisabled={isSubmitting}
+        headerIcon={<Tag className="w-5 h-5 text-amber-400" />}
+      >
+        <div>
 
             {errorMessage && (
               <div className="mt-4 rounded-xl border border-rose-800/80 bg-rose-950/60 p-3 text-xs text-rose-300">
@@ -786,9 +787,8 @@ export function CouponsManagerClient({
                 </button>
               </div>
             </form>
-          </div>
         </div>
-      )}
+      </ModalDialog>
 
       <ConfirmDialog
         isOpen={pendingDeleteCoupon !== null}

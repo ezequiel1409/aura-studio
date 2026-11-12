@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   Bike,
@@ -281,7 +282,7 @@ export function ShippingSettingsClient({ initialSettings }: ShippingSettingsClie
                   <div>
                     <span className="font-semibold block text-zinc-200">Publicar dirección exacta</span>
                     <span className="text-[11px] text-zinc-400 block mt-0.5 leading-relaxed">
-                      Muestra calle, localidad y botón "Cómo llegar" de Google Maps en la confirmación.
+                      Muestra calle, localidad y botón &ldquo;Cómo llegar&rdquo; de Google Maps en la confirmación.
                     </span>
                   </div>
                 </label>
@@ -329,13 +330,13 @@ export function ShippingSettingsClient({ initialSettings }: ShippingSettingsClie
                   </strong>
                 </span>
               </div>
-              <a
+              <Link
                 href="/admin/tienda/contacto"
                 className="text-[11px] text-amber-400 hover:underline inline-flex items-center gap-1 font-semibold"
               >
                 <span>Editar dirección en Contacto</span>
                 <ExternalLink className="h-3 w-3" />
-              </a>
+              </Link>
             </div>
           </div>
         )}

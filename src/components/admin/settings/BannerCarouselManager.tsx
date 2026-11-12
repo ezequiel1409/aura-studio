@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -16,10 +16,11 @@ import {
   Smartphone,
   Sparkles,
   Trash2,
-  Upload,
   X,
 } from "lucide-react";
 import { HomeBanner, Promotion } from "../../../domain/promotion/types";
+import { AdminImageUploadField } from "../ui/AdminImageUploadField";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 interface BannerCarouselManagerProps {
   banners: HomeBanner[];
@@ -76,44 +77,7 @@ export function BannerCarouselManager({
   const [feedback, setFeedback] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [showFallbackSection, setShowFallbackSection] = useState(false);
 
-  const desktopFileId = useId();
-  const mobileFileId = useId();
-
   const activeCount = banners.filter((b) => b.isActive).length;
-
-  // Manejo de carga de archivo local para imagen de escritorio
-  const handleDesktopFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      setFormError("La imagen de escritorio supera los 3 MB. Se recomienda comprimirla.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (editingSlide) {
-        setEditingSlide({ ...editingSlide, desktopImageUrl: reader.result as string });
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Manejo de carga de archivo local para imagen móvil
-  const handleMobileFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      setFormError("La imagen móvil supera los 3 MB. Se recomienda comprimirla.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (editingSlide) {
-        setEditingSlide({ ...editingSlide, mobileImageUrl: reader.result as string });
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleStartCreate = () => {
     setFormError(null);
@@ -442,93 +406,42 @@ export function BannerCarouselManager({
             </div>
 
             {/* Imagen Escritorio */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label htmlFor="slide-desktop-url" className="text-xs font-medium text-zinc-200">
-                  Foto para Computadora (Desktop) *
-                </label>
-                <label
-                  htmlFor={desktopFileId}
-                  className="inline-flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 cursor-pointer font-semibold"
-                >
-                  <Upload size={12} />
-                  <span>Subir archivo</span>
-                </label>
-                <input
-                  id={desktopFileId}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleDesktopFileUpload}
-                  className="hidden"
-                />
-              </div>
-              <input
-                id="slide-desktop-url"
-                type="url"
-                value={editingSlide.desktopImageUrl}
-                onChange={(e) => setEditingSlide({ ...editingSlide, desktopImageUrl: e.target.value })}
-                placeholder="https://ejemplo.com/banner-desktop.jpg"
-                required
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-600 focus:border-amber-400 focus:outline-none"
-              />
-              {editingSlide.desktopImageUrl && (
-                <div className="relative h-24 w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={editingSlide.desktopImageUrl}
-                    alt="Vista previa escritorio"
-                    className="h-full w-full object-cover"
-                  />
-                  <span className="absolute bottom-1 right-1 text-[9px] bg-black/75 text-zinc-300 px-1.5 py-0.5 rounded">
-                    Escritorio
-                  </span>
-                </div>
-              )}
-            </div>
+            <AdminImageUploadField
+              id="slide-desktop-url"
+              label="Foto para Computadora (Desktop)"
+              requiredLabel
+              folder="banners"
+              value={editingSlide.desktopImageUrl}
+              onChange={(url) =>
+                setEditingSlide({ ...editingSlide, desktopImageUrl: url })
+              }
+              urlPlaceholder="https://ejemplo.com/banner-desktop.jpg o /api/media/..."
+              urlRequired
+              uploadLabel="Subir archivo"
+              clearLabel="Quitar"
+              previewVariant="wide"
+              previewAlt="Vista previa escritorio"
+              previewBadge="Escritorio"
+              onError={(msg) => setFormError(msg)}
+            />
 
             {/* Imagen Celular */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label htmlFor="slide-mobile-url" className="text-xs font-medium text-zinc-200">
-                  Foto para Celular (Móvil vertical)
-                </label>
-                <label
-                  htmlFor={mobileFileId}
-                  className="inline-flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 cursor-pointer font-semibold"
-                >
-                  <Upload size={12} />
-                  <span>Subir archivo</span>
-                </label>
-                <input
-                  id={mobileFileId}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleMobileFileUpload}
-                  className="hidden"
-                />
-              </div>
-              <input
-                id="slide-mobile-url"
-                type="url"
-                value={editingSlide.mobileImageUrl}
-                onChange={(e) => setEditingSlide({ ...editingSlide, mobileImageUrl: e.target.value })}
-                placeholder="Opcional. Si queda vacío, usa la de escritorio."
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-600 focus:border-amber-400 focus:outline-none"
-              />
-              {editingSlide.mobileImageUrl && (
-                <div className="relative h-24 w-20 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={editingSlide.mobileImageUrl}
-                    alt="Vista previa móvil"
-                    className="h-full w-full object-cover"
-                  />
-                  <span className="absolute bottom-1 right-1 text-[9px] bg-black/75 text-zinc-300 px-1 py-0.5 rounded">
-                    Móvil
-                  </span>
-                </div>
-              )}
-            </div>
+            <AdminImageUploadField
+              id="slide-mobile-url"
+              label="Foto para Celular (Móvil vertical)"
+              folder="banners"
+              value={editingSlide.mobileImageUrl}
+              onChange={(url) =>
+                setEditingSlide({ ...editingSlide, mobileImageUrl: url })
+              }
+              urlPlaceholder="Opcional. Si queda vacío, usa la de escritorio."
+              uploadLabel="Subir archivo"
+              clearLabel="Quitar"
+              previewVariant="portrait"
+              previewAlt="Vista previa móvil"
+              previewBadge="Móvil"
+              onError={(msg) => setFormError(msg)}
+            />
 
             {/* Texto del Botón (CTA) */}
             <div className="space-y-1">
@@ -748,37 +661,20 @@ export function BannerCarouselManager({
       )}
 
       {/* Modal de Confirmación de Eliminación */}
-      {slideToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-900 p-5 space-y-4 shadow-2xl">
-            <div className="flex items-center gap-2.5 text-rose-400 font-bold text-xs uppercase tracking-wider">
-              <AlertTriangle size={18} />
-              <span>¿Eliminar este banner del carrusel?</span>
-            </div>
-            <p className="text-xs text-zinc-300 leading-relaxed">
-              Estás a punto de eliminar el slide <strong className="text-white">&ldquo;{slideToDelete.title}&rdquo;</strong>. Esta acción no se puede deshacer.
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setSlideToDelete(null)}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={isLoading}
-                onClick={handleDeleteSlide}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors cursor-pointer"
-              >
-                {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                <span>Eliminar definitivamente</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={slideToDelete !== null}
+        onClose={() => setSlideToDelete(null)}
+        onConfirm={handleDeleteSlide}
+        title="¿Eliminar este banner del carrusel?"
+        message={
+          slideToDelete
+            ? `Estás a punto de eliminar el slide "${slideToDelete.title}". Esta acción no se puede deshacer.`
+            : ""
+        }
+        confirmLabel="Eliminar definitivamente"
+        variant="danger"
+        isLoading={isLoading}
+      />
 
       {/* Portada de Respaldo / Fallback (Acordeón Plegable) */}
       <div className="pt-3 border-t border-zinc-800/80">
@@ -827,18 +723,16 @@ export function BannerCarouselManager({
               />
             </div>
 
-            <div>
-              <label htmlFor="fallback-hero-url" className="block text-xs font-medium text-zinc-300 mb-1">
-                URL de Imagen de Fondo de Respaldo
-              </label>
-              <input
-                id="fallback-hero-url"
-                type="url"
-                value={heroBannerUrl || ""}
-                onChange={(e) => onHeroBannerUrlChange(e.target.value)}
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-xs font-mono text-zinc-100 focus:border-amber-400 focus:outline-none"
-              />
-            </div>
+            <AdminImageUploadField
+              id="fallback-hero-url"
+              label="Imagen de Fondo de Respaldo"
+              folder="banners"
+              value={heroBannerUrl || ""}
+              onChange={onHeroBannerUrlChange}
+              urlPlaceholder="https://... o /api/media/..."
+              previewVariant="wide"
+              previewAlt="Vista previa portada de respaldo"
+            />
           </div>
         )}
       </div>

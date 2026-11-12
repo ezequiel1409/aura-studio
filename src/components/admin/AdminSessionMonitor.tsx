@@ -1,24 +1,46 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Clock, RefreshCw, AlertTriangle, CheckCircle2, X } from "lucide-react";
+import type { AdminSessionDTO } from "../../infra/auth/dal";
 
-export function AdminSessionMonitor() {
-  const pathname = usePathname();
+export const ADMIN_SESSION_REFRESHED_EVENT = "admin:session-refreshed";
+
+interface AdminSessionMonitorProps {
+  initialSession?: AdminSessionDTO | null;
+}
+
+export function AdminSessionMonitor({
+  initialSession,
+}: AdminSessionMonitorProps = {}) {
+  const pathname = usePathname() || "";
   const router = useRouter();
 
-  const [expiresInSeconds, setExpiresInSeconds] = useState<number | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const hasHydratedSession = initialSession !== undefined;
+
+  const [expiresAtMs, setExpiresAtMs] = useState<number | null>(
+    initialSession ? initialSession.expiresAtMs : null
+  );
+  const [initialRemaining] = useState<number | null>(
+    initialSession ? initialSession.expiresInSeconds : null
+  );
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    hasHydratedSession ? Boolean(initialSession) : true
+  );
   const [renewing, setRenewing] = useState(false);
   const [renewedSuccess, setRenewedSuccess] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [dismissedWarning, setDismissedWarning] = useState(false);
 
-  // Umbrales de advertencia en segundos
-  const WARNING_THRESHOLD = 15 * 60; // 15 minutos (900 segundos)
-  const URGENT_THRESHOLD = 5 * 60; // 5 minutos (300 segundos)
+  const WARNING_THRESHOLD = 15 * 60;
+  const URGENT_THRESHOLD = 5 * 60;
 
-  // Consulta el estado de la sesión al servidor
+  const isAuthPage =
+    pathname === "/admin/login" ||
+    pathname === "/admin/recuperar" ||
+    pathname.startsWith("/admin/restablecer");
+
   const checkSession = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/session", { cache: "no-store" });
@@ -27,48 +49,67 @@ export function AdminSessionMonitor() {
         return;
       }
       const data = await res.json();
-      setIsAuthenticated(data.authenticated);
+      setIsAuthenticated(Boolean(data.authenticated));
       if (typeof data.expiresInSeconds === "number") {
-        setExpiresInSeconds(data.expiresInSeconds);
+        const current = Date.now();
+        setNowMs(current);
+        setExpiresAtMs(current + data.expiresInSeconds * 1000);
       }
     } catch {
       // En caso de fallo de red puntual, no forzar estado de error
     }
   }, []);
 
-  const isAuthPage =
-    pathname === "/admin/login" ||
-    pathname === "/admin/recuperar" ||
-    pathname.startsWith("/admin/restablecer");
-
-  // Verificar sesión únicamente en montaje (sin polling infinito redundante en segundo plano)
+  // Solo consulta /api/admin/session si no recibió initialSession desde el servidor
   useEffect(() => {
-    if (isAuthPage) {
+    if (hasHydratedSession || isAuthPage) {
       return;
     }
 
-    checkSession();
-  }, [isAuthPage, checkSession]);
+    const timer = setTimeout(() => {
+      void checkSession();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [hasHydratedSession, isAuthPage, checkSession]);
 
-  // Temporizador local por segundo para conteo fluido
+  // Escuchar renovaciones iniciadas desde otros componentes (ej: AdminHeader)
   useEffect(() => {
-    if (expiresInSeconds === null || expiresInSeconds <= 0) return;
+    const handleSessionRefreshed = (event: Event) => {
+      const detail = (event as CustomEvent<{ expiresAtMs?: number; expiresInSeconds?: number }>).detail;
+      const current = Date.now();
+      const nextExpiresAtMs =
+        detail?.expiresAtMs ??
+        current + (detail?.expiresInSeconds ?? 7200) * 1000;
+      setNowMs(current);
+      setExpiresAtMs(nextExpiresAtMs);
+      setIsAuthenticated(true);
+      setDismissedWarning(false);
+    };
+    window.addEventListener(ADMIN_SESSION_REFRESHED_EVENT, handleSessionRefreshed);
+    return () => {
+      window.removeEventListener(ADMIN_SESSION_REFRESHED_EVENT, handleSessionRefreshed);
+    };
+  }, []);
+
+  // Un solo intervalo estable por sesión activa (no se destruye/recrea cada segundo)
+  const shouldTick = Boolean(expiresAtMs) && !isAuthPage;
+  useEffect(() => {
+    if (!shouldTick) return;
 
     const tick = setInterval(() => {
-      setExpiresInSeconds((prev) => (prev !== null && prev > 0 ? prev - 1 : 0));
+      setNowMs(Date.now());
     }, 1000);
 
     return () => clearInterval(tick);
-  }, [expiresInSeconds]);
+  }, [shouldTick]);
 
-  // Si el tiempo cae por debajo del umbral urgente (5 min), reactivar el banner si había sido descartado
-  useEffect(() => {
-    if (expiresInSeconds !== null && expiresInSeconds <= URGENT_THRESHOLD && isDismissed) {
-      setIsDismissed(false);
-    }
-  }, [expiresInSeconds, isDismissed]);
+  const expiresInSeconds =
+    expiresAtMs === null
+      ? null
+      : nowMs === null
+      ? initialRemaining
+      : Math.max(0, Math.floor((expiresAtMs - nowMs) / 1000));
 
-  // Manejo de renovación en 1 clic
   const handleRefresh = async () => {
     if (renewing) return;
     setRenewing(true);
@@ -80,14 +121,23 @@ export function AdminSessionMonitor() {
 
       const data = await res.json();
       if (res.ok && data.ok) {
-        setExpiresInSeconds(data.expiresInSeconds || 7200);
+        const nextSeconds = data.expiresInSeconds || 7200;
+        const current = Date.now();
+        const nextExpiresAtMs = current + nextSeconds * 1000;
+        setNowMs(current);
+        setExpiresAtMs(nextExpiresAtMs);
         setIsAuthenticated(true);
-        setIsDismissed(false);
+        setDismissedWarning(false);
         setRenewedSuccess(true);
+        window.dispatchEvent(
+          new CustomEvent(ADMIN_SESSION_REFRESHED_EVENT, {
+            detail: { expiresAtMs: nextExpiresAtMs, expiresInSeconds: nextSeconds },
+          })
+        );
         setTimeout(() => setRenewedSuccess(false), 4500);
       } else {
         setIsAuthenticated(false);
-        setExpiresInSeconds(0);
+        setExpiresAtMs(0);
       }
     } catch {
       setIsAuthenticated(false);
@@ -96,16 +146,10 @@ export function AdminSessionMonitor() {
     }
   };
 
-  // No renderizar en páginas de login / recuperación
-  if (
-    pathname === "/admin/login" ||
-    pathname === "/admin/recuperar" ||
-    pathname.startsWith("/admin/restablecer")
-  ) {
+  if (isAuthPage) {
     return null;
   }
 
-  // Toast de confirmación de renovación exitosa
   if (renewedSuccess) {
     return (
       <div
@@ -119,7 +163,6 @@ export function AdminSessionMonitor() {
     );
   }
 
-  // Estado: Sesión expirada o desautenticada
   const isExpired = expiresInSeconds !== null && expiresInSeconds <= 0;
   if (!isAuthenticated || isExpired) {
     return (
@@ -154,9 +197,10 @@ export function AdminSessionMonitor() {
     );
   }
 
-  // Estado: Advertencia de sesión por expirar (< 15 minutos)
   const isExpiringSoon = expiresInSeconds !== null && expiresInSeconds <= WARNING_THRESHOLD;
-  if (isExpiringSoon && !isDismissed) {
+  const isUrgent = expiresInSeconds !== null && expiresInSeconds <= URGENT_THRESHOLD;
+
+  if (isExpiringSoon && (isUrgent || !dismissedWarning)) {
     const minutes = Math.floor(expiresInSeconds / 60);
     const seconds = expiresInSeconds % 60;
     const timeFormatted = `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
@@ -198,15 +242,17 @@ export function AdminSessionMonitor() {
                 <span>{renewing ? "Renovando..." : "Renovar 2 horas más"}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setIsDismissed(true)}
-                aria-label="Descartar aviso temporalmente"
-                className="p-2 rounded-xl text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
-                title="Descartar aviso"
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
+              {!isUrgent && (
+                <button
+                  type="button"
+                  onClick={() => setDismissedWarning(true)}
+                  aria-label="Descartar aviso temporalmente"
+                  className="p-2 rounded-xl text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition-colors"
+                  title="Descartar aviso"
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -216,4 +262,3 @@ export function AdminSessionMonitor() {
 
   return null;
 }
-

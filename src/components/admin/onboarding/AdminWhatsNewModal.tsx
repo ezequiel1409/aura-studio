@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
   Sparkles,
   CheckCircle2,
   ArrowRight,
-  X,
   History,
   Layers,
   Check,
@@ -19,6 +18,12 @@ import {
   acknowledgeAllReleases,
 } from "../../../lib/changelog/releases";
 import { useAdminNav } from "../navigation/AdminNavContext";
+import { ModalDialog } from "../ui/ModalDialog";
+
+function subscribeChangelogUpdates(callback: () => void) {
+  window.addEventListener("app_changelog_updated", callback);
+  return () => window.removeEventListener("app_changelog_updated", callback);
+}
 
 interface AdminWhatsNewModalProps {
   isOpen: boolean;
@@ -36,37 +41,27 @@ export function AdminWhatsNewModal({
   const { userId: navUserId } = useAdminNav();
   const userId = propUserId ?? navUserId;
 
-  const [acknowledgedIds, setAcknowledgedIds] = useState<string[]>(() => {
-    return getAcknowledgedReleaseIds(userId);
-  });
-  const [selectedReleaseId, setSelectedReleaseId] = useState<string>(
-    initialReleaseId || ADMIN_CHANGELOG_RELEASES[0]?.id || ""
+  const acknowledgedJson = useSyncExternalStore(
+    subscribeChangelogUpdates,
+    () => JSON.stringify(getAcknowledgedReleaseIds(userId)),
+    () => "[]"
+  );
+  const acknowledgedIds = useMemo(
+    () => JSON.parse(acknowledgedJson) as string[],
+    [acknowledgedJson]
   );
 
-  const refreshState = useCallback(() => {
-    setAcknowledgedIds(getAcknowledgedReleaseIds(userId));
-  }, [userId]);
-
-  useEffect(() => {
-    refreshState();
-    const handleUpdate = () => refreshState();
-    window.addEventListener("app_changelog_updated", handleUpdate);
-    return () => window.removeEventListener("app_changelog_updated", handleUpdate);
-  }, [refreshState]);
-
-  useEffect(() => {
-    if (initialReleaseId) {
-      setSelectedReleaseId(initialReleaseId);
-    } else if (ADMIN_CHANGELOG_RELEASES.length > 0) {
-      // Priorizar seleccionar una que no esté leída
-      const unread = ADMIN_CHANGELOG_RELEASES.find((r) => !acknowledgedIds.includes(r.id));
-      if (unread) {
-        setSelectedReleaseId(unread.id);
-      }
-    }
-  }, [initialReleaseId, acknowledgedIds]);
-
-  if (!isOpen) return null;
+  const [userSelectedReleaseId, setUserSelectedReleaseId] = useState<string | null>(null);
+  const unreadFallback = ADMIN_CHANGELOG_RELEASES.find(
+    (r) => !acknowledgedIds.includes(r.id)
+  );
+  const selectedReleaseId =
+    userSelectedReleaseId ||
+    initialReleaseId ||
+    unreadFallback?.id ||
+    ADMIN_CHANGELOG_RELEASES[0]?.id ||
+    "";
+  const setSelectedReleaseId = (id: string) => setUserSelectedReleaseId(id);
 
   const currentRelease: AdminReleaseItem =
     ADMIN_CHANGELOG_RELEASES.find((r) => r.id === selectedReleaseId) ||
@@ -79,56 +74,53 @@ export function AdminWhatsNewModal({
   const handleAcknowledgeCurrent = () => {
     if (currentRelease) {
       acknowledgeRelease(currentRelease.id, userId);
-      refreshState();
     }
   };
 
   const handleAcknowledgeAll = () => {
     acknowledgeAllReleases(userId);
-    refreshState();
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="whats-new-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xs animate-in fade-in"
-    >
-      <div className="bg-zinc-950 border border-zinc-800 rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-zinc-100">
-        {/* Cabecera del Modal */}
-        <div className="px-6 py-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/60 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-amber-400/10 border border-amber-400/20 text-amber-300">
-              <Sparkles size={22} className="animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 id="whats-new-modal-title" className="text-base sm:text-lg font-bold text-zinc-100">
-                  Centro de Novedades e Integraciones
-                </h2>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">
-                  {ADMIN_CHANGELOG_RELEASES.length} actualizaciones
-                </span>
-              </div>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Conocé qué cambió, cómo se utiliza ahora y marcá como leído para mantenerte al día.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar ventana de novedades"
-            className="p-2 rounded-xl text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors cursor-pointer"
-          >
-            <X size={18} />
-          </button>
+    <ModalDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      size="4xl"
+      title={`Centro de Novedades e Integraciones (${ADMIN_CHANGELOG_RELEASES.length})`}
+      subtitle="Conocé qué cambió, cómo se utiliza ahora y marcá como leído para mantenerte al día."
+      contentClassName="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden"
+      headerIcon={
+        <div className="p-2 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-300">
+          <Sparkles size={18} />
         </div>
-
-        {/* Contenido dividido: Lista lateral + Detalle comparativo */}
-        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
-          {/* Barra lateral de versiones/novedades */}
+      }
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-400">
+          <span>
+            {acknowledgedIds.length} de {ADMIN_CHANGELOG_RELEASES.length} novedades comprendidas
+          </span>
+          <div className="flex items-center gap-3">
+            {acknowledgedIds.length < ADMIN_CHANGELOG_RELEASES.length && (
+              <button
+                type="button"
+                onClick={handleAcknowledgeAll}
+                className="text-xs text-zinc-400 hover:text-amber-300 underline underline-offset-4 cursor-pointer"
+              >
+                Marcar todas como entendidas
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-1.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 font-semibold cursor-pointer transition-colors"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      }
+    >
+      {/* Barra lateral de versiones/novedades */}
           <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-zinc-800/80 bg-zinc-950/50 p-3 overflow-y-auto space-y-1.5 shrink-0">
             <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
               Historial de Cambios
@@ -279,35 +271,6 @@ export function AdminWhatsNewModal({
               </div>
             </div>
           )}
-        </div>
-
-        {/* Pie del modal */}
-        <div className="px-6 py-3.5 border-t border-zinc-800 bg-zinc-950 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs text-zinc-400">
-          <div className="flex items-center gap-2">
-            <span>
-              {acknowledgedIds.length} de {ADMIN_CHANGELOG_RELEASES.length} novedades comprendidas
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            {acknowledgedIds.length < ADMIN_CHANGELOG_RELEASES.length && (
-              <button
-                type="button"
-                onClick={handleAcknowledgeAll}
-                className="text-xs text-zinc-400 hover:text-amber-300 underline underline-offset-4 cursor-pointer"
-              >
-                Marcar todas como entendidas
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-1.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-300 font-semibold cursor-pointer transition-colors"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </ModalDialog>
   );
 }

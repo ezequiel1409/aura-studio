@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { usePathname } from "next/navigation";
 import {
@@ -14,6 +15,11 @@ import {
   AdminNavItem,
   getActiveNavGroup,
 } from "../header/nav-items";
+
+export interface AdminNavInitialUser {
+  userId?: number | null;
+  role?: string | null;
+}
 
 interface AdminNavContextValue {
   isCollapsed: boolean;
@@ -35,57 +41,103 @@ const AdminNavContext = createContext<AdminNavContextValue | undefined>(
 );
 
 const STORAGE_KEY = "admin_sidebar_collapsed";
+const SIDEBAR_EVENT = "admin:sidebar-collapse-changed";
+export const ADMIN_ORDERS_UPDATED_EVENT = "admin:orders-updated";
 
-export function AdminNavProvider({ children }: { children: React.ReactNode }) {
+function subscribeCollapsed(callback: () => void) {
+  window.addEventListener(SIDEBAR_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(SIDEBAR_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function getCollapsedSnapshot() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function getCollapsedServerSnapshot() {
+  return false;
+}
+
+export function AdminNavProvider({
+  children,
+  initialUser,
+  initialPendingOrdersCount,
+}: {
+  children: React.ReactNode;
+  initialUser?: AdminNavInitialUser | null;
+  initialPendingOrdersCount?: number;
+}) {
   const pathname = usePathname() || "";
-  const [isCollapsed, setIsCollapsedState] = useState<boolean>(false);
-  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState<boolean>(false);
-  const [pendingOrdersCount, setPendingOrdersCount] = useState<number>(0);
+  const isCollapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    getCollapsedSnapshot,
+    getCollapsedServerSnapshot
+  );
+
+  // Cerrado automáticamente cada vez que cambia pathname sin usar setState en useEffect
+  const [drawerOpenForPath, setDrawerOpenForPath] = useState<string | null>(null);
+  const isMobileDrawerOpen = drawerOpenForPath === pathname;
+
+  const setIsMobileDrawerOpen = useCallback(
+    (open: boolean) => {
+      setDrawerOpenForPath(open ? pathname : null);
+    },
+    [pathname]
+  );
+
+  const hasHydratedUser = initialUser !== undefined;
+  const hasHydratedCount = initialPendingOrdersCount !== undefined;
+
+  const [fetchedUserId, setFetchedUserId] = useState<number | null>(
+    initialUser?.userId ?? null
+  );
+  const [fetchedPendingOrdersCount, setFetchedPendingOrdersCount] = useState<number>(
+    initialPendingOrdersCount ?? 0
+  );
   const [isTooltipDismissed, setIsTooltipDismissed] = useState<boolean>(false);
-  const [userId, setUserId] = useState<number | null>(null);
+
+  const userId = hasHydratedUser ? (initialUser?.userId ?? null) : fetchedUserId;
 
   useEffect(() => {
+    if (hasHydratedUser) return;
+    let cancelled = false;
     fetch("/api/admin/session", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.authenticated && data.user?.userId) {
-          setUserId(data.user.userId);
+        if (!cancelled && data?.authenticated && data.user?.userId) {
+          setFetchedUserId(data.user.userId);
         }
       })
       .catch(() => {});
-  }, []);
-
-  // Cargar estado colapsado desde localStorage al montar
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === "1") {
-        setIsCollapsedState(true);
-      }
-    } catch {
-      // Entornos sin acceso a localStorage
-    }
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [hasHydratedUser]);
 
   const setIsCollapsed = useCallback((collapsed: boolean) => {
-    setIsCollapsedState(collapsed);
     try {
       localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
     } catch {
       // Ignorar fallos de almacenamiento
     }
+    window.dispatchEvent(new Event(SIDEBAR_EVENT));
   }, []);
 
   const toggleCollapse = useCallback(() => {
-    setIsCollapsedState((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-      } catch {
-        // Ignorar
-      }
-      return next;
-    });
+    const next = !getCollapsedSnapshot();
+    try {
+      localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // Ignorar
+    }
+    window.dispatchEvent(new Event(SIDEBAR_EVENT));
   }, []);
 
   const dismissTooltip = useCallback(() => {
@@ -97,7 +149,7 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsTooltipDismissed(true);
-        setIsMobileDrawerOpen(false);
+        setDrawerOpenForPath(null);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -115,11 +167,6 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("pointermove", handlePointerMove);
   }, [isTooltipDismissed]);
 
-  // Cerrar drawer móvil al cambiar de ruta
-  useEffect(() => {
-    setIsMobileDrawerOpen(false);
-  }, [pathname]);
-
   // Cargar conteo de pedidos pendientes
   const refreshPendingOrders = useCallback(async () => {
     try {
@@ -129,7 +176,7 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         if (data.ok && Array.isArray(data.orders)) {
-          setPendingOrdersCount(data.orders.length);
+          setFetchedPendingOrdersCount(data.orders.length);
         }
       }
     } catch {
@@ -137,22 +184,40 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Suscripción a eventos de actualización de pedidos (sin re-fetchear en cada cambio de ruta)
   useEffect(() => {
+    const handleOrdersUpdated = () => {
+      void refreshPendingOrders();
+    };
+    window.addEventListener(ADMIN_ORDERS_UPDATED_EVENT, handleOrdersUpdated);
+    return () => {
+      window.removeEventListener(ADMIN_ORDERS_UPDATED_EVENT, handleOrdersUpdated);
+    };
+  }, [refreshPendingOrders]);
+
+  // Fallback solo si el provider se monta sin datos hidratados desde servidor
+  useEffect(() => {
+    if (hasHydratedCount) return;
     const isAuthRoute =
       pathname === "/admin/login" ||
       pathname === "/admin/recuperar" ||
       pathname.startsWith("/admin/restablecer");
+    if (isAuthRoute) return;
 
-    if (!isAuthRoute) {
-      refreshPendingOrders();
-    }
-  }, [pathname, refreshPendingOrders]);
+    const timer = setTimeout(() => {
+      void refreshPendingOrders();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [hasHydratedCount, pathname, refreshPendingOrders]);
 
   const activeGroup = useMemo(() => getActiveNavGroup(pathname), [pathname]);
   const hasSecondary = useMemo(
     () => Boolean(activeGroup?.subItems && activeGroup.subItems.length > 0),
     [activeGroup]
   );
+
+  // Asegurar que no queden imports sin usar si algo requiere el array primario
+  void ADMIN_PRIMARY_NAV_ITEMS;
 
   const value = useMemo(
     () => ({
@@ -163,7 +228,7 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
       setIsMobileDrawerOpen,
       activeGroup,
       hasSecondary,
-      pendingOrdersCount,
+      pendingOrdersCount: fetchedPendingOrdersCount,
       refreshPendingOrders,
       isTooltipDismissed,
       dismissTooltip,
@@ -177,7 +242,7 @@ export function AdminNavProvider({ children }: { children: React.ReactNode }) {
       setIsMobileDrawerOpen,
       activeGroup,
       hasSecondary,
-      pendingOrdersCount,
+      fetchedPendingOrdersCount,
       refreshPendingOrders,
       isTooltipDismissed,
       dismissTooltip,

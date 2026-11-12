@@ -77,7 +77,7 @@ export function AdminUserMenuPopover({
                   id="user-dialog-title"
                   className="text-sm font-bold text-zinc-100 truncate max-w-[240px]"
                 >
-                  {userEmail || "Administrador Aura"}
+                  {userEmail || "Administrador"}
                 </h3>
                 <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-[11px] uppercase font-bold tracking-wider text-amber-300">
                   <Shield size={11} aria-hidden="true" />
@@ -121,7 +121,7 @@ export function AdminUserMenuPopover({
             {/* Enlace a gestión de equipo, novedades y perfil */}
             <div className="space-y-1">
               <AdminWhatsNewTrigger variant="menu-item" />
-              <Link prefetch={false}
+              <Link
                 href="/admin/usuarios"
                 onClick={onClose}
                 className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-zinc-200 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"

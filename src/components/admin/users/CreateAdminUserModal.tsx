@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff, Loader2, UserPlus, X } from "lucide-react";
+import { Eye, EyeOff, Loader2, UserPlus } from "lucide-react";
+import { ModalDialog } from "../ui/ModalDialog";
 
 interface CreateAdminUserModalProps {
   isOpen: boolean;
@@ -23,8 +24,6 @@ export function CreateAdminUserModal({
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !password || creating) return;
@@ -32,42 +31,25 @@ export function CreateAdminUserModal({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="create-admin-heading"
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && !creating) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in"
-    >
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl relative">
-        <button
-          onClick={onClose}
-          aria-label="Cerrar modal de alta de administrador"
-          className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-100 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+    <ModalDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Dar de alta nuevo Administrador"
+      subtitle="Tendrá acceso como Administrador secundario al panel."
+      size="md"
+      closeDisabled={creating}
+      closeOnBackdrop={!creating}
+      closeOnEscape={!creating}
+      headerIcon={
+        <div
+          className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 flex items-center justify-center"
+          aria-hidden="true"
         >
-          <X size={18} aria-hidden="true" />
-        </button>
-
-        <div className="flex items-center gap-2.5 mb-4">
-          <div
-            className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 flex items-center justify-center"
-            aria-hidden="true"
-          >
-            <UserPlus size={18} />
-          </div>
-          <div>
-            <h3 id="create-admin-heading" className="font-semibold text-sm text-zinc-100">
-              Dar de alta nuevo Administrador
-            </h3>
-            <p className="text-[11px] text-zinc-400">
-              Tendrá acceso como Administrador secundario al panel.
-            </p>
-          </div>
+          <UserPlus size={18} />
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label
               htmlFor="adminNameInput"
@@ -99,7 +81,7 @@ export function CreateAdminUserModal({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="sofia@aurastudio.com"
+              placeholder="nombre@tienda.local"
               disabled={creating}
               className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus-visible:ring-2 focus-visible:ring-amber-400"
               required
@@ -178,8 +160,7 @@ export function CreateAdminUserModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </ModalDialog>
   );
 }
 

@@ -1,5 +1,4 @@
 import {
-  Compass,
   CreditCard,
   FileSpreadsheet,
   FolderTree,
@@ -11,7 +10,6 @@ import {
   Package,
   PanelTop,
   PlusCircle,
-  Settings,
   ShieldCheck,
   ShoppingBag,
   SlidersHorizontal,
@@ -28,7 +26,6 @@ export interface AdminSubNavItem {
   description: string;
   icon: LucideIcon;
   exact?: boolean;
-  tabParam?: string;
   matchPrefix?: string[];
 }
 
@@ -68,7 +65,6 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
     matchPrefix: [
       "/admin/productos",
       "/admin/categorias",
-      "/admin/secciones",
       "/admin/promociones",
       "/admin/descuentos",
     ],
@@ -106,7 +102,7 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
         label: "Atributos y Filtros",
         description: "Talles, colores y filtros del catálogo",
         icon: SlidersHorizontal,
-        matchPrefix: ["/admin/productos/atributos", "/admin/secciones"],
+        matchPrefix: ["/admin/productos/atributos"],
       },
       {
         href: "/admin/promociones",
@@ -132,7 +128,6 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
     icon: Store,
     matchPrefix: [
       "/admin/tienda",
-      "/admin/configuracion",
       "/admin/usuarios",
     ],
     subItems: [
@@ -179,11 +174,11 @@ export const ADMIN_PRIMARY_NAV_ITEMS: AdminNavItem[] = [
         exact: true,
       },
       {
-        href: "/admin/configuracion?seccion=politicas",
+        href: "/admin/tienda/politicas",
         label: "Políticas de tienda",
         description: "Cambios, devoluciones y términos",
         icon: ShieldCheck,
-        tabParam: "politicas",
+        exact: true,
       },
       {
         href: "/admin/usuarios",
@@ -217,23 +212,8 @@ export function isAdminNavItemActive(pathname: string, item: AdminNavItem): bool
 
 export function isSubNavItemActive(
   pathname: string,
-  searchParamsString: string | null,
   subItem: AdminSubNavItem
 ): boolean {
-  if (subItem.tabParam) {
-    const params = new URLSearchParams(searchParamsString || "");
-    const currentTab = params.get("seccion");
-    if (subItem.tabParam === "politicas") {
-      return (
-        pathname === "/admin/configuracion" &&
-        (!currentTab || currentTab === "politicas")
-      );
-    }
-    return (
-      pathname === "/admin/configuracion" && currentTab === subItem.tabParam
-    );
-  }
-
   if (subItem.exact) {
     return pathname === subItem.href;
   }

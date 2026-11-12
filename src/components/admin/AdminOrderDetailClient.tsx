@@ -1,38 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
+import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
+import { ADMIN_ORDERS_UPDATED_EVENT } from "./navigation/AdminNavContext";
 import {
   ArrowLeft,
-  Bike,
-  Building2,
-  CreditCard,
-  Banknote,
   Check,
   CheckCircle2,
   Clock,
   ExternalLink,
+  FileText,
   Loader2,
   MapPin,
   MessageCircle,
   Package,
   Printer,
-  QrCode,
-  Wallet,
-  RotateCcw,
   ShoppingBag,
-  Store,
-  Truck,
   User,
-  XCircle,
-  FileText,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../domain/order/types";
 import { OrderClaim } from "../../domain/claim/types";
-import { PaymentMethod, PaymentStatus } from "../../domain/payment/types";
+import { PaymentStatus } from "../../domain/payment/types";
 import { formatOrderCode } from "../../domain/order/rules";
 import { formatPriceARS } from "../../lib/format/currency";
+import { useAutoDismiss } from "../../hooks/useAutoDismiss";
+import { AdminFeedbackBanner } from "./ui/AdminFeedbackBanner";
 import { ModalDialog } from "./ui/ModalDialog";
+import { OrderClaimCard } from "./orders/OrderClaimCard";
+import {
+  getDeliveryMethodMeta,
+  getOrderWhatsAppLink,
+  ORDER_STATUS_CONFIG,
+  PAYMENT_METHOD_CONFIG,
+  PAYMENT_STATUS_CONFIG,
+} from "./orders/order-ui.config";
 
 interface AdminOrderDetailClientProps {
   initialOrder: Order;
@@ -41,98 +43,9 @@ interface AdminOrderDetailClientProps {
   showroomAddress?: string | null;
 }
 
-const PAYMENT_METHOD_CONFIG: Record<
-  PaymentMethod,
-  { label: string; icon: typeof Building2; color: string }
-> = {
-  TRANSFER: { label: "Transferencia Bancaria", icon: Building2, color: "text-[#d4af37]" },
-  MERCADOPAGO: { label: "Mercado Pago", icon: CreditCard, color: "text-sky-400" },
-  CASH: { label: "Efectivo", icon: Banknote, color: "text-emerald-400" },
-  WHATSAPP: { label: "WhatsApp Directo", icon: MessageCircle, color: "text-[#25D366]" },
-  STRIPE: { label: "Stripe", icon: CreditCard, color: "text-indigo-400" },
-  PAYWAY: { label: "Payway (Prisma)", icon: CreditCard, color: "text-indigo-400" },
-  GETNET: { label: "Getnet (Santander)", icon: CreditCard, color: "text-rose-400" },
-  MODO: { label: "MODO (QR / Bancos)", icon: QrCode, color: "text-teal-400" },
-  GOOGLEPAY: { label: "Google Pay", icon: Wallet, color: "text-amber-400" },
-};
-
-const PAYMENT_STATUS_CONFIG: Record<
-  PaymentStatus,
-  { label: string; bg: string; text: string; border: string }
-> = {
-  PENDING: {
-    label: "Cobro Pendiente",
-    bg: "bg-amber-950/60",
-    text: "text-amber-300",
-    border: "border-amber-800/80",
-  },
-  AUTHORIZED: {
-    label: "En Procesamiento",
-    bg: "bg-sky-950/60",
-    text: "text-sky-300",
-    border: "border-sky-800/80",
-  },
-  PAID: {
-    label: "Cobro Acreditado",
-    bg: "bg-emerald-950/60",
-    text: "text-emerald-300",
-    border: "border-emerald-800/80",
-  },
-  REJECTED: {
-    label: "Cobro Rechazado",
-    bg: "bg-rose-950/60",
-    text: "text-rose-300",
-    border: "border-rose-800/80",
-  },
-  REFUNDED: {
-    label: "Reembolsado",
-    bg: "bg-zinc-900",
-    text: "text-zinc-400",
-    border: "border-zinc-700",
-  },
-};
-
-const STATUS_CONFIG: Record<
-  OrderStatus,
-  { label: string; bg: string; text: string; border: string; icon: typeof Clock; description: string }
-> = {
-  PENDING: {
-    label: "Pendiente",
-    bg: "bg-amber-950/60",
-    text: "text-amber-300",
-    border: "border-amber-800/80",
-    icon: Clock,
-    description: "Orden recibida. Pendiente de confirmación de pago o retiro.",
-  },
-  CONFIRMED: {
-    label: "Confirmada",
-    bg: "bg-sky-950/60",
-    text: "text-sky-300",
-    border: "border-sky-800/80",
-    icon: CheckCircle2,
-    description: "Pedido confirmado. Preparando paquete para entrega.",
-  },
-  PAID: {
-    label: "Pagada",
-    bg: "bg-emerald-950/60",
-    text: "text-emerald-300",
-    border: "border-emerald-800/80",
-    icon: CheckCircle2,
-    description: "Pago acreditado y registrado con éxito.",
-  },
-  CANCELLED: {
-    label: "Cancelada",
-    bg: "bg-zinc-900",
-    text: "text-zinc-400",
-    border: "border-zinc-700",
-    icon: XCircle,
-    description: "Orden cancelada. Stock restituido al catálogo.",
-  },
-};
-
 export function AdminOrderDetailClient({
   initialOrder,
-  brandName = "Aura Studio",
+  brandName = DEFAULT_NEUTRAL_BRAND,
 }: AdminOrderDetailClientProps) {
   const [order, setOrder] = useState<Order>(initialOrder);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -145,10 +58,14 @@ export function AdminOrderDetailClient({
   const [rejectionError, setRejectionError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const clearToast = useCallback(() => setToastMessage(null), []);
+  useAutoDismiss(toastMessage, clearToast, 3500);
 
   const formattedCode = formatOrderCode(order.code);
-  const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING;
+  const statusCfg = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.PENDING;
   const cleanPhone = order.customerPhone.replace(/\D/g, "");
+  const deliveryMeta = getDeliveryMethodMeta(order.deliveryMethod);
+  const DeliveryIcon = deliveryMeta.icon;
 
   const dateCreatedStr = new Date(order.createdAt * 1000).toLocaleString("es-AR", {
     dateStyle: "full",
@@ -176,10 +93,10 @@ export function AdminOrderDetailClient({
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "No se pudo actualizar el estado");
       }
+      window.dispatchEvent(new Event(ADMIN_ORDERS_UPDATED_EVENT));
       setToastMessage(
-        `Estado actualizado a "${STATUS_CONFIG[newStatus].label}" exitosamente`
+        `Estado actualizado a "${ORDER_STATUS_CONFIG[newStatus].detailLabel}" exitosamente`
       );
-      setTimeout(() => setToastMessage(null), 3000);
     } catch (err: unknown) {
       setOrder(prev);
       setErrorMessage(err instanceof Error ? err.message : "Error al actualizar el estado");
@@ -208,10 +125,10 @@ export function AdminOrderDetailClient({
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "No se pudo actualizar el estado de cobro");
       }
+      window.dispatchEvent(new Event(ADMIN_ORDERS_UPDATED_EVENT));
       setToastMessage(
         `Cobro actualizado a "${PAYMENT_STATUS_CONFIG[newPaymentStatus]?.label || newPaymentStatus}" exitosamente`
       );
-      setTimeout(() => setToastMessage(null), 3000);
     } catch (err: unknown) {
       setOrder(prev);
       setErrorMessage(err instanceof Error ? err.message : "Error al actualizar el cobro");
@@ -250,7 +167,6 @@ export function AdminOrderDetailClient({
           ? "Devolución aprobada. El stock fue recirculado automáticamente a la tienda."
           : "Devolución rechazada por no cumplir las condiciones de recirculación."
       );
-      setTimeout(() => setToastMessage(null), 4000);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : "Error al procesar la inspección.");
     } finally {
@@ -283,24 +199,11 @@ export function AdminOrderDetailClient({
     window.open(`https://wa.me/${claimPhone}?text=${waText}`, "_blank", "noopener,noreferrer");
   };
 
-  const getWhatsAppTemplateLink = (type: "receipt" | "confirmed" | "ready") => {
-    const firstName = order.customerName.split(" ")[0];
-    let text = `¡Hola ${firstName}! Te contactamos por tu pedido ${formattedCode} en ${brandName}.`;
-    if (type === "receipt") {
-      text = `¡Hola ${firstName}! Recibimos tu pedido ${formattedCode} en ${brandName}. Te pasamos los datos para coordinar el pago o la entrega.`;
-    } else if (type === "confirmed") {
-      text = `¡Hola ${firstName}! Tu pedido ${formattedCode} ya está confirmado y estamos preparando tus prendas.`;
-    } else if (type === "ready") {
-      text =
-        order.deliveryMethod === "PICKUP"
-          ? `¡Hola ${firstName}! Tu pedido ${formattedCode} ya está listo para retirar en nuestro showroom. ¡Te esperamos!`
-          : `¡Hola ${firstName}! Tu paquete del pedido ${formattedCode} ya está listo y en camino a tu domicilio.`;
-    }
-    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
-  };
+  const getWhatsAppTemplateLink = (type: "receipt" | "confirmed" | "ready") =>
+    getOrderWhatsAppLink(order, type, brandName || DEFAULT_NEUTRAL_BRAND);
 
   const buyerGreeting = encodeURIComponent(
-    `¡Hola ${order.customerName}! Te escribimos desde ${brandName} por tu pedido ${formattedCode}.`
+    `¡Hola ${order.customerName}! Te escribimos desde ${brandName || DEFAULT_NEUTRAL_BRAND} por tu pedido ${formattedCode}.`
   );
 
   return (
@@ -316,29 +219,18 @@ export function AdminOrderDetailClient({
         </div>
       )}
 
-      {/* Banner de error accesible */}
       {errorMessage && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-rose-950/60 border border-rose-700/80 text-rose-200 text-xs font-medium shadow-sm"
-        >
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => setErrorMessage(null)}
-            aria-label="Cerrar aviso de error"
-            className="p-1 rounded-lg text-rose-300 hover:text-zinc-100 hover:bg-zinc-800 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-          >
-            <span aria-hidden="true">✕</span>
-          </button>
-        </div>
+        <AdminFeedbackBanner
+          type="error"
+          message={errorMessage}
+          onDismiss={() => setErrorMessage(null)}
+        />
       )}
 
       {/* Navegación y Acciones de Cabecera */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800 pb-5">
         <div>
-          <Link prefetch={false}
+          <Link
             href="/admin/ordenes"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-amber-300 transition-colors mb-2"
           >
@@ -353,7 +245,7 @@ export function AdminOrderDetailClient({
               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}
             >
               <statusCfg.icon className="h-3.5 w-3.5" />
-              <span>{statusCfg.label}</span>
+              <span>{statusCfg.detailLabel}</span>
             </span>
           </div>
           <p className="mt-1 text-xs text-zinc-400">
@@ -394,80 +286,12 @@ export function AdminOrderDetailClient({
         <div className="lg:col-span-2 space-y-6">
           {/* Card: Alerta de Reclamo / Arrepentimiento Postventa */}
           {order.claim && (
-            <section className="rounded-2xl border border-rose-800/70 bg-rose-950/30 p-5 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <RotateCcw className="h-4 w-4 text-rose-400" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-rose-300">
-                    Solicitud de Arrepentimiento / Postventa
-                  </h2>
-                </div>
-                <span className="font-mono text-xs font-bold text-rose-200 bg-rose-950 border border-rose-800 px-2.5 py-0.5 rounded-lg">
-                  {order.claim.claimCode}
-                </span>
-              </div>
-
-              <div className="text-xs text-zinc-300 space-y-1.5">
-                <p>
-                  <strong className="text-zinc-400">Tipo de solicitud:</strong>{" "}
-                  {order.claim.type === "EXCHANGE"
-                    ? "Cambio de talle / prenda"
-                    : "Arrepentimiento de compra (Ley 24.240)"}
-                </p>
-                {order.claim.reason && (
-                  <p className="italic text-zinc-200 bg-zinc-950/70 p-3 rounded-xl border border-rose-900/40">
-                    &ldquo;{order.claim.reason}&rdquo;
-                  </p>
-                )}
-              </div>
-
-              {order.claim.status === "PENDING" ? (
-                <div className="pt-3 border-t border-rose-900/50 space-y-2.5">
-                  <p className="text-[11px] font-semibold text-rose-200">
-                    Control de Calidad al recibir la prenda:
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      disabled={isInspectingClaim}
-                      onClick={() => handleInspectClaim(order.claim!.id, "APPROVE_RESTOCK")}
-                      className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold text-xs px-3 py-2.5 transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      <Check className="h-4 w-4" />
-                      <span>Aprobar y Recircular (+1 stock)</span>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isInspectingClaim}
-                      onClick={() => handleRejectCondition(order.claim!)}
-                      className="flex items-center justify-center gap-1.5 rounded-xl bg-rose-900/80 hover:bg-rose-800 border border-rose-700 text-rose-100 font-semibold text-xs px-3 py-2.5 transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      <span>Rechazar por Manchas / Uso</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="pt-2 border-t border-rose-900/50 text-xs">
-                  {order.claim.status === "APPROVED_RESTOCKED" ? (
-                    <span className="text-emerald-400 font-semibold">
-                      ✓ Control de calidad aprobado · Stock recirculado a la tienda
-                    </span>
-                  ) : (
-                    <div className="text-rose-300 space-y-0.5">
-                      <p className="font-semibold">
-                        ✕ Devolución rechazada en control de calidad
-                      </p>
-                      {order.claim.rejectionReason && (
-                        <p className="text-zinc-400 text-[11px]">
-                          Motivo: {order.claim.rejectionReason}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </section>
+            <OrderClaimCard
+              claim={order.claim}
+              isInspectingClaim={isInspectingClaim}
+              onApproveRestock={(claimId) => void handleInspectClaim(claimId, "APPROVE_RESTOCK")}
+              onRejectCondition={handleRejectCondition}
+            />
           )}
 
           {/* Card: Lista de Productos */}
@@ -871,22 +695,8 @@ export function AdminOrderDetailClient({
 
             <div className="space-y-2 pt-1">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800 border border-zinc-700 px-3 py-1 text-xs font-semibold text-zinc-200">
-                {order.deliveryMethod === "HOME_DELIVERY" ? (
-                  <>
-                    <Truck className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Envío a domicilio</span>
-                  </>
-                ) : order.deliveryMethod === "MOTORCYCLE" ? (
-                  <>
-                    <Bike className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Motomensajería</span>
-                  </>
-                ) : (
-                  <>
-                    <Store className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Retiro en Showroom</span>
-                  </>
-                )}
+                <DeliveryIcon className="h-3.5 w-3.5 text-amber-400" />
+                <span>{deliveryMeta.label}</span>
               </div>
 
               <div>

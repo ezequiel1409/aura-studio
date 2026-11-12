@@ -1,8 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { CheckCircle2, Circle, ArrowRight, Eye, Sparkles, X } from "lucide-react";
+
+const ONBOARDING_DISMISS_KEY = "admin_onboarding_dismissed";
+const ONBOARDING_DISMISS_EVENT = "admin:onboarding-dismissed-changed";
+
+function subscribeOnboardingDismiss(callback: () => void) {
+  window.addEventListener(ONBOARDING_DISMISS_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(ONBOARDING_DISMISS_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function getOnboardingDismissSnapshot() {
+  try {
+    return localStorage.getItem(ONBOARDING_DISMISS_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 interface OnboardingChecklistProps {
   hasBusinessData: boolean;
@@ -21,15 +41,12 @@ export function OnboardingChecklist({
   hasTestOrder,
   storeStatus = "PUBLISHED",
 }: OnboardingChecklistProps) {
-  const [isDismissed, setIsDismissed] = useState(false);
+  const isDismissed = useSyncExternalStore(
+    subscribeOnboardingDismiss,
+    getOnboardingDismissSnapshot,
+    () => false
+  );
   const [currentStatus, setCurrentStatus] = useState<"DRAFT" | "PUBLISHED">(storeStatus);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("admin_onboarding_dismissed");
-    if (saved === "true") {
-      setIsDismissed(true);
-    }
-  }, []);
 
   const steps = [
     {
@@ -37,14 +54,14 @@ export function OnboardingChecklist({
       title: "1. Completar datos del negocio",
       desc: "Nombre, WhatsApp de contacto y rubro comercial",
       completed: hasBusinessData,
-      href: "/admin/configuracion?seccion=top",
+      href: "/admin/tienda/negocio",
     },
     {
       id: "branding",
       title: "2. Personalizar logo y colores",
       desc: "Identidad visual y paleta accesible para la tienda",
       completed: hasBranding,
-      href: "/admin/configuracion?seccion=main",
+      href: "/admin/tienda/portada?tab=appearance",
     },
     {
       id: "products",
@@ -58,7 +75,7 @@ export function OnboardingChecklist({
       title: "4. Configurar medios de entrega y pago",
       desc: "Retiro en showroom o envíos a domicilio",
       completed: hasPaymentsAndShipping,
-      href: "/admin/configuracion?seccion=footer",
+      href: "/admin/tienda/pagos",
     },
     {
       id: "test_order",
@@ -78,8 +95,8 @@ export function OnboardingChecklist({
   }
 
   const handleDismiss = () => {
-    setIsDismissed(true);
-    localStorage.setItem("admin_onboarding_dismissed", "true");
+    localStorage.setItem(ONBOARDING_DISMISS_KEY, "true");
+    window.dispatchEvent(new Event(ONBOARDING_DISMISS_EVENT));
   };
 
   const toggleStoreStatus = () => {
@@ -162,7 +179,7 @@ export function OnboardingChecklist({
       {/* Lista de pasos con enlaces directos */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
         {steps.map((step) => (
-          <Link prefetch={false}
+          <Link
             key={step.id}
             href={step.href}
             className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${

@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import { useBackofficeStore } from "../../stores/backoffice.store";
 
+const subscribeNoop = () => () => {};
+
 export function AdminThemeToggle() {
   const { theme, toggleTheme, setTheme } = useBackofficeStore();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
 
   // Sincronizar tema persistido en localStorage al montar en cliente
   useEffect(() => {
-    setMounted(true);
     try {
       const stored = localStorage.getItem("app_admin_theme");
       if (stored === "dark" || stored === "light") {

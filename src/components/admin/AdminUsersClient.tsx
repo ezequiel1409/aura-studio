@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, ShieldAlert, UserPlus } from "lucide-react";
 import { SafeAdminUser } from "../../domain/auth/types";
+import { useAutoDismiss } from "../../hooks/useAutoDismiss";
+import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { AdminUserRow } from "./users/AdminUserRow";
 import { CreateAdminUserModal } from "./users/CreateAdminUserModal";
 
@@ -31,6 +33,9 @@ export function AdminUsersClient({
 
   // Estado de acción toggle
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const [pendingToggleUser, setPendingToggleUser] = useState<SafeAdminUser | null>(null);
+
+  useAutoDismiss(successToast, () => setSuccessToast(null), 4000);
 
   useEffect(() => {
     if (hasServerData && reloadKey === 0) {
@@ -106,7 +111,6 @@ export function AdminUsersClient({
 
       setShowModal(false);
       setSuccessToast(`Administrador "${data.user.name}" creado exitosamente.`);
-      setTimeout(() => setSuccessToast(null), 4000);
       setReloadKey((k) => k + 1);
     } catch {
       setModalError("Error al enviar el formulario.");
@@ -115,20 +119,16 @@ export function AdminUsersClient({
     }
   };
 
-  const handleToggleStatus = async (user: SafeAdminUser) => {
+  const handleToggleStatus = (user: SafeAdminUser) => {
     if (togglingId !== null || user.role === "SUPER_ADMIN") return;
+    setPendingToggleUser(user);
+  };
+
+  const executeToggleStatus = async () => {
+    const user = pendingToggleUser;
+    if (!user || togglingId !== null) return;
 
     const newStatus = user.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
-    const actionLabel = newStatus === "SUSPENDED" ? "suspender" : "reactivar";
-
-    if (
-      !confirm(
-        `¿Estás seguro de que deseas ${actionLabel} el acceso al administrador "${user.name}"?`
-      )
-    ) {
-      return;
-    }
-
     setTogglingId(user.id);
 
     try {
@@ -153,11 +153,11 @@ export function AdminUsersClient({
           ? `Acceso de "${user.name}" suspendido.`
           : `Acceso de "${user.name}" reactivado.`
       );
-      setTimeout(() => setSuccessToast(null), 4000);
 
       setUsers((prev) =>
         prev.map((u) => (u.id === user.id ? { ...u, status: newStatus } : u))
       );
+      setPendingToggleUser(null);
     } catch {
       setError("Error de conexión al actualizar el estado.");
     } finally {
@@ -205,7 +205,7 @@ export function AdminUsersClient({
             </span>
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Gestión de accesos, roles y suspensiones de administradores de Aura Studio.
+            Gestión de accesos, roles y suspensiones de administradores de la tienda.
           </p>
         </div>
 
@@ -259,6 +259,29 @@ export function AdminUsersClient({
         modalError={modalError}
         onClose={() => setShowModal(false)}
         onCreate={handleCreateAdmin}
+      />
+
+      <ConfirmDialog
+        isOpen={pendingToggleUser !== null}
+        onClose={() => setPendingToggleUser(null)}
+        onConfirm={executeToggleStatus}
+        isLoading={pendingToggleUser !== null && togglingId === pendingToggleUser.id}
+        variant={pendingToggleUser?.status === "ACTIVE" ? "danger" : "primary"}
+        title={
+          pendingToggleUser?.status === "ACTIVE"
+            ? "Suspender administrador"
+            : "Reactivar administrador"
+        }
+        message={
+          pendingToggleUser
+            ? `¿Estás seguro de que deseas ${
+                pendingToggleUser.status === "ACTIVE" ? "suspender" : "reactivar"
+              } el acceso al administrador "${pendingToggleUser.name}"?`
+            : ""
+        }
+        confirmLabel={
+          pendingToggleUser?.status === "ACTIVE" ? "Suspender acceso" : "Reactivar acceso"
+        }
       />
     </div>
   );

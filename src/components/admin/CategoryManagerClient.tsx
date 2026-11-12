@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowDown,
@@ -18,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { CategoryTreeNode } from "../../services/category.service";
+import { ModalDialog } from "./ui/ModalDialog";
 
 interface CategoryManagerClientProps {
   initialTree: CategoryTreeNode[];
@@ -26,7 +26,6 @@ interface CategoryManagerClientProps {
 export function CategoryManagerClient({
   initialTree,
 }: CategoryManagerClientProps) {
-  const router = useRouter();
   const [tree, setTree] = useState<CategoryTreeNode[]>(initialTree);
 
   // Estados de modales
@@ -106,7 +105,6 @@ export function CategoryManagerClient({
       setCreateParentId(null);
       setNewCategoryHidden(false);
       await refreshTree();
-      router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al crear categoría";
       setErrorMessage(msg);
@@ -141,7 +139,6 @@ export function CategoryManagerClient({
       setEditModalOpen(false);
       setEditingNode(null);
       await refreshTree();
-      router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al actualizar";
       setErrorMessage(msg);
@@ -185,7 +182,6 @@ export function CategoryManagerClient({
       const data = await res.json();
       if (res.ok && data.ok) {
         await refreshTree();
-        router.refresh();
       }
     } catch {
       showNotice(
@@ -250,7 +246,6 @@ export function CategoryManagerClient({
       setDeleteModalOpen(false);
       setDeletingNode(null);
       await refreshTree();
-      router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al eliminar";
       setErrorMessage(msg);
@@ -548,210 +543,157 @@ export function CategoryManagerClient({
       </div>
 
       {/* Modal: Crear Categoría / Subcategoría */}
-      {createModalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="create-category-heading"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setCreateModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm"
-        >
-          <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 id="create-category-heading" className="font-serif text-lg font-bold text-zinc-100">
-                {createParentId ? "Nueva Subcategoría" : "Nueva Categoría Raíz"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setCreateModalOpen(false)}
-                aria-label="Cerrar modal de creación de categoría"
-                className="text-zinc-400 hover:text-zinc-100 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateCategory} className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="newCategoryNameInput" className="text-xs text-zinc-400">
-                  Nombre
-                </label>
-                <input
-                  id="newCategoryNameInput"
-                  type="text"
-                  required
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder="Ej: Remeras, Calzado, Carteras"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="newHidden"
-                  checked={newCategoryHidden}
-                  onChange={(e) => setNewCategoryHidden(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400"
-                />
-                <label htmlFor="newHidden" className="text-xs text-zinc-300 cursor-pointer">
-                  Ocultar del menú público
-                </label>
-              </div>
-
-              {errorMessage && (
-                <p role="alert" className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
-                  {errorMessage}
-                </p>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setCreateModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                >
-                  {loading ? "Creando..." : "Crear"}
-                </button>
-              </div>
-            </form>
+      <ModalDialog
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        title={createParentId ? "Nueva Subcategoría" : "Nueva Categoría Raíz"}
+        size="md"
+        closeDisabled={loading}
+      >
+        <form onSubmit={handleCreateCategory} className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="newCategoryNameInput" className="text-xs text-zinc-400">
+              Nombre
+            </label>
+            <input
+              id="newCategoryNameInput"
+              type="text"
+              required
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="Ej: Remeras, Calzado, Carteras"
+              className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"
+            />
           </div>
-        </div>
-      )}
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="newHidden"
+              checked={newCategoryHidden}
+              onChange={(e) => setNewCategoryHidden(e.target.checked)}
+              className="rounded border-zinc-700 bg-zinc-950 text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400"
+            />
+            <label htmlFor="newHidden" className="text-xs text-zinc-300 cursor-pointer">
+              Ocultar del menú público
+            </label>
+          </div>
+
+          {errorMessage && (
+            <p role="alert" className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
+              {errorMessage}
+            </p>
+          )}
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-5 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
+            >
+              {loading ? "Creando..." : "Crear"}
+            </button>
+          </div>
+        </form>
+      </ModalDialog>
 
       {/* Modal: Editar / Renombrar Categoría */}
-      {editModalOpen && editingNode && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="edit-category-heading"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setEditModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm"
-        >
-          <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 id="edit-category-heading" className="font-serif text-lg font-bold text-zinc-100">
-                Editar Categoría
-              </h3>
+      <ModalDialog
+        isOpen={Boolean(editModalOpen && editingNode)}
+        onClose={() => setEditModalOpen(false)}
+        title="Editar Categoría"
+        size="md"
+        closeDisabled={loading}
+      >
+        {editingNode && (
+          <form onSubmit={handleEditCategory} className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="editCategoryNameInput" className="text-xs text-zinc-400">
+                Nombre
+              </label>
+              <input
+                id="editCategoryNameInput"
+                type="text"
+                required
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="editCategorySlugInput" className="text-xs text-zinc-400">
+                Slug permanente
+              </label>
+              <input
+                id="editCategorySlugInput"
+                type="text"
+                disabled
+                value={editingNode.slug}
+                className="w-full bg-zinc-950/50 border border-zinc-800/80 rounded-xl px-3.5 py-2 text-xs font-mono text-zinc-500 cursor-not-allowed"
+              />
+              <p className="text-[10px] text-zinc-500">
+                El slug no cambia al renombrar para preservar enlaces estables.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editHidden"
+                checked={editHidden}
+                onChange={(e) => setEditHidden(e.target.checked)}
+                className="rounded border-zinc-700 bg-zinc-950 text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400"
+              />
+              <label htmlFor="editHidden" className="text-xs text-zinc-300 cursor-pointer">
+                Ocultar del menú público
+              </label>
+            </div>
+
+            {errorMessage && (
+              <p role="alert" className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
+                {errorMessage}
+              </p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setEditModalOpen(false)}
-                aria-label="Cerrar modal de edición de categoría"
-                className="text-zinc-400 hover:text-zinc-100 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
               >
-                <X size={18} aria-hidden="true" />
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
+              >
+                {loading ? "Guardando..." : "Guardar Cambios"}
               </button>
             </div>
-
-            <form onSubmit={handleEditCategory} className="space-y-4">
-              <div className="space-y-1.5">
-                <label htmlFor="editCategoryNameInput" className="text-xs text-zinc-400">
-                  Nombre
-                </label>
-                <input
-                  id="editCategoryNameInput"
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2 text-sm text-zinc-100 focus:outline-none focus:border-amber-400 focus-visible:ring-1 focus-visible:ring-amber-400"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="editCategorySlugInput" className="text-xs text-zinc-400">
-                  Slug permanente
-                </label>
-                <input
-                  id="editCategorySlugInput"
-                  type="text"
-                  disabled
-                  value={editingNode.slug}
-                  className="w-full bg-zinc-950/50 border border-zinc-800/80 rounded-xl px-3.5 py-2 text-xs font-mono text-zinc-500 cursor-not-allowed"
-                />
-                <p className="text-[10px] text-zinc-500">
-                  El slug no cambia al renombrar para preservar enlaces estables.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="editHidden"
-                  checked={editHidden}
-                  onChange={(e) => setEditHidden(e.target.checked)}
-                  className="rounded border-zinc-700 bg-zinc-950 text-amber-300 focus-visible:ring-2 focus-visible:ring-amber-400"
-                />
-                <label htmlFor="editHidden" className="text-xs text-zinc-300 cursor-pointer">
-                  Ocultar del menú público
-                </label>
-              </div>
-
-              {errorMessage && (
-                <p role="alert" className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800">
-                  {errorMessage}
-                </p>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-5 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-                >
-                  {loading ? "Guardando..." : "Guardar Cambios"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </form>
+        )}
+      </ModalDialog>
 
       {/* Modal: Eliminar Categoría con Reasignación (BR-18, BR-37) */}
-      {deleteModalOpen && deletingNode && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-category-heading"
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setDeleteModalOpen(false);
-          }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm"
-        >
-          <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 id="delete-category-heading" className="font-serif text-lg font-bold text-rose-300">
-                Eliminar Categoría
-              </h3>
-              <button
-                type="button"
-                onClick={() => setDeleteModalOpen(false)}
-                aria-label="Cerrar modal de eliminación de categoría"
-                className="text-zinc-400 hover:text-zinc-100 p-1 rounded-lg focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
-              >
-                <X size={18} aria-hidden="true" />
-              </button>
-            </div>
-
+      <ModalDialog
+        isOpen={Boolean(deleteModalOpen && deletingNode)}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Eliminar Categoría"
+        role="alertdialog"
+        size="md"
+        closeDisabled={loading}
+      >
+        {deletingNode && (
+          <div className="space-y-4">
             <p className="text-xs text-zinc-300">
               ¿Estás segura de eliminar la categoría{" "}
               <strong className="text-zinc-100">&apos;{deletingNode.name}&apos;</strong>?
@@ -795,7 +737,7 @@ export function CategoryManagerClient({
               <button
                 type="button"
                 onClick={() => setDeleteModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-zinc-200 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
               >
                 Cancelar
               </button>
@@ -803,14 +745,14 @@ export function CategoryManagerClient({
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={loading}
-                className="px-5 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-500 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none"
+                className="px-5 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs hover:bg-rose-500 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:outline-none cursor-pointer"
               >
                 {loading ? "Eliminando..." : "Confirmar Eliminación"}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalDialog>
     </div>
   );
 }

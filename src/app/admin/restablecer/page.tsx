@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -72,7 +72,7 @@ function ResetPasswordForm() {
         <p className="text-xs text-zinc-300 leading-relaxed">
           El enlace no contiene el token necesario para restablecer tu clave. Por favor, solicita uno nuevo.
         </p>
-        <Link prefetch={false}
+        <Link
           href="/admin/recuperar"
           className="inline-block text-xs font-semibold text-zinc-200 hover:text-zinc-100 py-2.5 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-colors w-full border border-zinc-700 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
@@ -228,7 +228,7 @@ export default function AdminResetPasswordPage() {
             <Lock size={26} strokeWidth={1.75} aria-hidden="true" />
           </div>
           <h1 className="font-serif text-3xl font-bold tracking-wide text-zinc-100">
-            Aura Studio
+            Panel de Administración
           </h1>
           <p className="text-xs text-zinc-400 mt-1.5 uppercase tracking-widest font-semibold">
             Restablecer Contraseña
