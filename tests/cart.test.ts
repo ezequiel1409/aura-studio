@@ -6,6 +6,7 @@ import {
   clampCartQuantity,
   countCartItems,
   calculateCartSubtotalCents,
+  reconcileCartWithServer,
 } from "../src/domain/cart/rules";
 import { useCartStore } from "../src/stores/cart.store";
 import { CartStepper } from "../src/components/cart/CartStepper";
@@ -370,6 +371,54 @@ describe("Cart Domain & Store (BR-40)", () => {
       expect(subtotalCents).toBe(15000000); // 1*50.000 + 2*50.000 = 150.000
       expect(Number.isFinite(subtotalCents)).toBe(true);
       expect(formatPrice(subtotalCents, "ARS")).not.toContain("NaN");
+    });
+
+    it("sincroniza precios silenciosamente desde el servidor, preserva referencias si no hay cambios y emite aviso si el precio varió", () => {
+      const store = useCartStore.getState();
+
+      store.addItem(
+        {
+          productId: 50,
+          code: 50,
+          formattedCode: "#050",
+          title: "Producto Base",
+          colorName: "Negro",
+          size: "M",
+          maxStock: 5,
+          unitPriceCents: 2500000, // $25.000
+          currency: "ARS",
+        },
+        2
+      );
+
+      const initialItemsRef = useCartStore.getState().items;
+
+      // 1. Si el snapshot coincide exactamente en stock y precio, no clona el array ni dispara alertas
+      const noChangeResult = reconcileCartWithServer(initialItemsRef, {
+        "50__negro__M": { remainingStock: 5, unitPriceCents: 2500000, title: "Producto Base" },
+      });
+      expect(noChangeResult.hasChanges).toBe(false);
+      expect(noChangeResult.updatedItems).toBe(initialItemsRef);
+      expect(noChangeResult.priceChanges).toHaveLength(0);
+
+      // 2. Si el precio en servidor subió a $32.000, actualiza el carrito en silencio y genera aviso
+      const detected = store.syncStock({
+        "50__negro__M": { remainingStock: 4, unitPriceCents: 3200000, title: "Producto Base" },
+      });
+
+      expect(detected).toHaveLength(1);
+      expect(detected[0].previousPriceCents).toBe(2500000);
+      expect(detected[0].currentPriceCents).toBe(3200000);
+
+      const updatedState = useCartStore.getState();
+      expect(updatedState.items[0].unitPriceCents).toBe(3200000);
+      expect(updatedState.items[0].maxStock).toBe(4);
+      expect(updatedState.getSubtotalCents()).toBe(6400000); // 2 * $32.000
+      expect(updatedState.priceChangeNotices).toHaveLength(1);
+
+      // 3. Permite descartar el aviso de cambio de precio
+      updatedState.dismissPriceChangeNotices();
+      expect(useCartStore.getState().priceChangeNotices).toHaveLength(0);
     });
   });
 });

@@ -9,14 +9,15 @@ import { formatOrderCode } from "../domain/order/rules";
 import { GlobalAppDeps } from "../infra/db/connection";
 import { ProductNotFoundError, OrderNotFoundError, ValidationError } from "../domain/errors";
 import { WhatsAppPaymentAdapter } from "../infra/payments/whatsapp.adapter";
-import { getShowroomSettings } from "./settings.service";
+import { getShowroomSettings, ShowroomSettings } from "./settings.service";
 import { trackAnalyticsEvent } from "./analytics.service";
-import { normalizeEmail, normalizePhone } from "./coupon.service";
+import { normalizeEmail, normalizePhone, validateCoupon } from "./coupon.service";
 import { PaymentPreferenceResult } from "../domain/payment/types";
+import { calculatePaymentDiscount } from "../domain/payment";
 import { createOrderPaymentPreference } from "./payment.service";
 import { OrderEmailData } from "../domain/ports/email.port";
 import { getEnvVar } from "../infra/email/resend.adapter";
-import { ShowroomSettings } from "./settings.service";
+import { Product } from "../domain/product/types";
 import { logger } from "../lib/logger";
 import { resolveReceiptStorage } from "../infra/storage";
 import { isValidReceiptKey } from "../domain/ports/receipt-storage.port";
@@ -71,6 +72,7 @@ interface CachedOrderSubmission {
   createdAt: number;
 }
 
+const MAX_RECENT_SUBMISSIONS = 100;
 const recentOrderSubmissions = new Map<string, CachedOrderSubmission>();
 const inFlightOrderPromises = new Map<
   string,
@@ -117,27 +119,39 @@ export async function createOrder(
     // 1. Validar reglas de dominio de orden y comprador (BR-41, BR-42, BR-47)
     const validated = validateCreateOrderInput(input);
 
-    // 1.1 Bloqueo de seguridad: Validar si las ventas están pausadas por el comercio
-    if (deps.settingsRepo) {
-      const { getShowroomSettings } = await import("./settings.service");
-      const settings = await getShowroomSettings(deps);
-      if (settings.ordersPaused) {
-        throw new ValidationError(
-          settings.ordersPausedNotice ||
-            "Las ventas online se encuentran temporalmente pausadas. Por favor, intentá nuevamente más tarde."
-        );
-      }
+    // 1.1 Cargar configuración del comercio una única vez y validar si las ventas están pausadas
+    const settings = await getShowroomSettings(deps);
+    if (settings.ordersPaused) {
+      throw new ValidationError(
+        settings.ordersPausedNotice ||
+          "Las ventas online se encuentran temporalmente pausadas. Por favor, intentá nuevamente más tarde."
+      );
     }
 
-    // 2. Control estricto de inventario (BR-40): verificar existencia y stock de cada ítem
+    // 2. Control estricto de inventario y precios en servidor (BR-40):
+    // Cache por request para no consultar dos veces el mismo producto si el carrito tiene varios talles/colores
+    const productByIdCache = new Map<number, Promise<Product | null>>();
+    const productByCodeCache = new Map<number, Promise<Product | null>>();
+
     const resolvedItems = await Promise.all(
       input.items.map(async (item) => {
         let productId = item.productId ?? null;
-        let product = null;
+        let product: Product | null = null;
+
         if (productId) {
-          product = await deps.productRepo.findById(productId);
+          let pPromise = productByIdCache.get(productId);
+          if (!pPromise) {
+            pPromise = deps.productRepo.findById(productId);
+            productByIdCache.set(productId, pPromise);
+          }
+          product = await pPromise;
         } else if (item.productCode) {
-          product = await deps.productRepo.findByCode(item.productCode);
+          let pPromise = productByCodeCache.get(item.productCode);
+          if (!pPromise) {
+            pPromise = deps.productRepo.findByCode(item.productCode);
+            productByCodeCache.set(item.productCode, pPromise);
+          }
+          product = await pPromise;
           if (product) {
             productId = product.id;
           }
@@ -147,10 +161,34 @@ export async function createOrder(
           throw new ProductNotFoundError(item.productCode);
         }
 
+        let authoritativeUnitPriceCents =
+          item.unitPriceCents != null && Number.isFinite(item.unitPriceCents)
+            ? Math.max(0, Math.round(item.unitPriceCents))
+            : 0;
+
         if (product) {
           if (product.status === "SOLD_OUT") {
             throw new ValidationError(`El producto #${item.productCode} (${item.productTitle}) se encuentra agotado.`);
           }
+
+          if (product.priceCents == null || product.priceCents <= 0) {
+            throw new ValidationError(
+              `El producto #${product.code} (${product.title || item.productTitle}) no tiene un precio de venta habilitado.`
+            );
+          }
+
+          // Verificar si el precio enviado por el cliente quedó desactualizado respecto a la base de datos
+          if (
+            item.unitPriceCents != null &&
+            Number.isFinite(item.unitPriceCents) &&
+            Math.round(item.unitPriceCents) !== product.priceCents
+          ) {
+            throw new ValidationError(
+              `Hubo un cambio de precio en "${product.title || item.productTitle}". Por favor verificá los importes actualizados en tu bolsa antes de confirmar.`
+            );
+          }
+
+          authoritativeUnitPriceCents = product.priceCents;
 
           // Validar stock específico de la variante si tiene colores y talles
           if (product.colors && product.colors.length > 0) {
@@ -170,11 +208,68 @@ export async function createOrder(
           }
         }
 
+        const safeQuantity =
+          Number.isFinite(item.quantity) && item.quantity > 0 ? Math.floor(item.quantity) : 1;
+
         return {
           ...item,
           productId,
+          productTitle: item.productTitle || product?.title || "",
+          quantity: safeQuantity,
+          unitPriceCents: authoritativeUnitPriceCents,
         };
       })
+    );
+
+    // 2.1 Recalcular subtotal y descuentos con los precios reales de la base de datos
+    const authoritativeSubtotalCents = resolvedItems.reduce(
+      (acc, i) => acc + i.unitPriceCents * i.quantity,
+      0
+    );
+
+    let authoritativeDiscountCents = 0;
+    let authoritativeCouponCode = validated.couponCode;
+    let authoritativeShippingCents = validated.shippingCents;
+
+    if (validated.couponCode && deps.couponRepo) {
+      const couponValidation = await validateCoupon(
+        {
+          code: validated.couponCode,
+          email: validated.customerEmail,
+          phone: validated.customerPhone,
+          dni: validated.customerDni,
+          subtotalCents: authoritativeSubtotalCents,
+          shippingCents: authoritativeShippingCents,
+        },
+        deps
+      );
+      if (!couponValidation.valid) {
+        throw new ValidationError(couponValidation.message);
+      }
+      authoritativeDiscountCents = couponValidation.discountCents;
+      authoritativeCouponCode = couponValidation.code;
+      if (couponValidation.freeShipping) {
+        authoritativeShippingCents = 0;
+      }
+    }
+
+    const authoritativePaymentDiscountCents =
+      validated.paymentMethod === "TRANSFER" &&
+      validated.paymentDiscountCents > 0 &&
+      settings.transferEnabled &&
+      settings.transferDiscountPercent > 0
+        ? calculatePaymentDiscount(
+            Math.max(0, authoritativeSubtotalCents - authoritativeDiscountCents),
+            settings.transferDiscountPercent
+          )
+        : 0;
+
+    const authoritativeTotalCents = Math.max(
+      0,
+      authoritativeSubtotalCents -
+        authoritativeDiscountCents -
+        authoritativePaymentDiscountCents +
+        authoritativeShippingCents
     );
 
     // 3. Generar número correlativo atómico único (BR-01)
@@ -193,16 +288,16 @@ export async function createOrder(
       deliveryMethod: validated.deliveryMethod,
       deliveryAddress: validated.deliveryAddress,
       deliveryNotes: validated.deliveryNotes,
-      subtotalCents: validated.subtotalCents,
-      discountCents: validated.discountCents,
-      shippingCents: validated.shippingCents,
-      totalCents: validated.totalCents,
+      subtotalCents: authoritativeSubtotalCents,
+      discountCents: authoritativeDiscountCents,
+      shippingCents: authoritativeShippingCents,
+      totalCents: authoritativeTotalCents,
       currency: "ARS",
-      couponCode: validated.couponCode,
+      couponCode: authoritativeCouponCode,
       status: "PENDING",
       paymentMethod: validated.paymentMethod,
       paymentStatus: "PENDING",
-      paymentDiscountCents: validated.paymentDiscountCents,
+      paymentDiscountCents: authoritativePaymentDiscountCents,
       transferReceiptUrl: null,
       transferReceiptUploadedAt: null,
       notes: validated.notes,
@@ -226,9 +321,9 @@ export async function createOrder(
     }
 
     // 4b. Registrar canje de cupón si aplica (BR-41)
-    if (validated.couponCode && deps.couponRepo) {
+    if (authoritativeCouponCode && deps.couponRepo) {
       try {
-        const coupon = await deps.couponRepo.findByCode(validated.couponCode);
+        const coupon = await deps.couponRepo.findByCode(authoritativeCouponCode);
         if (coupon) {
           await deps.couponRepo.incrementUsage(coupon.id);
           const cleanEmail = validated.customerEmail ? normalizeEmail(validated.customerEmail) : "";
@@ -242,7 +337,7 @@ export async function createOrder(
               customerPhone: cleanPhone,
               customerDni: cleanDni,
               customerId: validated.customerId,
-              discountCents: validated.discountCents,
+              discountCents: authoritativeDiscountCents,
             });
           }
         }
@@ -287,7 +382,6 @@ export async function createOrder(
       }
 
       // 6. Generar enlace de WhatsApp estructurado con los datos del showroom (BR-42)
-      const settings = await getShowroomSettings(deps);
       const adapter = new WhatsAppPaymentAdapter({
         whatsappNumber: settings.whatsappNumber,
         brandName: settings.showroomName,
@@ -332,6 +426,12 @@ export async function createOrder(
       }
 
       if (idempotencyKey) {
+        if (recentOrderSubmissions.size >= MAX_RECENT_SUBMISSIONS) {
+          const oldestKey = recentOrderSubmissions.keys().next().value;
+          if (oldestKey !== undefined) {
+            recentOrderSubmissions.delete(oldestKey);
+          }
+        }
         recentOrderSubmissions.set(idempotencyKey, {
           result,
           createdAt: Date.now(),

@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     // Soporte para validación masiva (ej: verificación de bolsa / carrito)
     if (Array.isArray(body.items)) {
-      const productCache = new Map<number, Product | null>();
+      const productPromiseCache = new Map<number, Promise<Product | null>>();
 
       const results = await Promise.all(
         body.items.map(async (item: Record<string, unknown>) => {
@@ -22,21 +22,38 @@ export async function POST(req: NextRequest) {
           const requestedQuantity = Math.max(1, Number(item.quantity || item.requestedQuantity || 1));
 
           if (!productId || Number.isNaN(productId)) {
-            return { key, productId, available: false, remainingStock: 0, reason: "INVALID" };
+            return { key, productId, available: false, remainingStock: 0, unitPriceCents: null, reason: "INVALID" };
           }
 
-          let product: Product | null | undefined = productCache.get(productId);
-          if (product === undefined) {
-            product = await deps.productRepo.findById(productId);
-            productCache.set(productId, product);
+          let productPromise = productPromiseCache.get(productId);
+          if (!productPromise) {
+            productPromise = deps.productRepo.findById(productId);
+            productPromiseCache.set(productId, productPromise);
           }
+          const product = await productPromise;
 
           if (!product || product.status === "SOLD_OUT") {
-            return { key, productId, available: false, remainingStock: 0, reason: "SOLD_OUT" };
+            return {
+              key,
+              productId,
+              title: product?.title ?? null,
+              unitPriceCents: product?.priceCents ?? null,
+              available: false,
+              remainingStock: 0,
+              reason: "SOLD_OUT",
+            };
           }
 
           if (product.status === "RESERVED") {
-            return { key, productId, available: false, remainingStock: 0, reason: "RESERVED" };
+            return {
+              key,
+              productId,
+              title: product.title,
+              unitPriceCents: product.priceCents,
+              available: false,
+              remainingStock: 0,
+              reason: "RESERVED",
+            };
           }
 
           if (product.colors && product.colors.length > 0) {
@@ -50,12 +67,23 @@ export async function POST(req: NextRequest) {
             );
 
             if (!matchedSize || matchedSize.stock <= 0) {
-              return { key, productId, available: false, stock: 0, remainingStock: 0, reason: "SOLD_OUT" };
+              return {
+                key,
+                productId,
+                title: product.title,
+                unitPriceCents: product.priceCents,
+                available: false,
+                stock: 0,
+                remainingStock: 0,
+                reason: "SOLD_OUT",
+              };
             }
 
             return {
               key,
               productId,
+              title: product.title,
+              unitPriceCents: product.priceCents,
               available: matchedSize.stock >= requestedQuantity,
               stock: matchedSize.stock,
               remainingStock: matchedSize.stock,
@@ -63,7 +91,16 @@ export async function POST(req: NextRequest) {
             };
           }
 
-          return { key, productId, available: true, stock: 1, remainingStock: 1, reason: null };
+          return {
+            key,
+            productId,
+            title: product.title,
+            unitPriceCents: product.priceCents,
+            available: true,
+            stock: 1,
+            remainingStock: 1,
+            reason: null,
+          };
         })
       );
 
@@ -77,7 +114,10 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      return NextResponse.json({ ok: true, items: results });
+      return NextResponse.json(
+        { ok: true, items: results },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const productId = Number(body.productId);

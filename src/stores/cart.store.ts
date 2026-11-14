@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { devtools, persist, createJSONStorage } from "zustand/middleware";
-import { CartItem } from "../domain/cart/types";
-import { buildCartItemKey, clampCartQuantity, countCartItems, calculateCartSubtotalCents } from "../domain/cart/rules";
+import { CartItem, CartPriceChangeNotice, CartServerItemSnapshot } from "../domain/cart/types";
+import {
+  buildCartItemKey,
+  clampCartQuantity,
+  countCartItems,
+  calculateCartSubtotalCents,
+  reconcileCartWithServer,
+} from "../domain/cart/rules";
 import { DeliveryMethod } from "../domain/order/types";
 
 export interface AddItemInput {
@@ -33,6 +39,7 @@ export interface CartStoreState {
   isOpen: boolean;
   deliveryMethod: DeliveryMethod;
   toast: CartToastState | null;
+  priceChangeNotices: CartPriceChangeNotice[];
 
   // Acciones de UI
   openCart: () => void;
@@ -40,11 +47,12 @@ export interface CartStoreState {
   toggleCart: () => void;
   setDeliveryMethod: (method: DeliveryMethod) => void;
   dismissToast: () => void;
+  dismissPriceChangeNotices: () => void;
 
   // Acciones de Carrito (BR-40)
   addItem: (item: AddItemInput, quantity?: number) => void;
   updateQuantity: (key: string, quantity: number) => void;
-  syncStock: (stockMap: Record<string, number>) => void;
+  syncStock: (stockMap: Record<string, number | CartServerItemSnapshot>) => CartPriceChangeNotice[];
   removeItem: (key: string) => void;
   clearCart: () => void;
 
@@ -61,12 +69,15 @@ export const useCartStore = create<CartStoreState>()(
       isOpen: false,
       deliveryMethod: "PICKUP",
       toast: null,
+      priceChangeNotices: [],
 
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       setDeliveryMethod: (deliveryMethod: DeliveryMethod) => set({ deliveryMethod }),
       dismissToast: () => set({ toast: null }),
+      dismissPriceChangeNotices: () =>
+        set((state) => (state.priceChangeNotices.length === 0 ? state : { priceChangeNotices: [] })),
 
       addItem: (itemInput: AddItemInput, quantity = 1) => {
         set((state) => {
@@ -110,7 +121,12 @@ export const useCartStore = create<CartStoreState>()(
                 : safeMaxStock;
             const newQty = clampCartQuantity(currentQty + safeQty, effectiveMax);
             const updated = [...state.items];
-            updated[existingIndex] = { ...existing, quantity: newQty, maxStock: effectiveMax };
+            updated[existingIndex] = {
+              ...existing,
+              quantity: newQty,
+              maxStock: effectiveMax,
+              unitPriceCents: safePrice ?? existing.unitPriceCents,
+            };
             return { items: updated, toast: toastData };
           }
 
@@ -142,7 +158,13 @@ export const useCartStore = create<CartStoreState>()(
       updateQuantity: (key: string, quantity: number) => {
         set((state) => {
           if (!Number.isFinite(quantity) || quantity <= 0) {
-            return { items: state.items.filter((i) => i.key !== key) };
+            return {
+              items: state.items.filter((i) => i.key !== key),
+              priceChangeNotices:
+                state.priceChangeNotices.length > 0
+                  ? state.priceChangeNotices.filter((n) => n.key !== key)
+                  : state.priceChangeNotices,
+            };
           }
 
           const updated = state.items.map((item) => {
@@ -161,37 +183,61 @@ export const useCartStore = create<CartStoreState>()(
         });
       },
 
-      syncStock: (stockMap: Record<string, number>) => {
+      syncStock: (stockMap: Record<string, number | CartServerItemSnapshot>) => {
+        let detectedChanges: CartPriceChangeNotice[] = [];
         set((state) => {
-          const updated = state.items.map((item) => {
-            const currentQty =
-              Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
-            if (item.key in stockMap) {
-              const rawStock = stockMap[item.key];
-              const newMax = Number.isFinite(rawStock) ? Math.max(0, rawStock) : 0;
-              return {
-                ...item,
-                maxStock: newMax,
-                quantity: newMax <= 0 ? 1 : clampCartQuantity(currentQty, newMax),
-              };
+          const { updatedItems, priceChanges, hasChanges } = reconcileCartWithServer(
+            state.items,
+            stockMap
+          );
+          detectedChanges = priceChanges;
+
+          if (!hasChanges && priceChanges.length === 0) {
+            return state;
+          }
+
+          if (priceChanges.length === 0) {
+            return { items: updatedItems };
+          }
+
+          // Combinar avisos previos y nuevos por clave de variante sin duplicar en memoria
+          const mergedByKey = new Map<string, CartPriceChangeNotice>();
+          for (const prev of state.priceChangeNotices) {
+            mergedByKey.set(prev.key, prev);
+          }
+          for (const next of priceChanges) {
+            const existing = mergedByKey.get(next.key);
+            const baselinePrice = existing ? existing.previousPriceCents : next.previousPriceCents;
+            if (baselinePrice === next.currentPriceCents) {
+              mergedByKey.delete(next.key);
+            } else {
+              mergedByKey.set(next.key, {
+                ...next,
+                previousPriceCents: baselinePrice,
+              });
             }
-            return {
-              ...item,
-              quantity: currentQty,
-            };
-          });
-          return { items: updated };
+          }
+
+          return {
+            items: updatedItems,
+            priceChangeNotices: Array.from(mergedByKey.values()),
+          };
         });
+        return detectedChanges;
       },
 
       removeItem: (key: string) => {
         set((state) => ({
           items: state.items.filter((i) => i.key !== key),
+          priceChangeNotices:
+            state.priceChangeNotices.length > 0
+              ? state.priceChangeNotices.filter((n) => n.key !== key)
+              : state.priceChangeNotices,
         }));
       },
 
       clearCart: () => {
-        set({ items: [], deliveryMethod: "PICKUP" });
+        set({ items: [], deliveryMethod: "PICKUP", priceChangeNotices: [] });
       },
 
       getTotalItemsCount: () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 import {
@@ -37,6 +37,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
+import { CartServerItemSnapshot } from "../../domain/cart/types";
 import { formatPrice } from "../../lib/format/currency";
 import { CartStepper, CheckoutStep } from "./CartStepper";
 import { PaymentProcessorIcon } from "./PaymentProcessorIcon";
@@ -116,6 +117,8 @@ export function CartPageClient({
     items,
     updateQuantity,
     syncStock,
+    priceChangeNotices,
+    dismissPriceChangeNotices,
     removeItem,
     clearCart,
     deliveryMethod,
@@ -126,34 +129,53 @@ export function CartPageClient({
 
   const hasOutOfStockItems = items.some((i) => i.maxStock <= 0);
 
-  // Validar stock de las prendas en el carrito al cargar la página
-  useEffect(() => {
-    if (items.length === 0) return;
-    fetch("/api/catalog/validate-stock", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        items: items.map((i) => ({
-          key: i.key,
-          productId: i.productId,
-          colorName: i.colorName,
-          size: i.size,
-          requestedQuantity: i.quantity,
-        })),
-      }),
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+  const syncCartWithServer = useCallback(
+    async (signal?: AbortSignal) => {
+      const currentItems = useCartStore.getState().items;
+      if (currentItems.length === 0) return;
+
+      try {
+        const res = await fetch("/api/catalog/validate-stock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          signal,
+          body: JSON.stringify({
+            items: currentItems.map((i) => ({
+              key: i.key,
+              productId: i.productId,
+              colorName: i.colorName,
+              size: i.size,
+              requestedQuantity: i.quantity,
+            })),
+          }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
         if (data?.items && Array.isArray(data.items)) {
-          const map: Record<string, number> = {};
+          const map: Record<string, CartServerItemSnapshot> = {};
           for (const it of data.items) {
-            map[it.key] = it.remainingStock ?? (it.available ? 1 : 0);
+            map[it.key] = {
+              remainingStock: it.remainingStock ?? (it.available ? 1 : 0),
+              unitPriceCents: it.unitPriceCents ?? null,
+              title: it.title ?? null,
+            };
           }
           syncStock(map);
         }
-      })
-      .catch(() => {});
-  }, [syncStock]);
+      } catch {
+        // Ignorar abort o error de red silencioso
+      }
+    },
+    [syncStock]
+  );
+
+  // Sincronizar silenciosamente stock y precios vigentes al cargar el carrito
+  useEffect(() => {
+    const controller = new AbortController();
+    void syncCartWithServer(controller.signal);
+    return () => controller.abort();
+  }, [syncCartWithServer]);
 
   const isPickupEnabled = storeLocation.pickupEnabled !== false;
   const isHomeDeliveryEnabled = Boolean(storeLocation.homeDeliveryEnabled);
@@ -725,7 +747,16 @@ export function CartPageClient({
         window.open(data.whatsappUrl, "_blank", "noopener,noreferrer");
       }
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Ocurrió un error inesperado al registrar el pedido.");
+      const msg = err instanceof Error ? err.message : "Ocurrió un error inesperado al registrar el pedido.";
+      setErrorMessage(msg);
+      if (msg.toLowerCase().includes("cambio de precio")) {
+        void syncCartWithServer();
+        setAppliedCoupon(null);
+        setCurrentStep("cart");
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1145,6 +1176,43 @@ export function CartPageClient({
                     </button>
                   )}
                 </div>
+
+                {/* Alerta de actualización de precios en la bolsa */}
+                {priceChangeNotices.length > 0 && (
+                  <div
+                    role="alert"
+                    className="mt-4 rounded-xl border border-amber-200 bg-amber-50/95 p-4 text-xs text-amber-950 shadow-2xs"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 font-semibold text-amber-900">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+                        <span>Hubo un cambio de precio en tu bolsa. Por favor verificá antes de continuar:</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={dismissPriceChangeNotices}
+                        className="text-xs font-semibold text-amber-800 underline hover:text-amber-950 cursor-pointer shrink-0"
+                      >
+                        Entendido
+                      </button>
+                    </div>
+                    <ul className="mt-2 space-y-1 pl-6 list-disc text-amber-900">
+                      {priceChangeNotices.map((notice) => (
+                        <li key={notice.key}>
+                          <span className="font-medium">{notice.title || `Producto ${notice.formattedCode}`}</span>:{" "}
+                          {notice.previousPriceCents != null && (
+                            <span className="line-through text-amber-700/80 mr-1.5">
+                              {formatPrice(notice.previousPriceCents, "ARS")}
+                            </span>
+                          )}
+                          <span className="font-semibold">
+                            {formatPrice(notice.currentPriceCents, "ARS")}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {/* Lista de Prendas */}
                 <ul className="divide-y divide-[#e7e2da]/70 mt-3" role="list">

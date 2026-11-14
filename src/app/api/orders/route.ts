@@ -64,54 +64,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Validar cupón de descuento en servidor (con tope estricto por email)
-    if (body.couponCode && deps.couponRepo) {
-      const { validateCoupon } = await import("../../../services/coupon.service");
-      const subtotalCents = Array.isArray(body.items)
+    // Ignorar descuentos enviados por el cliente; se calculan autoritativamente en servidor
+    body.discountCents = 0;
+    body.paymentDiscountCents = 0;
+
+    // Si el método es TRANSFER, habilitar cálculo de bonificación en servidor (BR-47)
+    if (
+      body.paymentMethod === "TRANSFER" &&
+      storeSettings.transferEnabled &&
+      storeSettings.transferDiscountPercent > 0
+    ) {
+      const { calculatePaymentDiscount } = await import("../../../domain/payment");
+      const rawSubtotal = Array.isArray(body.items)
         ? body.items.reduce(
             (acc: number, item: { unitPriceCents?: number; quantity?: number }) =>
               acc + (item.unitPriceCents || 0) * (item.quantity || 1),
             0
           )
         : 0;
-
-      const validation = await validateCoupon(
-        {
-          code: body.couponCode,
-          email: body.customerEmail || null,
-          phone: body.customerPhone || null,
-          dni: body.customerDni || null,
-          subtotalCents,
-          shippingCents: body.shippingCents || 0,
-        },
-        deps
+      body.paymentDiscountCents = calculatePaymentDiscount(
+        rawSubtotal,
+        storeSettings.transferDiscountPercent
       );
-
-      if (!validation.valid) {
-        return NextResponse.json({ error: validation.message }, { status: 400 });
-      }
-
-      body.discountCents = validation.discountCents;
-      body.couponCode = validation.code;
-    }
-
-    // Validar y aplicar bonificación por método de pago en servidor (BR-47)
-    if (body.paymentMethod === "TRANSFER") {
-      const { getShowroomSettings } = await import("../../../services/settings.service");
-      const { calculatePaymentDiscount } = await import("../../../domain/payment");
-      const settings = await getShowroomSettings(deps);
-      if (settings.transferEnabled && settings.transferDiscountPercent > 0) {
-        const subtotalCents = Array.isArray(body.items)
-          ? body.items.reduce(
-              (acc: number, item: { unitPriceCents?: number; quantity?: number }) =>
-                acc + (item.unitPriceCents || 0) * (item.quantity || 1),
-              0
-            )
-          : 0;
-        const couponDiscount = body.discountCents || 0;
-        const eligibleSubtotal = Math.max(0, subtotalCents - couponDiscount);
-        body.paymentDiscountCents = calculatePaymentDiscount(eligibleSubtotal, settings.transferDiscountPercent);
-      }
     }
 
     // Extraer llave de idempotencia desde cabeceras HTTP o cuerpo para prevenir duplicados

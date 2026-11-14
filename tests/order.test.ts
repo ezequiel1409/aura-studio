@@ -1365,4 +1365,75 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
     });
   });
 
+  describe("Seguridad de Precios y Descuentos Autoritativos en Servidor", () => {
+    it("rechaza crear la orden si el unitPriceCents enviado por el cliente difiere del precio vigente en la base de datos", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Producto Catálogo $45.000",
+          colors: [{ name: "Negro", position: 0, sizes: [{ size: "M", stock: 3 }] }],
+        },
+        env.deps
+      );
+
+      await expect(
+        createOrder(
+          {
+            customerName: "Cliente Test",
+            customerPhone: "1122334455",
+            customerEmail: "cliente@example.com",
+            customerDni: "38123456",
+            deliveryMethod: "PICKUP",
+            items: [
+              {
+                productId: product.id,
+                productCode: product.code,
+                productTitle: product.title || "Producto Catálogo",
+                colorName: "Negro",
+                size: "M",
+                quantity: 1,
+                unitPriceCents: 100, // Intento de manipular el precio a $1 o precio desactualizado
+              },
+            ],
+          },
+          env.deps
+        )
+      ).rejects.toThrow(/Hubo un cambio de precio/i);
+    });
+
+    it("ignora discountCents arbitrarios inyectados por el cliente cuando no existe un cupón válido", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Producto Catálogo $40.000",
+          colors: [{ name: "Negro", position: 0, sizes: [{ size: "M", stock: 3 }] }],
+        },
+        env.deps
+      );
+
+      const { order } = await createOrder(
+        {
+          customerName: "Cliente Test",
+          customerPhone: "1122334455",
+          customerEmail: "cliente@example.com",
+          customerDni: "38123456",
+          deliveryMethod: "PICKUP",
+          discountCents: 3999900, // Descuento falso sin cupón
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title || "Producto Catálogo",
+              colorName: "Negro",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 4000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      expect(order.discountCents).toBe(0);
+      expect(order.totalCents).toBe(4000000);
+    });
+  });
 });

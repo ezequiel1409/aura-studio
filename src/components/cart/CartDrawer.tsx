@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useCartStore } from "../../stores/cart.store";
+import { CartServerItemSnapshot } from "../../domain/cart/types";
 import { formatPrice } from "../../lib/format/currency";
 import { PaymentProcessorIcon } from "./PaymentProcessorIcon";
 
@@ -36,6 +37,8 @@ export function CartDrawer({
     closeCart,
     updateQuantity,
     syncStock,
+    priceChangeNotices,
+    dismissPriceChangeNotices,
     removeItem,
     clearCart,
     getTotalItemsCount,
@@ -52,12 +55,16 @@ export function CartDrawer({
 
   const hasOutOfStockItems = items.some((i) => i.maxStock <= 0);
 
-  // Validar stock de las prendas al abrir el drawer
+  // Sincronizar silenciosamente stock y precios vigentes al abrir el drawer
   useEffect(() => {
     if (!isOpen || items.length === 0) return;
+    const controller = new AbortController();
+
     fetch("/api/catalog/validate-stock", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      signal: controller.signal,
       body: JSON.stringify({
         items: items.map((i) => ({
           key: i.key,
@@ -71,14 +78,20 @@ export function CartDrawer({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.items && Array.isArray(data.items)) {
-          const map: Record<string, number> = {};
+          const map: Record<string, CartServerItemSnapshot> = {};
           for (const it of data.items) {
-            map[it.key] = it.remainingStock ?? (it.available ? 1 : 0);
+            map[it.key] = {
+              remainingStock: it.remainingStock ?? (it.available ? 1 : 0),
+              unitPriceCents: it.unitPriceCents ?? null,
+              title: it.title ?? null,
+            };
           }
           syncStock(map);
         }
       })
       .catch(() => {});
+
+    return () => controller.abort();
   }, [isOpen, syncStock]);
 
   // Consultar métodos de pago activos configurados en el backoffice
@@ -222,6 +235,43 @@ export function CartDrawer({
                   </button>
                 )}
               </div>
+
+              {/* Alerta si hubo actualización de precios en la bolsa */}
+              {priceChangeNotices.length > 0 && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-amber-200 bg-amber-50/95 p-3.5 text-xs text-amber-950 shadow-2xs"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 font-semibold text-amber-900">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+                      <span>Hubo un cambio de precio. Verificá por favor:</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={dismissPriceChangeNotices}
+                      className="text-[11px] font-semibold text-amber-800 underline hover:text-amber-950 cursor-pointer shrink-0"
+                    >
+                      Entendido
+                    </button>
+                  </div>
+                  <ul className="mt-2 space-y-1 pl-5 list-disc text-[11px] text-amber-900">
+                    {priceChangeNotices.map((notice) => (
+                      <li key={notice.key}>
+                        <span className="font-medium">{notice.title || `Producto ${notice.formattedCode}`}</span>:{" "}
+                        {notice.previousPriceCents != null && (
+                          <span className="line-through text-amber-700/80 mr-1">
+                            {formatPrice(notice.previousPriceCents, "ARS")}
+                          </span>
+                        )}
+                        <span className="font-semibold">
+                          {formatPrice(notice.currentPriceCents, "ARS")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Lista de Prendas */}
               <ul className="divide-y divide-[#e7e2da]/70" role="list">
