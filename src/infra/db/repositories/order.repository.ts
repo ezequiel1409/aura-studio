@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import {
   CreateOrderRepoData,
   IOrderRepository,
@@ -127,24 +127,49 @@ export class DrizzleOrderRepository implements IOrderRepository {
     };
   }
 
-  async findById(id: number): Promise<Order | null> {
-    const [row] = await this.db.select(orderColumns).from(orders).where(eq(orders.id, id));
-    if (!row) return null;
-    const items = await this.db.select(orderItemColumns).from(orderItems).where(eq(orderItems.orderId, id));
+  private async attachItemsToOrder(row: Omit<Order, "items">): Promise<Order> {
+    const items = await this.db
+      .select(orderItemColumns)
+      .from(orderItems)
+      .where(eq(orderItems.orderId, row.id));
     return {
       ...(row as Order),
       items: items as OrderItem[],
     };
   }
 
+  private async attachItemsToOrders(rows: Array<Omit<Order, "items">>): Promise<Order[]> {
+    if (rows.length === 0) return [];
+
+    const orderIds = rows.map((r) => r.id);
+    const allItems = await this.db
+      .select(orderItemColumns)
+      .from(orderItems)
+      .where(inArray(orderItems.orderId, orderIds));
+
+    const itemsByOrderId = new Map<number, OrderItem[]>();
+    for (const item of allItems) {
+      const list = itemsByOrderId.get(item.orderId) || [];
+      list.push(item as OrderItem);
+      itemsByOrderId.set(item.orderId, list);
+    }
+
+    return rows.map((r) => ({
+      ...(r as Order),
+      items: itemsByOrderId.get(r.id) || [],
+    }));
+  }
+
+  async findById(id: number): Promise<Order | null> {
+    const [row] = await this.db.select(orderColumns).from(orders).where(eq(orders.id, id));
+    if (!row) return null;
+    return this.attachItemsToOrder(row as Omit<Order, "items">);
+  }
+
   async findByCode(code: number): Promise<Order | null> {
     const [row] = await this.db.select(orderColumns).from(orders).where(eq(orders.code, code));
     if (!row) return null;
-    const items = await this.db.select(orderItemColumns).from(orderItems).where(eq(orderItems.orderId, row.id));
-    return {
-      ...(row as Order),
-      items: items as OrderItem[],
-    };
+    return this.attachItemsToOrder(row as Omit<Order, "items">);
   }
 
   async list(options?: { status?: OrderStatus; limit?: number; offset?: number }): Promise<Order[]> {
@@ -160,25 +185,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
       query = query.offset(options.offset);
     }
     const rows = await query;
-    if (rows.length === 0) return [];
-
-    const orderIds = rows.map((r) => r.id);
-    const allItems = await this.db
-      .select(orderItemColumns)
-      .from(orderItems)
-      .where(inArray(orderItems.orderId, orderIds));
-
-    const itemsByOrderId = new Map<number, OrderItem[]>();
-    for (const item of allItems) {
-      const list = itemsByOrderId.get(item.orderId) || [];
-      list.push(item as OrderItem);
-      itemsByOrderId.set(item.orderId, list);
-    }
-
-    return rows.map((r) => ({
-      ...(r as Order),
-      items: itemsByOrderId.get(r.id) || [],
-    }));
+    return this.attachItemsToOrders(rows as Array<Omit<Order, "items">>);
   }
 
   async listByCustomer(customerId: number): Promise<Order[]> {
@@ -188,25 +195,20 @@ export class DrizzleOrderRepository implements IOrderRepository {
       .where(eq(orders.customerId, customerId))
       .orderBy(desc(orders.createdAt));
 
-    if (rows.length === 0) return [];
+    return this.attachItemsToOrders(rows as Array<Omit<Order, "items">>);
+  }
 
-    const orderIds = rows.map((r) => r.id);
-    const allItems = await this.db
-      .select(orderItemColumns)
-      .from(orderItems)
-      .where(inArray(orderItems.orderId, orderIds));
+  async linkGuestOrdersByEmail(email: string, customerId: number): Promise<number> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) return 0;
 
-    const itemsByOrderId = new Map<number, OrderItem[]>();
-    for (const item of allItems) {
-      const list = itemsByOrderId.get(item.orderId) || [];
-      list.push(item as OrderItem);
-      itemsByOrderId.set(item.orderId, list);
-    }
+    const updated = await this.db
+      .update(orders)
+      .set({ customerId })
+      .where(and(isNull(orders.customerId), eq(orders.customerEmail, cleanEmail)))
+      .returning({ id: orders.id });
 
-    return rows.map((r) => ({
-      ...(r as Order),
-      items: itemsByOrderId.get(r.id) || [],
-    }));
+    return updated.length;
   }
 
   async updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order> {
@@ -220,15 +222,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
       throw new Error(`Order ${id} not found`);
     }
 
-    const items = await this.db
-      .select(orderItemColumns)
-      .from(orderItems)
-      .where(eq(orderItems.orderId, id));
-
-    return {
-      ...(updated as Order),
-      items: items as OrderItem[],
-    };
+    return this.attachItemsToOrder(updated as Omit<Order, "items">);
   }
 
   async updatePayment(
@@ -252,15 +246,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
       throw new Error(`Order ${id} not found`);
     }
 
-    const items = await this.db
-      .select(orderItemColumns)
-      .from(orderItems)
-      .where(eq(orderItems.orderId, id));
-
-    return {
-      ...(updated as Order),
-      items: items as OrderItem[],
-    };
+    return this.attachItemsToOrder(updated as Omit<Order, "items">);
   }
 
   async updateTransferReceipt(
@@ -282,15 +268,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
       throw new Error(`Order ${id} not found`);
     }
 
-    const items = await this.db
-      .select(orderItemColumns)
-      .from(orderItems)
-      .where(eq(orderItems.orderId, id));
-
-    return {
-      ...(updated as Order),
-      items: items as OrderItem[],
-    };
+    return this.attachItemsToOrder(updated as Omit<Order, "items">);
   }
 }
 

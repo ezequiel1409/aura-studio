@@ -222,10 +222,6 @@ export function CartPageClient({
   const [transferReceiptFile, setTransferReceiptFile] = useState<File | null>(null);
   const [transferReceiptBase64, setTransferReceiptBase64] = useState<string | null>(null);
   const [receiptFileError, setReceiptFileError] = useState<string | null>(null);
-  const [orderSuccessReceiptFile, setOrderSuccessReceiptFile] = useState<File | null>(null);
-  const [isUploadingOrderSuccessReceipt, setIsUploadingOrderSuccessReceipt] = useState(false);
-  const [orderSuccessReceiptError, setOrderSuccessReceiptError] = useState<string | null>(null);
-  const [orderSuccessReceiptSuccess, setOrderSuccessReceiptSuccess] = useState(false);
 
   const [paymentMethods, setPaymentMethods] = useState<Array<{
     method: PaymentMethod;
@@ -436,42 +432,6 @@ export function CartPageClient({
     reader.readAsDataURL(file);
   };
 
-  const handleOrderSuccessReceiptUpload = async () => {
-    if (!orderSuccessReceiptFile || !orderSuccess) return;
-    setIsUploadingOrderSuccessReceipt(true);
-    setOrderSuccessReceiptError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", orderSuccessReceiptFile);
-
-      const res = await fetch(`/api/orders/${orderSuccess.code}/receipt`, {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Error al subir el comprobante");
-      }
-
-      setOrderSuccessReceiptSuccess(true);
-      setOrderSuccess((prev) =>
-        prev
-          ? {
-              ...prev,
-              transferReceiptUrl:
-                data.receiptUrl || data.order?.transferReceiptUrl || `/api/orders/${orderSuccess.code}/receipt`,
-            }
-          : null
-      );
-    } catch (err) {
-      setOrderSuccessReceiptError(err instanceof Error ? err.message : "Error al subir el comprobante");
-    } finally {
-      setIsUploadingOrderSuccessReceipt(false);
-    }
-  };
-
   const handleReturnToCartStep = () => {
     setDeliveryMethod("PICKUP");
     setSelectedPaymentMethod("TRANSFER");
@@ -665,7 +625,10 @@ export function CartPageClient({
           paymentMethod: effectivePaymentMethod,
           paymentDiscountCents,
           couponCode: appliedCoupon?.code || null,
-          transferReceiptUrl: null,
+          transferReceiptUrl:
+            effectivePaymentMethod === "TRANSFER" && transferReceiptBase64
+              ? transferReceiptBase64
+              : null,
           items: items.map((i) => ({
             productId: i.productId,
             productCode: i.code,
@@ -687,35 +650,7 @@ export function CartPageClient({
         throw new Error(data.error || "Error al procesar la orden.");
       }
 
-      let finalReceiptUrl = data.order?.transferReceiptUrl || null;
-
-      // Si se adjuntó un comprobante en el checkout, se sube por separado vía multipart/form-data
-      if (transferReceiptFile && data.order?.code) {
-        try {
-          const formData = new FormData();
-          formData.append("file", transferReceiptFile);
-          const receiptRes = await fetch(`/api/orders/${data.order.code}/receipt`, {
-            method: "POST",
-            body: formData,
-          });
-          if (receiptRes.ok) {
-            const receiptData = await receiptRes.json();
-            finalReceiptUrl =
-              receiptData.receiptUrl ||
-              receiptData.order?.transferReceiptUrl ||
-              `/api/orders/${data.order.code}/receipt`;
-          } else {
-            setOrderSuccessReceiptError(
-              "Tu pedido fue registrado con éxito, pero hubo un inconveniente al adjuntar el comprobante. Podés volver a subirlo a continuación."
-            );
-          }
-        } catch {
-          setOrderSuccessReceiptError(
-            "Tu pedido fue registrado con éxito, pero hubo un inconveniente al adjuntar el comprobante. Podés volver a subirlo a continuación."
-          );
-        }
-      }
-
+      const finalReceiptUrl = data.order?.transferReceiptUrl || null;
       const confirmedPaymentMethod = effectivePaymentMethod;
 
       setOrderSuccess({
@@ -728,6 +663,8 @@ export function CartPageClient({
 
       // Limpiar bolsa y reiniciar métodos elegidos para próximas compras
       clearCart();
+      setTransferReceiptFile(null);
+      setTransferReceiptBase64(null);
       setSelectedPaymentMethod(enabledPaymentMethods[0]?.method || "TRANSFER");
       setAppliedCoupon(null);
       setCouponInput("");
@@ -783,8 +720,11 @@ export function CartPageClient({
             <CheckCircle2 className="h-8 w-8" />
           </div>
           <h1 className="mt-5 font-serif text-2xl sm:text-3xl font-light text-stone-900">
-            ¡Pedido #{orderSuccess.code.toString().padStart(3, "0")} Registrado!
+            ¡Tu solicitud de compra #{orderSuccess.code.toString().padStart(3, "0")} fue cargada!
           </h1>
+          <p className="mt-2 mx-auto max-w-md text-xs sm:text-sm text-stone-600 leading-relaxed">
+            Para poder seguir dándole seguimiento a tu pedido, create una cuenta con tu email y contraseña.
+          </p>
 
           {/* TRANSFERENCIA BANCARIA */}
           {orderSuccess.paymentMethod === "TRANSFER" ? (
@@ -800,15 +740,15 @@ export function CartPageClient({
                 </p>
               </div>
 
-              {/* Estado de Comprobante o Uploader Post-Orden */}
-              {orderSuccess.transferReceiptUrl || orderSuccessReceiptSuccess ? (
+              {/* Estado de Comprobante Pre-Cargado o Instrucciones de Cuenta */}
+              {orderSuccess.transferReceiptUrl ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-900 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>Comprobante PDF adjuntado correctamente (en revisión por el showroom).</span>
                   </div>
                   <a
-                    href={`/api/orders/${orderSuccess.code}/receipt`}
+                    href={orderSuccess.transferReceiptUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[11px] font-bold text-emerald-700 hover:underline shrink-0"
@@ -817,86 +757,29 @@ export function CartPageClient({
                   </a>
                 </div>
               ) : (
-                <div className="rounded-xl border border-[#e7e2da] bg-white p-4 space-y-3">
-                  <div className="flex items-center justify-between">
+                <div className="rounded-xl border border-[#e7e2da] bg-white p-4 space-y-2.5">
+                  <div className="flex items-start justify-between gap-3">
                     <div>
                       <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider flex items-center gap-1.5">
                         <FileText className="h-4 w-4 text-[#926a3c]" />
-                        Subir Comprobante de Transferencia
+                        Carga de Comprobante de Transferencia
                       </h4>
-                      <p className="text-[11px] text-stone-500 mt-0.5">
-                        Solo formato <strong>PDF</strong> (máx. 10 MB). También podés subirlo más tarde desde{" "}
-                        <Link href="/cuenta" className="text-stone-900 font-semibold underline">Mis Pedidos</Link>.
+                      <p className="text-[11px] text-stone-600 mt-1 leading-relaxed">
+                        Si no cargaste el comprobante previamente al confirmar la compra, podés subir tu archivo <strong>PDF</strong> desde{" "}
+                        <Link
+                          href={
+                            customer
+                              ? "/cuenta"
+                              : `/cuenta/ingresar?mode=register&email=${encodeURIComponent(customerEmail.trim())}&name=${encodeURIComponent(customerName.trim())}&dni=${encodeURIComponent(customerDni.replace(/\D/g, ""))}&phone=${encodeURIComponent(customerPhone.trim())}`
+                          }
+                          className="text-stone-900 font-semibold underline"
+                        >
+                          Mis Pedidos
+                        </Link>{" "}
+                        iniciando sesión o creando tu cuenta con tu email y contraseña.
                       </p>
                     </div>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="file"
-                      id="success-receipt-pdf"
-                      accept="application/pdf,.pdf"
-                      disabled={isUploadingOrderSuccessReceipt}
-                      onChange={(e) => {
-                        setOrderSuccessReceiptError(null);
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-                          setOrderSuccessReceiptError("Solo se admiten comprobantes en formato PDF.");
-                          e.target.value = "";
-                          return;
-                        }
-                        if (file.size > 10 * 1024 * 1024) {
-                          setOrderSuccessReceiptError("El archivo supera el límite de 10 MB.");
-                          e.target.value = "";
-                          return;
-                        }
-                        setOrderSuccessReceiptFile(file);
-                      }}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="success-receipt-pdf"
-                      className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-stone-50 px-3.5 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-100 cursor-pointer"
-                    >
-                      <Upload className="h-3.5 w-3.5 text-stone-500" />
-                      <span>{orderSuccessReceiptFile ? "Cambiar archivo" : "Elegir archivo PDF"}</span>
-                    </label>
-
-                    {orderSuccessReceiptFile && (
-                      <button
-                        type="button"
-                        disabled={isUploadingOrderSuccessReceipt}
-                        onClick={handleOrderSuccessReceiptUpload}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-semibold text-white hover:bg-stone-800 cursor-pointer disabled:opacity-50"
-                      >
-                        {isUploadingOrderSuccessReceipt ? (
-                          <>
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            <span>Subiendo PDF...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-3.5 w-3.5" />
-                            <span>Guardar Comprobante</span>
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-
-                  {orderSuccessReceiptFile && (
-                    <p className="text-[11px] text-stone-500">
-                      Archivo: <span className="font-medium text-stone-800">{orderSuccessReceiptFile.name}</span> ({(orderSuccessReceiptFile.size / (1024 * 1024)).toFixed(1)} MB)
-                    </p>
-                  )}
-
-                  {orderSuccessReceiptError && (
-                    <p className="text-[11px] font-medium text-rose-600 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 shrink-0" />
-                      {orderSuccessReceiptError}
-                    </p>
-                  )}
                 </div>
               )}
 
@@ -1082,7 +965,24 @@ export function CartPageClient({
             </div>
           )}
 
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="mt-8 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3">
+            {!customer ? (
+              <Link
+                href={`/cuenta/ingresar?mode=register&email=${encodeURIComponent(customerEmail.trim())}&name=${encodeURIComponent(customerName.trim())}&dni=${encodeURIComponent(customerDni.replace(/\D/g, ""))}&phone=${encodeURIComponent(customerPhone.trim())}`}
+                className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-bold text-white uppercase tracking-wider shadow-sm hover:bg-stone-800 transition-colors"
+              >
+                <User className="h-4 w-4" />
+                <span>Crear cuenta para seguimiento</span>
+              </Link>
+            ) : (
+              <Link
+                href="/cuenta"
+                className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-bold text-white uppercase tracking-wider shadow-sm hover:bg-stone-800 transition-colors"
+              >
+                <User className="h-4 w-4" />
+                <span>Ver seguimiento en Mi Cuenta</span>
+              </Link>
+            )}
             <a
               href={orderSuccess.whatsappUrl}
               target="_blank"
@@ -2449,19 +2349,19 @@ export function CartPageClient({
                         </div>
                       </div>
 
-                      {/* Uploader Opcional de Comprobante PDF */}
+                      {/* Uploader Opcional de Comprobante PDF Previo */}
                       <div className="rounded-xl border border-amber-200/70 bg-white/95 p-3.5 space-y-2">
                         <div className="flex items-center justify-between">
                           <label className="font-semibold text-stone-900 flex items-center gap-1.5 text-xs">
                             <FileText className="h-3.5 w-3.5 text-[#926a3c]" />
-                            ¿Ya transferiste? Adjuntá tu comprobante (opcional)
+                            Cargar comprobante de transferencia previamente (opcional)
                           </label>
                           <span className="text-[10px] text-stone-500">Solo PDF · Máx 10 MB</span>
                         </div>
 
                         <p className="text-[11px] text-stone-500">
-                          Si preferís transferir después, podés confirmar ahora y adjuntarlo luego desde{" "}
-                          <strong className="text-stone-800">Mis Pedidos</strong> antes de que pasen las 24 horas.
+                          Si ya transferiste, podés cargarlo aquí mismo antes de enviar tu solicitud. Si preferís transferir después, deberás iniciar sesión o crear una cuenta con tu email y contraseña para subirlo desde{" "}
+                          <strong className="text-stone-800">Mis Pedidos</strong>.
                         </p>
 
                         <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -2478,7 +2378,7 @@ export function CartPageClient({
                             className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer shadow-2xs"
                           >
                             <Upload className="h-3.5 w-3.5 text-stone-500" />
-                            <span>{transferReceiptFile ? "Cambiar archivo PDF" : "Seleccionar comprobante PDF"}</span>
+                            <span>{transferReceiptFile ? "Cambiar archivo PDF" : "Cargar comprobante PDF"}</span>
                           </label>
 
                           {transferReceiptFile && (

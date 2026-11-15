@@ -667,14 +667,12 @@ export interface TransferReceiptFileResult {
 }
 
 /**
- * Obtiene el archivo binario o stream del comprobante para servirlo en el endpoint GET.
- * Si la orden tiene un comprobante legado en Base64 en D1, lo migra al vuelo a storage
- * y actualiza la orden de manera transparente.
+ * Resuelve una orden por su ID numérico o su código de seguimiento (#ORD-001) (SRP).
  */
-export async function getTransferReceiptFile(
+export async function resolveOrderByIdOrCode(
   orderIdOrCode: string | number,
   deps: GlobalAppDeps
-): Promise<TransferReceiptFileResult> {
+): Promise<Order> {
   let order: Order | null = null;
   if (typeof orderIdOrCode === "number") {
     order = await deps.orderRepo.findById(orderIdOrCode);
@@ -691,8 +689,41 @@ export async function getTransferReceiptFile(
     }
   }
 
-  if (!order || !order.transferReceiptUrl) {
+  if (!order) {
     throw new OrderNotFoundError(typeof orderIdOrCode === "number" ? orderIdOrCode : 0);
+  }
+
+  return order;
+}
+
+/**
+ * Verifica que la orden se encuentre en un estado elegible para recibir un comprobante PDF (SRP).
+ */
+export function assertOrderAcceptsReceipt(order: Order): void {
+  if (order.paymentMethod !== "TRANSFER") {
+    throw new ValidationError("La orden no corresponde a un método de pago por transferencia.");
+  }
+  if (order.status === "CANCELLED") {
+    throw new ValidationError("La orden se encuentra cancelada por haber expirado el plazo de 24 horas.");
+  }
+  if (order.paymentStatus === "PAID") {
+    throw new ValidationError("El pago de esta orden ya ha sido verificado y acreditado.");
+  }
+}
+
+/**
+ * Obtiene el archivo binario o stream del comprobante para servirlo en el endpoint GET.
+ * Si la orden tiene un comprobante legado en Base64 en D1, lo migra al vuelo a storage
+ * y actualiza la orden de manera transparente.
+ */
+export async function getTransferReceiptFile(
+  orderIdOrCode: string | number,
+  deps: GlobalAppDeps
+): Promise<TransferReceiptFileResult> {
+  let order = await resolveOrderByIdOrCode(orderIdOrCode, deps);
+
+  if (!order.transferReceiptUrl) {
+    throw new OrderNotFoundError(order.id);
   }
 
   const storage = deps.receiptStorage || resolveReceiptStorage();
@@ -748,15 +779,8 @@ export async function uploadTransferReceipt(
   if (!existing) {
     throw new OrderNotFoundError(id);
   }
-  if (existing.paymentMethod !== "TRANSFER") {
-    throw new ValidationError("La orden no corresponde a un método de pago por transferencia.");
-  }
-  if (existing.status === "CANCELLED") {
-    throw new ValidationError("La orden se encuentra cancelada por haber expirado el plazo de 24 horas.");
-  }
-  if (existing.paymentStatus === "PAID") {
-    throw new ValidationError("El pago de esta orden ya ha sido verificado y acreditado.");
-  }
+
+  assertOrderAcceptsReceipt(existing);
 
   const pdfBytes = decodeReceiptInput(receiptInput);
 

@@ -212,6 +212,7 @@ export interface IOrderRepository {
   findByCode(code: number): Promise<Order | null>;
   list(options?: { status?: OrderStatus; limit?: number; offset?: number }): Promise<Order[]>;
   listByCustomer(customerId: number): Promise<Order[]>;
+  linkGuestOrdersByEmail?(email: string, customerId: number): Promise<number>;
   updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order>;
   updatePayment?(id: number, data: { paymentStatus: PaymentStatus; paymentExternalId?: string | null; updatedAt: number }): Promise<Order>;
   updateTransferReceipt?(id: number, receiptUrl: string, uploadedAt: number): Promise<Order>;

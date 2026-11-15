@@ -4,6 +4,7 @@ import { createOrder } from "../../../services/order.service";
 import { getShowroomSettings } from "../../../services/settings.service";
 import { DomainError, ProductNotFoundError, OrderNotFoundError } from "../../../domain/errors";
 import { getAuthenticatedCustomer } from "../../../infra/auth/customer-session";
+import { createReceiptSignedUrl } from "../../../infra/auth/receipt-signature";
 import { sanitizeOrderForResponse } from "../../../domain/order";
 import { logger } from "../../../lib/logger";
 
@@ -110,6 +111,9 @@ export async function POST(req: NextRequest) {
     });
 
     const sanitizedOrder = sanitizeOrderForResponse(result.order);
+    if (sanitizedOrder.transferReceiptUrl) {
+      sanitizedOrder.transferReceiptUrl = await createReceiptSignedUrl(result.order.id);
+    }
 
     return NextResponse.json({
       ok: true,

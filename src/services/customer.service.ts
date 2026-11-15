@@ -55,6 +55,20 @@ export interface LoginCustomerResult {
 }
 
 /**
+ * Vincula automáticamente las órdenes previas realizadas como invitado (customer_id = null)
+ * que coincidan con el correo electrónico del cliente recién registrado (SRP).
+ */
+async function linkPreviousGuestOrders(
+  customer: Customer,
+  orderRepo?: IOrderRepository
+): Promise<void> {
+  if (!orderRepo?.linkGuestOrdersByEmail) {
+    return;
+  }
+  await orderRepo.linkGuestOrdersByEmail(customer.email, customer.id);
+}
+
+/**
  * Registra una nueva cuenta de cliente con contraseña segura (PBKDF2-HMAC-SHA512).
  */
 export async function registerCustomer(
@@ -89,7 +103,10 @@ export async function registerCustomer(
     status: "ACTIVE",
   });
 
-  // 5. Generar token de sesión persistente (30 días)
+  // 5. Vincular órdenes previas realizadas como invitado con el mismo correo
+  await linkPreviousGuestOrders(customer, deps.orderRepo);
+
+  // 6. Generar token de sesión persistente (30 días)
   const sessionToken = await createCustomerSessionToken(
     {
       customerId: customer.id,

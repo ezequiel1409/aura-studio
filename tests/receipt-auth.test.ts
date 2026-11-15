@@ -5,7 +5,11 @@ import { setGlobalAppDepsForTesting } from "../src/infra/db/connection";
 import { createProduct } from "../src/services/product.service";
 import { createOrder, uploadTransferReceipt } from "../src/services/order.service";
 import { registerCustomer } from "../src/services/customer.service";
-import { GET as getReceiptHandler } from "../src/app/api/orders/[id]/receipt/route";
+import {
+  GET as getReceiptHandler,
+  POST as postReceiptHandler,
+} from "../src/app/api/orders/[id]/receipt/route";
+import { POST as postExpireHandler } from "../src/app/api/orders/expire/route";
 import { createSessionToken } from "../src/infra/auth/session";
 import { ADMIN_SESSION_COOKIE_NAME } from "../src/infra/auth/guard";
 import { CUSTOMER_SESSION_COOKIE_NAME } from "../src/infra/auth/customer-session";
@@ -184,5 +188,75 @@ describe("Seguridad y Control de Acceso a Comprobantes de Transferencia (Secció
     const data = await res.json();
     expect(data.ok).toBe(false);
     expect(data.error).toMatch(/inválido o ha expirado/i);
+  });
+
+  it("rechaza la carga (POST) anónima de comprobante sobre una orden existente (401)", async () => {
+    const req = new NextRequest(`http://localhost:3000/api/orders/${orderId}/receipt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        receiptBase64: `data:application/pdf;base64,${dummyPdfBytes.toString("base64")}`,
+      }),
+    });
+
+    const res = await postReceiptHandler(req, { params: Promise.resolve({ id: String(orderId) }) });
+    expect(res.status).toBe(401);
+    const data = await res.json();
+    expect(data.ok).toBe(false);
+    expect(data.error).toMatch(/iniciar sesión o crear una cuenta/i);
+  });
+
+  it("rechaza la carga (POST) de comprobante si otra clienta autenticada intenta pisar una orden ajena (403)", async () => {
+    const req = new NextRequest(`http://localhost:3000/api/orders/${orderId}/receipt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        receiptBase64: `data:application/pdf;base64,${dummyPdfBytes.toString("base64")}`,
+      }),
+    });
+    req.cookies.set(CUSTOMER_SESSION_COOKIE_NAME, otherCustomerToken);
+
+    const res = await postReceiptHandler(req, { params: Promise.resolve({ id: String(orderId) }) });
+    expect(res.status).toBe(403);
+    const data = await res.json();
+    expect(data.ok).toBe(false);
+  });
+
+  it("permite la carga (POST) a la clienta dueña autenticada y no filtra PII de la orden en la respuesta (200)", async () => {
+    const req = new NextRequest(`http://localhost:3000/api/orders/${orderId}/receipt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        receiptBase64: `data:application/pdf;base64,${dummyPdfBytes.toString("base64")}`,
+      }),
+    });
+    req.cookies.set(CUSTOMER_SESSION_COOKIE_NAME, ownerCustomerToken);
+
+    const res = await postReceiptHandler(req, { params: Promise.resolve({ id: String(orderId) }) });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(data.receiptUrl).toContain(`/api/orders/${orderId}/receipt?token=`);
+    expect(data.uploadedAt).toBeDefined();
+    expect(data.order).toBeUndefined();
+  });
+
+  it("protege el endpoint /api/orders/expire contra llamadas sin autenticación (401) y permite admin o Bearer secret (200)", async () => {
+    const unauthReq = new NextRequest("http://localhost:3000/api/orders/expire", {
+      method: "POST",
+    });
+    const unauthRes = await postExpireHandler(unauthReq);
+    expect(unauthRes.status).toBe(401);
+
+    const authReq = new NextRequest("http://localhost:3000/api/orders/expire", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getEnv().SESSION_SECRET}`,
+      },
+    });
+    const authRes = await postExpireHandler(authReq);
+    expect(authRes.status).toBe(200);
+    const authData = await authRes.json();
+    expect(authData.ok).toBe(true);
   });
 });

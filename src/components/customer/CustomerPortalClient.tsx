@@ -448,8 +448,8 @@ export function CustomerPortalClient({
             ? {
                 ...o,
                 transferReceiptUrl:
-                  data.receiptUrl || data.order?.transferReceiptUrl || `/api/orders/${orderCode}/receipt`,
-                transferReceiptUploadedAt: data.order?.transferReceiptUploadedAt || Math.floor(Date.now() / 1000),
+                  data.receiptUrl || `/api/orders/${orderCode}/receipt`,
+                transferReceiptUploadedAt: data.uploadedAt || Math.floor(Date.now() / 1000),
               }
             : o
         )

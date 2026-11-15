@@ -403,6 +403,69 @@ describe("Customer Authentication & Account Management", () => {
       expect(customerOrders[0].customerName).toBe("Julieta V");
     });
 
+    it("vincula automáticamente las órdenes previas compradas como invitada al crear cuenta con su email y contraseña", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Vestido Invitada $60.000",
+          colors: [
+            {
+              name: "Negro",
+              position: 0,
+              sizes: [{ size: "M", stock: 5 }],
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // 1. Compra como invitada (customerId: null)
+      const guestOrder = await createOrder(
+        {
+          customerId: null,
+          customerName: "Micaela Invitada",
+          customerPhone: "1144556677",
+          customerEmail: "micaela.invitada@aura.com",
+          customerDni: "38999888",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "TRANSFER",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title ?? "Vestido Invitada",
+              colorName: "Negro",
+              size: "M",
+              quantity: 1,
+              unitPriceCents: 6000000,
+            },
+          ],
+        },
+        env.deps
+      );
+      expect(guestOrder.order.customerId).toBeNull();
+
+      // 2. La invitada crea su cuenta con su email y contraseña para hacer seguimiento / subir comprobante
+      const reg = await registerCustomer(
+        {
+          name: "Micaela Invitada",
+          email: "Micaela.Invitada@aura.com",
+          phone: "1144556677",
+          dni: "38999888",
+          password: "miPasswordSegura123",
+        },
+        env.deps
+      );
+
+      expect(reg.success).toBe(true);
+      const newCustomerId = reg.customer!.id;
+
+      // 3. El pedido previo aparece vinculado automáticamente en Mis Pedidos
+      const ordersAfterRegister = await getCustomerOrders(newCustomerId, env.deps);
+      expect(ordersAfterRegister.length).toBe(1);
+      expect(ordersAfterRegister[0].id).toBe(guestOrder.order.id);
+      expect(ordersAfterRegister[0].customerId).toBe(newCustomerId);
+    });
+
     it("actualiza perfil de cliente (nombre y teléfono)", async () => {
       const reg = await registerCustomer(
         {

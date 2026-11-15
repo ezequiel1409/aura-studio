@@ -1,11 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
-import { getTransferReceiptFile, uploadTransferReceipt } from "../../../../../services/order.service";
+import {
+  getTransferReceiptFile,
+  resolveOrderByIdOrCode,
+  uploadTransferReceipt,
+} from "../../../../../services/order.service";
 import { DomainError, OrderNotFoundError, ValidationError } from "../../../../../domain/errors";
-import { parseOrderCode, sanitizeOrderForResponse } from "../../../../../domain/order";
 import { logger } from "../../../../../lib/logger";
-import { authorizeReceiptAccess } from "../../../../../infra/auth/receipt-guard";
+import {
+  authorizeReceiptAccess,
+  authorizeReceiptUpload,
+} from "../../../../../infra/auth/receipt-guard";
 import { createReceiptSignedUrl } from "../../../../../infra/auth/receipt-signature";
+
+/**
+ * Extrae y valida la presencia del archivo PDF desde multipart/form-data o JSON (SRP).
+ */
+async function extractReceiptInputFromRequest(req: NextRequest): Promise<Uint8Array | string> {
+  const contentType = req.headers.get("content-type") || "";
+  let receiptInput: Uint8Array | string = "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+    if (!file) {
+      throw new ValidationError("No se proporcionó ningún archivo.");
+    }
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      throw new ValidationError("Solo se admiten comprobantes en formato PDF.");
+    }
+    const arrayBuffer = await file.arrayBuffer();
+    receiptInput = new Uint8Array(arrayBuffer);
+  } else {
+    const body = await req.json();
+    receiptInput = body.receiptBase64 || body.transferReceiptUrl || "";
+  }
+
+  if (
+    !receiptInput ||
+    (typeof receiptInput === "string" && !receiptInput.trim()) ||
+    (receiptInput instanceof Uint8Array && receiptInput.byteLength === 0)
+  ) {
+    throw new ValidationError("Debe adjuntar el archivo PDF del comprobante.");
+  }
+
+  return receiptInput;
+}
 
 export async function GET(
   req: NextRequest,
@@ -76,64 +116,24 @@ export async function POST(
     const rawId = resolvedParams.id;
     const deps = getProductServiceDeps();
 
-    let orderId: number | null = null;
-    const numId = parseInt(rawId, 10);
-    if (!Number.isNaN(numId) && numId > 0) {
-      const existing = await deps.orderRepo.findById(numId);
-      if (existing) orderId = existing.id;
-    }
-    if (!orderId) {
-      const codeNum = parseOrderCode(rawId);
-      if (codeNum) {
-        const existing = await deps.orderRepo.findByCode(codeNum);
-        if (existing) orderId = existing.id;
-      }
-    }
+    const existingOrder = await resolveOrderByIdOrCode(rawId, deps);
 
-    if (!orderId) {
+    // BR-08, BR-10, BR-41: La carga posterior de comprobante requiere sesión de dueña de la orden o admin
+    const authResult = await authorizeReceiptUpload(req, existingOrder);
+    if (!authResult.authorized) {
+      logger.warn("RECEIPT:UNAUTHORIZED_UPLOAD", authResult.error || "Carga denegada", {
+        orderId: existingOrder.id,
+        orderCode: existingOrder.code,
+        status: authResult.status,
+      });
       return NextResponse.json(
-        { ok: false, error: "Orden no encontrada." },
-        { status: 404 }
+        { ok: false, error: authResult.error },
+        { status: authResult.status }
       );
     }
 
-    let receiptInput: Uint8Array | string = "";
-
-    const contentType = req.headers.get("content-type") || "";
-    if (contentType.includes("multipart/form-data")) {
-      const formData = await req.formData();
-      const file = formData.get("file") as File | null;
-      if (!file) {
-        return NextResponse.json(
-          { ok: false, error: "No se proporcionó ningún archivo." },
-          { status: 400 }
-        );
-      }
-      if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-        return NextResponse.json(
-          { ok: false, error: "Solo se admiten comprobantes en formato PDF." },
-          { status: 400 }
-        );
-      }
-      const arrayBuffer = await file.arrayBuffer();
-      receiptInput = new Uint8Array(arrayBuffer);
-    } else {
-      const body = await req.json();
-      receiptInput = body.receiptBase64 || body.transferReceiptUrl || "";
-    }
-
-    if (
-      !receiptInput ||
-      (typeof receiptInput === "string" && !receiptInput.trim()) ||
-      (receiptInput instanceof Uint8Array && receiptInput.byteLength === 0)
-    ) {
-      return NextResponse.json(
-        { ok: false, error: "Debe adjuntar el archivo PDF del comprobante." },
-        { status: 400 }
-      );
-    }
-
-    const updatedOrder = await uploadTransferReceipt(orderId, receiptInput, deps);
+    const receiptInput = await extractReceiptInputFromRequest(req);
+    const updatedOrder = await uploadTransferReceipt(existingOrder.id, receiptInput, deps);
     const durationMs = Math.round(performance.now() - startTime);
 
     logger.info("RECEIPT:UPLOADED", `Comprobante de orden #${updatedOrder.code} cargado exitosamente`, {
@@ -143,7 +143,6 @@ export async function POST(
       status: 200,
     });
 
-    const sanitizedOrder = sanitizeOrderForResponse(updatedOrder);
     const signedReceiptUrl = await createReceiptSignedUrl(updatedOrder.id);
 
     return NextResponse.json({
@@ -151,7 +150,6 @@ export async function POST(
       message: "Comprobante cargado exitosamente.",
       receiptUrl: signedReceiptUrl,
       uploadedAt: updatedOrder.transferReceiptUploadedAt,
-      order: sanitizedOrder,
     });
   } catch (error: unknown) {
     const durationMs = Math.round(performance.now() - startTime);

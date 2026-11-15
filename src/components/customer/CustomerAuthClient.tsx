@@ -26,8 +26,9 @@ export function CustomerAuthClient({ brandName = DEFAULT_NEUTRAL_BRAND }: Custom
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || "/cuenta";
+  const initialMode = searchParams.get("mode") === "register" ? "register" : "login";
 
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -38,14 +39,14 @@ export function CustomerAuthClient({ brandName = DEFAULT_NEUTRAL_BRAND }: Custom
   const [showForgotHelper, setShowForgotHelper] = useState(false);
 
   // Campos de login
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginEmail, setLoginEmail] = useState(() => searchParams.get("email") || "");
   const [loginPassword, setLoginPassword] = useState("");
 
   // Campos de registro
-  const [regName, setRegName] = useState("");
-  const [regEmail, setRegEmail] = useState("");
-  const [regDni, setRegDni] = useState("");
-  const [regPhone, setRegPhone] = useState("");
+  const [regName, setRegName] = useState(() => searchParams.get("name") || "");
+  const [regEmail, setRegEmail] = useState(() => searchParams.get("email") || "");
+  const [regDni, setRegDni] = useState(() => searchParams.get("dni") || "");
+  const [regPhone, setRegPhone] = useState(() => searchParams.get("phone") || "");
   const [regPassword, setRegPassword] = useState("");
 
   // Cálculo de fortaleza de contraseña
