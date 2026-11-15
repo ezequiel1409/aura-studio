@@ -853,3 +853,22 @@ export async function updateOrderStatus(
 
   return updated;
 }
+
+/**
+ * Envía de forma no-bloqueante el correo de "Pago Aceptado" cuando la pasarela
+ * reporta que la operación fue aceptada y aguarda confirmación final (SRP).
+ */
+export function notifyOrderPaymentAccepted(order: Order, deps: GlobalAppDeps): void {
+  if (!deps.emailService || !order.customerEmail) {
+    return;
+  }
+
+  getShowroomSettings(deps)
+    .then(async (settings) => {
+      const emailData = await buildOrderEmailData(order, settings);
+      deps.emailService?.sendOrderPaymentAcceptedEmail?.(order.customerEmail!, emailData).catch((err) => {
+        console.error("[Email] Error al enviar email de pago aceptado:", err);
+      });
+    })
+    .catch(() => {});
+}

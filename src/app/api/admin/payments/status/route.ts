@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
 
   const env = getEnv();
   const mpToken = env.MP_ACCESS_TOKEN;
+  const isSandbox = env.MP_SANDBOX !== "false";
   const tokenMasked = mpToken
     ? `${mpToken.slice(0, 8)}••••••••${mpToken.slice(-4)}`
     : null;
@@ -18,11 +19,12 @@ export async function GET(req: NextRequest) {
     ok: true,
     mercadopago: {
       configured: Boolean(mpToken),
+      sandbox: isSandbox,
       tokenMasked,
       publicKeyConfigured: Boolean(env.MP_PUBLIC_KEY),
       publicKey: env.MP_PUBLIC_KEY || null,
       webhookSecretConfigured: Boolean(env.MP_WEBHOOK_SECRET),
-      environment: env.NODE_ENV,
+      environment: isSandbox ? "sandbox" : env.NODE_ENV,
     },
   });
 }
@@ -35,19 +37,24 @@ export async function POST(req: NextRequest) {
 
   const env = getEnv();
   const mpToken = env.MP_ACCESS_TOKEN;
+  const isDevelopmentPlaceholder =
+    !mpToken ||
+    mpToken.startsWith("TEST-00000000") ||
+    mpToken.startsWith("test_mock_");
 
-  if (!mpToken) {
-    if (env.NODE_ENV !== "production") {
+  if (isDevelopmentPlaceholder) {
+    if (env.NODE_ENV !== "production" || env.MP_SANDBOX !== "false") {
       return NextResponse.json({
         ok: true,
         status: "SIMULATED",
-        message: "Modo desarrollo / simulación activo en servidor (sin MP_ACCESS_TOKEN configurado).",
+        sandbox: env.MP_SANDBOX !== "false",
+        message: "Modo desarrollo / sandbox activo en servidor.",
       });
     }
     return NextResponse.json(
       {
         ok: false,
-        error: "Variable de entorno MP_ACCESS_TOKEN no configurada en el servidor.",
+        error: "Variable de entorno MP_ACCESS_TOKEN productiva no configurada en el servidor.",
       },
       { status: 400 }
     );

@@ -152,13 +152,13 @@ export const PAYMENT_STATUS_CONFIG: Record<
     border: "border-amber-800/80",
   },
   AUTHORIZED: {
-    label: "En Procesamiento",
+    label: "Pago Aceptado",
     bg: "bg-sky-950/60",
     text: "text-sky-300",
     border: "border-sky-800/80",
   },
   PAID: {
-    label: "Cobro Acreditado",
+    label: "Pago Confirmado",
     bg: "bg-emerald-950/60",
     text: "text-emerald-300",
     border: "border-emerald-800/80",

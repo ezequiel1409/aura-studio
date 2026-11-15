@@ -343,4 +343,156 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     expect(data.ok).toBe(true);
     expect(data.status).toBeDefined();
   });
+
+  it("MercadoPagoPaymentAdapter opera en modo Sandbox y prioriza sandbox_init_point cuando hay key configurada", async () => {
+    const { MercadoPagoPaymentAdapter } = await import(
+      "../src/infra/payments/mercadopago/mercadopago.adapter"
+    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "pref_sandbox_999",
+          init_point: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=prod",
+          sandbox_init_point: "https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=sandbox",
+        }),
+        { status: 200 }
+      )
+    );
+
+    try {
+      const adapter = new MercadoPagoPaymentAdapter({
+        accessToken: "APP_USR-dev-key-123456",
+        publicKey: "APP_USR-dev-pub-123456",
+      });
+
+      expect(adapter.isSandboxMode()).toBe(true);
+      const pref = await adapter.createPaymentPreference({
+        ...mockOrder,
+        paymentMethod: "MERCADOPAGO",
+      });
+
+      expect(pref.preferenceId).toBe("pref_sandbox_999");
+      expect(pref.redirectUrl).toBe(
+        "https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=sandbox"
+      );
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("MercadoPagoWebhookVerifier valida firmas HMAC-SHA256 auténticas y rechaza firmas adulteradas", async () => {
+    const { MercadoPagoPaymentAdapter, MercadoPagoWebhookVerifier } = await import(
+      "../src/infra/payments/mercadopago/mercadopago.adapter"
+    );
+    const verifier = new MercadoPagoWebhookVerifier();
+    const secret = "mp_webhook_secret_dev";
+    const paymentId = "pay_777";
+    const requestId = "req-abc-123";
+    const ts = "1700000100";
+
+    const manifest = verifier.buildManifest(paymentId, requestId, ts);
+    const validHex = await verifier.computeHmacSha256Hex(manifest, secret);
+
+    const isValid = await verifier.verify(
+      paymentId,
+      {
+        "x-signature": `ts=${ts},v1=${validHex}`,
+        "x-request-id": requestId,
+      },
+      secret
+    );
+    expect(isValid).toBe(true);
+
+    const adapter = new MercadoPagoPaymentAdapter({
+      accessToken: "TEST-00000000-0000-0000-0000-000000000000",
+      webhookSecret: secret,
+    });
+
+    await expect(
+      adapter.processWebhook(
+        { data: { id: paymentId } },
+        {
+          "x-signature": `ts=${ts},v1=deadbeef0000`,
+          "x-request-id": requestId,
+        }
+      )
+    ).rejects.toThrow(/Firma HMAC/i);
+  });
+
+  it("separa Pago Aceptado (callback MP -> AUTHORIZED + correo aparte) de Pago Confirmado (PAID + correo confirmado)", async () => {
+    const sendAcceptedSpy = vi.fn().mockResolvedValue(undefined);
+    const sendPaidSpy = vi.fn().mockResolvedValue(undefined);
+
+    const deps = createMockDeps({
+      ...mockOrder,
+      paymentMethod: "MERCADOPAGO",
+      paymentStatus: "PENDING",
+      status: "PENDING",
+    });
+    deps.emailService = {
+      sendEmail: vi.fn().mockResolvedValue(undefined),
+      sendOrderCreatedEmail: vi.fn().mockResolvedValue(undefined),
+      sendOrderPaymentAcceptedEmail: sendAcceptedSpy,
+      sendOrderPaidEmail: sendPaidSpy,
+      sendOrderShippedEmail: vi.fn().mockResolvedValue(undefined),
+      sendOrderCancelledEmail: vi.fn().mockResolvedValue(undefined),
+      sendAdminNewOrderAlertEmail: vi.fn().mockResolvedValue(undefined),
+      sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "approved",
+          transaction_amount: mockOrder.totalCents / 100,
+          external_reference: `#ORD-0${mockOrder.code}`,
+        }),
+        { status: 200 }
+      )
+    );
+
+    const prevToken = process.env.MP_ACCESS_TOKEN;
+    process.env.MP_ACCESS_TOKEN = "APP_USR-live-sandbox-key";
+
+    try {
+      // 1. Callback de Mercado Pago: debe dejar el pago en AUTHORIZED ("Pago Aceptado") y enviar sendOrderPaymentAcceptedEmail
+      const webhookResult = await processPaymentWebhook(
+        "mercadopago",
+        { data: { id: "mp_pay_900" } },
+        {},
+        deps
+      );
+
+      expect(webhookResult?.status).toBe("AUTHORIZED");
+      expect(deps.orderRepo.updatePayment).toHaveBeenCalledWith(mockOrder.id, {
+        paymentStatus: "AUTHORIZED",
+        paymentExternalId: "mp_pay_900",
+        updatedAt: expect.any(Number),
+      });
+      expect(deps.orderRepo.updateStatus).not.toHaveBeenCalledWith(
+        mockOrder.id,
+        "PAID",
+        expect.any(Number)
+      );
+
+      await new Promise((r) => setTimeout(r, 20));
+      expect(sendAcceptedSpy).toHaveBeenCalledTimes(1);
+      expect(sendPaidSpy).not.toHaveBeenCalled();
+
+      // 2. Confirmación definitiva del pago: pasa a PAID ("Pago Confirmado") y envía sendOrderPaidEmail
+      const confirmedOrder = await markOrderPaymentManually(mockOrder.id, "PAID", deps);
+      expect(confirmedOrder.status).toBe("PAID");
+      expect(confirmedOrder.paymentStatus).toBe("PAID");
+
+      await new Promise((r) => setTimeout(r, 20));
+      expect(sendPaidSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      if (prevToken === undefined) {
+        delete process.env.MP_ACCESS_TOKEN;
+      } else {
+        process.env.MP_ACCESS_TOKEN = prevToken;
+      }
+      fetchSpy.mockRestore();
+    }
+  });
 });

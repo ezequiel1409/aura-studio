@@ -46,6 +46,7 @@ import {
   statusHistory,
 } from "../schema";
 import { memoryCache } from "../../cache/memory-cache";
+import { ValidationError } from "../../../domain/errors";
 
 function serializeFilterForCache(filter: ListProductsFilter, categoryIdsToInclude?: number[]): string {
   return JSON.stringify({
@@ -1107,35 +1108,81 @@ export class DrizzleProductRepository implements IProductRepository {
   }
 
   /**
-   * BR-02, BR-40: Descuenta el stock físico de una variante de color y talle al confirmarse una orden.
-   * Si el stock total de la prenda llega a 0, transiciona automáticamente a SOLD_OUT.
+   * Localiza el registro de talle de una variante específica de color y talle (SRP).
    */
-  async decrementStock(
+  private async findVariantSizeRecord(
     productId: number,
     colorName: string,
-    size: string,
-    quantity: number,
-    now: number = Date.now()
-  ): Promise<{ remainingStock: number; totalProductStock: number; newProductStatus: ProductStatus }> {
+    size: string
+  ): Promise<ProductColorSize | null> {
     const colors = await this.getColorsForProduct(productId);
     const matchingColor = colors.find(
       (c) => c.name.trim().toLowerCase() === colorName.trim().toLowerCase()
     );
+    if (!matchingColor) return null;
 
-    let remainingStock = 0;
-    if (matchingColor) {
-      const matchingSize = matchingColor.sizes.find(
-        (s) => s.size.trim().toUpperCase() === size.trim().toUpperCase()
+    const matchingSize = matchingColor.sizes.find(
+      (s) => s.size.trim().toUpperCase() === size.trim().toUpperCase()
+    );
+    return matchingSize || null;
+  }
+
+  /**
+   * Ejecuta un descuento atómico de stock en SQL (`WHERE stock >= quantity`) para prevenir sobreventa (TOCTOU) (SRP).
+   */
+  private async decrementVariantStockAtomically(
+    sizeRecord: ProductColorSize,
+    colorName: string,
+    quantity: number
+  ): Promise<number> {
+    const [updated] = await this.db
+      .update(productColorSizes)
+      .set({
+        stock: sql`${productColorSizes.stock} - ${quantity}`,
+      })
+      .where(
+        and(
+          eq(productColorSizes.id, sizeRecord.id),
+          sql`${productColorSizes.stock} >= ${quantity}`
+        )
+      )
+      .returning({ stock: productColorSizes.stock });
+
+    if (!updated) {
+      throw new ValidationError(
+        `Stock insuficiente para la variante ${colorName} (${sizeRecord.size}). Intentá con una cantidad menor.`
       );
-      if (matchingSize) {
-        remainingStock = Math.max(0, matchingSize.stock - quantity);
-        await this.db
-          .update(productColorSizes)
-          .set({ stock: remainingStock })
-          .where(eq(productColorSizes.id, matchingSize.id));
-      }
     }
 
+    return updated.stock;
+  }
+
+  /**
+   * Ejecuta un incremento atómico de stock en SQL al restaurar unidades (SRP).
+   */
+  private async incrementVariantStockAtomically(
+    sizeRecord: ProductColorSize,
+    quantity: number
+  ): Promise<number> {
+    const [updated] = await this.db
+      .update(productColorSizes)
+      .set({
+        stock: sql`${productColorSizes.stock} + ${quantity}`,
+      })
+      .where(eq(productColorSizes.id, sizeRecord.id))
+      .returning({ stock: productColorSizes.stock });
+
+    return updated ? updated.stock : sizeRecord.stock + quantity;
+  }
+
+  /**
+   * Sincroniza el estado de disponibilidad del producto (`AVAILABLE` <-> `SOLD_OUT`)
+   * tras una modificación de stock y limpia la caché en memoria (SRP).
+   */
+  private async syncProductAvailabilityAfterStockChange(
+    productId: number,
+    now: number
+  ): Promise<{ totalProductStock: number; newProductStatus: ProductStatus }> {
     const updatedColors = await this.getColorsForProduct(productId);
     const totalProductStock = calculateTotalStock(updatedColors);
 
@@ -1164,50 +1211,7 @@ export class DrizzleProductRepository implements IProductRepository {
           source: "system",
         });
       }
-    }
-
-    memoryCache.deleteMatching("store_product_");
-    return { remainingStock, totalProductStock, newProductStatus };
-  }
-
-  /**
-   * BR-02: Restaura el stock físico de una variante de color y talle (ej. por cancelación de orden).
-   * Si la prenda estaba en SOLD_OUT y ahora tiene stock > 0, se reactiva a AVAILABLE.
-   */
-  async restoreStock(
-    productId: number,
-    colorName: string,
-    size: string,
-    quantity: number,
-    now: number = Date.now()
-  ): Promise<{ newStock: number; totalProductStock: number; newProductStatus: ProductStatus }> {
-    const colors = await this.getColorsForProduct(productId);
-    const matchingColor = colors.find(
-      (c) => c.name.trim().toLowerCase() === colorName.trim().toLowerCase()
-    );
-
-    let newStock = 0;
-    if (matchingColor) {
-      const matchingSize = matchingColor.sizes.find(
-        (s) => s.size.trim().toUpperCase() === size.trim().toUpperCase()
-      );
-      if (matchingSize) {
-        newStock = matchingSize.stock + quantity;
-        await this.db
-          .update(productColorSizes)
-          .set({ stock: newStock })
-          .where(eq(productColorSizes.id, matchingSize.id));
-      }
-    }
-
-    const updatedColors = await this.getColorsForProduct(productId);
-    const totalProductStock = calculateTotalStock(updatedColors);
-
-    const [prodRow] = await this.db.select().from(products).where(eq(products.id, productId));
-    const currentStatus = (prodRow?.status || "AVAILABLE") as ProductStatus;
-    let newProductStatus = currentStatus;
-
-    if (currentStatus === "SOLD_OUT" && totalProductStock > 0) {
+    } else if (currentStatus === "SOLD_OUT" && totalProductStock > 0) {
       newProductStatus = "AVAILABLE";
       await this.db
         .update(products)
@@ -1231,6 +1235,54 @@ export class DrizzleProductRepository implements IProductRepository {
     }
 
     memoryCache.deleteMatching("store_product_");
+    return { totalProductStock, newProductStatus };
+  }
+
+  /**
+   * BR-02, BR-40: Descuenta el stock físico de una variante de color y talle de forma atómica al confirmarse una orden.
+   * Si el stock total de la prenda llega a 0, transiciona automáticamente a SOLD_OUT.
+   */
+  async decrementStock(
+    productId: number,
+    colorName: string,
+    size: string,
+    quantity: number,
+    now: number = Date.now()
+  ): Promise<{ remainingStock: number; totalProductStock: number; newProductStatus: ProductStatus }> {
+    const sizeRecord = await this.findVariantSizeRecord(productId, colorName, size);
+    let remainingStock = 0;
+
+    if (sizeRecord) {
+      remainingStock = await this.decrementVariantStockAtomically(sizeRecord, colorName, quantity);
+    }
+
+    const { totalProductStock, newProductStatus } =
+      await this.syncProductAvailabilityAfterStockChange(productId, now);
+
+    return { remainingStock, totalProductStock, newProductStatus };
+  }
+
+  /**
+   * BR-02: Restaura el stock físico de una variante de color y talle de forma atómica (ej. por cancelación de orden).
+   * Si la prenda estaba en SOLD_OUT y ahora tiene stock > 0, se reactiva a AVAILABLE.
+   */
+  async restoreStock(
+    productId: number,
+    colorName: string,
+    size: string,
+    quantity: number,
+    now: number = Date.now()
+  ): Promise<{ newStock: number; totalProductStock: number; newProductStatus: ProductStatus }> {
+    const sizeRecord = await this.findVariantSizeRecord(productId, colorName, size);
+    let newStock = 0;
+
+    if (sizeRecord) {
+      newStock = await this.incrementVariantStockAtomically(sizeRecord, quantity);
+    }
+
+    const { totalProductStock, newProductStatus } =
+      await this.syncProductAvailabilityAfterStockChange(productId, now);
+
     return { newStock, totalProductStock, newProductStatus };
   }
 

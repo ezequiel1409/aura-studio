@@ -275,6 +275,90 @@ Ver tu pedido en línea: ${btnUrl || ""}
   return { subject, html, text };
 }
 
+export function generateOrderPaymentAcceptedTemplate(data: OrderEmailData): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const brand = data.brandName || getDefaultBrandName();
+  const layout = data.emailCustomization?.layout;
+  const brandColor = layout?.brandColor || "#1C1917";
+  const event = getEventConfig(data.emailCustomization, "order_payment_accepted");
+  const vars = getVariables(data, brand);
+
+  const subject = event?.subject
+    ? interpolateVariables(event.subject, vars)
+    : `¡Pago aceptado! Tu pedido #${data.formattedCode} está en verificación - ${brand}`;
+
+  const headline = event?.headline
+    ? interpolateVariables(event.headline, vars)
+    : "¡Tu pago fue aceptado!";
+
+  const bodyText = event?.bodyText
+    ? interpolateVariables(event.bodyText, vars)
+    : `Hola <strong>${data.customerName}</strong>, la pasarela de pagos procesó y aceptó el pago de tu pedido <span class="order-badge">#${data.formattedCode}</span>.`;
+
+  const btnText = event?.buttonText
+    ? interpolateVariables(event.buttonText, vars)
+    : "Ver estado de mi pedido";
+
+  const btnUrl = event?.buttonUrl
+    ? interpolateVariables(event.buttonUrl, vars)
+    : data.receiptUrl;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>${subject}</title>
+  <style>${getBaseStyles(brandColor)}</style>
+</head>
+<body>
+  <div class="card">
+    ${renderHeader(brand, layout)}
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #E0F2FE; color: #0369A1; border-radius: 50%; width: 44px; height: 44px; line-height: 44px; font-size: 22px;">✓</span>
+    </div>
+    <h1 style="text-align: center;">${headline}</h1>
+    <p style="text-align: center;">${bodyText}</p>
+
+    <div class="info-box" style="border-left: 4px solid #0284C7; background-color: #F0F9FF; color: #0C4A6E;">
+      Tus prendas continúan reservadas. En cuanto nuestro equipo valide la acreditación definitiva, recibirás el correo de <strong>Pago Confirmado</strong>.
+    </div>
+
+    <table class="items-table">
+      <tbody>
+        ${renderItemsHtml(data.items, data.currency)}
+      </tbody>
+    </table>
+
+    ${
+      btnUrl
+        ? `
+    <div class="btn-container">
+      <a href="${btnUrl}" class="btn" target="_blank">${btnText}</a>
+    </div>`
+        : ""
+    }
+
+    ${renderFooter(brand, data, layout)}
+  </div>
+</body>
+</html>`;
+
+  const text = `
+${brand} - ¡Pago Aceptado! Pedido #${data.formattedCode}
+
+Hola ${data.customerName},
+${bodyText.replace(/<[^>]+>/g, "")}
+
+Ver estado: ${btnUrl || ""}
+`;
+
+  return { subject, html, text };
+}
+
 export function generateOrderPaidTemplate(data: OrderEmailData): { subject: string; html: string; text: string } {
   const brand = data.brandName || getDefaultBrandName();
   const layout = data.emailCustomization?.layout;

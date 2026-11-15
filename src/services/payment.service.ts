@@ -30,6 +30,7 @@ import { BankTransferPaymentAdapter } from "../infra/payments/bank-transfer/bank
 import { CashOnDeliveryPaymentAdapter } from "../infra/payments/cash/cash-on-delivery.adapter";
 import { MercadoPagoPaymentAdapter } from "../infra/payments/mercadopago/mercadopago.adapter";
 import { getEnv } from "../lib/env";
+import { notifyOrderPaymentAccepted, updateOrderStatus } from "./order.service";
 import { getShowroomSettings } from "./settings.service";
 
 /**
@@ -155,8 +156,9 @@ export async function createOrderPaymentPreference(
 
   if (method === "MERCADOPAGO") {
     const adapter = new MercadoPagoPaymentAdapter({
-      accessToken: env.MP_ACCESS_TOKEN,
-      publicKey: env.MP_PUBLIC_KEY,
+      accessToken: process.env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN,
+      publicKey: process.env.MP_PUBLIC_KEY || env.MP_PUBLIC_KEY,
+      sandbox: (process.env.MP_SANDBOX ?? env.MP_SANDBOX) !== "false",
       baseUrl: options?.baseUrl,
     });
 
@@ -241,6 +243,53 @@ export async function createOrderPaymentPreference(
 }
 
 /**
+ * Verifica que el monto informado por la pasarela coincida exactamente con el total de la orden (SRP).
+ */
+function assertPaymentAmountMatchesOrder(order: Order, reportedAmountCents: number): void {
+  if (reportedAmountCents > 0 && reportedAmountCents !== order.totalCents) {
+    throw new ValidationError(
+      `El importe informado por la pasarela (${reportedAmountCents}) no coincide con el total de la orden (${order.totalCents}).`
+    );
+  }
+}
+
+/**
+ * Registra el "Pago Aceptado" (AUTHORIZED) proveniente del callback/webhook de la pasarela
+ * y dispara el correo específico de Pago Aceptado sin marcar aún el pedido como PAID (SRP).
+ */
+async function reconcileAcceptedGatewayPayment(
+  result: PaymentVerificationResult,
+  deps: GlobalAppDeps
+): Promise<void> {
+  if (!result.orderCode) return;
+
+  const order = await deps.orderRepo.findByCode(result.orderCode);
+  if (!order) return;
+
+  assertPaymentAmountMatchesOrder(order, result.amountCents);
+
+  if (order.paymentStatus === "PAID") {
+    return;
+  }
+
+  const wasAlreadyAccepted = order.paymentStatus === "AUTHORIZED";
+  const now = Math.floor(Date.now() / 1000);
+
+  let updatedOrder = order;
+  if (deps.orderRepo.updatePayment) {
+    updatedOrder = await deps.orderRepo.updatePayment(order.id, {
+      paymentStatus: "AUTHORIZED",
+      paymentExternalId: result.externalId,
+      updatedAt: now,
+    });
+  }
+
+  if (!wasAlreadyAccepted) {
+    notifyOrderPaymentAccepted(updatedOrder, deps);
+  }
+}
+
+/**
  * Procesa la notificación (webhook) de una pasarela de pago y concilia la orden (AR-16).
  */
 export async function processPaymentWebhook(
@@ -252,25 +301,15 @@ export async function processPaymentWebhook(
   if (provider.toLowerCase() === "mercadopago") {
     const env = getEnv();
     const adapter = new MercadoPagoPaymentAdapter({
-      accessToken: env.MP_ACCESS_TOKEN,
-      publicKey: env.MP_PUBLIC_KEY,
+      accessToken: process.env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN,
+      publicKey: process.env.MP_PUBLIC_KEY || env.MP_PUBLIC_KEY,
+      webhookSecret: process.env.MP_WEBHOOK_SECRET || env.MP_WEBHOOK_SECRET,
+      sandbox: (process.env.MP_SANDBOX ?? env.MP_SANDBOX) !== "false",
     });
 
     const result = await adapter.processWebhook(payload, headers);
-    if (result && result.status === "PAID" && result.orderCode) {
-      const order = await deps.orderRepo.findByCode(result.orderCode);
-      if (order) {
-        const now = Math.floor(Date.now() / 1000);
-        // Actualizar estado de pago y estado de la orden a PAID
-        if (deps.orderRepo.updatePayment) {
-          await deps.orderRepo.updatePayment(order.id, {
-            paymentStatus: "PAID",
-            paymentExternalId: result.externalId,
-            updatedAt: now,
-          });
-        }
-        await deps.orderRepo.updateStatus(order.id, "PAID", now);
-      }
+    if (result && (result.status === "AUTHORIZED" || result.status === "PAID")) {
+      await reconcileAcceptedGatewayPayment(result, deps);
     }
     return result;
   }
@@ -279,7 +318,9 @@ export async function processPaymentWebhook(
 }
 
 /**
- * Marca manualmente el estado de pago de una orden desde el Backoffice (ej. al verificar transferencia).
+ * Marca manualmente el estado de pago de una orden desde el Backoffice (ej. al confirmar pago).
+ * - Si pasa a AUTHORIZED ("Pago Aceptado"): actualiza paymentStatus y envía el correo de Pago Aceptado.
+ * - Si pasa a PAID ("Pago Confirmado"): actualiza la orden y su cobro a PAID y envía el correo de Pago Confirmado.
  */
 export async function markOrderPaymentManually(
   orderId: number,
@@ -291,7 +332,16 @@ export async function markOrderPaymentManually(
     throw new OrderNotFoundError(orderId);
   }
 
+  if (paymentStatus === "PAID") {
+    if (order.status !== "PAID" || order.paymentStatus !== "PAID") {
+      return updateOrderStatus(order.id, "PAID", deps);
+    }
+    return order;
+  }
+
   const now = Math.floor(Date.now() / 1000);
+  const wasAlreadyAccepted = order.paymentStatus === "AUTHORIZED";
+
   if (deps.orderRepo.updatePayment) {
     await deps.orderRepo.updatePayment(order.id, {
       paymentStatus,
@@ -299,10 +349,11 @@ export async function markOrderPaymentManually(
     });
   }
 
-  if (paymentStatus === "PAID" && order.status !== "PAID") {
-    return deps.orderRepo.updateStatus(order.id, "PAID", now);
+  const refreshed = (await deps.orderRepo.findById(orderId))!;
+
+  if (paymentStatus === "AUTHORIZED" && !wasAlreadyAccepted) {
+    notifyOrderPaymentAccepted(refreshed, deps);
   }
 
-  const refreshed = await deps.orderRepo.findById(orderId);
-  return refreshed!;
+  return refreshed;
 }

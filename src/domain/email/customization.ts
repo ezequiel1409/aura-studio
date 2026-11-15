@@ -1,5 +1,6 @@
 export type EmailEventTrigger =
   | "order_created"
+  | "order_payment_accepted"
   | "order_paid"
   | "order_shipped"
   | "order_delivered"
@@ -71,18 +72,39 @@ export const DEFAULT_EMAIL_CUSTOMIZATION: EmailCustomizationConfig = {
       ],
     },
     {
+      id: "order_payment_accepted",
+      trigger: "order_payment_accepted",
+      name: "Pago Aceptado (Callback Pasarela)",
+      description: "Se envía cuando Mercado Pago o la pasarela acepta el cobro y queda pendiente de confirmación final.",
+      enabled: true,
+      subject: "¡Pago aceptado para tu pedido {{codigo_pedido}}! - {{nombre_tienda}}",
+      headline: "¡Tu pago fue aceptado!",
+      bodyText:
+        "La pasarela de pagos procesó y aceptó la operación de tu pedido {{codigo_pedido}}. Nuestro equipo verificará la acreditación en breve para dejar tu pago confirmado.",
+      buttonText: "Ver Estado de mi Pedido",
+      buttonUrl: "{{link_pedido}}",
+      triggerCondition: "Cuando se recibe el callback de Mercado Pago con el pago aceptado.",
+      availableVariables: [
+        "{{nombre}}",
+        "{{codigo_pedido}}",
+        "{{nombre_tienda}}",
+        "{{total}}",
+        "{{link_pedido}}",
+      ],
+    },
+    {
       id: "order_paid",
       trigger: "order_paid",
-      name: "Compra Confirmada (Pago Acreditado)",
-      description: "Notificación de pago acreditado por pasarela o transferencia aprobada.",
+      name: "Pago Confirmado (Acreditado)",
+      description: "Notificación cuando el pago queda definitivamente confirmado y acreditado.",
       enabled: true,
-      subject: "¡Pago acreditado para tu pedido {{codigo_pedido}}! - {{nombre_tienda}}",
-      headline: "¡Tu pago fue acreditado con éxito!",
+      subject: "¡Pago confirmado para tu pedido {{codigo_pedido}}! - {{nombre_tienda}}",
+      headline: "¡Tu pago fue confirmado con éxito!",
       bodyText:
         "Tu pago ya está confirmado y asentado. Iniciamos el proceso de preparación y empaque cuidadoso de tus prendas.",
       buttonText: "Ver Detalle de Compra",
       buttonUrl: "{{link_pedido}}",
-      triggerCondition: "Al confirmarse el pago por Mercado Pago o validarse la transferencia bancaria.",
+      triggerCondition: "Al confirmarse definitivamente el pago o validarse la transferencia bancaria.",
       availableVariables: [
         "{{nombre}}",
         "{{codigo_pedido}}",

@@ -69,6 +69,7 @@ export interface IEmailService {
     brandName?: string
   ): Promise<SendEmailResult>;
   sendOrderCreatedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
+  sendOrderPaymentAcceptedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendOrderPaidEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendOrderShippedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendOrderDeliveredEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;

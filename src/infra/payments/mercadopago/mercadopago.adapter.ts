@@ -1,3 +1,4 @@
+import { ValidationError } from "../../../domain/errors";
 import { Order } from "../../../domain/order/types";
 import { PaymentGatewayPort } from "../../../domain/payment/ports/payment-gateway.port";
 import {
@@ -6,23 +7,150 @@ import {
   PaymentVerificationResult,
 } from "../../../domain/payment/types";
 import { formatStatementDescriptor } from "../../../lib/brand";
+import { getEnv } from "../../../lib/env";
+import { timingSafeEqualStrings } from "../../auth/session";
 
 export interface MercadoPagoAdapterConfig {
   accessToken?: string | null;
   publicKey?: string | null;
   webhookSecret?: string | null;
+  sandbox?: boolean;
   baseUrl?: string | null;
   brandName?: string | null;
 }
 
 /**
- * Adaptador de Mercado Pago Checkout Pro basado en fetch nativo
- * Compatible con Cloudflare Workers Edge Runtime.
+ * Verificador criptográfico de firmas HMAC-SHA256 para Webhooks de Mercado Pago (POO / SRP).
+ */
+export class MercadoPagoWebhookVerifier {
+  /**
+   * Extrae los componentes `ts` y `v1` de la cabecera `x-signature`.
+   */
+  parseSignatureHeader(signatureHeader?: string): { ts: string; v1: string } | null {
+    if (!signatureHeader) return null;
+    let ts = "";
+    let v1 = "";
+    for (const part of signatureHeader.split(",")) {
+      const [rawKey, rawVal] = part.split("=");
+      const key = rawKey?.trim();
+      const val = rawVal?.trim();
+      if (key === "ts" && val) ts = val;
+      if (key === "v1" && val) v1 = val;
+    }
+    if (!ts || !v1) return null;
+    return { ts, v1 };
+  }
+
+  /**
+   * Construye el manifiesto canónico oficial de Mercado Pago (`id:...;request-id:...;ts:...;`).
+   */
+  buildManifest(dataId: string, requestId: string | undefined, ts: string): string {
+    const cleanId = dataId.trim();
+    const cleanReqId = requestId?.trim();
+    if (cleanReqId) {
+      return `id:${cleanId};request-id:${cleanReqId};ts:${ts};`;
+    }
+    return `id:${cleanId};ts:${ts};`;
+  }
+
+  /**
+   * Calcula el digest HMAC-SHA256 en formato hexadecimal usando Web Crypto API.
+   */
+  async computeHmacSha256Hex(message: string, secret: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const sigBuffer = await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(message));
+    return Array.from(new Uint8Array(sigBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  /**
+   * Verifica la firma `x-signature` de un webhook entrante en tiempo constante.
+   */
+  async verify(
+    dataId: string,
+    headers: Record<string, string> | undefined,
+    secret: string
+  ): Promise<boolean> {
+    const sigHeader = headers?.["x-signature"] || headers?.["X-Signature"];
+    const requestId = headers?.["x-request-id"] || headers?.["X-Request-Id"];
+    const parsed = this.parseSignatureHeader(sigHeader);
+    if (!parsed) return false;
+
+    const manifest = this.buildManifest(dataId, requestId, parsed.ts);
+    const expectedHex = await this.computeHmacSha256Hex(manifest, secret);
+    return timingSafeEqualStrings(parsed.v1.toLowerCase(), expectedHex.toLowerCase());
+  }
+}
+
+/**
+ * Adaptador de Mercado Pago Checkout Pro basado en fetch nativo (POO / SRP).
+ * Opera en modo Sandbox por defecto cuando tiene credenciales configuradas por variable de entorno.
  */
 export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
   readonly method = "MERCADOPAGO" as const;
+  private readonly webhookVerifier = new MercadoPagoWebhookVerifier();
 
   constructor(private readonly config: MercadoPagoAdapterConfig = {}) {}
+
+  /**
+   * Determina si el adaptador debe operar en modo Sandbox (no productivo).
+   * Por defecto, toda clave configurada por variable de entorno opera en Sandbox
+   * a menos que se indique explícitamente `MP_SANDBOX="false"`.
+   */
+  isSandboxMode(): boolean {
+    if (typeof this.config.sandbox === "boolean") {
+      return this.config.sandbox;
+    }
+    const rawSandbox = process.env.MP_SANDBOX ?? getEnv().MP_SANDBOX;
+    return rawSandbox !== "false";
+  }
+
+  /**
+   * Identifica si el token corresponde a las credenciales de desarrollo por defecto o entorno de test sin red.
+   */
+  private isSimulatedToken(accessToken?: string | null): boolean {
+    return (
+      !accessToken ||
+      accessToken.startsWith("test_mock_") ||
+      accessToken.startsWith("TEST-00000000")
+    );
+  }
+
+  /**
+   * Selecciona la URL de redirección priorizando `sandbox_init_point` cuando está en modo Sandbox.
+   */
+  resolveCheckoutRedirectUrl(data: { init_point: string; sandbox_init_point?: string }): string {
+    if (this.isSandboxMode()) {
+      return data.sandbox_init_point || data.init_point;
+    }
+    return data.init_point || data.sandbox_init_point || "";
+  }
+
+  /**
+   * Traduce el estado de Mercado Pago al estado de dominio.
+   * El callback/webhook de pago aprobado marca el pago como AUTHORIZED ("Pago Aceptado"),
+   * quedando separado de la confirmación definitiva ("PAID" / "Pago Confirmado").
+   */
+  mapGatewayPaymentStatus(mpStatus: string): PaymentStatus {
+    if (mpStatus === "approved" || mpStatus === "authorized") {
+      return "AUTHORIZED";
+    }
+    if (mpStatus === "rejected" || mpStatus === "cancelled") {
+      return "REJECTED";
+    }
+    if (mpStatus === "refunded" || mpStatus === "charged_back") {
+      return "REFUNDED";
+    }
+    return "PENDING";
+  }
 
   async createPaymentPreference(
     order: Order,
@@ -32,31 +160,28 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
     const baseUrl = this.config.baseUrl || "http://localhost:3000";
     const formattedCode = `#ORD-${order.code.toString().padStart(3, "0")}`;
 
-    // Si no hay token configurado o estamos en entorno de testing, emitir preferencia simulada
-    if (!accessToken || accessToken.startsWith("test_mock_") || process.env.NODE_ENV === "test") {
+    if (this.isSimulatedToken(accessToken)) {
       const mockPrefId = `mock_pref_${order.code}_${Date.now()}`;
-      const mockUrl = `${baseUrl}/carrito?step=payment_success&order_code=${order.code}&payment_id=${mockPrefId}`;
+      const mockUrl = `${baseUrl}/carrito?step=payment_success&order_code=${order.code}&payment_id=${mockPrefId}&sandbox=${this.isSandboxMode() ? "1" : "0"}`;
       return {
         method: "MERCADOPAGO",
         status: "PENDING",
         preferenceId: mockPrefId,
         paymentUrl: mockUrl,
         redirectUrl: mockUrl,
-        instructions: `Redirigiendo a Mercado Pago para abonar ${formattedCode}...`,
+        instructions: `Redirigiendo a Mercado Pago Sandbox para abonar ${formattedCode}...`,
       };
     }
 
-    // Armar ítems para la preferencia
     const items = (order.items || []).map((item) => ({
       id: String(item.productCode),
       title: `${item.productTitle} (${item.colorName} - ${item.size})`,
       quantity: item.quantity,
-      unit_price: item.unitPriceCents / 100, // MP espera valor en pesos reales, no centavos
+      unit_price: item.unitPriceCents / 100,
       currency_id: "ARS",
       picture_url: item.photoUrl || undefined,
     }));
 
-    // Si hay costo de envío, sumarlo como ítem logístico
     if (order.shippingCents > 0) {
       items.push({
         id: "shipping",
@@ -117,7 +242,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
         sandbox_init_point?: string;
       };
 
-      const redirectUrl = data.init_point || data.sandbox_init_point;
+      const redirectUrl = this.resolveCheckoutRedirectUrl(data);
 
       return {
         method: "MERCADOPAGO",
@@ -125,7 +250,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
         preferenceId: data.id,
         paymentUrl: redirectUrl,
         redirectUrl,
-        instructions: `Aboná tu orden ${formattedCode} de forma segura con Mercado Pago.`,
+        instructions: `Aboná tu orden ${formattedCode} de forma segura con Mercado Pago${this.isSandboxMode() ? " (Sandbox)" : ""}.`,
       };
     } catch (err) {
       console.error("Error al crear preferencia de Mercado Pago:", err);
@@ -135,10 +260,10 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
 
   async verifyPayment(externalId: string): Promise<PaymentVerificationResult> {
     const accessToken = this.config.accessToken;
-    if (!accessToken || process.env.NODE_ENV === "test") {
+    if (this.isSimulatedToken(accessToken)) {
       return {
         externalId,
-        status: "PAID",
+        status: "AUTHORIZED",
         amountCents: 0,
       };
     }
@@ -161,11 +286,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
         date_approved?: string;
       };
 
-      let mappedStatus: PaymentStatus = "PENDING";
-      if (data.status === "approved") mappedStatus = "PAID";
-      else if (data.status === "rejected") mappedStatus = "REJECTED";
-      else if (data.status === "refunded") mappedStatus = "REFUNDED";
-
+      const mappedStatus = this.mapGatewayPaymentStatus(data.status);
       const orderCode = data.external_reference
         ? parseInt(data.external_reference.replace(/\D/g, ""), 10)
         : undefined;
@@ -192,6 +313,14 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
 
     if (!paymentId) {
       return null;
+    }
+
+    const secret = this.config.webhookSecret?.trim();
+    if (secret) {
+      const isValid = await this.webhookVerifier.verify(String(paymentId), headers, secret);
+      if (!isValid) {
+        throw new ValidationError("Firma HMAC de webhook de Mercado Pago inválida.");
+      }
     }
 
     return this.verifyPayment(String(paymentId));

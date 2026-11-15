@@ -1435,5 +1435,25 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       expect(order.discountCents).toBe(0);
       expect(order.totalCents).toBe(4000000);
     });
+
+    it("impide sobreventa concurrente en SQL atómico cuando el stock disponible es menor a la cantidad solicitada", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Camisa Lino $30.000",
+          colors: [{ name: "Arena", position: 0, sizes: [{ size: "M", stock: 1 }] }],
+        },
+        env.deps
+      );
+
+      // Primera compra consume la única unidad disponible
+      const firstResult = await env.deps.productRepo.decrementStock(product.id, "Arena", "M", 1);
+      expect(firstResult.remainingStock).toBe(0);
+      expect(firstResult.newProductStatus).toBe("SOLD_OUT");
+
+      // Segunda operación concurrente intentando descontar sobre stock 0 debe fallar atómicamente
+      await expect(
+        env.deps.productRepo.decrementStock(product.id, "Arena", "M", 1)
+      ).rejects.toThrow(/Stock insuficiente/i);
+    });
   });
 });
