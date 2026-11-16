@@ -40,6 +40,7 @@ import { useCartStore } from "../../stores/cart.store";
 import { CartServerItemSnapshot } from "../../domain/cart/types";
 import { formatPrice } from "../../lib/format/currency";
 import { CartStepper, CheckoutStep } from "./CartStepper";
+import { CheckoutProSandboxPanel } from "./CheckoutProSandboxPanel";
 import { PaymentProcessorIcon } from "./PaymentProcessorIcon";
 import { DeliveryMethod } from "../../domain/order/types";
 import { PaymentMethod, PaymentPreferenceResult } from "../../domain/payment/types";
@@ -264,6 +265,33 @@ export function CartPageClient({
     paymentMethod: PaymentMethod;
     transferReceiptUrl?: string | null;
   } | null>(null);
+
+  const [checkoutGatewayParams, setCheckoutGatewayParams] = useState<{
+    orderCode: number;
+    paymentId: string | null;
+    paymentStatusParam: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const stepParam = params.get("step");
+    const paymentStatusParam = params.get("payment_status") || params.get("status");
+    const rawOrderCode = params.get("order_code") || params.get("external_reference") || "";
+    const parsedCode = parseInt(rawOrderCode.replace(/\D/g, ""), 10);
+
+    if (
+      (stepParam === "payment_success" || paymentStatusParam) &&
+      !Number.isNaN(parsedCode) &&
+      parsedCode > 0
+    ) {
+      setCheckoutGatewayParams({
+        orderCode: parsedCode,
+        paymentId: params.get("payment_id") || params.get("collection_id"),
+        paymentStatusParam,
+      });
+    }
+  }, []);
 
   // Cupón de descuento aplicado
   const [couponInput, setCouponInput] = useState("");
@@ -673,9 +701,21 @@ export function CartPageClient({
       setPostalCodeInput("");
       setEstimatedShippingNotice(null);
 
-      // Si es Mercado Pago, redirigir a la preferencia de cobro
+      // Si es Mercado Pago, redirigir a la preferencia de cobro o activar Checkout Pro Sandbox local
       if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
-        window.location.assign(data.paymentPreference.paymentUrl);
+        const targetUrl = String(data.paymentPreference.paymentUrl);
+        if (targetUrl.includes("step=payment_success")) {
+          if (typeof window !== "undefined") {
+            window.history.replaceState({}, "", targetUrl);
+          }
+          setCheckoutGatewayParams({
+            orderCode: data.order.code,
+            paymentId: data.paymentPreference.preferenceId || null,
+            paymentStatusParam: null,
+          });
+          return;
+        }
+        window.location.assign(targetUrl);
         return;
       }
 
@@ -713,8 +753,16 @@ export function CartPageClient({
         }}
       />
 
-      {/* Pantalla de Éxito al finalizar el pedido */}
-      {orderSuccess ? (
+      {/* Pasarela Checkout Pro Sandbox / Callback de Mercado Pago */}
+      {checkoutGatewayParams ? (
+        <CheckoutProSandboxPanel
+          orderCode={checkoutGatewayParams.orderCode}
+          paymentId={checkoutGatewayParams.paymentId}
+          initialPaymentStatusParam={checkoutGatewayParams.paymentStatusParam}
+          brandName={brandName}
+          isCustomerLoggedIn={Boolean(customer)}
+        />
+      ) : orderSuccess ? (
         <div className="rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-10 text-center shadow-xs max-w-xl mx-auto animate-in fade-in zoom-in-95 duration-200">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
             <CheckCircle2 className="h-8 w-8" />

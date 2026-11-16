@@ -290,6 +290,74 @@ async function reconcileAcceptedGatewayPayment(
 }
 
 /**
+ * Registra un rechazo de pago informado por la pasarela sin sobrescribir pagos ya acreditados (SRP).
+ */
+async function reconcileRejectedGatewayPayment(
+  result: PaymentVerificationResult,
+  deps: GlobalAppDeps
+): Promise<void> {
+  if (!result.orderCode) return;
+  const order = await deps.orderRepo.findByCode(result.orderCode);
+  if (!order || order.paymentStatus === "PAID") return;
+
+  if (deps.orderRepo.updatePayment) {
+    await deps.orderRepo.updatePayment(order.id, {
+      paymentStatus: "REJECTED",
+      paymentExternalId: result.externalId,
+      updatedAt: Math.floor(Date.now() / 1000),
+    });
+  }
+}
+
+/**
+ * Obtiene el resumen de una orden para la pantalla de Checkout Pro Sandbox / Callback (SRP).
+ */
+export async function getCheckoutSandboxOrderSummary(
+  orderCode: number,
+  paymentId: string | null,
+  deps: GlobalAppDeps
+) {
+  const order = await deps.orderRepo.findByCode(orderCode);
+  if (!order) {
+    throw new OrderNotFoundError(orderCode);
+  }
+
+  // En modo sandbox/callback validamos que coincida el paymentExternalId si ya estaba fijado a un mock_pref
+  if (
+    order.paymentExternalId &&
+    order.paymentExternalId.startsWith("mock_pref_") &&
+    paymentId &&
+    paymentId.startsWith("mock_pref_") &&
+    order.paymentExternalId !== paymentId
+  ) {
+    throw new ValidationError("Identificador de preferencia de pago no válido para esta orden.");
+  }
+
+  return {
+    id: order.id,
+    code: order.code,
+    customerName: order.customerName,
+    customerEmail: order.customerEmail || "",
+    totalCents: order.totalCents,
+    subtotalCents: order.subtotalCents,
+    shippingCents: order.shippingCents,
+    discountCents: order.discountCents,
+    paymentMethod: order.paymentMethod || "MERCADOPAGO",
+    paymentStatus: order.paymentStatus || "PENDING",
+    status: order.status,
+    items: (order.items || []).map((i) => ({
+      productCode: i.productCode,
+      productTitle: i.productTitle,
+      colorName: i.colorName,
+      size: i.size,
+      quantity: i.quantity,
+      unitPriceCents: i.unitPriceCents,
+      photoUrl: i.photoUrl || null,
+    })),
+  };
+}
+
+/**
  * Procesa la notificación (webhook) de una pasarela de pago y concilia la orden (AR-16).
  */
 export async function processPaymentWebhook(
@@ -310,6 +378,8 @@ export async function processPaymentWebhook(
     const result = await adapter.processWebhook(payload, headers);
     if (result && (result.status === "AUTHORIZED" || result.status === "PAID")) {
       await reconcileAcceptedGatewayPayment(result, deps);
+    } else if (result && result.status === "REJECTED") {
+      await reconcileRejectedGatewayPayment(result, deps);
     }
     return result;
   }

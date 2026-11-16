@@ -135,6 +135,34 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
   }
 
   /**
+   * Extrae el código de orden embebido en un ID de preferencia simulada (`mock_pref_<code_num>_<ts>`).
+   */
+  extractSimulatedOrderCode(externalId: string): number | undefined {
+    const match = /^mock_pref_(\d+)_/.exec(externalId);
+    if (!match) return undefined;
+    const parsed = parseInt(match[1], 10);
+    return !Number.isNaN(parsed) && parsed > 0 ? parsed : undefined;
+  }
+
+  /**
+   * Determina si la URL base es un origen HTTPS público apto para `auto_return` y `notification_url` en MP.
+   */
+  private isPublicHttpsOrigin(baseUrl: string): boolean {
+    return baseUrl.startsWith("https://") && !baseUrl.includes("localhost") && !baseUrl.includes("127.0.0.1");
+  }
+
+  /**
+   * Construye las URLs de retorno de Checkout Pro hacia el flujo de confirmación de compra.
+   */
+  private buildPreferenceBackUrls(baseUrl: string, orderCode: number) {
+    return {
+      success: `${baseUrl}/carrito?step=payment_success&payment_status=approved&order_code=${orderCode}`,
+      pending: `${baseUrl}/carrito?step=payment_success&payment_status=pending&order_code=${orderCode}`,
+      failure: `${baseUrl}/carrito?step=payment_success&payment_status=failure&order_code=${orderCode}`,
+    };
+  }
+
+  /**
    * Traduce el estado de Mercado Pago al estado de dominio.
    * El callback/webhook de pago aprobado marca el pago como AUTHORIZED ("Pago Aceptado"),
    * quedando separado de la confirmación definitiva ("PAID" / "Pago Confirmado").
@@ -143,7 +171,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
     if (mpStatus === "approved" || mpStatus === "authorized") {
       return "AUTHORIZED";
     }
-    if (mpStatus === "rejected" || mpStatus === "cancelled") {
+    if (mpStatus === "rejected" || mpStatus === "cancelled" || mpStatus === "failure") {
       return "REJECTED";
     }
     if (mpStatus === "refunded" || mpStatus === "charged_back") {
@@ -193,7 +221,8 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
       });
     }
 
-    const payload = {
+    const isPublicHttps = this.isPublicHttpsOrigin(baseUrl);
+    const payload: Record<string, unknown> = {
       items,
       payer: {
         name: order.customerName,
@@ -209,17 +238,16 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
           : undefined,
       },
       external_reference: formattedCode,
-      back_urls: {
-        success: `${baseUrl}/cuenta?payment_status=approved&order_code=${order.code}`,
-        pending: `${baseUrl}/cuenta?payment_status=pending&order_code=${order.code}`,
-        failure: `${baseUrl}/carrito?payment_status=failure&order_code=${order.code}`,
-      },
-      auto_return: "approved",
-      notification_url: `${baseUrl}/api/payments/webhook/mercadopago`,
+      back_urls: this.buildPreferenceBackUrls(baseUrl, order.code),
       statement_descriptor: formatStatementDescriptor(
         typeof options?.brandName === "string" ? options.brandName : this.config.brandName
       ),
     };
+
+    if (isPublicHttps) {
+      payload.auto_return = "approved";
+      payload.notification_url = `${baseUrl}/api/payments/webhook/mercadopago`;
+    }
 
     try {
       const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
@@ -263,6 +291,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
     if (this.isSimulatedToken(accessToken)) {
       return {
         externalId,
+        orderCode: this.extractSimulatedOrderCode(externalId),
         status: "AUTHORIZED",
         amountCents: 0,
       };
@@ -308,7 +337,15 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
     payload: unknown,
     headers?: Record<string, string>
   ): Promise<PaymentVerificationResult | null> {
-    const body = payload as { type?: string; topic?: string; data?: { id?: string }; id?: string };
+    const body = payload as {
+      type?: string;
+      topic?: string;
+      data?: { id?: string };
+      id?: string;
+      order_code?: string | number;
+      orderCode?: string | number;
+      status?: string;
+    };
     const paymentId = body.data?.id || body.id;
 
     if (!paymentId) {
@@ -323,6 +360,19 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
       }
     }
 
-    return this.verifyPayment(String(paymentId));
+    const verified = await this.verifyPayment(String(paymentId));
+    if (this.isSimulatedToken(this.config.accessToken)) {
+      const rawOrderCode = body.orderCode ?? body.order_code;
+      const explicitCode =
+        rawOrderCode !== undefined ? parseInt(String(rawOrderCode).replace(/\D/g, ""), 10) : NaN;
+      if (!Number.isNaN(explicitCode) && explicitCode > 0) {
+        verified.orderCode = explicitCode;
+      }
+      if (typeof body.status === "string" && body.status.trim()) {
+        verified.status = this.mapGatewayPaymentStatus(body.status.trim().toLowerCase());
+      }
+    }
+
+    return verified;
   }
 }
