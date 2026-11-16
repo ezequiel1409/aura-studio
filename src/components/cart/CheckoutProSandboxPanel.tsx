@@ -38,6 +38,7 @@ interface SandboxOrderSummary {
   paymentMethod: string;
   paymentStatus: string;
   status: string;
+  externalCheckoutUrl?: string | null;
   items: SandboxOrderItem[];
 }
 
@@ -129,6 +130,16 @@ export function CheckoutProSandboxPanel({
     (async () => {
       const loadedOrder = await fetchOrderSummary();
       if (!active || !loadedOrder) return;
+
+      if (
+        !initialPaymentStatusParam &&
+        loadedOrder.externalCheckoutUrl &&
+        loadedOrder.paymentStatus === "PENDING" &&
+        typeof window !== "undefined"
+      ) {
+        window.location.assign(loadedOrder.externalCheckoutUrl);
+        return;
+      }
 
       if (
         initialPaymentStatusParam === "approved" &&

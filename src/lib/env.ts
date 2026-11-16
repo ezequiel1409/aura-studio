@@ -32,7 +32,11 @@ export function getEnv(overrideProcessEnv?: Record<string, string | undefined>):
   if (overrideProcessEnv) {
     return envSchema.parse(overrideProcessEnv);
   }
-  if (!parsedEnv) {
+  if (
+    !parsedEnv ||
+    (process.env.MP_ACCESS_TOKEN && parsedEnv.MP_ACCESS_TOKEN !== process.env.MP_ACCESS_TOKEN) ||
+    (process.env.MP_SANDBOX && parsedEnv.MP_SANDBOX !== process.env.MP_SANDBOX)
+  ) {
     parsedEnv = envSchema.parse(process.env);
   }
   return parsedEnv;

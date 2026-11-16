@@ -315,7 +315,8 @@ async function reconcileRejectedGatewayPayment(
 export async function getCheckoutSandboxOrderSummary(
   orderCode: number,
   paymentId: string | null,
-  deps: GlobalAppDeps
+  deps: GlobalAppDeps,
+  options?: { baseUrl?: string; isReturnCallback?: boolean }
 ) {
   const order = await deps.orderRepo.findByCode(orderCode);
   if (!order) {
@@ -333,6 +334,35 @@ export async function getCheckoutSandboxOrderSummary(
     throw new ValidationError("Identificador de preferencia de pago no válido para esta orden.");
   }
 
+  let externalCheckoutUrl: string | null = null;
+  const env = getEnv();
+  const activeToken = process.env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN;
+  const hasRealMpToken =
+    Boolean(activeToken) &&
+    !activeToken.startsWith("TEST-00000000") &&
+    !activeToken.startsWith("test_mock_");
+
+  // Si ya hay un MP_ACCESS_TOKEN real configurado y la orden sigue pendiente sin venir de un callback de retorno,
+  // generamos la preferencia oficial en Mercado Pago para redirigir directo al link de ellos (sandbox.mercadopago.com.ar).
+  if (
+    hasRealMpToken &&
+    order.paymentStatus === "PENDING" &&
+    !options?.isReturnCallback
+  ) {
+    try {
+      const pref = await createOrderPaymentPreference(
+        { ...order, paymentMethod: "MERCADOPAGO" },
+        deps,
+        { baseUrl: options?.baseUrl }
+      );
+      if (pref.redirectUrl && pref.redirectUrl.startsWith("https://")) {
+        externalCheckoutUrl = pref.redirectUrl;
+      }
+    } catch (err) {
+      console.error("[CheckoutPro] Error al generar preferencia externa para orden existente:", err);
+    }
+  }
+
   return {
     id: order.id,
     code: order.code,
@@ -345,6 +375,7 @@ export async function getCheckoutSandboxOrderSummary(
     paymentMethod: order.paymentMethod || "MERCADOPAGO",
     paymentStatus: order.paymentStatus || "PENDING",
     status: order.status,
+    externalCheckoutUrl,
     items: (order.items || []).map((i) => ({
       productCode: i.productCode,
       productTitle: i.productTitle,

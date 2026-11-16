@@ -18,7 +18,12 @@ export async function GET(request: NextRequest) {
     }
 
     const deps = getProductServiceDeps();
-    const order = await getCheckoutSandboxOrderSummary(orderCode, paymentId, deps);
+    const isReturnCallback = Boolean(url.searchParams.get("payment_status"));
+    const baseUrl = `${url.protocol}//${url.host}`;
+    const order = await getCheckoutSandboxOrderSummary(orderCode, paymentId, deps, {
+      baseUrl,
+      isReturnCallback,
+    });
 
     return NextResponse.json({ order });
   } catch (error) {
