@@ -207,7 +207,8 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
       quantity: item.quantity,
       unit_price: item.unitPriceCents / 100,
       currency_id: "ARS",
-      picture_url: item.photoUrl || undefined,
+      picture_url:
+        item.photoUrl && item.photoUrl.startsWith("https://") ? item.photoUrl : undefined,
     }));
 
     if (order.shippingCents > 0) {
