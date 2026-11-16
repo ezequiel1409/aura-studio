@@ -255,6 +255,7 @@ export function CartPageClient({
   const [savedAddresses, setSavedAddresses] = useState<Array<{ id: number; label: string; address: string; city?: string | null; isDefault: boolean }>>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirectingToGateway, setIsRedirectingToGateway] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmClearPrompt, setConfirmClearPrompt] = useState(false);
 
@@ -681,6 +682,25 @@ export function CartPageClient({
       const finalReceiptUrl = data.order?.transferReceiptUrl || null;
       const confirmedPaymentMethod = effectivePaymentMethod;
 
+      // Si es Mercado Pago, redirigir directamente a la pasarela de pago SIN mostrar pantalla de éxito previa
+      if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
+        const targetUrl = String(data.paymentPreference.paymentUrl);
+        if (targetUrl.startsWith("https://")) {
+          setIsRedirectingToGateway(true);
+          window.location.assign(targetUrl);
+          return;
+        }
+        if (typeof window !== "undefined") {
+          window.history.replaceState({}, "", targetUrl);
+        }
+        setCheckoutGatewayParams({
+          orderCode: data.order.code,
+          paymentId: data.paymentPreference.preferenceId || null,
+          paymentStatusParam: null,
+        });
+        return;
+      }
+
       setOrderSuccess({
         code: data.order.code,
         whatsappUrl: data.whatsappUrl,
@@ -700,24 +720,6 @@ export function CartPageClient({
       setPostalCode("");
       setPostalCodeInput("");
       setEstimatedShippingNotice(null);
-
-      // Si es Mercado Pago, redirigir a la preferencia de cobro o activar Checkout Pro Sandbox local
-      if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
-        const targetUrl = String(data.paymentPreference.paymentUrl);
-        if (targetUrl.includes("step=payment_success")) {
-          if (typeof window !== "undefined") {
-            window.history.replaceState({}, "", targetUrl);
-          }
-          setCheckoutGatewayParams({
-            orderCode: data.order.code,
-            paymentId: data.paymentPreference.preferenceId || null,
-            paymentStatusParam: null,
-          });
-          return;
-        }
-        window.location.assign(targetUrl);
-        return;
-      }
 
       // Si es WhatsApp, abrir chat directamente
       if (confirmedPaymentMethod === "WHATSAPP" && typeof window !== "undefined" && data.whatsappUrl) {
@@ -753,14 +755,31 @@ export function CartPageClient({
         }}
       />
 
-      {/* Pasarela Checkout Pro Sandbox / Callback de Mercado Pago */}
-      {checkoutGatewayParams ? (
+      {/* Estado de redirección hacia la pasarela externa de Mercado Pago */}
+      {isRedirectingToGateway ? (
+        <div className="mx-auto max-w-xl py-16 text-center space-y-4">
+          <Loader2 className="mx-auto h-10 w-10 animate-spin text-sky-600" />
+          <h2 className="font-serif text-xl font-medium text-stone-900">
+            Redirigiendo a Mercado Pago Checkout Pro...
+          </h2>
+          <p className="text-xs text-stone-500">
+            Aguardá un instante mientras abrimos la pasarela segura para que completes tu pago.
+          </p>
+        </div>
+      ) : checkoutGatewayParams ? (
         <CheckoutProSandboxPanel
           orderCode={checkoutGatewayParams.orderCode}
           paymentId={checkoutGatewayParams.paymentId}
           initialPaymentStatusParam={checkoutGatewayParams.paymentStatusParam}
           brandName={brandName}
           isCustomerLoggedIn={Boolean(customer)}
+          onPaymentAccepted={clearCart}
+          onReturnToCart={() => {
+            if (typeof window !== "undefined") {
+              window.history.replaceState({}, "", "/carrito");
+            }
+            setCheckoutGatewayParams(null);
+          }}
         />
       ) : orderSuccess ? (
         <div className="rounded-2xl border border-[#e7e2da] bg-white p-6 sm:p-10 text-center shadow-xs max-w-xl mx-auto animate-in fade-in zoom-in-95 duration-200">

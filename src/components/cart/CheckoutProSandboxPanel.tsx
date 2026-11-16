@@ -48,6 +48,8 @@ interface CheckoutProSandboxPanelProps {
   initialPaymentStatusParam: string | null;
   brandName: string;
   isCustomerLoggedIn: boolean;
+  onPaymentAccepted?: () => void;
+  onReturnToCart?: () => void;
 }
 
 export function CheckoutProSandboxPanel({
@@ -56,6 +58,8 @@ export function CheckoutProSandboxPanel({
   initialPaymentStatusParam,
   brandName,
   isCustomerLoggedIn,
+  onPaymentAccepted,
+  onReturnToCart,
 }: CheckoutProSandboxPanelProps) {
   const [order, setOrder] = useState<SandboxOrderSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,13 +146,21 @@ export function CheckoutProSandboxPanel({
       }
 
       if (
-        initialPaymentStatusParam === "approved" &&
+        (initialPaymentStatusParam === "approved" || initialPaymentStatusParam === "authorized") &&
         loadedOrder.paymentStatus !== "AUTHORIZED" &&
         loadedOrder.paymentStatus !== "PAID"
       ) {
         await executeGatewayCallback("approved");
+        onPaymentAccepted?.();
       } else if (
-        initialPaymentStatusParam === "failure" &&
+        loadedOrder.paymentStatus === "AUTHORIZED" ||
+        loadedOrder.paymentStatus === "PAID"
+      ) {
+        onPaymentAccepted?.();
+      } else if (
+        (initialPaymentStatusParam === "failure" ||
+          initialPaymentStatusParam === "rejected" ||
+          initialPaymentStatusParam === "cancelled") &&
         loadedOrder.paymentStatus === "PENDING"
       ) {
         await executeGatewayCallback("rejected");
@@ -158,7 +170,7 @@ export function CheckoutProSandboxPanel({
     return () => {
       active = false;
     };
-  }, [executeGatewayCallback, fetchOrderSummary, initialPaymentStatusParam]);
+  }, [executeGatewayCallback, fetchOrderSummary, initialPaymentStatusParam, onPaymentAccepted]);
 
   if (loading) {
     return (
@@ -198,6 +210,60 @@ export function CheckoutProSandboxPanel({
   const formattedCode = `#${order.code.toString().padStart(3, "0")}`;
   const isAcceptedOrPaid =
     order.paymentStatus === "AUTHORIZED" || order.paymentStatus === "PAID";
+  const isCallbackError =
+    order.paymentStatus === "REJECTED" &&
+    (initialPaymentStatusParam === "failure" ||
+      initialPaymentStatusParam === "rejected" ||
+      initialPaymentStatusParam === "cancelled");
+
+  if (isCallbackError) {
+    return (
+      <div className="mx-auto max-w-xl py-6 sm:py-10">
+        <div className="rounded-2xl border border-red-200 bg-white p-6 sm:p-8 text-center shadow-sm">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600">
+            <XCircle className="h-7 w-7" />
+          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-red-600">
+            Mercado Pago · Pago Rechazado
+          </p>
+          <h1 className="mt-1.5 font-serif text-2xl sm:text-3xl font-medium text-stone-900">
+            No se pudo completar el pago de tu orden {formattedCode}
+          </h1>
+          <p className="mt-2 mx-auto max-w-md text-xs sm:text-sm text-stone-600">
+            La operación fue rechazada o cancelada en Mercado Pago. No se realizó ningún cargo en tu medio de pago.
+          </p>
+
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            {order.externalCheckoutUrl && (
+              <a
+                href={order.externalCheckoutUrl}
+                className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-sky-500 px-6 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-sky-600 transition-colors"
+              >
+                <CreditCard className="h-4 w-4" />
+                <span>Reintentar pago en Mercado Pago</span>
+              </a>
+            )}
+            {onReturnToCart ? (
+              <button
+                type="button"
+                onClick={onReturnToCart}
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
+              >
+                Volver al carrito y elegir otro medio
+              </button>
+            ) : (
+              <Link
+                href="/carrito"
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl border border-stone-200 bg-white px-5 py-3 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors"
+              >
+                Volver al carrito
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isAcceptedOrPaid) {
     return (

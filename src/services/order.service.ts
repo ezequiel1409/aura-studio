@@ -410,7 +410,8 @@ export async function createOrder(
       };
 
       // 8. Envío no-bloqueante de confirmación de pedido vía Resend
-      if (deps.emailService && order.customerEmail) {
+      // Para Mercado Pago el correo se envía recién en el callback/webhook ("Pago Aceptado")
+      if (deps.emailService && order.customerEmail && order.paymentMethod !== "MERCADOPAGO") {
         const emailData = await buildOrderEmailData(order, settings, input.baseUrl);
         deps.emailService.sendOrderCreatedEmail?.(order.customerEmail, emailData).catch((err) => {
           console.error("[Email] Error al enviar confirmación de compra a clienta:", err);

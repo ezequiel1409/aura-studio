@@ -28,10 +28,44 @@ export type Env = z.infer<typeof envSchema>;
 
 let parsedEnv: Env | null = null;
 
+function hydrateProcessEnvFromLocalFile(): void {
+  if (typeof process === "undefined" || process.env.NODE_ENV === "test") {
+    return;
+  }
+  if (
+    process.env.MP_ACCESS_TOKEN &&
+    !process.env.MP_ACCESS_TOKEN.startsWith("TEST-00000000")
+  ) {
+    return;
+  }
+  try {
+    const req = eval("require") as (id: string) => any;
+    const fs = req("fs");
+    const path = req("path");
+    const envLocalPath = path.resolve(process.cwd(), ".env.local");
+    if (!fs.existsSync(envLocalPath)) return;
+    const content: string = fs.readFileSync(envLocalPath, "utf8");
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+      const eqIdx = line.indexOf("=");
+      if (eqIdx <= 0) continue;
+      const key = line.slice(0, eqIdx).trim();
+      const val = line.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, "");
+      if (key && val && (!process.env[key] || process.env[key]?.startsWith("TEST-00000000"))) {
+        process.env[key] = val;
+      }
+    }
+  } catch {
+    // Ignorar en entornos Edge sin sistema de archivos local
+  }
+}
+
 export function getEnv(overrideProcessEnv?: Record<string, string | undefined>): Env {
   if (overrideProcessEnv) {
     return envSchema.parse(overrideProcessEnv);
   }
+  hydrateProcessEnvFromLocalFile();
   if (
     !parsedEnv ||
     (process.env.MP_ACCESS_TOKEN && parsedEnv.MP_ACCESS_TOKEN !== process.env.MP_ACCESS_TOKEN) ||
