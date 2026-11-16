@@ -209,6 +209,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
     const accessToken = this.config.accessToken;
     const baseUrl = this.config.baseUrl || "http://localhost:3000";
     const formattedCode = `#ORD-${order.code.toString().padStart(3, "0")}`;
+    const externalRefCode = `ORD-${order.code.toString().padStart(3, "0")}`;
 
     if (this.isSimulatedToken(accessToken)) {
       const mockPrefId = `mock_pref_${order.code}_${Date.now()}`;
@@ -263,7 +264,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
             }
           : undefined,
       },
-      external_reference: formattedCode,
+      external_reference: externalRefCode,
       back_urls: this.buildPreferenceBackUrls(baseUrl, order.code),
       auto_return: "approved",
       statement_descriptor: formatStatementDescriptor(

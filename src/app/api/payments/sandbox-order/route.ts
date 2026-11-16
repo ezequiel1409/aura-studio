@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
-import { getCheckoutSandboxOrderSummary } from "../../../../services/payment.service";
+import {
+  cancelAbandonedGatewayOrder,
+  getCheckoutSandboxOrderSummary,
+} from "../../../../services/payment.service";
 import { OrderNotFoundError, ValidationError } from "../../../../domain/errors";
 
 export async function GET(request: NextRequest) {
@@ -37,5 +40,26 @@ export async function GET(request: NextRequest) {
       { error: "Error al cargar el resumen de pago." },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = (await request.json()) as { order_code?: string | number; action?: string };
+    const rawCode = String(body.order_code || "");
+    const orderCode = parseInt(rawCode.replace(/\D/g, ""), 10);
+
+    if (Number.isNaN(orderCode) || orderCode <= 0) {
+      return NextResponse.json({ error: "Código de orden inválido." }, { status: 400 });
+    }
+
+    const deps = getProductServiceDeps();
+    if (body.action === "cancel_abandoned") {
+      await cancelAbandonedGatewayOrder(orderCode, deps);
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }

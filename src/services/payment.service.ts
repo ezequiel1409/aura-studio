@@ -409,6 +409,32 @@ export async function getCheckoutSandboxOrderSummary(
 }
 
 /**
+ * Cancela una orden de pasarela externa abandonada al volver al checkout sin pagar
+ * y restaura automáticamente el stock reservado de sus prendas (SRP).
+ */
+export async function cancelAbandonedGatewayOrder(
+  orderCode: number,
+  deps: GlobalAppDeps
+): Promise<void> {
+  const order = await deps.orderRepo.findByCode(orderCode);
+  if (!order) return;
+
+  if (
+    order.status === "PENDING" &&
+    order.paymentStatus !== "PAID" &&
+    order.paymentStatus !== "AUTHORIZED"
+  ) {
+    await updateOrderStatus(order.id, "CANCELLED", deps);
+    if (deps.orderRepo.updatePayment) {
+      await deps.orderRepo.updatePayment(order.id, {
+        paymentStatus: "REJECTED",
+        updatedAt: Math.floor(Date.now() / 1000),
+      });
+    }
+  }
+}
+
+/**
  * Procesa la notificación (webhook) de una pasarela de pago y concilia la orden (AR-16).
  */
 export async function processPaymentWebhook(

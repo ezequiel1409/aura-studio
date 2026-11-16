@@ -275,9 +275,21 @@ export function CartPageClient({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
+    const rawQuery =
+      window.location.search +
+      (window.location.hash && window.location.hash.includes("=")
+        ? `&${window.location.hash.replace(/^#/, "")}`
+        : "");
+    const params = new URLSearchParams(rawQuery);
     const stepParam = params.get("step");
-    const paymentStatusParam = params.get("payment_status") || params.get("status");
+    const rawStatus =
+      params.get("collection_status") ||
+      params.get("status") ||
+      params.get("payment_status");
+    const paymentStatusParam =
+      rawStatus && rawStatus !== "null" ? rawStatus : params.get("payment_status");
+    const rawPaymentId = params.get("payment_id") || params.get("collection_id");
+    const paymentId = rawPaymentId && rawPaymentId !== "null" ? rawPaymentId : null;
     const rawOrderCode = params.get("order_code") || params.get("external_reference") || "";
     const parsedCode = parseInt(rawOrderCode.replace(/\D/g, ""), 10);
 
@@ -286,9 +298,34 @@ export function CartPageClient({
       !Number.isNaN(parsedCode) &&
       parsedCode > 0
     ) {
+      const isAbandonedOrFailed =
+        paymentStatusParam === "failure" ||
+        paymentStatusParam === "rejected" ||
+        paymentStatusParam === "cancelled" ||
+        rawStatus === "null";
+
+      if (isAbandonedOrFailed) {
+        // Cancelar la orden borrador en segundo plano para restaurar su stock y volver al Paso 3 del Checkout
+        void fetch("/api/payments/sandbox-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ order_code: parsedCode, action: "cancel_abandoned" }),
+        }).catch(() => {});
+
+        window.history.replaceState({}, "", "/carrito");
+        setSelectedPaymentMethod("MERCADOPAGO");
+        setCurrentStep("payment");
+        setErrorMessage(
+          rawStatus === "rejected"
+            ? "Tu pago fue rechazado por Mercado Pago. Podés intentar nuevamente o elegir otro medio de pago."
+            : "Volviste desde Mercado Pago sin completar el pago. Podés reintentar o elegir otro medio de pago."
+        );
+        return;
+      }
+
       setCheckoutGatewayParams({
         orderCode: parsedCode,
-        paymentId: params.get("payment_id") || params.get("collection_id"),
+        paymentId,
         paymentStatusParam,
       });
     }
@@ -682,12 +719,17 @@ export function CartPageClient({
       const finalReceiptUrl = data.order?.transferReceiptUrl || null;
       const confirmedPaymentMethod = effectivePaymentMethod;
 
-      // Si es Mercado Pago, abrir la pantalla de Checkout Pro con desglose de fotos y botón de volver SIN mostrar éxito previo
-      if (confirmedPaymentMethod === "MERCADOPAGO") {
+      // Si es Mercado Pago, redirigir directamente al sitio oficial de Mercado Pago SIN mostrar pantalla previa
+      if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
+        const targetUrl = String(data.paymentPreference.paymentUrl);
+        if (targetUrl.startsWith("https://")) {
+          setIsRedirectingToGateway(true);
+          window.location.assign(targetUrl);
+          return;
+        }
         const prefId = data.paymentPreference?.preferenceId || null;
-        const checkoutStepUrl = `/carrito?step=payment_success&order_code=${data.order.code}${prefId ? `&payment_id=${encodeURIComponent(prefId)}` : ""}&sandbox=1`;
         if (typeof window !== "undefined") {
-          window.history.replaceState({}, "", checkoutStepUrl);
+          window.history.replaceState({}, "", targetUrl);
           window.scrollTo({ top: 0, behavior: "smooth" });
         }
         setCheckoutGatewayParams({
@@ -2587,34 +2629,45 @@ export function CartPageClient({
                   </button>
                 </div>
 
-                {/* Lista compacta de prendas */}
-                <ul className="divide-y divide-[#e7e2da]/70 max-h-52 overflow-y-auto pr-1 text-xs space-y-1">
+                {/* Desglose de prendas con miniatura fotográfica */}
+                <ul className="divide-y divide-[#e7e2da]/70 max-h-72 overflow-y-auto pr-1 text-xs space-y-1">
                   {items.map((i) => (
-                    <li key={i.key} className="py-2.5 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {i.photoUrl ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img
-                            src={i.photoUrl}
-                            alt={i.title || i.formattedCode}
-                            className="h-11 w-9 object-cover rounded-md shrink-0 bg-stone-100 border border-stone-200/60"
-                          />
-                        ) : (
-                          <div className="h-11 w-9 rounded-md bg-stone-100 flex items-center justify-center shrink-0 border border-stone-200/60">
+                    <li key={i.key} className="py-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative h-16 w-13 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-100 flex items-center justify-center">
+                          {i.photoUrl ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={i.photoUrl}
+                              alt={i.title || i.formattedCode}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
                             <Store className="h-4 w-4 text-stone-400" />
-                          </div>
-                        )}
+                          )}
+                          <span className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-stone-900 px-1 text-[10px] font-bold text-white">
+                            {i.quantity}
+                          </span>
+                        </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-stone-900 truncate text-xs">
-                            {i.formattedCode} · {i.title}
+                            {i.title || `Prenda ${i.formattedCode}`}
                             {i.maxStock <= 0 && (
                               <span className="ml-1.5 inline-block text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded px-1">
                                 Sin stock
                               </span>
                             )}
                           </p>
-                          <p className="text-[11px] text-stone-500">
-                            {i.colorName} · Talle {i.size} (x{i.quantity})
+                          <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-stone-600">
+                            <span className="rounded bg-[#f5f2eb] px-1.5 py-0.5 font-medium">
+                              {i.colorName}
+                            </span>
+                            <span className="rounded bg-[#f5f2eb] px-1.5 py-0.5 font-medium">
+                              Talle {i.size}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-[10px] text-stone-400">
+                            {i.quantity} × {formatPrice(i.unitPriceCents, i.currency)}
                           </p>
                         </div>
                       </div>
