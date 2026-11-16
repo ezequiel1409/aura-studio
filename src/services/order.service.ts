@@ -211,12 +211,19 @@ export async function createOrder(
         const safeQuantity =
           Number.isFinite(item.quantity) && item.quantity > 0 ? Math.floor(item.quantity) : 1;
 
+        const resolvedPhotoUrl =
+          item.photoUrl ||
+          product?.photos?.[0]?.keyThumb ||
+          product?.photos?.[0]?.keyFull ||
+          null;
+
         return {
           ...item,
           productId,
           productTitle: item.productTitle || product?.title || "",
           quantity: safeQuantity,
           unitPriceCents: authoritativeUnitPriceCents,
+          photoUrl: resolvedPhotoUrl,
         };
       })
     );

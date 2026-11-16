@@ -153,13 +153,35 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
 
   /**
    * Construye las URLs de retorno de Checkout Pro hacia el flujo de confirmación de compra.
+   * Mercado Pago exige esquema `https://` en `back_urls` para conservarlas y habilitar el botón "Volver al sitio".
    */
   private buildPreferenceBackUrls(baseUrl: string, orderCode: number) {
+    const httpsBase = baseUrl.replace(/^http:\/\//i, "https://");
     return {
-      success: `${baseUrl}/carrito?step=payment_success&payment_status=approved&order_code=${orderCode}`,
-      pending: `${baseUrl}/carrito?step=payment_success&payment_status=pending&order_code=${orderCode}`,
-      failure: `${baseUrl}/carrito?step=payment_success&payment_status=failure&order_code=${orderCode}`,
+      success: `${httpsBase}/carrito?step=payment_success&payment_status=approved&order_code=${orderCode}`,
+      pending: `${httpsBase}/carrito?step=payment_success&payment_status=pending&order_code=${orderCode}`,
+      failure: `${httpsBase}/carrito?step=payment_success&payment_status=failure&order_code=${orderCode}`,
     };
+  }
+
+  /**
+   * Resuelve una URL de imagen pública HTTPS para que el CDN de Mercado Pago (`mlstatic`)
+   * pueda renderizar la miniatura de la prenda dentro de Checkout Pro (SRP).
+   */
+  private resolveGatewayItemPictureUrl(
+    photoUrl: string | null | undefined,
+    baseUrl: string
+  ): string | undefined {
+    if (photoUrl && photoUrl.startsWith("https://")) {
+      return photoUrl;
+    }
+    if (photoUrl && photoUrl.startsWith("/") && this.isPublicHttpsOrigin(baseUrl)) {
+      return `${baseUrl.replace(/\/$/, "")}${photoUrl}`;
+    }
+    if (this.isSandboxMode()) {
+      return "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80";
+    }
+    return undefined;
   }
 
   /**
@@ -204,17 +226,20 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
     const items = (order.items || []).map((item) => ({
       id: String(item.productCode),
       title: `${item.productTitle} (${item.colorName} - ${item.size})`,
+      description: `Color: ${item.colorName} | Talle: ${item.size} | Cant: ${item.quantity}`,
+      category_id: "fashion",
       quantity: item.quantity,
       unit_price: item.unitPriceCents / 100,
       currency_id: "ARS",
-      picture_url:
-        item.photoUrl && item.photoUrl.startsWith("https://") ? item.photoUrl : undefined,
+      picture_url: this.resolveGatewayItemPictureUrl(item.photoUrl, baseUrl),
     }));
 
     if (order.shippingCents > 0) {
       items.push({
         id: "shipping",
         title: "Costo de Envío",
+        description: "Servicio logístico de entrega",
+        category_id: "shipping",
         quantity: 1,
         unit_price: order.shippingCents / 100,
         currency_id: "ARS",
@@ -240,13 +265,13 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
       },
       external_reference: formattedCode,
       back_urls: this.buildPreferenceBackUrls(baseUrl, order.code),
+      auto_return: "approved",
       statement_descriptor: formatStatementDescriptor(
         typeof options?.brandName === "string" ? options.brandName : this.config.brandName
       ),
     };
 
     if (isPublicHttps) {
-      payload.auto_return = "approved";
       payload.notification_url = `${baseUrl}/api/payments/webhook/mercadopago`;
     }
 

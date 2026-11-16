@@ -682,20 +682,17 @@ export function CartPageClient({
       const finalReceiptUrl = data.order?.transferReceiptUrl || null;
       const confirmedPaymentMethod = effectivePaymentMethod;
 
-      // Si es Mercado Pago, redirigir directamente a la pasarela de pago SIN mostrar pantalla de éxito previa
-      if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
-        const targetUrl = String(data.paymentPreference.paymentUrl);
-        if (targetUrl.startsWith("https://")) {
-          setIsRedirectingToGateway(true);
-          window.location.assign(targetUrl);
-          return;
-        }
+      // Si es Mercado Pago, abrir la pantalla de Checkout Pro con desglose de fotos y botón de volver SIN mostrar éxito previo
+      if (confirmedPaymentMethod === "MERCADOPAGO") {
+        const prefId = data.paymentPreference?.preferenceId || null;
+        const checkoutStepUrl = `/carrito?step=payment_success&order_code=${data.order.code}${prefId ? `&payment_id=${encodeURIComponent(prefId)}` : ""}&sandbox=1`;
         if (typeof window !== "undefined") {
-          window.history.replaceState({}, "", targetUrl);
+          window.history.replaceState({}, "", checkoutStepUrl);
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }
         setCheckoutGatewayParams({
           orderCode: data.order.code,
-          paymentId: data.paymentPreference.preferenceId || null,
+          paymentId: prefId,
           paymentStatusParam: null,
         });
         return;

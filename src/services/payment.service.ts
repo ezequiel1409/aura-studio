@@ -363,28 +363,48 @@ export async function getCheckoutSandboxOrderSummary(
     }
   }
 
+  const hydratedItems = await Promise.all(
+    (order.items || []).map(async (i) => {
+      let photoUrl = i.photoUrl || null;
+      if (!photoUrl && deps.productRepo) {
+        try {
+          const prod = i.productId
+            ? await deps.productRepo.findById(i.productId)
+            : await deps.productRepo.findByCode(i.productCode);
+          photoUrl = prod?.photos?.[0]?.keyThumb || prod?.photos?.[0]?.keyFull || null;
+        } catch {
+          // Ignorar fallo de lectura de foto
+        }
+      }
+      return {
+        productCode: i.productCode,
+        productTitle: i.productTitle,
+        colorName: i.colorName,
+        size: i.size,
+        quantity: i.quantity,
+        unitPriceCents: i.unitPriceCents,
+        photoUrl,
+      };
+    })
+  );
+
   return {
     id: order.id,
     code: order.code,
     customerName: order.customerName,
     customerEmail: order.customerEmail || "",
+    deliveryMethod: order.deliveryMethod,
+    deliveryAddress: order.deliveryAddress || null,
     totalCents: order.totalCents,
     subtotalCents: order.subtotalCents,
     shippingCents: order.shippingCents,
     discountCents: order.discountCents,
+    paymentDiscountCents: order.paymentDiscountCents || 0,
     paymentMethod: order.paymentMethod || "MERCADOPAGO",
     paymentStatus: order.paymentStatus || "PENDING",
     status: order.status,
     externalCheckoutUrl,
-    items: (order.items || []).map((i) => ({
-      productCode: i.productCode,
-      productTitle: i.productTitle,
-      colorName: i.colorName,
-      size: i.size,
-      quantity: i.quantity,
-      unitPriceCents: i.unitPriceCents,
-      photoUrl: i.photoUrl || null,
-    })),
+    items: hydratedItems,
   };
 }
 
