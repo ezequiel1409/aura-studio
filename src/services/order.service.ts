@@ -354,24 +354,28 @@ export async function createOrder(
     }
 
     // 5. Descontar stock físico atómico con seguimiento para Rollback Transaccional
+    // Para Mercado Pago el descuento de stock se difiere hasta que el pago sea aceptado (callback/webhook)
+    const deferStockDeduction = validated.paymentMethod === "MERCADOPAGO";
     const decrementedItems: { productId: number; colorName: string; size: string; quantity: number }[] = [];
 
     try {
       for (const item of resolvedItems) {
         if (item.productId) {
-          await deps.productRepo.decrementStock(
-            item.productId,
-            item.colorName,
-            item.size,
-            item.quantity,
-            now * 1000
-          );
-          decrementedItems.push({
-            productId: item.productId,
-            colorName: item.colorName,
-            size: item.size,
-            quantity: item.quantity,
-          });
+          if (!deferStockDeduction) {
+            await deps.productRepo.decrementStock(
+              item.productId,
+              item.colorName,
+              item.size,
+              item.quantity,
+              now * 1000
+            );
+            decrementedItems.push({
+              productId: item.productId,
+              colorName: item.colorName,
+              size: item.size,
+              quantity: item.quantity,
+            });
+          }
 
           // BR-39: Registrar intención de compra consolidada en métricas
           try {
@@ -803,6 +807,65 @@ export async function uploadTransferReceipt(
   return (await deps.orderRepo.findById(id))!;
 }
 
+/**
+ * Determina si una orden ya descontó efectivamente stock físico del inventario (SRP).
+ * En Mercado Pago solo se descuenta cuando el pago pasa a AUTHORIZED o PAID.
+ */
+export function hasOrderDeductedStock(order: Order): boolean {
+  if (order.paymentMethod === "MERCADOPAGO") {
+    return order.paymentStatus === "AUTHORIZED" || order.paymentStatus === "PAID";
+  }
+  return true;
+}
+
+/**
+ * Descuenta de forma atómica el stock de todos los ítems de una orden cuando el pago de pasarela
+ * es aceptado, con rollback si algún ítem falla (SRP).
+ */
+export async function commitOrderStockDeduction(
+  order: Order,
+  deps: GlobalAppDeps,
+  nowMs: number = Date.now()
+): Promise<void> {
+  if (!deps.productRepo) return;
+
+  const decremented: { productId: number; colorName: string; size: string; quantity: number }[] = [];
+  try {
+    for (const item of order.items || []) {
+      if (item.productId) {
+        await deps.productRepo.decrementStock(
+          item.productId,
+          item.colorName,
+          item.size,
+          item.quantity,
+          nowMs
+        );
+        decremented.push({
+          productId: item.productId,
+          colorName: item.colorName,
+          size: item.size,
+          quantity: item.quantity,
+        });
+      }
+    }
+  } catch (err) {
+    for (const item of decremented) {
+      try {
+        await deps.productRepo.restoreStock(
+          item.productId,
+          item.colorName,
+          item.size,
+          item.quantity,
+          nowMs
+        );
+      } catch {
+        // Ignorar fallo en rollback secundario
+      }
+    }
+    throw err;
+  }
+}
+
 export async function updateOrderStatus(
   id: number,
   status: OrderStatus,
@@ -815,8 +878,13 @@ export async function updateOrderStatus(
 
   const now = Math.floor(Date.now() / 1000);
 
-  // Si pasa a CANCELLED y no estaba cancelada antes, restaurar stock de las prendas
-  if (status === "CANCELLED" && existing.status !== "CANCELLED") {
+  // Si pasa a CANCELLED y no estaba cancelada antes, restaurar stock solo si ya se había descontado
+  if (
+    status === "CANCELLED" &&
+    existing.status !== "CANCELLED" &&
+    hasOrderDeductedStock(existing) &&
+    deps.productRepo
+  ) {
     for (const item of existing.items || []) {
       if (item.productId) {
         await deps.productRepo.restoreStock(
@@ -828,6 +896,11 @@ export async function updateOrderStatus(
         );
       }
     }
+  }
+
+  // Si pasa a PAID y aún no había descontado stock (ej. orden de Mercado Pago en PENDING), descontarlo ahora
+  if (status === "PAID" && existing.status !== "CANCELLED" && !hasOrderDeductedStock(existing)) {
+    await commitOrderStockDeduction(existing, deps, now * 1000);
   }
 
   // Si pasa a PAID y paymentStatus no estaba en PAID, actualizar estado de cobro

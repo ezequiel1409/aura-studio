@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  cancelAbandonedGatewayOrder,
   createOrderPaymentPreference,
   getAvailablePaymentMethods,
+  getCheckoutSandboxOrderSummary,
   markOrderPaymentManually,
   processPaymentWebhook,
 } from "../src/services/payment.service";
@@ -486,6 +488,80 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
 
       await new Promise((r) => setTimeout(r, 20));
       expect(sendPaidSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      if (prevToken === undefined) {
+        delete process.env.MP_ACCESS_TOKEN;
+      } else {
+        process.env.MP_ACCESS_TOKEN = prevToken;
+      }
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("getCheckoutSandboxOrderSummary verifica retorno real contra API de Mercado Pago y descuenta stock solo al aprobarse", async () => {
+    const decrementStockMock = vi.fn().mockResolvedValue({
+      remainingStock: 4,
+      totalProductStock: 4,
+      newProductStatus: "AVAILABLE",
+    });
+    const restoreStockMock = vi.fn().mockResolvedValue({
+      newStock: 5,
+      totalProductStock: 5,
+      newProductStatus: "AVAILABLE",
+    });
+
+    const deps = createMockDeps({
+      ...mockOrder,
+      paymentMethod: "MERCADOPAGO",
+      paymentStatus: "PENDING",
+      status: "PENDING",
+    });
+    deps.productRepo = {
+      decrementStock: decrementStockMock,
+      restoreStock: restoreStockMock,
+    } as any;
+
+    // 1. Si el usuario abandona sin pagar, cancelAbandonedGatewayOrder NO llama a restoreStock ni decrementStock
+    await cancelAbandonedGatewayOrder(mockOrder.code, deps);
+    expect(decrementStockMock).not.toHaveBeenCalled();
+    expect(restoreStockMock).not.toHaveBeenCalled();
+
+    // Reponer estado PENDING para probar el retorno aprobado real de MP
+    const freshDeps = createMockDeps({
+      ...mockOrder,
+      paymentMethod: "MERCADOPAGO",
+      paymentStatus: "PENDING",
+      status: "PENDING",
+    });
+    freshDeps.productRepo = {
+      decrementStock: decrementStockMock,
+      restoreStock: restoreStockMock,
+    } as any;
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "approved",
+          transaction_amount: mockOrder.totalCents / 100,
+          external_reference: `ORD-0${mockOrder.code}`,
+        }),
+        { status: 200 }
+      )
+    );
+
+    const prevToken = process.env.MP_ACCESS_TOKEN;
+    process.env.MP_ACCESS_TOKEN = "APP_USR-live-sandbox-key";
+
+    try {
+      const summary = await getCheckoutSandboxOrderSummary(
+        mockOrder.code,
+        "13299887766",
+        freshDeps,
+        { isReturnCallback: true, paymentStatusParam: "approved" }
+      );
+
+      expect(summary.paymentStatus).toBe("AUTHORIZED");
+      expect(decrementStockMock).toHaveBeenCalledTimes(1);
     } finally {
       if (prevToken === undefined) {
         delete process.env.MP_ACCESS_TOKEN;

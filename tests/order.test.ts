@@ -841,7 +841,7 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
         customerEmail: "sofia@example.com",
         customerDni: "37444555",
         deliveryMethod: "PICKUP" as const,
-        paymentMethod: "MERCADOPAGO" as const,
+        paymentMethod: "PAYWAY" as const,
         items: [
           {
             productId: product.id,
@@ -879,6 +879,104 @@ describe("Order & Logistics Flow (BR-40, BR-41, BR-42)", () => {
       // Stock debitado 5 - 2 = 3
       const productAfterRetry = await env.deps.productRepo.findById(product.id);
       expect(productAfterRetry!.colors![0].sizes[0].stock).toBe(3);
+    });
+
+    it("para Mercado Pago no descuenta stock al crear la preferencia ni al volver atrás sin pagar, y recién descuenta al aprobarse el pago", async () => {
+      const product = await createProduct(
+        {
+          rawText: "Tapado Lana $80.000",
+          colors: [{ name: "Negro", position: 0, sizes: [{ size: "M", stock: 5 }] }],
+        },
+        env.deps
+      );
+
+      // 1. Cliente hace clic en "Continuar a Mercado Pago"
+      const created = await createOrder(
+        {
+          customerName: "Camila Vega",
+          customerPhone: "1144332211",
+          customerEmail: "camila@example.com",
+          customerDni: "36111222",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "MERCADOPAGO",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title ?? "Tapado Lana",
+              colorName: "Negro",
+              size: "M",
+              quantity: 2,
+              unitPriceCents: 8000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      // El stock NO debe haberse descontado todavía (permanece en 5)
+      let currentProduct = await env.deps.productRepo.findById(product.id);
+      expect(currentProduct!.colors![0].sizes[0].stock).toBe(5);
+
+      // 2. Cliente vuelve atrás desde Mercado Pago -> se cancela orden borrador sin alterar el stock
+      await paymentService.cancelAbandonedGatewayOrder(created.order.code, env.deps);
+      currentProduct = await env.deps.productRepo.findById(product.id);
+      expect(currentProduct!.colors![0].sizes[0].stock).toBe(5);
+
+      const cancelledOrder = await getOrderById(created.order.id, env.deps);
+      expect(cancelledOrder.status).toBe("CANCELLED");
+
+      // 3. Nuevo intento que SÍ completa el pago en Mercado Pago -> al acreditarse recién descuenta el stock (5 -> 3)
+      const secondAttempt = await createOrder(
+        {
+          customerName: "Camila Vega",
+          customerPhone: "1144332211",
+          customerEmail: "camila@example.com",
+          customerDni: "36111222",
+          deliveryMethod: "PICKUP",
+          paymentMethod: "MERCADOPAGO",
+          items: [
+            {
+              productId: product.id,
+              productCode: product.code,
+              productTitle: product.title ?? "Tapado Lana",
+              colorName: "Negro",
+              size: "M",
+              quantity: 2,
+              unitPriceCents: 8000000,
+            },
+          ],
+        },
+        env.deps
+      );
+
+      expect((await env.deps.productRepo.findById(product.id))!.colors![0].sizes[0].stock).toBe(5);
+
+      // Simular callback aprobado de Mercado Pago
+      await paymentService.processPaymentWebhook(
+        "mercadopago",
+        {
+          data: { id: secondAttempt.paymentPreference?.preferenceId || `mock_pref_${secondAttempt.order.code}_1` },
+          order_code: secondAttempt.order.code,
+          status: "approved",
+        },
+        {},
+        env.deps
+      );
+
+      // Stock descontado exactamente una vez (5 - 2 = 3)
+      currentProduct = await env.deps.productRepo.findById(product.id);
+      expect(currentProduct!.colors![0].sizes[0].stock).toBe(3);
+
+      // Si luego se confirma manualmente como PAID o llega otro webhook repetido, NO descuenta dos veces
+      await paymentService.markOrderPaymentManually(secondAttempt.order.id, "PAID", env.deps);
+      currentProduct = await env.deps.productRepo.findById(product.id);
+      expect(currentProduct!.colors![0].sizes[0].stock).toBe(3);
+
+      // Si se cancela DESPUÉS de haber descontado el stock, sí lo restaura (3 -> 5)
+      await updateOrderStatus(secondAttempt.order.id, "CANCELLED", env.deps);
+      currentProduct = await env.deps.productRepo.findById(product.id);
+      expect(currentProduct!.colors![0].sizes[0].stock).toBe(5);
     });
   });
 

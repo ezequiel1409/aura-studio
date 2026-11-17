@@ -21,11 +21,13 @@ export async function GET(request: NextRequest) {
     }
 
     const deps = getProductServiceDeps();
-    const isReturnCallback = Boolean(url.searchParams.get("payment_status"));
+    const paymentStatusParam = url.searchParams.get("payment_status");
+    const isReturnCallback = Boolean(paymentStatusParam);
     const baseUrl = `${url.protocol}//${url.host}`;
     const order = await getCheckoutSandboxOrderSummary(orderCode, paymentId, deps, {
       baseUrl,
       isReturnCallback,
+      paymentStatusParam,
     });
 
     return NextResponse.json({ order });

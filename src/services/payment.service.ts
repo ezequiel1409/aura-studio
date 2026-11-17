@@ -30,8 +30,36 @@ import { BankTransferPaymentAdapter } from "../infra/payments/bank-transfer/bank
 import { CashOnDeliveryPaymentAdapter } from "../infra/payments/cash/cash-on-delivery.adapter";
 import { MercadoPagoPaymentAdapter } from "../infra/payments/mercadopago/mercadopago.adapter";
 import { getEnv } from "../lib/env";
-import { notifyOrderPaymentAccepted, updateOrderStatus } from "./order.service";
+import {
+  commitOrderStockDeduction,
+  hasOrderDeductedStock,
+  notifyOrderPaymentAccepted,
+  updateOrderStatus,
+} from "./order.service";
 import { getShowroomSettings } from "./settings.service";
+
+const pendingOrderReconciliations = new Map<number, Promise<void>>();
+
+function buildMercadoPagoAdapter(baseUrl?: string): MercadoPagoPaymentAdapter {
+  const env = getEnv();
+  return new MercadoPagoPaymentAdapter({
+    accessToken: process.env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN,
+    publicKey: process.env.MP_PUBLIC_KEY || env.MP_PUBLIC_KEY,
+    webhookSecret: process.env.MP_WEBHOOK_SECRET || env.MP_WEBHOOK_SECRET,
+    sandbox: (process.env.MP_SANDBOX ?? env.MP_SANDBOX) !== "false",
+    baseUrl,
+  });
+}
+
+function hasConfiguredRealMercadoPagoToken(): boolean {
+  const env = getEnv();
+  const activeToken = process.env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN;
+  return (
+    Boolean(activeToken) &&
+    !activeToken.startsWith("TEST-00000000") &&
+    !activeToken.startsWith("test_mock_")
+  );
+}
 
 /**
  * Obtiene la lista de métodos de pago activos y configurados para el comercio (BR-47).
@@ -152,15 +180,9 @@ export async function createOrderPaymentPreference(
 ): Promise<PaymentPreferenceResult> {
   const method = order.paymentMethod || "WHATSAPP";
   const settings = await getShowroomSettings(deps);
-  const env = getEnv();
 
   if (method === "MERCADOPAGO") {
-    const adapter = new MercadoPagoPaymentAdapter({
-      accessToken: process.env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN,
-      publicKey: process.env.MP_PUBLIC_KEY || env.MP_PUBLIC_KEY,
-      sandbox: (process.env.MP_SANDBOX ?? env.MP_SANDBOX) !== "false",
-      baseUrl: options?.baseUrl,
-    });
+    const adapter = buildMercadoPagoAdapter(options?.baseUrl);
 
     const result = await adapter.createPaymentPreference(order, options);
     if (result.preferenceId && deps.orderRepo.updatePayment) {
@@ -253,9 +275,22 @@ function assertPaymentAmountMatchesOrder(order: Order, reportedAmountCents: numb
   }
 }
 
+async function withOrderReconciliationLock(orderId: number, work: () => Promise<void>): Promise<void> {
+  const inFlight = pendingOrderReconciliations.get(orderId);
+  const nextTask = (inFlight ? inFlight.catch(() => {}) : Promise.resolve()).then(work);
+  pendingOrderReconciliations.set(orderId, nextTask);
+  try {
+    await nextTask;
+  } finally {
+    if (pendingOrderReconciliations.get(orderId) === nextTask) {
+      pendingOrderReconciliations.delete(orderId);
+    }
+  }
+}
+
 /**
- * Registra el "Pago Aceptado" (AUTHORIZED) proveniente del callback/webhook de la pasarela
- * y dispara el correo específico de Pago Aceptado sin marcar aún el pedido como PAID (SRP).
+ * Registra el "Pago Aceptado" (AUTHORIZED) proveniente del callback/webhook de la pasarela,
+ * descuenta el stock diferido de forma atómica si aún no se debitó y envía el correo de Pago Aceptado (SRP).
  */
 async function reconcileAcceptedGatewayPayment(
   result: PaymentVerificationResult,
@@ -263,30 +298,45 @@ async function reconcileAcceptedGatewayPayment(
 ): Promise<void> {
   if (!result.orderCode) return;
 
-  const order = await deps.orderRepo.findByCode(result.orderCode);
-  if (!order) return;
+  const initialOrder = await deps.orderRepo.findByCode(result.orderCode);
+  if (!initialOrder) return;
 
-  assertPaymentAmountMatchesOrder(order, result.amountCents);
+  await withOrderReconciliationLock(initialOrder.id, async () => {
+    const order = (await deps.orderRepo.findById(initialOrder.id)) || initialOrder;
 
-  if (order.paymentStatus === "PAID") {
-    return;
-  }
+    assertPaymentAmountMatchesOrder(order, result.amountCents);
 
-  const wasAlreadyAccepted = order.paymentStatus === "AUTHORIZED";
-  const now = Math.floor(Date.now() / 1000);
+    if (order.paymentStatus === "PAID") {
+      return;
+    }
 
-  let updatedOrder = order;
-  if (deps.orderRepo.updatePayment) {
-    updatedOrder = await deps.orderRepo.updatePayment(order.id, {
-      paymentStatus: "AUTHORIZED",
-      paymentExternalId: result.externalId,
-      updatedAt: now,
-    });
-  }
+    if (order.status === "CANCELLED" && hasOrderDeductedStock(order)) {
+      return;
+    }
 
-  if (!wasAlreadyAccepted) {
-    notifyOrderPaymentAccepted(updatedOrder, deps);
-  }
+    const wasAlreadyAccepted = order.paymentStatus === "AUTHORIZED";
+    const now = Math.floor(Date.now() / 1000);
+
+    if (!hasOrderDeductedStock(order)) {
+      await commitOrderStockDeduction(order, deps, now * 1000);
+      if (order.status === "CANCELLED") {
+        await deps.orderRepo.updateStatus(order.id, "PENDING", now);
+      }
+    }
+
+    let updatedOrder = order;
+    if (deps.orderRepo.updatePayment) {
+      updatedOrder = await deps.orderRepo.updatePayment(order.id, {
+        paymentStatus: "AUTHORIZED",
+        paymentExternalId: result.externalId,
+        updatedAt: now,
+      });
+    }
+
+    if (!wasAlreadyAccepted) {
+      notifyOrderPaymentAccepted(updatedOrder, deps);
+    }
+  });
 }
 
 /**
@@ -310,15 +360,50 @@ async function reconcileRejectedGatewayPayment(
 }
 
 /**
+ * Verifica directamente con la API de Mercado Pago el retorno del cliente tras pagar en Checkout Pro
+ * para conciliar la orden y descontar stock solo cuando la operación resulta aprobada (SRP).
+ */
+async function verifyAndReconcileMercadoPagoReturn(
+  orderCode: number,
+  paymentId: string | null,
+  paymentStatusParam: string | null,
+  deps: GlobalAppDeps
+): Promise<void> {
+  const isPositiveReturn =
+    paymentStatusParam === "approved" || paymentStatusParam === "authorized";
+
+  if (!isPositiveReturn || !paymentId || paymentId === "null" || paymentId.startsWith("mock_pref_")) {
+    return;
+  }
+
+  if (!hasConfiguredRealMercadoPagoToken()) {
+    return;
+  }
+
+  const adapter = buildMercadoPagoAdapter();
+  const verification = await adapter.verifyPayment(paymentId);
+
+  if (verification.orderCode && verification.orderCode !== orderCode) {
+    throw new ValidationError("El pago verificado no corresponde al número de orden indicado.");
+  }
+
+  if (verification.status === "AUTHORIZED" || verification.status === "PAID") {
+    await reconcileAcceptedGatewayPayment({ ...verification, orderCode }, deps);
+  } else if (verification.status === "REJECTED") {
+    await reconcileRejectedGatewayPayment({ ...verification, orderCode }, deps);
+  }
+}
+
+/**
  * Obtiene el resumen de una orden para la pantalla de Checkout Pro Sandbox / Callback (SRP).
  */
 export async function getCheckoutSandboxOrderSummary(
   orderCode: number,
   paymentId: string | null,
   deps: GlobalAppDeps,
-  options?: { baseUrl?: string; isReturnCallback?: boolean }
+  options?: { baseUrl?: string; isReturnCallback?: boolean; paymentStatusParam?: string | null }
 ) {
-  const order = await deps.orderRepo.findByCode(orderCode);
+  let order = await deps.orderRepo.findByCode(orderCode);
   if (!order) {
     throw new OrderNotFoundError(orderCode);
   }
@@ -334,13 +419,29 @@ export async function getCheckoutSandboxOrderSummary(
     throw new ValidationError("Identificador de preferencia de pago no válido para esta orden.");
   }
 
+  if (
+    options?.isReturnCallback &&
+    order.paymentStatus !== "AUTHORIZED" &&
+    order.paymentStatus !== "PAID"
+  ) {
+    try {
+      await verifyAndReconcileMercadoPagoReturn(
+        orderCode,
+        paymentId,
+        options.paymentStatusParam ?? null,
+        deps
+      );
+      order = (await deps.orderRepo.findByCode(orderCode)) || order;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        throw err;
+      }
+      console.error("[CheckoutPro] Error al verificar retorno directo de Mercado Pago:", err);
+    }
+  }
+
   let externalCheckoutUrl: string | null = null;
-  const env = getEnv();
-  const activeToken = process.env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN;
-  const hasRealMpToken =
-    Boolean(activeToken) &&
-    !activeToken.startsWith("TEST-00000000") &&
-    !activeToken.startsWith("test_mock_");
+  const hasRealMpToken = hasConfiguredRealMercadoPagoToken();
 
   // Si ya hay un MP_ACCESS_TOKEN real configurado y la orden sigue pendiente sin venir de un callback de retorno,
   // generamos la preferencia oficial en Mercado Pago para redirigir directo al link de ellos (sandbox.mercadopago.com.ar).
@@ -409,8 +510,8 @@ export async function getCheckoutSandboxOrderSummary(
 }
 
 /**
- * Cancela una orden de pasarela externa abandonada al volver al checkout sin pagar
- * y restaura automáticamente el stock reservado de sus prendas (SRP).
+ * Cancela una orden de pasarela externa abandonada al volver al checkout sin pagar.
+ * Si la orden ya había descontado stock (ej. otro método), lo restaura automáticamente (SRP).
  */
 export async function cancelAbandonedGatewayOrder(
   orderCode: number,
@@ -444,13 +545,7 @@ export async function processPaymentWebhook(
   deps: GlobalAppDeps
 ): Promise<PaymentVerificationResult | null> {
   if (provider.toLowerCase() === "mercadopago") {
-    const env = getEnv();
-    const adapter = new MercadoPagoPaymentAdapter({
-      accessToken: process.env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN,
-      publicKey: process.env.MP_PUBLIC_KEY || env.MP_PUBLIC_KEY,
-      webhookSecret: process.env.MP_WEBHOOK_SECRET || env.MP_WEBHOOK_SECRET,
-      sandbox: (process.env.MP_SANDBOX ?? env.MP_SANDBOX) !== "false",
-    });
+    const adapter = buildMercadoPagoAdapter();
 
     const result = await adapter.processWebhook(payload, headers);
     if (result && (result.status === "AUTHORIZED" || result.status === "PAID")) {
@@ -466,8 +561,8 @@ export async function processPaymentWebhook(
 
 /**
  * Marca manualmente el estado de pago de una orden desde el Backoffice (ej. al confirmar pago).
- * - Si pasa a AUTHORIZED ("Pago Aceptado"): actualiza paymentStatus y envía el correo de Pago Aceptado.
- * - Si pasa a PAID ("Pago Confirmado"): actualiza la orden y su cobro a PAID y envía el correo de Pago Confirmado.
+ * - Si pasa a AUTHORIZED ("Pago Aceptado"): descuenta stock si estaba diferido, actualiza paymentStatus y envía el correo de Pago Aceptado.
+ * - Si pasa a PAID ("Pago Confirmado"): descuenta stock si estaba diferido, actualiza orden y cobro a PAID y envía el correo de Pago Confirmado.
  */
 export async function markOrderPaymentManually(
   orderId: number,
@@ -488,6 +583,10 @@ export async function markOrderPaymentManually(
 
   const now = Math.floor(Date.now() / 1000);
   const wasAlreadyAccepted = order.paymentStatus === "AUTHORIZED";
+
+  if (paymentStatus === "AUTHORIZED" && !hasOrderDeductedStock(order)) {
+    await commitOrderStockDeduction(order, deps, now * 1000);
+  }
 
   if (deps.orderRepo.updatePayment) {
     await deps.orderRepo.updatePayment(order.id, {

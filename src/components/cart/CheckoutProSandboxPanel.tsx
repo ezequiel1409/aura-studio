@@ -83,6 +83,9 @@ export function CheckoutProSandboxPanel({
       if (paymentId) {
         query.set("payment_id", paymentId);
       }
+      if (initialPaymentStatusParam) {
+        query.set("payment_status", initialPaymentStatusParam);
+      }
 
       const res = await fetch(`/api/payments/sandbox-order?${query.toString()}`, {
         cache: "no-store",
@@ -99,7 +102,7 @@ export function CheckoutProSandboxPanel({
     } finally {
       setLoading(false);
     }
-  }, [orderCode, paymentId]);
+  }, [initialPaymentStatusParam, orderCode, paymentId]);
 
   const executeGatewayCallback = useCallback(
     async (simulatedStatus: "approved" | "rejected") => {
@@ -145,22 +148,24 @@ export function CheckoutProSandboxPanel({
       const loadedOrder = await fetchOrderSummary();
       if (!active || !loadedOrder) return;
 
+      const isSimulatedPref = !paymentId || paymentId.startsWith("mock_pref_");
+
       if (
-        (initialPaymentStatusParam === "approved" || initialPaymentStatusParam === "authorized") &&
-        loadedOrder.paymentStatus !== "AUTHORIZED" &&
-        loadedOrder.paymentStatus !== "PAID"
-      ) {
-        await executeGatewayCallback("approved");
-      } else if (
         loadedOrder.paymentStatus === "AUTHORIZED" ||
         loadedOrder.paymentStatus === "PAID"
       ) {
         onPaymentAccepted?.();
       } else if (
+        (initialPaymentStatusParam === "approved" || initialPaymentStatusParam === "authorized") &&
+        isSimulatedPref
+      ) {
+        await executeGatewayCallback("approved");
+      } else if (
         (initialPaymentStatusParam === "failure" ||
           initialPaymentStatusParam === "rejected" ||
           initialPaymentStatusParam === "cancelled") &&
-        loadedOrder.paymentStatus === "PENDING"
+        loadedOrder.paymentStatus === "PENDING" &&
+        isSimulatedPref
       ) {
         await executeGatewayCallback("rejected");
       }
@@ -169,7 +174,7 @@ export function CheckoutProSandboxPanel({
     return () => {
       active = false;
     };
-  }, [executeGatewayCallback, fetchOrderSummary, initialPaymentStatusParam, onPaymentAccepted]);
+  }, [executeGatewayCallback, fetchOrderSummary, initialPaymentStatusParam, onPaymentAccepted, paymentId]);
 
   if (loading) {
     return (

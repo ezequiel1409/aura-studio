@@ -94,6 +94,62 @@ function createOrderIdempotencyKey(): string {
   return `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+const CHECKOUT_DRAFT_STORAGE_KEY = "aura_checkout_mp_draft";
+
+interface CheckoutDraftSnapshot {
+  customerName: string;
+  customerDni: string;
+  customerPhone: string;
+  customerEmail: string;
+  deliveryAddress: string;
+  postalCode: string;
+  deliveryNotes: string;
+  deliveryMethod: DeliveryMethod;
+  pendingOrderCode?: number;
+}
+
+function saveCheckoutDraftSnapshot(snapshot: CheckoutDraftSnapshot): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(CHECKOUT_DRAFT_STORAGE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // Ignorar cuota de almacenamiento o navegación privada
+  }
+}
+
+function loadCheckoutDraftSnapshot(): CheckoutDraftSnapshot | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as CheckoutDraftSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function clearCheckoutDraftSnapshot(): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(CHECKOUT_DRAFT_STORAGE_KEY);
+  } catch {
+    // Ignorar error de sessionStorage
+  }
+}
+
+async function cancelDraftOrderInBackground(orderCode: number): Promise<void> {
+  try {
+    await fetch("/api/payments/sandbox-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({ order_code: orderCode, action: "cancel_abandoned" }),
+    });
+  } catch {
+    // No bloquear retorno del usuario ante error de red
+  }
+}
+
 export function CartPageClient({
   showroomAddress,
   storeLocation = DEFAULT_STORE_LOCATION,
@@ -275,6 +331,19 @@ export function CartPageClient({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
+    const draft = loadCheckoutDraftSnapshot();
+    if (draft) {
+      if (draft.customerName) setCustomerName((prev) => prev || draft.customerName);
+      if (draft.customerDni) setCustomerDni((prev) => prev || draft.customerDni);
+      if (draft.customerPhone) setCustomerPhone((prev) => prev || draft.customerPhone);
+      if (draft.customerEmail) setCustomerEmail((prev) => prev || draft.customerEmail);
+      if (draft.deliveryAddress) setDeliveryAddress((prev) => prev || draft.deliveryAddress);
+      if (draft.postalCode) setPostalCode((prev) => prev || draft.postalCode);
+      if (draft.deliveryNotes) setDeliveryNotes((prev) => prev || draft.deliveryNotes);
+      if (draft.deliveryMethod) setDeliveryMethod(draft.deliveryMethod);
+    }
+
     const rawQuery =
       window.location.search +
       (window.location.hash && window.location.hash.includes("=")
@@ -305,16 +374,18 @@ export function CartPageClient({
         rawStatus === "null";
 
       if (isAbandonedOrFailed) {
-        // Cancelar la orden borrador en segundo plano para restaurar su stock y volver al Paso 3 del Checkout
-        void fetch("/api/payments/sandbox-order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order_code: parsedCode, action: "cancel_abandoned" }),
-        }).catch(() => {});
+        void cancelDraftOrderInBackground(parsedCode);
+        if (draft?.pendingOrderCode) {
+          saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
+        }
 
         window.history.replaceState({}, "", "/carrito");
+        setIsRedirectingToGateway(false);
+        setIsSubmitting(false);
         setSelectedPaymentMethod("MERCADOPAGO");
-        setCurrentStep("payment");
+        if (useCartStore.getState().items.length > 0) {
+          setCurrentStep("payment");
+        }
         setErrorMessage(
           rawStatus === "rejected"
             ? "Tu pago fue rechazado por Mercado Pago. Podés intentar nuevamente o elegir otro medio de pago."
@@ -328,8 +399,55 @@ export function CartPageClient({
         paymentId,
         paymentStatusParam,
       });
+      return;
     }
-  }, []);
+
+    // Si volvió atrás con el navegador desde Mercado Pago sin finalizar el pago (recarga limpia de /carrito)
+    if (draft?.pendingOrderCode) {
+      void cancelDraftOrderInBackground(draft.pendingOrderCode);
+      saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
+      setIsRedirectingToGateway(false);
+      setIsSubmitting(false);
+      setSelectedPaymentMethod("MERCADOPAGO");
+      if (useCartStore.getState().items.length > 0 && draft.customerName) {
+        setCurrentStep("payment");
+        setErrorMessage(
+          "Volviste desde Mercado Pago sin completar el pago. Podés reintentar o elegir otro medio de pago."
+        );
+      }
+    }
+  }, [setDeliveryMethod]);
+
+  // Restaurar estado si el navegador recupera la pestaña desde bfcache al presionar "Atrás"
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handlePageShow = () => {
+      const params = new URLSearchParams(window.location.search);
+      const status =
+        params.get("collection_status") ||
+        params.get("status") ||
+        params.get("payment_status");
+      if (status === "approved" || status === "authorized" || status === "pending") {
+        return;
+      }
+
+      setIsRedirectingToGateway(false);
+      setIsSubmitting(false);
+
+      const draft = loadCheckoutDraftSnapshot();
+      if (draft?.pendingOrderCode) {
+        void cancelDraftOrderInBackground(draft.pendingOrderCode);
+        saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
+        setErrorMessage(
+          "Volviste desde Mercado Pago sin completar el pago. Podés reintentar o elegir otro medio de pago."
+        );
+        void syncCartWithServer();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [syncCartWithServer]);
 
   // Cupón de descuento aplicado
   const [couponInput, setCouponInput] = useState("");
@@ -347,6 +465,9 @@ export function CartPageClient({
   useEffect(() => {
     // Asegurar que al iniciar el método seleccionado sea uno de los habilitados por el comercio
     const syncDeliveryTimer = setTimeout(() => {
+      const draft = loadCheckoutDraftSnapshot();
+      if (draft?.deliveryMethod) return;
+
       if (isPickupEnabled) {
         setDeliveryMethod("PICKUP");
       } else if (isHomeDeliveryEnabled) {
@@ -635,9 +756,25 @@ export function CartPageClient({
       return;
     }
 
+    saveCheckoutDraftSnapshot({
+      customerName: customerName.trim(),
+      customerDni: customerDni.trim(),
+      customerPhone: customerPhone.trim(),
+      customerEmail: customerEmail.trim(),
+      deliveryAddress: deliveryAddress.trim(),
+      postalCode: postalCode.trim(),
+      deliveryNotes: deliveryNotes.trim(),
+      deliveryMethod,
+    });
+
     setCurrentStep("payment");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const handleGatewayPaymentAccepted = useCallback(() => {
+    clearCart();
+    clearCheckoutDraftSnapshot();
+  }, [clearCart]);
 
   // Confirmar y procesar la orden en Paso 3
   const handleConfirmOrder = async () => {
@@ -721,6 +858,18 @@ export function CartPageClient({
 
       // Si es Mercado Pago, redirigir directamente al sitio oficial de Mercado Pago SIN mostrar pantalla previa
       if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
+        saveCheckoutDraftSnapshot({
+          customerName: customerName.trim(),
+          customerDni: customerDni.trim(),
+          customerPhone: customerPhone.trim(),
+          customerEmail: customerEmail.trim(),
+          deliveryAddress: deliveryAddress.trim(),
+          postalCode: postalCode.trim(),
+          deliveryNotes: deliveryNotes.trim(),
+          deliveryMethod,
+          pendingOrderCode: data.order.code,
+        });
+
         const targetUrl = String(data.paymentPreference.paymentUrl);
         if (targetUrl.startsWith("https://")) {
           setIsRedirectingToGateway(true);
@@ -748,8 +897,9 @@ export function CartPageClient({
         transferReceiptUrl: finalReceiptUrl,
       });
 
-      // Limpiar bolsa y reiniciar métodos elegidos para próximas compras
+      // Limpiar bolsa, borrador y reiniciar métodos elegidos para próximas compras
       clearCart();
+      clearCheckoutDraftSnapshot();
       setTransferReceiptFile(null);
       setTransferReceiptBase64(null);
       setSelectedPaymentMethod(enabledPaymentMethods[0]?.method || "TRANSFER");
@@ -812,12 +962,20 @@ export function CartPageClient({
           initialPaymentStatusParam={checkoutGatewayParams.paymentStatusParam}
           brandName={brandName}
           isCustomerLoggedIn={Boolean(customer)}
-          onPaymentAccepted={clearCart}
+          onPaymentAccepted={handleGatewayPaymentAccepted}
           onReturnToCart={() => {
+            void cancelDraftOrderInBackground(checkoutGatewayParams.orderCode);
+            const draft = loadCheckoutDraftSnapshot();
+            if (draft?.pendingOrderCode) {
+              saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
+            }
             if (typeof window !== "undefined") {
               window.history.replaceState({}, "", "/carrito");
             }
             setCheckoutGatewayParams(null);
+            if (items.length > 0) {
+              setCurrentStep("payment");
+            }
           }}
         />
       ) : orderSuccess ? (
