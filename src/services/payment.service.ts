@@ -511,7 +511,7 @@ export async function getCheckoutSandboxOrderSummary(
 
 /**
  * Cancela una orden de pasarela externa abandonada al volver al checkout sin pagar.
- * Si la orden ya había descontado stock (ej. otro método), lo restaura automáticamente (SRP).
+ * Si la orden ya había descontado stock (ej. otro método), lo restaura automáticamente sin enviar correo de cancelación (SRP).
  */
 export async function cancelAbandonedGatewayOrder(
   orderCode: number,
@@ -525,11 +525,26 @@ export async function cancelAbandonedGatewayOrder(
     order.paymentStatus !== "PAID" &&
     order.paymentStatus !== "AUTHORIZED"
   ) {
-    await updateOrderStatus(order.id, "CANCELLED", deps);
+    const now = Math.floor(Date.now() / 1000);
+    if (hasOrderDeductedStock(order) && deps.productRepo) {
+      for (const item of order.items || []) {
+        if (item.productId) {
+          await deps.productRepo.restoreStock(
+            item.productId,
+            item.colorName,
+            item.size,
+            item.quantity,
+            now * 1000
+          );
+        }
+      }
+    }
+
+    await deps.orderRepo.updateStatus(order.id, "CANCELLED", now);
     if (deps.orderRepo.updatePayment) {
       await deps.orderRepo.updatePayment(order.id, {
         paymentStatus: "REJECTED",
-        updatedAt: Math.floor(Date.now() / 1000),
+        updatedAt: now,
       });
     }
   }

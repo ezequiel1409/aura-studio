@@ -227,6 +227,11 @@ export function CartPageClient({
     [syncStock]
   );
 
+  const handleGatewayPaymentAccepted = useCallback(() => {
+    clearCart();
+    clearCheckoutDraftSnapshot();
+  }, [clearCart]);
+
   // Sincronizar silenciosamente stock y precios vigentes al cargar el carrito
   useEffect(() => {
     const controller = new AbortController();
@@ -770,11 +775,6 @@ export function CartPageClient({
     setCurrentStep("payment");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  const handleGatewayPaymentAccepted = useCallback(() => {
-    clearCart();
-    clearCheckoutDraftSnapshot();
-  }, [clearCart]);
 
   // Confirmar y procesar la orden en Paso 3
   const handleConfirmOrder = async () => {

@@ -520,11 +520,22 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
       decrementStock: decrementStockMock,
       restoreStock: restoreStockMock,
     } as any;
+    const sendCancelledSpy = vi.fn().mockResolvedValue(undefined);
+    deps.emailService = {
+      sendEmail: vi.fn().mockResolvedValue(undefined),
+      sendOrderCreatedEmail: vi.fn().mockResolvedValue(undefined),
+      sendOrderPaidEmail: vi.fn().mockResolvedValue(undefined),
+      sendOrderShippedEmail: vi.fn().mockResolvedValue(undefined),
+      sendOrderCancelledEmail: sendCancelledSpy,
+      sendAdminNewOrderAlertEmail: vi.fn().mockResolvedValue(undefined),
+      sendPasswordResetEmail: vi.fn().mockResolvedValue(undefined),
+    };
 
-    // 1. Si el usuario abandona sin pagar, cancelAbandonedGatewayOrder NO llama a restoreStock ni decrementStock
+    // 1. Si el usuario abandona sin pagar, cancelAbandonedGatewayOrder NO llama a restoreStock, decrementStock ni envía correo de cancelación
     await cancelAbandonedGatewayOrder(mockOrder.code, deps);
     expect(decrementStockMock).not.toHaveBeenCalled();
     expect(restoreStockMock).not.toHaveBeenCalled();
+    expect(sendCancelledSpy).not.toHaveBeenCalled();
 
     // Reponer estado PENDING para probar el retorno aprobado real de MP
     const freshDeps = createMockDeps({
