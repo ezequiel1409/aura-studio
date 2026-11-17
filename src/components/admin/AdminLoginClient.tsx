@@ -227,7 +227,7 @@ export function AdminLoginClient({
             <button
               type="submit"
               disabled={loading || isLocked}
-              className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-sm mt-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
+              className="admin-btn-primary w-full py-3.5 px-4 min-h-[44px] rounded-xl text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-sm mt-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
               {loading ? (
                 <>

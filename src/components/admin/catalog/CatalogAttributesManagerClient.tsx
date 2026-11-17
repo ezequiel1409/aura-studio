@@ -247,9 +247,6 @@ export function CatalogAttributesManagerClient({
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-zinc-100">{attr.label}</span>
-                      <code className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 text-amber-300 font-mono">
-                        {attr.key}
-                      </code>
                       {attr.isFilterable && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-800/50 font-semibold">
                           Filtro activo
@@ -323,7 +320,7 @@ export function CatalogAttributesManagerClient({
               <button
                 type="submit"
                 disabled={saving || !attrLabel.trim() || !attrOptionsText.trim()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-bold disabled:opacity-50 transition-colors cursor-pointer"
+                className="admin-btn-primary inline-flex items-center gap-1.5 px-4 py-2 min-h-[40px] rounded-xl text-xs disabled:opacity-50"
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                 <span>Guardar Atributo</span>
@@ -419,7 +416,7 @@ export function CatalogAttributesManagerClient({
             type="button"
             onClick={handleSaveCatalogConfig}
             disabled={saving}
-            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs transition-all cursor-pointer"
+            className="admin-btn-primary w-full inline-flex items-center justify-center gap-2 py-3 px-4 min-h-[44px] rounded-xl text-xs"
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
             <span>Guardar Configuración de Catálogo</span>

@@ -607,8 +607,8 @@ export function NewProductClient({
               type="button"
               disabled={submitting || !isFormValid}
               onClick={() => submitProduct("AVAILABLE")}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-extrabold shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-              title="Publicar pieza disponible en la tienda (Ctrl + Enter)"
+              className="inline-flex min-h-[40px] items-center gap-1.5 px-4 py-2 rounded-xl admin-btn-primary text-xs shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              title="Publicar producto disponible en la tienda (Ctrl + Enter)"
             >
               {submitting ? (
                 <Loader2 size={13} className="animate-spin" />
@@ -616,7 +616,7 @@ export function NewProductClient({
                 <Check size={13} />
               )}
               <span>Publicar</span>
-              <kbd className="hidden lg:inline text-[9px] bg-amber-500 text-zinc-950 px-1.5 py-0.5 rounded font-mono font-bold">
+              <kbd className="hidden lg:inline text-[9px] bg-black/15 px-1.5 py-0.5 rounded font-mono font-bold">
                 Ctrl+↵
               </kbd>
             </button>
@@ -869,7 +869,7 @@ export function NewProductClient({
               id="heading-step-4"
               aria-expanded={mobileStep === 4}
               onClick={() => setMobileStep(mobileStep === 4 ? 0 : 4)}
-              className="w-full flex items-center justify-between p-4.5 text-left bg-zinc-900 hover:bg-zinc-850/60 transition-colors cursor-pointer"
+              className="w-full flex items-center justify-between p-4.5 text-left bg-zinc-900 hover:bg-zinc-800/60 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
                 <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[11px] font-bold text-zinc-300">
@@ -880,7 +880,7 @@ export function NewProductClient({
                     Opciones y visibilidad
                   </h2>
                   <p className="text-[11px] text-zinc-400 mt-0.5">
-                    {initialStatus === "AVAILABLE" ? "Disponible" : "Borrador"}
+                    {initialStatus === "AVAILABLE" ? "Disponible" : "Reservado (oculto)"}
                     {isFeatured ? " · Destacado en portada" : ""}
                   </p>
                 </div>
@@ -990,21 +990,21 @@ export function NewProductClient({
               type="button"
               disabled={submitting}
               onClick={() => submitProduct("RESERVED")}
-              className="px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
-              title="Guardar como borrador para editar luego"
+              className="min-h-[44px] px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+              title="Guardar oculto / reservado en el catálogo sin publicarlo todavía"
             >
-              Borrador
+              Guardar oculto
             </button>
 
             <button
               type="button"
               disabled={submitting || !isFormValid}
               onClick={() => submitProduct(undefined, true)}
-              className="hidden md:inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
-              title="Publicar y cargar siguiente (Ctrl + Shift + Enter)"
+              className="hidden md:inline-flex min-h-[44px] items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+              title="Publicar y limpiar el formulario para cargar otro (Ctrl + Shift + Enter)"
             >
               <PlusCircle size={14} />
-              <span>Publicar y cargar otra</span>
+              <span>Publicar y cargar otro</span>
               <kbd className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-mono border border-zinc-700">
                 Ctrl+⇧+↵
               </kbd>
@@ -1014,8 +1014,8 @@ export function NewProductClient({
               type="button"
               disabled={submitting || !isFormValid}
               onClick={() => submitProduct("AVAILABLE")}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 text-xs font-extrabold shadow-md transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-              title="Publicar pieza disponible en la tienda (Ctrl + Enter)"
+              className="inline-flex min-h-[44px] items-center gap-2 px-5 py-2.5 rounded-xl admin-btn-primary text-xs shadow-md transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              title="Publicar producto disponible en la tienda (Ctrl + Enter)"
             >
               {submitting ? (
                 <>
@@ -1025,8 +1025,8 @@ export function NewProductClient({
               ) : (
                 <>
                   <Check size={15} />
-                  <span>Publicar pieza</span>
-                  <kbd className="hidden sm:inline text-[10px] bg-amber-500 text-zinc-950 px-1.5 py-0.5 rounded font-mono font-bold">
+                  <span>Publicar producto</span>
+                  <kbd className="hidden sm:inline text-[10px] bg-black/15 px-1.5 py-0.5 rounded font-mono font-bold">
                     Ctrl+↵
                   </kbd>
                 </>

@@ -430,13 +430,15 @@ export function AdminHeader({
                 <Loader2 size={13} className="animate-spin text-zinc-400" />
               ) : ordersPaused ? (
                 <>
-                  <PauseCircle size={14} className="shrink-0 text-rose-400" />
+                  <PauseCircle size={14} className="shrink-0 text-rose-400" aria-hidden="true" />
+                  <span className="sm:hidden">Pausada</span>
                   <span className="hidden sm:inline">Ventas pausadas</span>
-                  <span className="text-[10px] font-bold uppercase underline tracking-wider ml-0.5">Reanudar</span>
+                  <span className="text-[10px] font-bold uppercase underline tracking-wider ml-0.5 hidden sm:inline">Reanudar</span>
                 </>
               ) : (
                 <>
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shrink-0" aria-hidden="true" />
+                  <span className="sm:hidden">Activa</span>
                   <span className="hidden sm:inline">Tienda activa</span>
                 </>
               )}
@@ -503,7 +505,7 @@ export function AdminHeader({
               </div>
               <button
                 type="submit"
-                className="min-h-[44px] px-4 rounded-xl bg-amber-300 hover:bg-amber-200 text-zinc-950 text-xs font-bold transition-colors cursor-pointer shrink-0"
+                className="min-h-[44px] px-4 rounded-xl admin-btn-primary text-xs font-bold cursor-pointer shrink-0"
               >
                 Buscar
               </button>

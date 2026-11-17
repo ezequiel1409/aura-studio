@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, RotateCcw, XCircle } from "lucide-react";
+import { Check, CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 import { OrderClaim } from "../../../domain/claim/types";
 
 export interface OrderClaimCardProps {
@@ -37,7 +37,7 @@ export function OrderClaimCard({
         <p>
           <strong className="text-zinc-400">Tipo de solicitud:</strong>{" "}
           {claim.type === "EXCHANGE"
-            ? "Cambio de talle / prenda"
+            ? "Cambio de talle / producto"
             : "Arrepentimiento de compra (Ley 24.240)"}
         </p>
         {claim.reason && (
@@ -50,7 +50,7 @@ export function OrderClaimCard({
       {claim.status === "PENDING" ? (
         <div className="pt-3 border-t border-rose-900/50 space-y-2.5">
           <p className="text-[11px] font-semibold text-rose-200">
-            Control de Calidad al recibir la prenda:
+            Control de calidad al recibir el producto:
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <button
@@ -76,12 +76,16 @@ export function OrderClaimCard({
       ) : (
         <div className="pt-2 border-t border-rose-900/50 text-xs">
           {claim.status === "APPROVED_RESTOCKED" ? (
-            <span className="text-emerald-400 font-semibold">
-              ✓ Control de calidad aprobado · Stock recirculado a la tienda
+            <span className="inline-flex items-center gap-1.5 text-emerald-400 font-semibold">
+              <CheckCircle2 size={14} className="shrink-0" aria-hidden="true" />
+              Control de calidad aprobado · Stock devuelto a la tienda
             </span>
           ) : (
             <div className="text-rose-300 space-y-0.5">
-              <p className="font-semibold">✕ Devolución rechazada en control de calidad</p>
+              <p className="inline-flex items-center gap-1.5 font-semibold">
+                <XCircle size={14} className="shrink-0" aria-hidden="true" />
+                Devolución rechazada en control de calidad
+              </p>
               {claim.rejectionReason && (
                 <p className="text-zinc-400 text-[11px]">Motivo: {claim.rejectionReason}</p>
               )}

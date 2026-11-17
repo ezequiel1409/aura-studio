@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Upload,
   X,
+  XCircle,
 } from "lucide-react";
 import { Category } from "../../../domain/category/types";
 import {
@@ -188,7 +189,7 @@ export function ProductImportClient({ categories }: ProductImportClientProps) {
         <button
           type="button"
           onClick={handleDownloadTemplate}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-zinc-950 font-bold text-xs shadow-md transition-all cursor-pointer self-start sm:self-auto"
+          className="admin-btn-primary inline-flex items-center gap-2 px-4 py-2.5 min-h-[40px] rounded-xl text-xs shadow-md self-start sm:self-auto"
         >
           <Download size={15} />
           <span>Descargar Plantilla CSV (Excel)</span>
@@ -250,7 +251,7 @@ export function ProductImportClient({ categories }: ProductImportClientProps) {
         <div className="p-5 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-300">
             <HelpCircle size={15} />
-            <span>Guía de Columnas y Correspondencia Posicional (ADM-04)</span>
+            <span>Guía de columnas del archivo</span>
           </div>
 
           <p className="text-xs text-zinc-300 leading-relaxed">
@@ -284,7 +285,8 @@ export function ProductImportClient({ categories }: ProductImportClientProps) {
                 Imágenes y Estado
               </span>
               <p className="text-zinc-400 text-[11px]">
-                <code>estado: Disponible / Reservado</code><br />
+                <code>estado: Disponible / Reservado</code>{" "}
+                <span className="text-zinc-500">(Reservado = oculto)</span><br />
                 <code>destacado: SI / NO</code><br />
                 <code>imagenes: URL1, URL2</code>
               </p>
@@ -348,17 +350,20 @@ export function ProductImportClient({ categories }: ProductImportClientProps) {
                   <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 font-mono text-[11px]">
                     Total: {parsedData.summary.totalRows} filas
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-800 text-emerald-300 font-mono text-[11px] font-bold">
-                    ✓ {parsedData.summary.validCount} válidas
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-800 text-emerald-300 font-mono text-[11px] font-bold">
+                    <CheckCircle2 size={12} aria-hidden="true" />
+                    {parsedData.summary.validCount} válidas
                   </span>
                   {parsedData.summary.warningCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-amber-950/70 border border-amber-800 text-amber-300 font-mono text-[11px] font-bold">
-                      ⚠ {parsedData.summary.warningCount} advertencias
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-950/70 border border-amber-800 text-amber-300 font-mono text-[11px] font-bold">
+                      <AlertTriangle size={12} aria-hidden="true" />
+                      {parsedData.summary.warningCount} advertencias
                     </span>
                   )}
                   {parsedData.summary.errorCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-rose-950/70 border border-rose-800 text-rose-300 font-mono text-[11px] font-bold">
-                      ✕ {parsedData.summary.errorCount} errores
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-950/70 border border-rose-800 text-rose-300 font-mono text-[11px] font-bold">
+                      <XCircle size={12} aria-hidden="true" />
+                      {parsedData.summary.errorCount} errores
                     </span>
                   )}
                 </div>

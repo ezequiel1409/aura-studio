@@ -208,7 +208,9 @@ body:has(#admin-layout-root[data-theme="dark"]) {
 #admin-layout-root[data-theme="light"] .bg-zinc-950\/60,
 #admin-layout-root[data-theme="light"] .bg-zinc-950\/50,
 #admin-layout-root[data-theme="light"] .bg-zinc-950\/40,
-#admin-layout-root[data-theme="light"] .bg-zinc-950\/30 {
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/35,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/30,
+#admin-layout-root[data-theme="light"] .bg-zinc-950\/20 {
   background-color: #f5f2eb !important;
   color: #1c1917 !important;
 }
@@ -235,17 +237,20 @@ body:has(#admin-layout-root[data-theme="dark"]) {
 #admin-layout-root[data-theme="light"] .bg-zinc-800\/80,
 #admin-layout-root[data-theme="light"] .bg-zinc-800\/70,
 #admin-layout-root[data-theme="light"] .bg-zinc-800\/60,
-#admin-layout-root[data-theme="light"] .bg-zinc-800\/50 {
+#admin-layout-root[data-theme="light"] .bg-zinc-800\/50,
+#admin-layout-root[data-theme="light"] .bg-zinc-800\/40 {
   background-color: #ebe6dc !important;
   color: #1c1917 !important;
 }
 
-#admin-layout-root[data-theme="light"] .bg-zinc-700 {
+#admin-layout-root[data-theme="light"] .bg-zinc-700,
+#admin-layout-root[data-theme="light"] .bg-zinc-500 {
   background-color: #44403c !important;
   color: #ffffff !important;
 }
 
 /* Bordes y divisores con contraste suficiente (WCAG 1.4.11 Non-text contrast) */
+#admin-layout-root[data-theme="light"] .border-zinc-900,
 #admin-layout-root[data-theme="light"] .border-zinc-850,
 #admin-layout-root[data-theme="light"] .border-zinc-800,
 #admin-layout-root[data-theme="light"] .border-zinc-800\/90,
@@ -260,11 +265,14 @@ body:has(#admin-layout-root[data-theme="dark"]) {
 
 #admin-layout-root[data-theme="light"] .border-zinc-700,
 #admin-layout-root[data-theme="light"] .border-zinc-700\/80,
-#admin-layout-root[data-theme="light"] .border-zinc-700\/60 {
+#admin-layout-root[data-theme="light"] .border-zinc-700\/60,
+#admin-layout-root[data-theme="light"] .border-zinc-600,
+#admin-layout-root[data-theme="light"] .border-zinc-500 {
   border-color: #c7beae !important;
 }
 
 #admin-layout-root[data-theme="light"] .divide-zinc-800 > :not([hidden]) ~ :not([hidden]),
+#admin-layout-root[data-theme="light"] .divide-zinc-800\/80 > :not([hidden]) ~ :not([hidden]),
 #admin-layout-root[data-theme="light"] .divide-zinc-800\/60 > :not([hidden]) ~ :not([hidden]) {
   border-color: #e5dfd3 !important;
 }
@@ -293,7 +301,8 @@ body:has(#admin-layout-root[data-theme="dark"]) {
 
 #admin-layout-root[data-theme="light"] .hover\:text-white:hover,
 #admin-layout-root[data-theme="light"] .hover\:text-zinc-100:hover,
-#admin-layout-root[data-theme="light"] .hover\:text-zinc-200:hover {
+#admin-layout-root[data-theme="light"] .hover\:text-zinc-200:hover,
+#admin-layout-root[data-theme="light"] .hover\:text-zinc-300:hover {
   color: #1c1917 !important;
 }
 
@@ -446,19 +455,76 @@ body:has(#admin-layout-root[data-theme="dark"]) {
 }
 
 /* Estados de interacción táctil y hover en Modo Claro */
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-950\/80:hover,
 #admin-layout-root[data-theme="light"] .hover\:bg-zinc-900:hover,
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-900\/60:hover,
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-900\/50:hover,
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-900\/40:hover,
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-850\/60:hover,
 #admin-layout-root[data-theme="light"] .hover\:bg-zinc-800:hover,
 #admin-layout-root[data-theme="light"] .hover\:bg-zinc-800\/70:hover,
 #admin-layout-root[data-theme="light"] .hover\:bg-zinc-800\/60:hover,
-#admin-layout-root[data-theme="light"] .hover\:bg-zinc-800\/50:hover {
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-800\/50:hover,
+#admin-layout-root[data-theme="light"] .hover\:bg-zinc-800\/30:hover {
   background-color: #e5dfd3 !important;
   color: #1c1917 !important;
+}
+
+#admin-layout-root[data-theme="light"] .hover\:border-zinc-800:hover,
+#admin-layout-root[data-theme="light"] .hover\:border-zinc-700:hover,
+#admin-layout-root[data-theme="light"] .hover\:border-zinc-700\/80:hover,
+#admin-layout-root[data-theme="light"] .hover\:border-zinc-600:hover {
+  border-color: #a89f8d !important;
 }
 
 #admin-layout-root[data-theme="light"] .hover\:bg-zinc-750:hover,
 #admin-layout-root[data-theme="light"] .hover\:bg-zinc-700:hover {
   background-color: #dcd5c7 !important;
   color: #1c1917 !important;
+}
+
+/* Badges de color sólido: asegurar contraste >= 4.5:1 en ambos modos */
+#admin-layout-root[data-theme="light"] .bg-emerald-600.text-zinc-950 {
+  color: #ffffff !important;
+}
+
+#admin-layout-root[data-theme="light"] .bg-rose-400.text-zinc-950,
+#admin-layout-root[data-theme="light"] .bg-sky-400.text-zinc-950,
+#admin-layout-root[data-theme="light"] .bg-indigo-400.text-zinc-950 {
+  color: #1c1917 !important;
+}
+
+/* Botones primarios y secundarios unificados mediante tokens semánticos (--admin-*) */
+#admin-layout-root .admin-btn-primary {
+  background-color: var(--admin-cta-bg);
+  color: var(--admin-cta-text);
+  font-weight: 700;
+  transition: background-color 150ms ease, transform 150ms ease, opacity 150ms ease;
+}
+
+#admin-layout-root .admin-btn-primary * {
+  color: var(--admin-cta-text);
+}
+
+#admin-layout-root[data-theme="light"] .admin-btn-primary:hover:not(:disabled) {
+  background-color: #292524;
+}
+
+#admin-layout-root[data-theme="dark"] .admin-btn-primary:hover:not(:disabled) {
+  background-color: #fef3c7;
+}
+
+#admin-layout-root .admin-btn-secondary {
+  background-color: var(--admin-surface-muted);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border);
+  font-weight: 600;
+  transition: background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+}
+
+#admin-layout-root .admin-btn-secondary:hover:not(:disabled) {
+  background-color: var(--admin-surface-hover);
+  border-color: var(--admin-border-strong);
 }
 
 /* Botones primarios de acción y pestañas seleccionadas en Modo Claro */

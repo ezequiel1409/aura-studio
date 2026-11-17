@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  MapPin,
-  Save,
-} from "lucide-react";
+import { MapPin, Save } from "lucide-react";
 import {
   DEFAULT_STORE_LOCATION,
   DEFAULT_STORE_SCHEDULE,
@@ -15,6 +9,9 @@ import {
   StoreScheduleConfig,
 } from "../../../lib/schedule/store-schedule";
 import { ShowroomSettings } from "../../../services/settings.service";
+import { AdminPageHeader } from "../ui/AdminPageHeader";
+import { AdminFeedbackBanner } from "../ui/AdminFeedbackBanner";
+import { AdminButton } from "../ui/AdminButton";
 import { FooterSettingsSection } from "./FooterSettingsSection";
 
 interface ContactSettingsClientProps {
@@ -91,56 +88,34 @@ export function ContactSettingsClient({ initialSettings }: ContactSettingsClient
 
   return (
     <div className="space-y-6 max-w-6xl w-full min-w-0">
-      {/* Encabezado Principal y Guardado Rápido */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <MapPin size={22} className="text-amber-400" />
-            <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">
-              Contacto, Showroom y Redes
-            </h1>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Gestioná el WhatsApp oficial de atención, la dirección física, los horarios de apertura y retiro, y las redes de la marca.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-zinc-950 hover:bg-amber-300 transition-colors cursor-pointer disabled:opacity-50 shadow-sm shrink-0"
-        >
-          {saving ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <Save size={15} />
-          )}
-          <span>{saving ? "Guardando..." : "Guardar Cambios"}</span>
-        </button>
-      </div>
+      <AdminPageHeader
+        eyebrow="Tienda › Contacto"
+        title="Contacto, Showroom y Redes"
+        description="Gestioná el WhatsApp de atención, la dirección física, horarios de retiro y redes sociales."
+        icon={<MapPin size={22} aria-hidden="true" />}
+        actions={
+          <AdminButton
+            type="button"
+            onClick={handleSave}
+            loading={saving}
+            loadingLabel="Guardando..."
+            icon={<Save size={15} aria-hidden="true" />}
+          >
+            Guardar cambios
+          </AdminButton>
+        }
+      />
 
       {feedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`p-4 rounded-xl text-xs flex items-center gap-2.5 ${
-            feedback.type === "ok"
-              ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-              : "bg-rose-950/60 border border-rose-800 text-rose-300"
-          }`}
-        >
-          {feedback.type === "ok" ? (
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-          ) : (
-            <AlertCircle size={16} className="shrink-0 text-rose-400" />
-          )}
-          <span>{feedback.text}</span>
-        </div>
+        <AdminFeedbackBanner
+          type={feedback.type}
+          message={feedback.text}
+          onDismiss={() => setFeedback(null)}
+        />
       )}
 
       {/* Formulario en 2 Columnas Balanceadas */}
-      <form onSubmit={handleSave} className="w-full min-w-0">
+      <form onSubmit={handleSave} className="w-full min-w-0 space-y-6">
         <FooterSettingsSection
           whatsappNumber={whatsappNumber}
           instagramHandle={instagramHandle}
@@ -157,6 +132,17 @@ export function ContactSettingsClient({ initialSettings }: ContactSettingsClient
           onStoreLocationChange={setStoreLocation}
           onStoreScheduleChange={setStoreSchedule}
         />
+
+        <div className="flex justify-end pt-2 border-t border-zinc-800">
+          <AdminButton
+            type="submit"
+            loading={saving}
+            loadingLabel="Guardando..."
+            icon={<Save size={15} aria-hidden="true" />}
+          >
+            Guardar cambios
+          </AdminButton>
+        </div>
       </form>
     </div>
   );

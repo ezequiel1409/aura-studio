@@ -69,9 +69,9 @@ export function StatusHistoryModal({
       case "AVAILABLE":
         return "Disponible";
       case "RESERVED":
-        return "Reservada";
+        return "Reservado (oculto)";
       case "SOLD_OUT":
-        return "Agotada";
+        return "Agotado";
       default:
         return "Creación inicial";
     }

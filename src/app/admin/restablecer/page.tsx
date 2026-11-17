@@ -95,7 +95,7 @@ function ResetPasswordForm() {
         <div className="pt-2">
           <button
             onClick={() => router.push("/admin/login")}
-            className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
+            className="admin-btn-primary w-full py-3.5 px-4 min-h-[44px] rounded-xl text-sm active:scale-[0.98] flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
             <span>Iniciar Sesión</span>
             <Sparkles size={14} aria-hidden="true" />
@@ -109,7 +109,7 @@ function ResetPasswordForm() {
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-7 shadow-lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-xs text-zinc-300 leading-relaxed mb-1">
-          Ingresá tu nueva clave (mínimo 8 caracteres). Será hasheada con altos estándares de seguridad (PBKDF2-HMAC-SHA512).
+          Ingresá tu nueva clave (mínimo 8 caracteres). Se guarda protegida y encriptada de forma segura.
         </p>
 
         <div>
@@ -195,7 +195,7 @@ function ResetPasswordForm() {
         <button
           type="submit"
           disabled={loading || !newPassword || !confirmPassword}
-          className="w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-sm mt-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
+          className="admin-btn-primary w-full py-3.5 px-4 min-h-[44px] rounded-xl text-sm active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none shadow-sm mt-2 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
           {loading ? (
             <>

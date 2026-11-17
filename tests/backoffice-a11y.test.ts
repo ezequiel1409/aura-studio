@@ -411,7 +411,7 @@ describe("Backoffice Accessibility & Inclusive UX (WCAG 2.1 AA)", () => {
       expect(html).toContain("Entrega: Todas");
       expect(html).toContain("Cobro: Todos");
       expect(html).toContain("Fecha: Todas");
-      expect(html).toContain("Buscar por DNI, #orden, cliente, tel, prenda...");
+      expect(html).toContain("Buscar por DNI, #orden, cliente, tel, producto...");
       expect(html).toContain("Compacta");
       expect(html).toContain("+ Ver detalles");
       expect(html).toContain("Chat");

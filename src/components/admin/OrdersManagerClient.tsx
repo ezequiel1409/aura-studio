@@ -333,7 +333,7 @@ export function OrdersManagerClient({
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-20 right-4 z-50 rounded-xl border border-emerald-800 bg-emerald-950/95 px-4 py-2.5 text-xs font-semibold text-emerald-200 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-top-2"
+          className="fixed bottom-5 right-4 left-4 sm:left-auto sm:right-6 z-50 rounded-xl border border-emerald-800 bg-emerald-950/95 px-4 py-2.5 text-xs font-semibold text-emerald-200 shadow-xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2"
         >
           {toastMessage}
         </div>
@@ -383,8 +383,8 @@ export function OrdersManagerClient({
           />
           <input
             type="search"
-            aria-label="Buscar pedido por DNI, número de orden, cliente, teléfono o prenda"
-            placeholder="Buscar por DNI, #orden, cliente, tel, prenda..."
+            aria-label="Buscar pedido por DNI, número de orden, cliente, teléfono o producto"
+            placeholder="Buscar por DNI, #orden, cliente, tel, producto..."
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -612,7 +612,7 @@ export function OrdersManagerClient({
           <ShoppingBag size={32} className="mx-auto text-zinc-600" />
           <p className="text-sm font-semibold text-zinc-300">
             {activeTab === "PENDING" && !hasActiveFilters
-              ? "No tenés pedidos pendientes de confirmación. ¡Todo al día! ✨"
+              ? "No tenés pedidos pendientes de confirmación. ¡Todo al día!"
               : "No se encontraron pedidos con los filtros o búsqueda actuales."}
           </p>
           {hasActiveFilters && (

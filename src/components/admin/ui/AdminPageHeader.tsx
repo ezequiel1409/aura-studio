@@ -10,12 +10,15 @@ export interface AdminPageHeaderProps {
   description?: string;
   backHref?: string;
   backLabel?: string;
+  icon?: React.ReactNode;
+  badge?: React.ReactNode;
   actions?: React.ReactNode;
+  className?: string;
 }
 
 /**
  * Cabecera estándar de páginas del backoffice con soporte opcional de breadcrumb/eyebrow,
- * enlace de retorno sin recargas y zona de acciones primarias.
+ * ícono, enlace de retorno sin recargas y zona de acciones primarias consistente.
  */
 export function AdminPageHeader({
   eyebrow,
@@ -23,10 +26,15 @@ export function AdminPageHeader({
   description,
   backHref,
   backLabel = "Volver",
+  icon,
+  badge,
   actions,
+  className = "",
 }: AdminPageHeaderProps) {
   return (
-    <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <header
+      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800 ${className}`.trim()}
+    >
       <div className="min-w-0">
         {backHref && (
           <Link
@@ -42,9 +50,13 @@ export function AdminPageHeader({
             {eyebrow}
           </span>
         )}
-        <h1 className="text-xl sm:text-2xl font-serif font-light text-zinc-100 mt-1 truncate">
-          {title}
-        </h1>
+        <div className="flex items-center gap-2.5 flex-wrap mt-1">
+          {icon && <span className="text-amber-400 shrink-0">{icon}</span>}
+          <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight text-zinc-100 truncate">
+            {title}
+          </h1>
+          {badge}
+        </div>
         {description && (
           <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{description}</p>
         )}

@@ -25,8 +25,8 @@ const BULK_STATUS_OPTIONS: ReadonlyArray<{
   textClass: string;
 }> = [
   { status: "AVAILABLE", label: "Disponible", textClass: "text-emerald-300" },
-  { status: "RESERVED", label: "Reservada", textClass: "text-amber-300" },
-  { status: "SOLD_OUT", label: "Agotada", textClass: "text-zinc-400" },
+  { status: "RESERVED", label: "Reservado (oculto)", textClass: "text-amber-300" },
+  { status: "SOLD_OUT", label: "Agotado", textClass: "text-zinc-400" },
 ];
 
 /**

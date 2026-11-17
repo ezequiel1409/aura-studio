@@ -375,11 +375,11 @@ export function EditProductClient({
         )}
 
         {/* Botones de Acción */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-zinc-850">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-zinc-800">
           <button
             type="button"
             onClick={() => setShowDeleteModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-rose-900/60 bg-rose-950/30 text-rose-300 hover:bg-rose-900/50 hover:text-rose-100 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
+            className="inline-flex min-h-[44px] items-center gap-2 px-4 py-2.5 rounded-xl border border-rose-900/60 bg-rose-950/30 text-rose-300 hover:bg-rose-900/50 hover:text-rose-100 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 cursor-pointer"
           >
             <Trash2 size={15} aria-hidden="true" />
             <span>Remover producto</span>
@@ -388,7 +388,7 @@ export function EditProductClient({
           <div className="flex items-center gap-3">
             <Link
               href="/admin/productos"
-              className="px-5 py-2.5 rounded-xl border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              className="inline-flex min-h-[44px] items-center px-5 py-2.5 rounded-xl border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             >
               Cancelar
             </Link>
@@ -396,7 +396,7 @@ export function EditProductClient({
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-amber-950/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
+              className="inline-flex min-h-[44px] items-center justify-center gap-2 px-6 py-2.5 rounded-xl admin-btn-primary text-xs active:scale-95 transition-all disabled:opacity-50 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
             >
               {saving ? (
                 <>
@@ -406,7 +406,7 @@ export function EditProductClient({
               ) : (
                 <>
                   <Save size={16} aria-hidden="true" />
-                  <span>Guardar Cambios</span>
+                  <span>Guardar cambios</span>
                 </>
               )}
             </button>

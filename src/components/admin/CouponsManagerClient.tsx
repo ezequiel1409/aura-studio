@@ -259,10 +259,10 @@ export function CouponsManagerClient({
             setIsModalOpen(true);
             setErrorMessage(null);
           }}
-          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-zinc-950 transition-colors hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-amber-400 shadow-xs cursor-pointer"
+          className="admin-btn-primary inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-xs focus-visible:outline-2 focus-visible:outline-amber-400 shadow-xs"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
-          <span>+ Nuevo cupón</span>
+          <span>Nuevo cupón</span>
         </button>
       </div>
 

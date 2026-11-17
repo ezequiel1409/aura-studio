@@ -39,6 +39,10 @@ import {
 import { ShowroomSettings } from "../../../services/settings.service";
 import { ACCEPTED_ADMIN_IMAGE_TYPES, uploadAdminMedia } from "../ui/AdminImageUploadField";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
+import { AdminPageHeader } from "../ui/AdminPageHeader";
+import { AdminFeedbackBanner } from "../ui/AdminFeedbackBanner";
+import { AdminButton } from "../ui/AdminButton";
+import { SemanticBadge } from "../ui/SemanticBadge";
 
 interface EmailSettingsClientProps {
   initialSettings: ShowroomSettings;
@@ -272,48 +276,30 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
 
   return (
     <div className="space-y-6 max-w-6xl pb-24">
-      {/* Cabecera Principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Mail size={22} className="text-amber-400" />
-            <h1 className="text-xl sm:text-2xl font-bold text-zinc-100">
-              Correos y Notificaciones
-            </h1>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Diseñá el formato visual de tus correos (logo, cabecera y pie repetibles) y personalizá el mensaje para cada evento de compra o retargeting.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => handleSave()}
-          disabled={saving}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-zinc-950 hover:bg-amber-300 transition-colors cursor-pointer disabled:opacity-50 shadow-sm shrink-0"
-        >
-          {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-          <span>{saving ? "Guardando..." : "Guardar Cambios"}</span>
-        </button>
-      </div>
+      <AdminPageHeader
+        eyebrow="Tienda › Correos"
+        title="Correos y Notificaciones"
+        description="Diseñá el formato visual de tus correos y personalizá el mensaje para cada evento de compra."
+        icon={<Mail size={22} aria-hidden="true" />}
+        actions={
+          <AdminButton
+            type="button"
+            onClick={() => handleSave()}
+            loading={saving}
+            loadingLabel="Guardando..."
+            icon={<Save size={15} aria-hidden="true" />}
+          >
+            Guardar cambios
+          </AdminButton>
+        }
+      />
 
       {feedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`p-4 rounded-xl text-xs flex items-center gap-2.5 ${
-            feedback.type === "ok"
-              ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-              : "bg-rose-950/60 border border-rose-800 text-rose-300"
-          }`}
-        >
-          {feedback.type === "ok" ? (
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-          ) : (
-            <AlertCircle size={16} className="shrink-0 text-rose-400" />
-          )}
-          <span>{feedback.text}</span>
-        </div>
+        <AdminFeedbackBanner
+          type={feedback.type}
+          message={feedback.text}
+          onDismiss={() => setFeedback(null)}
+        />
       )}
 
       {/* Selector de Pestañas Superiores */}
@@ -601,12 +587,9 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
                       <p className="text-[10px] text-zinc-500 truncate mt-0.5">{evt.triggerCondition}</p>
                     </div>
 
-                    <span
-                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                        evt.enabled ? "bg-emerald-400" : "bg-zinc-700"
-                      }`}
-                      title={evt.enabled ? "Activo" : "Pausado"}
-                    />
+                    <SemanticBadge variant={evt.enabled ? "success" : "neutral"}>
+                      {evt.enabled ? "Activo" : "Pausado"}
+                    </SemanticBadge>
                   </button>
                 );
               })}
@@ -880,15 +863,15 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
                     <table className="w-full text-xs border-collapse">
                       <thead>
                         <tr className="border-b border-stone-200 text-stone-500 text-[10px] uppercase">
-                          <th className="text-left py-2">Prenda</th>
+                          <th className="text-left py-2">Producto</th>
                           <th className="text-right py-2">Total</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr className="border-b border-stone-100">
                           <td className="py-2.5">
-                            <span className="font-semibold text-stone-800 block">Vestido Lino Arena</span>
-                            <span className="text-[11px] text-stone-500">Color: Arena · Talle: M · Cantidad: 1</span>
+                            <span className="font-semibold text-stone-800 block">Producto de ejemplo</span>
+                            <span className="text-[11px] text-stone-500">Variante: Estándar · Cantidad: 1</span>
                           </td>
                           <td className="text-right font-semibold text-stone-800">$45.000</td>
                         </tr>
@@ -1020,23 +1003,16 @@ export function EmailSettingsClient({ initialSettings }: EmailSettingsClientProp
                 className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-amber-400 disabled:opacity-50"
                 required
               />
-              <button
+              <AdminButton
                 type="submit"
-                disabled={sendingTest || !testRecipient.trim() || !emailStatus?.configured}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 transition-colors disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
+                size="sm"
+                loading={sendingTest}
+                loadingLabel="Enviando..."
+                disabled={!testRecipient.trim() || !emailStatus?.configured}
+                icon={<Send size={13} aria-hidden="true" />}
               >
-                {sendingTest ? (
-                  <>
-                    <Loader2 size={13} className="animate-spin" />
-                    <span>Enviando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={13} />
-                    <span>Enviar Prueba</span>
-                  </>
-                )}
-              </button>
+                Enviar prueba
+              </AdminButton>
             </div>
 
             {testFeedback && (

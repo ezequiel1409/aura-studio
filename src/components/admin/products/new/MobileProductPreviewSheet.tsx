@@ -34,7 +34,7 @@ export function MobileProductPreviewSheet({
     <ModalDialog
       isOpen={isOpen}
       onClose={onClose}
-      title="Vista Previa de la Prenda"
+      title="Vista previa del producto"
       size="sm"
       footer={
         <button

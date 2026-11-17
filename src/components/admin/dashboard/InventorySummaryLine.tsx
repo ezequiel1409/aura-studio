@@ -31,12 +31,12 @@ export function InventorySummaryLine({
           <span className="text-zinc-600">·</span>
           <span className="inline-flex items-center gap-1 font-bold text-amber-400">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            {reserved} reservadas
+            {reserved} reservados
           </span>
           <span className="text-zinc-600">·</span>
           <span className="inline-flex items-center gap-1 font-bold text-zinc-400">
             <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
-            {soldOut} agotadas
+            {soldOut} agotados
           </span>
           <span className="text-zinc-600">({total} en total)</span>
         </div>

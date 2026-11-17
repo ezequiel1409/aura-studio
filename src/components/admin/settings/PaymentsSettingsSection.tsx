@@ -522,21 +522,21 @@ export function PaymentsSettingsSection({
             {/* Estado de claves SDK/Webhook en servidor (sin exponer secretos) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
               <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-between gap-2">
-                <span className="text-zinc-400">Access Token</span>
+                <span className="text-zinc-400">Clave privada de cobro</span>
                 <span className={`font-semibold ${serverStatus?.liveTokenConfigured ? "text-emerald-400" : "text-amber-400"}`}>
-                  {serverStatus?.liveTokenConfigured ? `Activo (${serverStatus.environment})` : "Simulado / Test"}
+                  {serverStatus?.liveTokenConfigured ? `Activa (${serverStatus.environment === "sandbox" ? "Pruebas" : "Producción"})` : "Modo prueba"}
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-between gap-2">
-                <span className="text-zinc-400">Public Key (SDK V2)</span>
+                <span className="text-zinc-400">Clave pública de pago</span>
                 <span className={`font-semibold ${serverStatus?.publicKeyConfigured ? "text-emerald-400" : "text-amber-400"}`}>
                   {serverStatus?.publicKeyConfigured ? "Configurada" : "Pendiente"}
                 </span>
               </div>
               <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-between gap-2">
-                <span className="text-zinc-400">Webhook HMAC</span>
+                <span className="text-zinc-400">Avisos automáticos</span>
                 <span className={`font-semibold ${serverStatus?.webhookSecretConfigured ? "text-emerald-400" : "text-amber-400"}`}>
-                  {serverStatus?.webhookSecretConfigured ? "Activo" : "Pendiente"}
+                  {serverStatus?.webhookSecretConfigured ? "Activos" : "Pendiente"}
                 </span>
               </div>
             </div>
@@ -552,10 +552,10 @@ export function PaymentsSettingsSection({
                 />
                 <span className="space-y-0.5">
                   <span className="text-xs font-semibold text-zinc-200 block">
-                    Aprobación instantánea (binary_mode)
+                    Confirmación o rechazo en el acto
                   </span>
                   <span className="text-[11px] text-zinc-400 block leading-snug">
-                    Evita pagos en revisión: aprueba o rechaza en el acto.
+                    Evita pagos pendientes en revisión: aprueba o rechaza al instante.
                   </span>
                 </span>
               </label>

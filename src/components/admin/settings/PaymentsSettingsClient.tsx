@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Loader2,
-  Save,
-} from "lucide-react";
+import { CreditCard, Save } from "lucide-react";
 import { ShowroomSettings } from "../../../services/settings.service";
+import { AdminPageHeader } from "../ui/AdminPageHeader";
+import { AdminFeedbackBanner } from "../ui/AdminFeedbackBanner";
+import { AdminButton } from "../ui/AdminButton";
 import { PaymentsSettingsSection } from "./PaymentsSettingsSection";
 
 interface PaymentsSettingsClientProps {
@@ -149,40 +147,33 @@ export function PaymentsSettingsClient({
   };
 
   return (
-    <div className="space-y-6 max-w-4xl pb-16">
-      {/* Encabezado */}
-      <div>
-        <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-400">
-          Tienda › Formas de Cobro
-        </span>
-        <h1 className="text-xl sm:text-2xl font-serif font-light text-zinc-100 mt-1">
-          Medios de Pago y Cobro
-        </h1>
-        <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-          Elegí y configurá las formas de pago que verán tus clientes al momento de finalizar su compra en la tienda.
-        </p>
-      </div>
+    <form onSubmit={handleSave} className="space-y-6 max-w-4xl pb-16">
+      <AdminPageHeader
+        eyebrow="Tienda › Formas de Cobro"
+        title="Medios de Pago y Cobro"
+        description="Elegí y configurá las formas de pago que verán tus clientes al finalizar su compra."
+        icon={<CreditCard size={22} aria-hidden="true" />}
+        actions={
+          <AdminButton
+            type="submit"
+            loading={saving}
+            loadingLabel="Guardando..."
+            icon={<Save size={15} aria-hidden="true" />}
+          >
+            Guardar cambios
+          </AdminButton>
+        }
+      />
 
       {feedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`p-4 rounded-xl text-xs flex items-center gap-2.5 ${
-            feedback.type === "ok"
-              ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-              : "bg-rose-950/60 border border-rose-800 text-rose-300"
-          }`}
-        >
-          {feedback.type === "ok" ? (
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-          ) : (
-            <AlertCircle size={16} className="shrink-0 text-rose-400" />
-          )}
-          <span>{feedback.text}</span>
-        </div>
+        <AdminFeedbackBanner
+          type={feedback.type}
+          message={feedback.text}
+          onDismiss={() => setFeedback(null)}
+        />
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <div className="space-y-6">
         <PaymentsSettingsSection
           mercadopagoEnabled={mercadopagoEnabled}
           onMercadopagoEnabledChange={setMercadopagoEnabled}
@@ -222,21 +213,17 @@ export function PaymentsSettingsClient({
           onWhatsappPaymentEnabledChange={setWhatsappPaymentEnabled}
         />
 
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <button
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-zinc-800">
+          <AdminButton
             type="submit"
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-zinc-950 font-bold text-xs transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            loading={saving}
+            loadingLabel="Guardando..."
+            icon={<Save size={15} aria-hidden="true" />}
           >
-            {saving ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <Save size={15} />
-            )}
-            <span>{saving ? "Guardando..." : "Guardar medios de pago"}</span>
-          </button>
+            Guardar cambios
+          </AdminButton>
         </div>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 }

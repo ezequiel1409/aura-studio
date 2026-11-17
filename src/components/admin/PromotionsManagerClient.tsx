@@ -729,7 +729,7 @@ export function PromotionsManagerClient({
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-zinc-950 font-bold text-xs transition-all cursor-pointer"
+              className="admin-btn-primary inline-flex items-center gap-2 px-6 py-2.5 min-h-[40px] rounded-xl text-xs"
             >
               {saving ? (
                 <Loader2 size={15} className="animate-spin" />

@@ -193,7 +193,7 @@ export function ProductInventoryRowCard({
               {p.isFeatured && (
                 <span
                   className="shrink-0 p-0.5 text-amber-400 mt-0.5 sm:mt-0"
-                  title="Prenda destacada en portada"
+                  title="Producto destacado en portada"
                 >
                   <Star size={13} className="fill-amber-400" aria-hidden="true" />
                 </span>

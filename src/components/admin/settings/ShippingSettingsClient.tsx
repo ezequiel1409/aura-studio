@@ -3,13 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  AlertCircle,
   Bike,
-  CheckCircle2,
   Clock,
   ExternalLink,
   Info,
-  Loader2,
   MapPin,
   MessageCircle,
   Package,
@@ -19,6 +16,9 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
+import { AdminPageHeader } from "../ui/AdminPageHeader";
+import { AdminFeedbackBanner } from "../ui/AdminFeedbackBanner";
+import { AdminButton } from "../ui/AdminButton";
 import {
   DEFAULT_SHIPPING_HOME_ZONES,
   DEFAULT_SHIPPING_MOTO_ZONES,
@@ -157,58 +157,29 @@ export function ShippingSettingsClient({ initialSettings }: ShippingSettingsClie
 
   return (
     <form onSubmit={handleSave} className="space-y-6 max-w-5xl">
-      {/* Encabezado Principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-800">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400">
-              <Truck className="h-5 w-5" />
-            </div>
-            <h1 className="text-xl font-bold text-zinc-100">
-              Envíos y Métodos de Entrega
-            </h1>
-          </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Activá y configurá las opciones de entrega que verán los compradores en el checkout, sus costos y zonas de cobertura.
-          </p>
-        </div>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer shrink-0 shadow-sm"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Guardando...</span>
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              <span>Guardar cambios</span>
-            </>
-          )}
-        </button>
-      </div>
+      <AdminPageHeader
+        eyebrow="Tienda › Envíos"
+        title="Envíos y Métodos de Entrega"
+        description="Activá y configurá las opciones de entrega que verán los compradores en el checkout, sus costos y zonas."
+        icon={<Truck className="h-5 w-5" aria-hidden="true" />}
+        actions={
+          <AdminButton
+            type="submit"
+            loading={saving}
+            loadingLabel="Guardando..."
+            icon={<Save className="h-4 w-4" aria-hidden="true" />}
+          >
+            Guardar cambios
+          </AdminButton>
+        }
+      />
 
       {feedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`p-4 rounded-xl border flex items-center gap-3 text-xs ${
-            feedback.type === "ok"
-              ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
-              : "bg-rose-950/40 border-rose-800/60 text-rose-300"
-          }`}
-        >
-          {feedback.type === "ok" ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
-          )}
-          <span>{feedback.text}</span>
-        </div>
+        <AdminFeedbackBanner
+          type={feedback.type}
+          message={feedback.text}
+          onDismiss={() => setFeedback(null)}
+        />
       )}
 
       {/* MÉTODO 1: Retiro en Showroom / Sucursal */}
@@ -749,25 +720,16 @@ export function ShippingSettingsClient({ initialSettings }: ShippingSettingsClie
         )}
       </div>
 
-      {/* Botón flotante o inferior para guardar */}
-      <div className="flex justify-end pt-2">
-        <button
+      {/* Botón inferior para guardar */}
+      <div className="flex justify-end pt-2 border-t border-zinc-800">
+        <AdminButton
           type="submit"
-          disabled={saving}
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50 cursor-pointer shadow-sm"
+          loading={saving}
+          loadingLabel="Guardando..."
+          icon={<Save className="h-4 w-4" aria-hidden="true" />}
         >
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Guardando...</span>
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" />
-              <span>Guardar configuración de envíos</span>
-            </>
-          )}
-        </button>
+          Guardar cambios
+        </AdminButton>
       </div>
     </form>
   );

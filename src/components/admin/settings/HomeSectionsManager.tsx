@@ -418,7 +418,7 @@ export function HomeSectionsManager({
                 type="text"
                 value={subtitle}
                 onChange={(e) => setSubtitle(e.target.value)}
-                placeholder="Ej: Prendas de alto rendimiento y compresión"
+                placeholder="Ej: Artículos seleccionados de la nueva temporada"
                 className="w-full px-3 py-2 text-xs rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-100 focus:border-amber-400 focus:outline-none"
               />
             </div>
@@ -432,7 +432,7 @@ export function HomeSectionsManager({
                   type="text"
                   value={targetUrl}
                   onChange={(e) => setTargetUrl(e.target.value)}
-                  placeholder="Ej: /mujer, /catalogo?categoria=tops o /promociones"
+                  placeholder="Ej: /catalogo?categoria=novedades o /promociones"
                   className="w-full px-3 py-2 text-xs font-mono rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-100 focus:border-amber-400 focus:outline-none"
                 />
                 <select

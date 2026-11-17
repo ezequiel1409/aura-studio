@@ -120,9 +120,7 @@ export function ProductAttributesStep({
                 : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
             }`}
           >
-            <p className="text-xs font-bold">
-              {allowSoldOut ? "Reservada" : "Borrador / Reservado"}
-            </p>
+            <p className="text-xs font-bold">Reservado (oculto)</p>
             <p className="text-[10px] opacity-80 mt-0.5">Oculto temporalmente</p>
           </button>
 
@@ -137,7 +135,7 @@ export function ProductAttributesStep({
                   : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
               }`}
             >
-              <p className="text-xs font-bold">Agotada</p>
+              <p className="text-xs font-bold">Agotado</p>
               <p className="text-[10px] opacity-80 mt-0.5">Sin stock disponible</p>
             </button>
           )}

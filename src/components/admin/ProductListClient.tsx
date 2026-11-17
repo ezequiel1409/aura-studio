@@ -452,12 +452,12 @@ export function ProductListClient({
         productCode: target.code,
         fromStatus: previousStatus,
         toStatus: newStatus,
-        message: `Prenda #${String(target.code).padStart(3, "0")} marcada como ${
+        message: `Producto #${String(target.code).padStart(3, "0")} marcado como ${
           newStatus === "AVAILABLE"
             ? "Disponible"
             : newStatus === "RESERVED"
-            ? "Reservada"
-            : "Agotada"
+            ? "Reservado"
+            : "Agotado"
         }.`,
       });
     } catch {
@@ -731,11 +731,11 @@ export function ProductListClient({
       },
       {
         id: "reservadas",
-        label: summaryCounts ? `Reservadas (${summaryCounts.reserved})` : "Reservadas",
+        label: summaryCounts ? `Reservados (${summaryCounts.reserved})` : "Reservados",
       },
       {
         id: "agotadas",
-        label: summaryCounts ? `Agotadas (${summaryCounts.soldOut})` : "Agotadas",
+        label: summaryCounts ? `Agotados (${summaryCounts.soldOut})` : "Agotados",
       },
       {
         id: "por_vencer",
@@ -804,7 +804,7 @@ export function ProductListClient({
 
           <Link
             href="/admin/productos/nuevo"
-            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-300 text-zinc-950 font-bold text-xs hover:bg-amber-200 transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+            className="min-h-[44px] inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl admin-btn-primary text-xs shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
             <Plus size={16} aria-hidden="true" />
             <span>Cargar Producto</span>

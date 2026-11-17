@@ -42,7 +42,7 @@ describe("Catálogo Mandatorio de Novedades e Integraciones (What's New)", () =>
       (r) => r.id === "2026-10-navbar-and-home-sections"
     );
     expect(navRelease).toBeDefined();
-    expect(navRelease?.title).toContain("Navbar");
+    expect(navRelease?.title).toContain("Menú superior");
     expect(navRelease?.category).toBe("Diseño y Personalización");
     expect(navRelease?.before.title).toBeDefined();
     expect(navRelease?.now.title).toBeDefined();
@@ -116,8 +116,8 @@ describe("Catálogo Mandatorio de Novedades e Integraciones (What's New)", () =>
       );
 
       expect(html).toContain("Centro de Novedades e Integraciones");
-      expect(html).toContain("¿Cómo funcionaba anteriormente?");
-      expect(html).toContain("¿Cómo se gestiona ahora?");
+      expect(html).toContain("¿Cómo funcionaba antes?");
+      expect(html).toContain("¿Cómo funciona ahora?");
       expect(html).toContain("Ya lo entendí");
       expect(html).toContain(ADMIN_CHANGELOG_RELEASES[0].actionLabel);
     });

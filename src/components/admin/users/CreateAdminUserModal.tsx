@@ -122,7 +122,7 @@ export function CreateAdminUserModal({
               </button>
             </div>
             <p className="text-[10px] text-zinc-500 mt-1">
-              Se almacenará hasheada con PBKDF2-HMAC-SHA512 (100.000 iteraciones y salt único).
+              Se guarda protegida y encriptada de forma segura.
             </p>
           </div>
 
@@ -147,7 +147,7 @@ export function CreateAdminUserModal({
             <button
               type="submit"
               disabled={creating || !name.trim() || !email.trim() || password.length < 8}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center gap-1.5 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+              className="admin-btn-primary px-4 py-2.5 min-h-[40px] rounded-xl text-xs active:scale-[0.98] flex items-center gap-1.5 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
             >
               {creating ? (
                 <>

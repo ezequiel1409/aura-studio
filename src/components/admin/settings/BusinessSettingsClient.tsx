@@ -9,7 +9,6 @@ import {
   Eye,
   FileText,
   Image as ImageIcon,
-  Loader2,
   Save,
   Store,
 } from "lucide-react";
@@ -18,6 +17,7 @@ import { useAdminSettingsForm } from "../../../hooks/useAdminSettingsForm";
 import { AdminImageUploadField } from "../ui/AdminImageUploadField";
 import { AdminPageHeader } from "../ui/AdminPageHeader";
 import { AdminFeedbackBanner } from "../ui/AdminFeedbackBanner";
+import { AdminButton } from "../ui/AdminButton";
 
 interface BusinessSettingsClientProps {
   initialSettings: ShowroomSettings;
@@ -77,7 +77,7 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
   return (
     <div className="space-y-6">
       <AdminPageHeader
-        eyebrow="Tienda › Negocio (ADM-05)"
+        eyebrow="Tienda › Negocio"
         title="Identidad, Rubro y Pie de Página"
         description="Definí el nombre de tu marca, el descriptor bajo el logo y el texto descriptivo del pie."
       />
@@ -225,7 +225,7 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
                 maxLength={160}
                 value={aboutText}
                 onChange={(e) => setAboutText(e.target.value)}
-                placeholder="Ej: Curaduría de prendas seleccionadas, atención personalizada y envíos a todo el país..."
+                placeholder="Ej: Productos seleccionados con atención personalizada y envíos a todo el país..."
                 className={`w-full rounded-xl border bg-zinc-950 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:ring-1 focus:outline-none resize-none ${
                   aboutChars >= 140
                     ? "border-amber-500/80 focus:border-amber-400 focus:ring-amber-400"
@@ -240,23 +240,14 @@ export function BusinessSettingsClient({ initialSettings }: BusinessSettingsClie
 
           {/* Botón Guardar */}
           <div className="pt-2">
-            <button
+            <AdminButton
               type="submit"
-              disabled={saving}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-amber-400 px-6 py-2.5 text-xs font-bold tracking-wider text-zinc-950 uppercase shadow-md hover:bg-amber-300 disabled:opacity-50 transition-all cursor-pointer"
+              loading={saving}
+              loadingLabel="Guardando..."
+              icon={<Save size={16} aria-hidden="true" />}
             >
-              {saving ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  <span>Guardar cambios</span>
-                </>
-              )}
-            </button>
+              Guardar cambios
+            </AdminButton>
           </div>
         </div>
 

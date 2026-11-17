@@ -209,7 +209,7 @@ export function AdminSessionMonitor({
       <aside
         role="alert"
         aria-live="polite"
-        className="fixed bottom-5 right-5 left-5 sm:left-auto sm:max-w-md z-50 p-4 rounded-2xl bg-zinc-900/95 dark:bg-zinc-900/95 border border-amber-500/80 text-zinc-100 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2"
+        className="fixed bottom-5 right-4 left-4 sm:left-auto sm:right-6 sm:max-w-md z-50 p-4 rounded-2xl bg-zinc-900/95 dark:bg-zinc-900/95 border border-amber-500/80 text-zinc-100 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-bottom-2"
       >
         <div className="flex items-start gap-3">
           <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
@@ -236,7 +236,7 @@ export function AdminSessionMonitor({
                 onClick={handleRefresh}
                 disabled={renewing}
                 aria-label="Renovar sesión administrativa por 2 horas más"
-                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-amber-400 text-zinc-950 text-xs font-bold hover:bg-amber-300 active:scale-95 transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none shadow-md shadow-amber-950/20"
+                className="flex-1 sm:flex-none inline-flex min-h-[40px] items-center justify-center gap-2 px-4 py-2 rounded-xl admin-btn-primary text-xs active:scale-95 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none shadow-md shadow-amber-950/20 cursor-pointer"
               >
                 <RefreshCw size={14} className={renewing ? "animate-spin" : ""} aria-hidden="true" />
                 <span>{renewing ? "Renovando..." : "Renovar 2 horas más"}</span>

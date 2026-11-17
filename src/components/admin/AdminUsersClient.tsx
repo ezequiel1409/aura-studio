@@ -186,7 +186,7 @@ export function AdminUsersClient({
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-emerald-950/90 border border-emerald-700 text-emerald-200 px-4 py-3 rounded-xl shadow-2xl text-xs backdrop-blur-md animate-in fade-in slide-in-from-bottom-2"
+          className="fixed bottom-5 right-4 left-4 sm:left-auto sm:right-6 z-50 flex items-center gap-2.5 bg-emerald-950/90 border border-emerald-700 text-emerald-200 px-4 py-3 rounded-xl shadow-2xl text-xs backdrop-blur-md animate-in fade-in slide-in-from-bottom-2"
         >
           <CheckCircle2 size={16} className="text-emerald-400 shrink-0" aria-hidden="true" />
           <span>{successToast}</span>
@@ -212,7 +212,7 @@ export function AdminUsersClient({
         <button
           onClick={() => setShowModal(true)}
           aria-label="Dar de alta nuevo administrador"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-amber-200 text-zinc-950 hover:bg-amber-100 active:scale-[0.98] transition-all shadow-md shadow-amber-950/20 shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+          className="admin-btn-primary inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[40px] rounded-xl text-xs active:scale-[0.98] shadow-md shadow-amber-950/20 shrink-0 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
         >
           <UserPlus size={15} aria-hidden="true" />
           <span>Nuevo Administrador</span>

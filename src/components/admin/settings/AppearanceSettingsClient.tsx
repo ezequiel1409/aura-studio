@@ -1,12 +1,10 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  AlertTriangle,
   ArrowRight,
   Check,
-  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -17,7 +15,6 @@ import {
   Laptop,
   Layers,
   LayoutGrid,
-  Loader2,
   Maximize2,
   Moon,
   Palette,
@@ -52,6 +49,9 @@ import { BannerCarouselManager } from "./BannerCarouselManager";
 import { FooterCmsManager } from "./FooterCmsManager";
 import { NavbarSettingsManager } from "./NavbarSettingsManager";
 import { HomeSectionsManager } from "./HomeSectionsManager";
+import { AdminPageHeader } from "../ui/AdminPageHeader";
+import { AdminFeedbackBanner } from "../ui/AdminFeedbackBanner";
+import { AdminButton } from "../ui/AdminButton";
 
 interface AppearanceSettingsClientProps {
   initialSettings: ShowroomSettings;
@@ -209,9 +209,8 @@ export function AppearanceSettingsClient({
     return initialSettings.footerConfig || DEFAULT_FOOTER_CONFIG;
   });
 
-  // Estado de Vista Previa (Escritorio vs Celular, Claro vs Oscuro)
+  // Estado de Vista Previa (Escritorio vs Celular)
   const [previewViewport, setPreviewViewport] = useState<"desktop" | "mobile">("desktop");
-  const [previewThemeMode, setPreviewThemeMode] = useState<"light" | "dark">("light");
   const [previewSlideIndex, setPreviewSlideIndex] = useState(0);
 
   const [saving, setSaving] = useState(false);
@@ -339,103 +338,113 @@ export function AppearanceSettingsClient({
 
   return (
     <div className="space-y-6">
-      {/* Encabezado Principal */}
-      <div>
-        <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-400">
-          Tienda › Portada y Apariencia
-        </span>
-        <h1 className="text-xl sm:text-2xl font-serif font-light text-zinc-100 mt-1">
-          Diseño y Personalización de la Tienda
-        </h1>
-        <p className="text-xs text-zinc-400 mt-1">
-          Configurá los banners de inicio, la paleta de colores y la estructura del pie de página.
-        </p>
-      </div>
+      <AdminPageHeader
+        eyebrow="Tienda › Portada y Apariencia"
+        title="Diseño y Personalización de la Tienda"
+        description="Configurá los banners de inicio, la paleta de colores y la estructura del pie de página."
+        icon={<Palette size={22} aria-hidden="true" />}
+        actions={
+          activeTab !== "sections" ? (
+            <AdminButton
+              type="button"
+              onClick={() => handleSave()}
+              loading={saving}
+              loadingLabel="Guardando..."
+              icon={<Save size={15} aria-hidden="true" />}
+            >
+              Guardar cambios
+            </AdminButton>
+          ) : undefined
+        }
+      />
 
       {feedback && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`p-4 rounded-xl text-xs flex items-center gap-2.5 ${
-            feedback.type === "ok"
-              ? "bg-emerald-950/60 border border-emerald-800 text-emerald-300"
-              : "bg-rose-950/60 border border-rose-800 text-rose-300"
-          }`}
-        >
-          {feedback.type === "ok" ? (
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
-          ) : (
-            <AlertTriangle size={16} className="shrink-0 text-rose-400" />
-          )}
-          <span>{feedback.text}</span>
-        </div>
+        <AdminFeedbackBanner
+          type={feedback.type}
+          message={feedback.text}
+          onDismiss={() => setFeedback(null)}
+        />
       )}
 
       {/* Pestañas de Navegación de Portada y Apariencia */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-800 pb-3">
+      <div
+        role="tablist"
+        aria-label="Secciones de portada y diseño"
+        className="flex flex-wrap items-center gap-2 border-b border-zinc-800 pb-3"
+      >
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "navbar"}
           onClick={() => setActiveTab("navbar")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "navbar"
-              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              ? "admin-btn-primary shadow-sm"
               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
           }`}
         >
-          <Compass size={15} />
-          <span>Cabecera y Navbar</span>
+          <Compass size={15} aria-hidden="true" />
+          <span>Cabecera y Menú</span>
         </button>
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "sections"}
           onClick={() => setActiveTab("sections")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "sections"
-              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              ? "admin-btn-primary shadow-sm"
               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
           }`}
         >
-          <LayoutGrid size={15} />
-          <span>Secciones de la Home</span>
+          <LayoutGrid size={15} aria-hidden="true" />
+          <span>Secciones de Portada</span>
         </button>
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "banners"}
           onClick={() => setActiveTab("banners")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "banners"
-              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              ? "admin-btn-primary shadow-sm"
               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
           }`}
         >
-          <ImageIcon size={15} />
+          <ImageIcon size={15} aria-hidden="true" />
           <span>Banners de Portada</span>
         </button>
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "appearance"}
           onClick={() => setActiveTab("appearance")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "appearance"
-              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              ? "admin-btn-primary shadow-sm"
               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
           }`}
         >
-          <Palette size={15} />
+          <Palette size={15} aria-hidden="true" />
           <span>Estilos y Ancho</span>
         </button>
 
         <button
           type="button"
+          role="tab"
+          aria-selected={activeTab === "footer"}
           onClick={() => setActiveTab("footer")}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === "footer"
-              ? "bg-amber-400 text-zinc-950 shadow-sm"
+              ? "admin-btn-primary shadow-sm"
               : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
           }`}
         >
-          <Layers size={15} />
-          <span>Pie de Página (Footer CMS)</span>
+          <Layers size={15} aria-hidden="true" />
+          <span>Pie de Página</span>
         </button>
       </div>
 
@@ -975,32 +984,23 @@ export function AppearanceSettingsClient({
       </div>
     )}
 
-        {/* Barra de Guardado Global (para navbar, banners, estilos y footer) */}
+        {/* Barra de Guardado Global (para menú, banners, estilos y pie) */}
         {activeTab !== "sections" && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-zinc-800">
             <p className="text-xs text-zinc-400 text-center sm:text-left">
               {activeTab === "navbar"
-                ? "Los cambios de navegación se guardan en el endpoint dedicado /api/admin/nav."
+                ? "Los cambios del menú superior y enlaces se aplican en vivo al guardar."
                 : "Los cambios se guardan y aplican inmediatamente en la tienda en vivo."}
             </p>
-            <button
+            <AdminButton
               type="button"
               onClick={() => handleSave()}
-              disabled={saving}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-amber-400 px-6 py-2.5 text-xs font-bold tracking-wider text-zinc-950 uppercase shadow-md hover:bg-amber-300 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+              loading={saving}
+              loadingLabel="Guardando..."
+              icon={<Save size={16} aria-hidden="true" />}
             >
-              {saving ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  <span>Guardar cambios</span>
-                </>
-              )}
-            </button>
+              Guardar cambios
+            </AdminButton>
           </div>
         )}
       </div>

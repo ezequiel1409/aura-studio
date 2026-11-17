@@ -198,7 +198,7 @@ export function AdminMainSidebar({
                 >
                   <span>{item.label}</span>
                   {showOrdersBadge && (
-                    <span className="px-1.5 py-0.2 rounded bg-amber-400 text-zinc-950 font-bold text-[10px]">
+                    <span className="px-1.5 py-0.5 rounded bg-amber-400 text-zinc-950 font-bold text-[10px]">
                       {pendingOrdersCount}
                     </span>
                   )}

@@ -89,7 +89,7 @@ export function ActionRequiredSection({
                 {expiringReservationsCount === 1 ? "1 reserva por vencer" : `${expiringReservationsCount} reservas por vencer`}
               </h3>
               <p className="text-[11px] text-zinc-400 leading-relaxed">
-                Prendas apartadas que superaron el tiempo de reserva acordado.
+                Productos apartados que superaron el tiempo de reserva acordado.
               </p>
             </div>
 

@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   MapPin,
   MessageCircle,
@@ -91,11 +93,15 @@ export function OrderListRow({
             title={
               isExpanded
                 ? "Ocultar resumen rápido"
-                : "Desplegar prendas y entrega sin salir de la lista"
+                : "Desplegar productos y entrega sin salir de la lista"
             }
             className="min-w-[44px] min-h-[44px] rounded-xl bg-zinc-950 border border-zinc-800 hover:border-amber-400/60 flex items-center justify-center text-zinc-300 hover:text-amber-300 text-xs shrink-0 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
           >
-            <span aria-hidden="true">{isExpanded ? "▴" : "▾"}</span>
+            {isExpanded ? (
+              <ChevronUp size={15} aria-hidden="true" />
+            ) : (
+              <ChevronDown size={15} aria-hidden="true" />
+            )}
           </button>
 
           <Link
@@ -153,7 +159,7 @@ export function OrderListRow({
               </span>
               <span>·</span>
               <span>
-                {order.items?.length || 1} {order.items?.length === 1 ? "prenda" : "prendas"}
+                {order.items?.length || 1} {order.items?.length === 1 ? "producto" : "productos"}
               </span>
               <span>·</span>
               <span className="text-zinc-400">
@@ -231,7 +237,7 @@ export function OrderListRow({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 space-y-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block">
-                Prendas del pedido ({order.items?.length || 0})
+                Productos del pedido ({order.items?.length || 0})
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {(order.items || []).map((item) => (

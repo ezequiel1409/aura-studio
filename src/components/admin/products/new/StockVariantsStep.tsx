@@ -1,7 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Hash, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
+import {
+  Check,
+  Footprints,
+  Hash,
+  Plus,
+  Ruler,
+  Shirt,
+  Sparkles,
+  Tag,
+  Trash2,
+  Wand2,
+} from "lucide-react";
 
 let nextVariantUidSeq = 0;
 function nextVariantUid(prefix: string): string {
@@ -49,45 +60,56 @@ export type SizeSystemId =
 export interface SizeSystem {
   id: SizeSystemId;
   label: string;
-  icon: string;
   sizes: string[];
+}
+
+function SizeSystemIcon({ id }: { id: SizeSystemId }) {
+  switch (id) {
+    case "clothing_adult":
+      return <Shirt size={13} aria-hidden="true" />;
+    case "clothing_kids":
+      return <Tag size={13} aria-hidden="true" />;
+    case "pants":
+      return <Ruler size={13} aria-hidden="true" />;
+    case "numeric":
+      return <Hash size={13} aria-hidden="true" />;
+    case "shoes_adult":
+    case "shoes_kids":
+      return <Footprints size={13} aria-hidden="true" />;
+    default:
+      return <Sparkles size={13} aria-hidden="true" />;
+  }
 }
 
 export const EXTENDED_SIZE_SYSTEMS: SizeSystem[] = [
   {
     id: "clothing_adult",
     label: "Ropa Adulto (XS-3XL)",
-    icon: "👚",
     sizes: ["XS", "S", "M", "L", "XL", "XXL", "XXXL"],
   },
   {
     id: "clothing_kids",
     label: "Ropa Niños (2 al 16)",
-    icon: "🧸",
     sizes: ["2", "4", "6", "8", "10", "12", "14", "16"],
   },
   {
     id: "pants",
     label: "Pantalones / Jeans (34 a 54)",
-    icon: "👖",
     sizes: ["34", "36", "38", "40", "42", "44", "46", "48", "50", "52", "54"],
   },
   {
     id: "numeric",
     label: "Talles 1 al 8 (o 1 a 5)",
-    icon: "🔢",
     sizes: ["1", "2", "3", "4", "5", "6", "7", "8"],
   },
   {
     id: "shoes_adult",
     label: "Calzado Adulto (34 a 45)",
-    icon: "👟",
     sizes: ["34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45"],
   },
   {
     id: "shoes_kids",
     label: "Calzado Niños (18 a 34)",
-    icon: "👶",
     sizes: [
       "18", "19", "20", "21", "22", "23", "24", "25",
       "26", "27", "28", "29", "30", "31", "32", "33", "34"
@@ -96,7 +118,6 @@ export const EXTENDED_SIZE_SYSTEMS: SizeSystem[] = [
   {
     id: "single",
     label: "Talle Único",
-    icon: "✨",
     sizes: ["ÚNICO"],
   },
 ];
@@ -176,10 +197,17 @@ export function StockVariantsStep({
   const handleGenerateNumericRange = (targetColorId?: string) => {
     const from = parseInt(rangeFrom, 10);
     const to = parseInt(rangeTo, 10);
-    const step = parseInt(rangeStep, 10) || 1;
+    const parsedStep = parseInt(rangeStep, 10);
+    const step = Number.isNaN(parsedStep) ? 1 : parsedStep;
 
-    if (isNaN(from) || isNaN(to) || from > to) {
-      setRangeError("Por favor ingresá un rango numérico válido (ej: Desde 1 Hasta 5)");
+    if (isNaN(from) || isNaN(to) || from > to || step < 1) {
+      setRangeError("Por favor ingresá un rango válido (Desde menor o igual a Hasta y paso mayor a 0).");
+      return;
+    }
+
+    const totalCount = Math.floor((to - from) / step) + 1;
+    if (totalCount > 50) {
+      setRangeError("El rango no puede generar más de 50 talles a la vez.");
       return;
     }
     setRangeError(null);
@@ -414,7 +442,7 @@ export function StockVariantsStep({
                     : "bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900"
                 }`}
               >
-                <span>{sys.icon}</span>
+                <SizeSystemIcon id={sys.id} />
                 <span>{sys.label}</span>
               </button>
             );

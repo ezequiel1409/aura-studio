@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 import {
-  AlertCircle,
-  CheckCircle2,
   Clock,
   Edit3,
   Eye,
   Link2,
-  Loader2,
   Save,
   Scale,
   Sparkles,
@@ -18,6 +15,9 @@ import {
   ShowroomSettings,
 } from "../../../services/settings.service";
 import { TermsContentRenderer } from "../../legal/TermsContentRenderer";
+import { AdminPageHeader } from "../ui/AdminPageHeader";
+import { AdminFeedbackBanner } from "../ui/AdminFeedbackBanner";
+import { AdminButton } from "../ui/AdminButton";
 
 interface PoliciesSettingsClientProps {
   initialSettings: ShowroomSettings;
@@ -87,35 +87,30 @@ export function PoliciesSettingsClient({
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800 pb-4">
-        <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
-            <Scale size={22} className="text-amber-300" aria-hidden="true" />
-            <span>Políticas y Términos Legales</span>
-          </h1>
-          <p className="text-xs text-zinc-400 mt-1">
-            Configurá el texto publicado en /terminos y el plazo de vigencia de las reservas.
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader
+        eyebrow="Tienda › Políticas"
+        title="Políticas y Términos Legales"
+        description="Configurá el texto publicado en /terminos y el plazo de vigencia de las reservas."
+        icon={<Scale size={22} aria-hidden="true" />}
+        actions={
+          <AdminButton
+            type="button"
+            onClick={handleSave}
+            loading={saving}
+            loadingLabel="Guardando..."
+            icon={<Save size={16} aria-hidden="true" />}
+          >
+            Guardar cambios
+          </AdminButton>
+        }
+      />
 
       {feedback && (
-        <div
-          role={feedback.type === "error" ? "alert" : "status"}
-          aria-live="polite"
-          className={`flex items-center gap-2.5 p-3.5 rounded-xl border text-xs ${
-            feedback.type === "ok"
-              ? "bg-emerald-950/50 border-emerald-800 text-emerald-200"
-              : "bg-rose-950/50 border-rose-800 text-rose-200"
-          }`}
-        >
-          {feedback.type === "ok" ? (
-            <CheckCircle2 size={16} className="shrink-0 text-emerald-400" aria-hidden="true" />
-          ) : (
-            <AlertCircle size={16} className="shrink-0 text-rose-400" aria-hidden="true" />
-          )}
-          <span>{feedback.text}</span>
-        </div>
+        <AdminFeedbackBanner
+          type={feedback.type}
+          message={feedback.text}
+          onDismiss={() => setFeedback(null)}
+        />
       )}
 
       <form onSubmit={handleSave} className="space-y-5">
@@ -378,18 +373,14 @@ export function PoliciesSettingsClient({
         </div>
 
         <div className="flex items-center justify-end gap-4 pt-2 border-t border-zinc-800/80">
-          <button
+          <AdminButton
             type="submit"
-            disabled={saving}
-            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-amber-200 text-zinc-950 font-bold text-xs hover:bg-amber-100 active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-amber-950/30 focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none cursor-pointer"
+            loading={saving}
+            loadingLabel="Guardando..."
+            icon={<Save size={16} aria-hidden="true" />}
           >
-            {saving ? (
-              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-            ) : (
-              <Save size={16} aria-hidden="true" />
-            )}
-            <span>{saving ? "Guardando..." : "Guardar Políticas"}</span>
-          </button>
+            Guardar cambios
+          </AdminButton>
         </div>
       </form>
     </div>

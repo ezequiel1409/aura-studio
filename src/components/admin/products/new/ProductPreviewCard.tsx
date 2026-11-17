@@ -76,7 +76,7 @@ export function ProductPreviewCard({
       {tab === "card" ? (
         /* Tarjeta tipo Catálogo */
         <div className="max-w-[260px] mx-auto rounded-2xl bg-zinc-950 border border-zinc-800 overflow-hidden shadow-lg p-3 space-y-2.5">
-          <div className="relative aspect-4/5 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-850">
+          <div className="relative aspect-4/5 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800">
             {coverPhoto ? (
               <Image
                 src={coverPhoto}
@@ -106,7 +106,7 @@ export function ProductPreviewCard({
                   : "bg-zinc-900/90 text-amber-300"
               }`}
             >
-              {initialStatus === "AVAILABLE" ? "Disponible" : "Borrador"}
+              {initialStatus === "AVAILABLE" ? "Disponible" : "Reservado"}
             </span>
           </div>
 
@@ -116,7 +116,7 @@ export function ProductPreviewCard({
               <span>#---</span>
             </div>
             <h4 className="font-serif text-xs font-bold text-zinc-100 truncate">
-              {title || "Nombre de la prenda"}
+              {title || "Nombre del producto"}
             </h4>
             <p className="font-mono text-sm font-bold text-zinc-100 lining-nums tabular-nums">
               {isConsultPrice
@@ -128,7 +128,7 @@ export function ProductPreviewCard({
           </div>
         </div>
       ) : (
-        /* Ficha detallada de la prenda */
+        /* Ficha detallada del producto */
         <div className="rounded-xl bg-zinc-950 border border-zinc-800 p-3.5 space-y-3 text-xs">
           <div className="flex gap-3">
             <div className="relative w-16 aspect-4/5 rounded-lg overflow-hidden bg-zinc-900 shrink-0">
@@ -150,10 +150,10 @@ export function ProductPreviewCard({
 
             <div className="space-y-1 min-w-0 flex-1">
               <span className="text-[10px] uppercase font-bold text-emerald-400">
-                {initialStatus === "AVAILABLE" ? "Disponible" : "Borrador"}
+                {initialStatus === "AVAILABLE" ? "Disponible" : "Reservado"}
               </span>
               <h4 className="font-serif text-xs font-bold text-zinc-100 truncate">
-                {title || "Nombre de la prenda"}
+                {title || "Nombre del producto"}
               </h4>
               <p className="font-bold text-zinc-100 font-mono text-sm">
                 {isConsultPrice
