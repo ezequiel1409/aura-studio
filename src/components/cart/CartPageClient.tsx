@@ -317,6 +317,7 @@ export function CartPageClient({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirectingToGateway, setIsRedirectingToGateway] = useState(false);
+  const [gatewayRedirectUrl, setGatewayRedirectUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmClearPrompt, setConfirmClearPrompt] = useState(false);
 
@@ -386,10 +387,11 @@ export function CartPageClient({
 
         window.history.replaceState({}, "", "/carrito");
         setIsRedirectingToGateway(false);
+        setGatewayRedirectUrl(null);
         setIsSubmitting(false);
         setSelectedPaymentMethod("MERCADOPAGO");
         if (useCartStore.getState().items.length > 0) {
-          setCurrentStep("payment");
+          setCurrentStep(draft?.customerName ? "payment" : "shipping");
         }
         setErrorMessage(
           rawStatus === "rejected"
@@ -412,6 +414,7 @@ export function CartPageClient({
       void cancelDraftOrderInBackground(draft.pendingOrderCode);
       saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
       setIsRedirectingToGateway(false);
+      setGatewayRedirectUrl(null);
       setIsSubmitting(false);
       setSelectedPaymentMethod("MERCADOPAGO");
       if (useCartStore.getState().items.length > 0 && draft.customerName) {
@@ -437,6 +440,7 @@ export function CartPageClient({
       }
 
       setIsRedirectingToGateway(false);
+      setGatewayRedirectUrl(null);
       setIsSubmitting(false);
 
       const draft = loadCheckoutDraftSnapshot();
@@ -872,6 +876,7 @@ export function CartPageClient({
 
         const targetUrl = String(data.paymentPreference.paymentUrl);
         if (targetUrl.startsWith("https://")) {
+          setGatewayRedirectUrl(targetUrl);
           setIsRedirectingToGateway(true);
           window.location.assign(targetUrl);
           return;
@@ -944,16 +949,53 @@ export function CartPageClient({
         }}
       />
 
-      {/* Estado de redirección hacia la pasarela externa de Mercado Pago */}
+      {/* Estado de redirección hacia Mercado Pago */}
       {isRedirectingToGateway ? (
-        <div className="mx-auto max-w-xl py-16 text-center space-y-4">
-          <Loader2 className="mx-auto h-10 w-10 animate-spin text-sky-600" />
-          <h2 className="font-serif text-xl font-medium text-stone-900">
-            Redirigiendo a Mercado Pago Checkout Pro...
-          </h2>
-          <p className="text-xs text-stone-500">
-            Aguardá un instante mientras abrimos la pasarela segura para que completes tu pago.
-          </p>
+        <div className="mx-auto max-w-md py-16 text-center space-y-5">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-[#009EE3]/10 border border-[#009EE3]/20 shadow-xs">
+            <PaymentProcessorIcon method="MERCADOPAGO" className="h-12 w-12" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-serif text-xl sm:text-2xl font-medium text-stone-900">
+              Redirigiendo a Mercado Pago
+            </h2>
+            <p className="text-xs text-stone-500">
+              Aguardá un instante mientras abrimos la pasarela segura para completar tu pago.
+            </p>
+          </div>
+          <div className="mx-auto h-1.5 w-48 overflow-hidden rounded-full bg-sky-100">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-[#009EE3]" />
+          </div>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+            {gatewayRedirectUrl && (
+              <a
+                href={gatewayRedirectUrl}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#009EE3] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0089c7] transition-colors"
+              >
+                <PaymentProcessorIcon method="MERCADOPAGO" className="h-4 w-4" />
+                <span>Ir a Mercado Pago ahora</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                const draft = loadCheckoutDraftSnapshot();
+                if (draft?.pendingOrderCode) {
+                  void cancelDraftOrderInBackground(draft.pendingOrderCode);
+                  saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
+                }
+                setIsRedirectingToGateway(false);
+                setGatewayRedirectUrl(null);
+                setIsSubmitting(false);
+                setCurrentStep("payment");
+              }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Volver al checkout</span>
+            </button>
+          </div>
         </div>
       ) : checkoutGatewayParams ? (
         <CheckoutProSandboxPanel
@@ -2408,6 +2450,18 @@ export function CartPageClient({
                     </div>
                   </div>
                 </div>
+
+                {errorMessage && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-xs text-amber-950 space-y-1"
+                  >
+                    <p className="font-semibold text-amber-900">{errorMessage}</p>
+                    <p className="text-[11px] text-amber-800">
+                      Podés hacer clic en &quot;Continuar a Mercado Pago&quot; para generar un nuevo enlace o elegir otro medio de pago.
+                    </p>
+                  </div>
+                )}
 
                 {/* Selector de Método de Pago (BR-47) - Solo métodos habilitados */}
                 <div className="border-t border-[#e7e2da] pt-5 space-y-4">

@@ -17,6 +17,7 @@ import {
   Sparkles,
   HelpCircle,
 } from "lucide-react";
+import { PaymentProcessorIcon } from "../../cart/PaymentProcessorIcon";
 
 /**
  * =========================================================================================
@@ -411,8 +412,8 @@ export function PaymentsSettingsSection({
         <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl overflow-hidden transition-all">
         <div className="p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 bg-zinc-900/60">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 shrink-0">
-              <CreditCard size={20} />
+            <div className="p-2 rounded-xl bg-sky-500/10 border border-sky-500/20 shrink-0 flex items-center justify-center">
+              <PaymentProcessorIcon method="MERCADOPAGO" className="h-6 w-6" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">

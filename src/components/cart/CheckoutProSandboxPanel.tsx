@@ -7,17 +7,14 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
-  CreditCard,
   ExternalLink,
-  Loader2,
-  Lock,
-  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Wallet,
   XCircle,
 } from "lucide-react";
 import { formatPrice } from "../../lib/format/currency";
+import { PaymentProcessorIcon } from "./PaymentProcessorIcon";
 
 interface SandboxOrderItem {
   productCode: number;
@@ -179,9 +176,9 @@ export function CheckoutProSandboxPanel({
   if (loading) {
     return (
       <div className="mx-auto max-w-xl py-16 text-center space-y-4">
-        <Loader2 className="mx-auto h-10 w-10 animate-spin text-sky-600" />
+        <PaymentProcessorIcon method="MERCADOPAGO" className="mx-auto h-14 w-14 animate-pulse" />
         <p className="text-sm font-medium text-stone-700">
-          Cargando desglose de compra en Mercado Pago Checkout Pro...
+          Cargando resumen de compra para Mercado Pago...
         </p>
       </div>
     );
@@ -193,7 +190,7 @@ export function CheckoutProSandboxPanel({
         <div className="rounded-2xl border border-red-200 bg-red-50/70 p-6 text-center space-y-4">
           <AlertCircle className="mx-auto h-10 w-10 text-red-600" />
           <h2 className="text-lg font-semibold text-stone-900">
-            No pudimos abrir la pasarela de pago
+            No pudimos abrir Mercado Pago
           </h2>
           <p className="text-xs text-stone-600">
             {error || "Verificá el número de orden e intentá nuevamente."}
@@ -255,7 +252,7 @@ export function CheckoutProSandboxPanel({
                 href={order.externalCheckoutUrl}
                 className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl bg-sky-500 px-6 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-sky-600 transition-colors"
               >
-                <CreditCard className="h-4 w-4" />
+                <PaymentProcessorIcon method="MERCADOPAGO" className="h-4 w-4" />
                 <span>Reintentar pago en Mercado Pago</span>
               </a>
             )}
@@ -370,8 +367,8 @@ export function CheckoutProSandboxPanel({
         )}
 
         <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200 px-3 py-1 text-[11px] font-semibold text-sky-800">
-          <Lock className="h-3 w-3 text-sky-600" />
-          Entorno Seguro Checkout Pro
+          <PaymentProcessorIcon method="MERCADOPAGO" className="h-4 w-4" />
+          Pago seguro con Mercado Pago
         </span>
       </div>
 
@@ -473,14 +470,14 @@ export function CheckoutProSandboxPanel({
           </div>
         </div>
 
-        {/* COLUMNA DERECHA (7 cols): Pasarela Mercado Pago Checkout Pro */}
+        {/* COLUMNA DERECHA (7 cols): Pasarela Mercado Pago */}
         <div className="lg:col-span-7 overflow-hidden rounded-2xl border border-sky-200 bg-white shadow-md">
           <div className="bg-gradient-to-r from-sky-600 to-sky-500 px-6 py-5 text-white">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Lock className="h-4 w-4 text-sky-100" />
+                <PaymentProcessorIcon method="MERCADOPAGO" className="h-5 w-5" />
                 <span className="text-xs font-bold uppercase tracking-wider">
-                  Mercado Pago Checkout Pro
+                  Mercado Pago
                 </span>
               </div>
               <span className="rounded-full bg-amber-300 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-stone-900">
@@ -516,10 +513,10 @@ export function CheckoutProSandboxPanel({
               </div>
             )}
 
-            {/* Selección de instrumento de pago en Checkout Pro Sandbox */}
+            {/* Selección de instrumento de pago en Mercado Pago Sandbox */}
             <div className="space-y-2.5">
               <p className="text-xs font-semibold text-stone-800">
-                Elegí tu medio de pago en Checkout Pro (Sandbox):
+                Elegí tu medio de pago en Mercado Pago (Sandbox):
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
@@ -531,7 +528,7 @@ export function CheckoutProSandboxPanel({
                       : "border-stone-200 bg-white hover:bg-stone-50"
                   }`}
                 >
-                  <CreditCard className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
+                  <PaymentProcessorIcon method="MERCADOPAGO" className="h-5 w-5 mt-0.5" />
                   <div>
                     <p className="text-xs font-bold text-stone-900">
                       Tarjeta Visa / Mastercard Test
@@ -564,7 +561,7 @@ export function CheckoutProSandboxPanel({
               </div>
             </div>
 
-            {/* Botones de acción de Checkout Pro Sandbox */}
+            {/* Botones de acción de Mercado Pago Sandbox */}
             <div className="space-y-3 pt-1">
               <button
                 type="button"
@@ -574,14 +571,14 @@ export function CheckoutProSandboxPanel({
               >
                 {processingPayment ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Procesando pago en Sandbox...</span>
+                    <PaymentProcessorIcon method="MERCADOPAGO" className="h-5 w-5 animate-pulse" />
+                    <span>Procesando pago en Mercado Pago...</span>
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="h-4 w-4" />
+                    <PaymentProcessorIcon method="MERCADOPAGO" className="h-5 w-5" />
                     <span>
-                      Pagar {formatPrice(order.totalCents, "ARS")} (Aprobar Pago en Sandbox)
+                      Pagar {formatPrice(order.totalCents, "ARS")} con Mercado Pago
                     </span>
                   </>
                 )}
@@ -604,7 +601,8 @@ export function CheckoutProSandboxPanel({
                     rel="noopener noreferrer"
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-2.5 text-xs font-semibold text-sky-800 hover:bg-sky-100/70 transition-colors"
                   >
-                    <span>Abrir también en web externa de Mercado Pago Sandbox</span>
+                    <PaymentProcessorIcon method="MERCADOPAGO" className="h-4 w-4" />
+                    <span>Abrir también en web externa de Mercado Pago</span>
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 </div>

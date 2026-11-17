@@ -220,7 +220,7 @@ export class MercadoPagoPaymentAdapter implements PaymentGatewayPort {
         preferenceId: mockPrefId,
         paymentUrl: mockUrl,
         redirectUrl: mockUrl,
-        instructions: `Redirigiendo a Mercado Pago Sandbox para abonar ${formattedCode}...`,
+        instructions: `Redirigiendo a Mercado Pago para abonar ${formattedCode}...`,
       };
     }
 
