@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { initMercadoPago, Wallet as MercadoPagoWallet } from "@mercadopago/sdk-react";
 import { DEFAULT_NEUTRAL_BRAND } from "../../lib/brand";
 import {
   ShoppingBag,
@@ -64,6 +65,7 @@ interface CartPageClientProps {
   reservationHours?: number;
   ordersPaused?: boolean;
   ordersPausedNotice?: string | null;
+  mpPublicKey?: string | null;
   initialPaymentMethods?: Array<{
     method: PaymentMethod;
     name: string;
@@ -97,7 +99,8 @@ function createOrderIdempotencyKey(): string {
 const CHECKOUT_DRAFT_STORAGE_KEY = "aura_checkout_mp_draft";
 
 interface CheckoutDraftSnapshot {
-  customerName: string;
+  customerFirstName: string;
+  customerLastName: string;
   customerDni: string;
   customerPhone: string;
   customerEmail: string;
@@ -159,6 +162,7 @@ export function CartPageClient({
   reservationHours = 48,
   ordersPaused = false,
   ordersPausedNotice,
+  mpPublicKey = null,
   initialPaymentMethods,
   initialBankDetails,
 }: CartPageClientProps) {
@@ -270,7 +274,8 @@ export function CartPageClient({
   const [estimatedShippingNotice, setEstimatedShippingNotice] = useState<string | null>(null);
 
   // Datos del formulario de checkout (Paso 2)
-  const [customerName, setCustomerName] = useState("");
+  const [customerFirstName, setCustomerFirstName] = useState("");
+  const [customerLastName, setCustomerLastName] = useState("");
   const [customerDni, setCustomerDni] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -318,8 +323,16 @@ export function CartPageClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirectingToGateway, setIsRedirectingToGateway] = useState(false);
   const [gatewayRedirectUrl, setGatewayRedirectUrl] = useState<string | null>(null);
+  const [gatewayPreferenceId, setGatewayPreferenceId] = useState<string | null>(null);
+  const [activeMpPublicKey, setActiveMpPublicKey] = useState<string | null>(mpPublicKey || null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmClearPrompt, setConfirmClearPrompt] = useState(false);
+
+  useEffect(() => {
+    if (activeMpPublicKey && typeof window !== "undefined") {
+      initMercadoPago(activeMpPublicKey, { locale: "es-AR" });
+    }
+  }, [activeMpPublicKey]);
 
   const [orderSuccess, setOrderSuccess] = useState<{
     code: number;
@@ -340,7 +353,8 @@ export function CartPageClient({
 
     const draft = loadCheckoutDraftSnapshot();
     if (draft) {
-      if (draft.customerName) setCustomerName((prev) => prev || draft.customerName);
+      if (draft.customerFirstName) setCustomerFirstName((prev) => prev || draft.customerFirstName);
+      if (draft.customerLastName) setCustomerLastName((prev) => prev || draft.customerLastName);
       if (draft.customerDni) setCustomerDni((prev) => prev || draft.customerDni);
       if (draft.customerPhone) setCustomerPhone((prev) => prev || draft.customerPhone);
       if (draft.customerEmail) setCustomerEmail((prev) => prev || draft.customerEmail);
@@ -388,10 +402,11 @@ export function CartPageClient({
         window.history.replaceState({}, "", "/carrito");
         setIsRedirectingToGateway(false);
         setGatewayRedirectUrl(null);
+        setGatewayPreferenceId(null);
         setIsSubmitting(false);
         setSelectedPaymentMethod("MERCADOPAGO");
         if (useCartStore.getState().items.length > 0) {
-          setCurrentStep(draft?.customerName ? "payment" : "shipping");
+          setCurrentStep(draft?.customerFirstName ? "payment" : "shipping");
         }
         setErrorMessage(
           rawStatus === "rejected"
@@ -415,9 +430,10 @@ export function CartPageClient({
       saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
       setIsRedirectingToGateway(false);
       setGatewayRedirectUrl(null);
+      setGatewayPreferenceId(null);
       setIsSubmitting(false);
       setSelectedPaymentMethod("MERCADOPAGO");
-      if (useCartStore.getState().items.length > 0 && draft.customerName) {
+      if (useCartStore.getState().items.length > 0 && draft.customerFirstName) {
         setCurrentStep("payment");
         setErrorMessage(
           "Volviste desde Mercado Pago sin completar el pago. Podés reintentar o elegir otro medio de pago."
@@ -441,6 +457,7 @@ export function CartPageClient({
 
       setIsRedirectingToGateway(false);
       setGatewayRedirectUrl(null);
+      setGatewayPreferenceId(null);
       setIsSubmitting(false);
 
       const draft = loadCheckoutDraftSnapshot();
@@ -486,13 +503,12 @@ export function CartPageClient({
       }
     }, 0);
 
-    // Intentar autocompletar si el cliente tiene sesión activa
+    // Intentar completar contacto/dirección si hay sesión activa
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.ok && data.customer) {
           setCustomer(data.customer);
-          setCustomerName((prev) => (prev ? prev : data.customer.name));
           setCustomerEmail((prev) => (prev ? prev : data.customer.email));
           if (data.customer.phone) {
             setCustomerPhone((prev) => (prev ? prev : data.customer.phone));
@@ -522,6 +538,9 @@ export function CartPageClient({
     fetch("/api/payments/methods")
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
+        if (typeof data?.mpPublicKey === "string" && data.mpPublicKey) {
+          setActiveMpPublicKey(data.mpPublicKey);
+        }
         if (data?.methods && Array.isArray(data.methods) && data.methods.length > 0) {
           setPaymentMethods(data.methods);
           if (data.bankDetails) {
@@ -738,8 +757,13 @@ export function CartPageClient({
       return;
     }
 
-    if (!customerName.trim() || customerName.trim().length < 2) {
-      setErrorMessage("Por favor ingresá tu nombre y apellido para el pedido.");
+    if (!customerFirstName.trim() || customerFirstName.trim().length < 2) {
+      setErrorMessage("Por favor ingresá tu nombre para el pedido.");
+      return;
+    }
+
+    if (!customerLastName.trim() || customerLastName.trim().length < 2) {
+      setErrorMessage("Por favor ingresá tu apellido para el pedido.");
       return;
     }
 
@@ -766,7 +790,8 @@ export function CartPageClient({
     }
 
     saveCheckoutDraftSnapshot({
-      customerName: customerName.trim(),
+      customerFirstName: customerFirstName.trim(),
+      customerLastName: customerLastName.trim(),
       customerDni: customerDni.trim(),
       customerPhone: customerPhone.trim(),
       customerEmail: customerEmail.trim(),
@@ -797,6 +822,9 @@ export function CartPageClient({
 
     try {
       const idempotencyKey = createOrderIdempotencyKey();
+      const firstNameClean = customerFirstName.trim();
+      const lastNameClean = customerLastName.trim();
+      const fullNameClean = `${firstNameClean} ${lastNameClean}`.trim();
 
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -806,13 +834,16 @@ export function CartPageClient({
         },
         body: JSON.stringify({
           idempotencyKey,
-          customerName: customerName.trim(),
+          customerName: fullNameClean,
+          customerFirstName: firstNameClean,
+          customerLastName: lastNameClean,
           customerDni: customerDni.replace(/\D/g, "") || customer?.dni || "",
           customerPhone: customerPhone.trim(),
           customerEmail: customerEmail.trim() || customer?.email || null,
           customerId: customer?.id || null,
           deliveryMethod,
           deliveryAddress: deliveryAddress.trim() || null,
+          postalCode: postalCode.trim() || null,
           deliveryNotes: (() => {
             const selectedZone =
               deliveryMethod === "HOME_DELIVERY"
@@ -860,10 +891,11 @@ export function CartPageClient({
       const finalReceiptUrl = data.order?.transferReceiptUrl || null;
       const confirmedPaymentMethod = effectivePaymentMethod;
 
-      // Si es Mercado Pago, redirigir directamente al sitio oficial de Mercado Pago SIN mostrar pantalla previa
+      // Si es Mercado Pago, guardar borrador y redirigir con respaldo del Brick oficial Wallet / link directo
       if (confirmedPaymentMethod === "MERCADOPAGO" && data.paymentPreference?.paymentUrl) {
         saveCheckoutDraftSnapshot({
-          customerName: customerName.trim(),
+          customerFirstName: firstNameClean,
+          customerLastName: lastNameClean,
           customerDni: customerDni.trim(),
           customerPhone: customerPhone.trim(),
           customerEmail: customerEmail.trim(),
@@ -875,13 +907,14 @@ export function CartPageClient({
         });
 
         const targetUrl = String(data.paymentPreference.paymentUrl);
+        const prefId = data.paymentPreference?.preferenceId || null;
         if (targetUrl.startsWith("https://")) {
+          setGatewayPreferenceId(prefId);
           setGatewayRedirectUrl(targetUrl);
           setIsRedirectingToGateway(true);
           window.location.assign(targetUrl);
           return;
         }
-        const prefId = data.paymentPreference?.preferenceId || null;
         if (typeof window !== "undefined") {
           window.history.replaceState({}, "", targetUrl);
           window.scrollTo({ top: 0, behavior: "smooth" });
@@ -966,35 +999,45 @@ export function CartPageClient({
           <div className="mx-auto h-1.5 w-48 overflow-hidden rounded-full bg-sky-100">
             <div className="h-full w-1/2 animate-pulse rounded-full bg-[#009EE3]" />
           </div>
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
-            {gatewayRedirectUrl && (
-              <a
-                href={gatewayRedirectUrl}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#009EE3] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0089c7] transition-colors"
+          <div className="pt-2 space-y-3">
+            {activeMpPublicKey &&
+              gatewayPreferenceId &&
+              !gatewayPreferenceId.startsWith("mock_pref_") && (
+                <div className="mx-auto max-w-xs">
+                  <MercadoPagoWallet initialization={{ preferenceId: gatewayPreferenceId }} />
+                </div>
+              )}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5">
+              {gatewayRedirectUrl && (
+                <a
+                  href={gatewayRedirectUrl}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#009EE3] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#0089c7] transition-colors"
+                >
+                  <PaymentProcessorIcon method="MERCADOPAGO" className="h-4 w-4" />
+                  <span>Ir a Mercado Pago ahora</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const draft = loadCheckoutDraftSnapshot();
+                  if (draft?.pendingOrderCode) {
+                    void cancelDraftOrderInBackground(draft.pendingOrderCode);
+                    saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
+                  }
+                  setIsRedirectingToGateway(false);
+                  setGatewayRedirectUrl(null);
+                  setGatewayPreferenceId(null);
+                  setIsSubmitting(false);
+                  setCurrentStep("payment");
+                }}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition-colors cursor-pointer"
               >
-                <PaymentProcessorIcon method="MERCADOPAGO" className="h-4 w-4" />
-                <span>Ir a Mercado Pago ahora</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                const draft = loadCheckoutDraftSnapshot();
-                if (draft?.pendingOrderCode) {
-                  void cancelDraftOrderInBackground(draft.pendingOrderCode);
-                  saveCheckoutDraftSnapshot({ ...draft, pendingOrderCode: undefined });
-                }
-                setIsRedirectingToGateway(false);
-                setGatewayRedirectUrl(null);
-                setIsSubmitting(false);
-                setCurrentStep("payment");
-              }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Volver al checkout</span>
-            </button>
+                <ArrowLeft className="h-3.5 w-3.5" />
+                <span>Volver al checkout</span>
+              </button>
+            </div>
           </div>
         </div>
       ) : checkoutGatewayParams ? (
@@ -1076,7 +1119,7 @@ export function CartPageClient({
                           href={
                             customer
                               ? "/cuenta"
-                              : `/cuenta/ingresar?mode=register&email=${encodeURIComponent(customerEmail.trim())}&name=${encodeURIComponent(customerName.trim())}&dni=${encodeURIComponent(customerDni.replace(/\D/g, ""))}&phone=${encodeURIComponent(customerPhone.trim())}`
+                              : `/cuenta/ingresar?mode=register&email=${encodeURIComponent(customerEmail.trim())}&name=${encodeURIComponent(`${customerFirstName.trim()} ${customerLastName.trim()}`.trim())}&dni=${encodeURIComponent(customerDni.replace(/\D/g, ""))}&phone=${encodeURIComponent(customerPhone.trim())}`
                           }
                           className="text-stone-900 font-semibold underline"
                         >
@@ -1274,7 +1317,7 @@ export function CartPageClient({
           <div className="mt-8 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3">
             {!customer ? (
               <Link
-                href={`/cuenta/ingresar?mode=register&email=${encodeURIComponent(customerEmail.trim())}&name=${encodeURIComponent(customerName.trim())}&dni=${encodeURIComponent(customerDni.replace(/\D/g, ""))}&phone=${encodeURIComponent(customerPhone.trim())}`}
+                href={`/cuenta/ingresar?mode=register&email=${encodeURIComponent(customerEmail.trim())}&name=${encodeURIComponent(`${customerFirstName.trim()} ${customerLastName.trim()}`.trim())}&dni=${encodeURIComponent(customerDni.replace(/\D/g, ""))}&phone=${encodeURIComponent(customerPhone.trim())}`}
                 className="w-full sm:w-auto inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-stone-900 px-6 py-2.5 text-xs font-bold text-white uppercase tracking-wider shadow-sm hover:bg-stone-800 transition-colors"
               >
                 <User className="h-4 w-4" />
@@ -2122,18 +2165,35 @@ export function CartPageClient({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
-                        <label htmlFor="checkout-name" className="block text-xs font-semibold text-stone-700 mb-1">
-                          Nombre y Apellido *
+                        <label htmlFor="checkout-first-name" className="block text-xs font-semibold text-stone-700 mb-1">
+                          Nombre *
                         </label>
                         <input
-                          id="checkout-name"
+                          id="checkout-first-name"
                           type="text"
                           required
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          placeholder="Ej: Clara Benítez"
+                          autoComplete="given-name"
+                          value={customerFirstName}
+                          onChange={(e) => setCustomerFirstName(e.target.value)}
+                          placeholder="Ej: Clara"
+                          className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="checkout-last-name" className="block text-xs font-semibold text-stone-700 mb-1">
+                          Apellido *
+                        </label>
+                        <input
+                          id="checkout-last-name"
+                          type="text"
+                          required
+                          autoComplete="family-name"
+                          value={customerLastName}
+                          onChange={(e) => setCustomerLastName(e.target.value)}
+                          placeholder="Ej: Benítez"
                           className="w-full rounded-xl border border-[#d8d2c7] bg-white px-3.5 py-2.5 text-base sm:text-sm text-stone-900 placeholder:text-stone-500 focus:border-stone-900 focus:outline-none focus:ring-1 focus:ring-stone-900"
                         />
                       </div>
@@ -2397,7 +2457,9 @@ export function CartPageClient({
                       </button>
                     </div>
                     <div className="space-y-0.5 text-stone-800">
-                      <p className="font-medium text-stone-900">{customerName}</p>
+                      <p className="font-medium text-stone-900">
+                        {`${customerFirstName.trim()} ${customerLastName.trim()}`.trim()}
+                      </p>
                       <p className="text-stone-600">DNI: {customerDni}</p>
                       <p className="text-stone-600">{customerPhone}</p>
                       <p className="text-stone-600 truncate">{customerEmail}</p>

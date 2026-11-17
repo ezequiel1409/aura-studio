@@ -54,6 +54,35 @@ function renderItemsHtml(items: OrderEmailData["items"], currency: string): stri
     .join("");
 }
 
+function renderGatewayDetailsBox(data: OrderEmailData): string {
+  const details = data.paymentDetails;
+  if (!details) return "";
+  const rows: string[] = [];
+  if (details.paymentMethodId) {
+    const methodText = details.cardLastFour
+      ? `${details.paymentMethodId.toUpperCase()} terminada en ${details.cardLastFour}`
+      : details.paymentMethodId.toUpperCase();
+    rows.push(`<div><strong>Medio utilizado:</strong> ${methodText}</div>`);
+  }
+  if (details.installments && details.installments > 0) {
+    const quotaText = details.installmentAmountCents
+      ? `${details.installments} cuota(s) de ${formatPrice(details.installmentAmountCents, data.currency)}`
+      : `${details.installments} cuota(s)`;
+    rows.push(`<div><strong>Plan de pago:</strong> ${quotaText}</div>`);
+  }
+  if (details.totalPaidCents && details.totalPaidCents > 0 && details.totalPaidCents !== data.totalCents) {
+    rows.push(`<div><strong>Total abonado en pasarela:</strong> ${formatPrice(details.totalPaidCents, data.currency)}</div>`);
+  }
+  if (details.paymentId) {
+    rows.push(`<div><strong>Comprobante / ID de pago:</strong> ${details.paymentId}</div>`);
+  }
+  if (details.refundId) {
+    rows.push(`<div><strong>ID de reembolso:</strong> ${details.refundId}</div>`);
+  }
+  if (rows.length === 0) return "";
+  return `<div class="info-box" style="background-color: #F8FAFC; border-color: #CBD5E1; color: #334155;">${rows.join("")}</div>`;
+}
+
 /**
  * Busca si el comerciante configuró una plantilla específica para este trigger de evento
  */
@@ -327,6 +356,8 @@ export function generateOrderPaymentAcceptedTemplate(data: OrderEmailData): {
       Tus prendas continúan reservadas. En cuanto nuestro equipo valide la acreditación definitiva, recibirás el correo de <strong>Pago Confirmado</strong>.
     </div>
 
+    ${renderGatewayDetailsBox(data)}
+
     <table class="items-table">
       <tbody>
         ${renderItemsHtml(data.items, data.currency)}
@@ -406,6 +437,8 @@ export function generateOrderPaidTemplate(data: OrderEmailData): { subject: stri
     <div class="info-box" style="border-left: 4px solid #059669; background-color: #ECFDF5; color: #064E3B;">
       Tus prendas ya están aseguradas y nuestro equipo comenzó con la preparación y empaquetado de tus piezas. Te notificaremos en cuanto estén listas.
     </div>
+
+    ${renderGatewayDetailsBox(data)}
 
     <table class="items-table">
       <tbody>
@@ -678,6 +711,84 @@ export function generateOrderCancelledTemplate(data: OrderEmailData): { subject:
 
   const text = `
 ${brand} - Pedido #${data.formattedCode} cancelado
+
+Hola ${data.customerName},
+${bodyText.replace(/<[^>]+>/g, "")}
+`;
+
+  return { subject, html, text };
+}
+
+export function generateOrderRefundedTemplate(data: OrderEmailData): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const brand = data.brandName || getDefaultBrandName();
+  const layout = data.emailCustomization?.layout;
+  const brandColor = layout?.brandColor || "#1C1917";
+  const event = getEventConfig(data.emailCustomization, "order_refunded");
+  const vars = getVariables(data, brand);
+
+  const subject = event?.subject
+    ? interpolateVariables(event.subject, vars)
+    : `Reembolso procesado para tu pedido #${data.formattedCode} - ${brand}`;
+
+  const headline = event?.headline
+    ? interpolateVariables(event.headline, vars)
+    : "Reembolso Procesado";
+
+  const bodyText = event?.bodyText
+    ? interpolateVariables(event.bodyText, vars)
+    : `Hola <strong>${data.customerName}</strong>, te confirmamos que procesamos la devolución de tu pago para el pedido <span class="order-badge">#${data.formattedCode}</span> por <strong>${formatPrice(data.totalCents, data.currency)}</strong>.`;
+
+  const btnText = event?.buttonText
+    ? interpolateVariables(event.buttonText, vars)
+    : "Volver a la tienda";
+
+  const btnUrl = event?.buttonUrl
+    ? interpolateVariables(event.buttonUrl, vars)
+    : "/";
+
+  const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>${subject}</title>
+  <style>${getBaseStyles(brandColor)}</style>
+</head>
+<body>
+  <div class="card">
+    ${renderHeader(brand, layout)}
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="display: inline-block; background-color: #DBEAFE; color: #1D4ED8; border-radius: 50%; width: 44px; height: 44px; line-height: 44px; font-size: 20px;">↩</span>
+    </div>
+    <h1 style="text-align: center;">${headline}</h1>
+    <p style="text-align: center;">${bodyText}</p>
+
+    ${renderGatewayDetailsBox(data)}
+
+    <div class="info-box" style="border-left: 4px solid #2563EB; background-color: #EFF6FF; color: #1E3A8A;">
+      El reintegro se acredita en el mismo medio de pago que utilizaste. En dinero en cuenta de Mercado Pago suele ser inmediato y en tarjetas puede demorar según el cierre de tu banco emisor.
+    </div>
+
+    ${
+      btnUrl
+        ? `
+    <div class="btn-container">
+      <a href="${btnUrl}" class="btn" target="_blank">${btnText}</a>
+    </div>`
+        : ""
+    }
+
+    ${renderFooter(brand, data, layout)}
+  </div>
+</body>
+</html>`;
+
+  const text = `
+${brand} - Reembolso procesado (#${data.formattedCode})
 
 Hola ${data.customerName},
 ${bodyText.replace(/<[^>]+>/g, "")}

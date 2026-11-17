@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthenticatedAdmin } from "../../../../../../infra/auth/guard";
 import { getProductServiceDeps } from "../../../../../../infra/db/connection";
-import { markOrderPaymentManually } from "../../../../../../services/payment.service";
+import {
+  markOrderPaymentManually,
+  refundOrCancelOrderPayment,
+} from "../../../../../../services/payment.service";
 import { PaymentStatus } from "../../../../../../domain/payment/types";
 import { logger } from "../../../../../../lib/logger";
 
@@ -32,7 +35,25 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { paymentStatus } = body;
+    const { paymentStatus, action, reason } = body as {
+      paymentStatus?: PaymentStatus;
+      action?: "REFUND_OR_CANCEL";
+      reason?: string;
+    };
+
+    const deps = getProductServiceDeps();
+    if (action === "REFUND_OR_CANCEL") {
+      const updated = await refundOrCancelOrderPayment(orderId, deps, { reason });
+      const durationMs = Math.round(performance.now() - startTime);
+      logger.info("ADMIN:PAYMENT_REFUNDED_OR_CANCELLED", `Operación inversa ejecutada en orden #${updated.code}`, {
+        orderId: updated.id,
+        orderCode: updated.code,
+        paymentStatus: updated.paymentStatus || undefined,
+        durationMs,
+        status: 200,
+      });
+      return NextResponse.json({ ok: true, order: updated });
+    }
 
     const validStatuses: PaymentStatus[] = [
       "PENDING",
@@ -54,12 +75,10 @@ export async function POST(
       );
     }
 
-    const deps = getProductServiceDeps();
-    const updated = await markOrderPaymentManually(
-      orderId,
-      paymentStatus as PaymentStatus,
-      deps
-    );
+    const updated =
+      paymentStatus === "REFUNDED"
+        ? await refundOrCancelOrderPayment(orderId, deps, { reason })
+        : await markOrderPaymentManually(orderId, paymentStatus as PaymentStatus, deps);
     const durationMs = Math.round(performance.now() - startTime);
 
     logger.info("ADMIN:PAYMENT_STATUS_UPDATED", `Pago de orden #${updated.code} actualizado a ${paymentStatus}`, {

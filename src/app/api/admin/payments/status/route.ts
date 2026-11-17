@@ -10,7 +10,14 @@ export async function GET(req: NextRequest) {
 
   const env = getEnv();
   const mpToken = env.MP_ACCESS_TOKEN;
+  const mpPubKey = process.env.MP_PUBLIC_KEY || env.MP_PUBLIC_KEY;
   const isSandbox = env.MP_SANDBOX !== "false";
+  const tokenConfigured = Boolean(
+    mpToken && !mpToken.startsWith("TEST-00000000") && !mpToken.startsWith("test_mock_")
+  );
+  const publicKeyConfigured = Boolean(
+    mpPubKey && !mpPubKey.startsWith("TEST-00000000") && !mpPubKey.startsWith("test_mock_")
+  );
   const tokenMasked = mpToken
     ? `${mpToken.slice(0, 8)}••••••••${mpToken.slice(-4)}`
     : null;
@@ -19,11 +26,12 @@ export async function GET(req: NextRequest) {
     ok: true,
     mercadopago: {
       configured: Boolean(mpToken),
+      liveTokenConfigured: tokenConfigured,
       sandbox: isSandbox,
       tokenMasked,
-      publicKeyConfigured: Boolean(env.MP_PUBLIC_KEY),
-      publicKey: env.MP_PUBLIC_KEY || null,
-      webhookSecretConfigured: Boolean(env.MP_WEBHOOK_SECRET),
+      publicKeyConfigured,
+      publicKey: publicKeyConfigured ? mpPubKey : null,
+      webhookSecretConfigured: Boolean(process.env.MP_WEBHOOK_SECRET || env.MP_WEBHOOK_SECRET),
       environment: isSandbox ? "sandbox" : env.NODE_ENV,
     },
   });

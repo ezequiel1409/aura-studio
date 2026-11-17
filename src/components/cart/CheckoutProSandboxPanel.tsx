@@ -40,6 +40,15 @@ interface SandboxOrderSummary {
   paymentDiscountCents?: number;
   paymentMethod: string;
   paymentStatus: string;
+  paymentDetails?: {
+    paymentId?: string | null;
+    paymentMethodId?: string | null;
+    paymentTypeId?: string | null;
+    installments?: number | null;
+    installmentAmountCents?: number | null;
+    totalPaidCents?: number | null;
+    cardLastFour?: string | null;
+  } | null;
   status: string;
   externalCheckoutUrl?: string | null;
   items: SandboxOrderItem[];
@@ -309,6 +318,30 @@ export function CheckoutProSandboxPanel({
                 ? "Tu pago ya fue confirmado y acreditado. Estamos preparando tu pedido."
                 : "Mercado Pago aceptó tu operación. Te enviamos un correo de Pago Aceptado y te notificaremos en un correo aparte apenas quede confirmado el cobro."}
             </p>
+            {order.paymentDetails && (
+              <div className="mt-2 pt-2 border-t border-emerald-200/80 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] text-emerald-950">
+                {order.paymentDetails.paymentMethodId && (
+                  <div>
+                    <span className="font-semibold">Medio:</span>{" "}
+                    {order.paymentDetails.paymentMethodId.toUpperCase()}
+                    {order.paymentDetails.cardLastFour ? ` ···· ${order.paymentDetails.cardLastFour}` : ""}
+                  </div>
+                )}
+                {order.paymentDetails.installments && order.paymentDetails.installments > 0 && (
+                  <div>
+                    <span className="font-semibold">Plan:</span>{" "}
+                    {order.paymentDetails.installments === 1
+                      ? "1 pago"
+                      : `${order.paymentDetails.installments} cuotas${order.paymentDetails.installmentAmountCents ? ` de ${formatPrice(order.paymentDetails.installmentAmountCents, "ARS")}` : ""}`}
+                  </div>
+                )}
+                {order.paymentDetails.paymentId && (
+                  <div className="font-mono text-[10px] text-emerald-800 sm:col-span-2">
+                    Comprobante MP #{order.paymentDetails.paymentId}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">

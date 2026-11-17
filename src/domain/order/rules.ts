@@ -1,5 +1,11 @@
 import { ValidationError } from "../errors";
-import { CreateOrderInput, DeliveryMethod, Order, OrderStatus } from "./types";
+import {
+  CreateOrderInput,
+  DeliveryMethod,
+  Order,
+  OrderStatus,
+  OrderTimelineEvent,
+} from "./types";
 import { isValidPaymentMethod, PaymentMethod } from "../payment";
 
 /**
@@ -26,11 +32,14 @@ export function parseOrderCode(input: string): number | null {
  */
 export function validateCreateOrderInput(input: CreateOrderInput): {
   customerName: string;
+  customerFirstName: string | null;
+  customerLastName: string | null;
   customerPhone: string;
   customerEmail: string;
   customerDni: string;
   deliveryMethod: DeliveryMethod;
   deliveryAddress: string | null;
+  postalCode: string | null;
   deliveryNotes: string | null;
   subtotalCents: number;
   discountCents: number;
@@ -46,10 +55,17 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
   idempotencyKey?: string | null;
   notes: string | null;
 } {
-  const customerName = input.customerName?.trim();
-  if (!customerName || customerName.length < 2) {
-    throw new ValidationError("El nombre del comprador es obligatorio.");
+  const firstName = input.customerFirstName?.trim() || null;
+  const lastName = input.customerLastName?.trim() || null;
+  const combinedName =
+    firstName && lastName
+      ? `${firstName} ${lastName}`.trim()
+      : input.customerName?.trim() || firstName || "";
+
+  if (!combinedName || combinedName.length < 2) {
+    throw new ValidationError("El nombre y apellido del comprador son obligatorios.");
   }
+  const customerName = combinedName;
 
   const customerPhone = input.customerPhone?.trim();
   const digits = customerPhone ? customerPhone.replace(/\D/g, "") : "";
@@ -123,11 +139,14 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
 
   return {
     customerName,
+    customerFirstName: firstName,
+    customerLastName: lastName,
     customerPhone,
     customerEmail,
     customerDni: cleanDni,
     deliveryMethod: input.deliveryMethod,
     deliveryAddress,
+    postalCode: input.postalCode?.trim() || null,
     deliveryNotes: input.deliveryNotes?.trim() || null,
     subtotalCents: subtotal,
     discountCents,
@@ -143,6 +162,23 @@ export function validateCreateOrderInput(input: CreateOrderInput): {
     idempotencyKey: input.idempotencyKey?.trim() || null,
     notes: input.notes?.trim() || null,
   };
+}
+
+/**
+ * Agrega un evento cronológico al flujo/timeline de la orden manteniendo un historial acotado.
+ */
+export function appendOrderTimelineEvent(
+  existing: OrderTimelineEvent[] | null | undefined,
+  event: Omit<OrderTimelineEvent, "id"> & { id?: string }
+): OrderTimelineEvent[] {
+  const list = Array.isArray(existing) ? [...existing] : [];
+  const nextId =
+    event.id || `${event.type.toLowerCase()}_${event.at}_${list.length + 1}`;
+  list.push({
+    ...event,
+    id: nextId,
+  });
+  return list.slice(-50);
 }
 
 /**

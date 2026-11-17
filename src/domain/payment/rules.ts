@@ -41,7 +41,7 @@ export function isValidPaymentStatusTransition(
     case "PENDING":
       return ["AUTHORIZED", "PAID", "REJECTED"].includes(to);
     case "AUTHORIZED":
-      return ["PAID", "REJECTED"].includes(to);
+      return ["PAID", "REJECTED", "REFUNDED"].includes(to);
     case "PAID":
       return ["REFUNDED"].includes(to);
     case "REJECTED":

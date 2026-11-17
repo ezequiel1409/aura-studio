@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ValidationError } from "../../../../../domain/errors";
 import { getProductServiceDeps } from "../../../../../infra/db/connection";
 import { processPaymentWebhook } from "../../../../../services/payment.service";
 import { logger } from "../../../../../lib/logger";
@@ -60,10 +61,17 @@ export async function POST(
     });
   } catch (error) {
     const durationMs = Math.round(performance.now() - startTime);
+    if (error instanceof ValidationError) {
+      logger.warn("PAYMENT:WEBHOOK_SIGNATURE_INVALID", error.message, {
+        durationMs,
+        status: 401,
+      });
+      return NextResponse.json({ received: false, error: error.message }, { status: 401 });
+    }
     logger.error("PAYMENT:WEBHOOK_ERROR", "Error al procesar webhook de pagos", error, {
       durationMs,
     });
-    // Retornamos 200 a las pasarelas para que no reintenten indefinidamente ante errores de parseo
+    // Retornamos 200 ante errores transitorios para evitar tormentas de reintentos por payloads inesperados
     return NextResponse.json({ received: false, error: (error as Error).message }, { status: 200 });
   }
 }

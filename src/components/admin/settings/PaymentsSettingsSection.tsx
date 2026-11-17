@@ -66,6 +66,12 @@ export interface PaymentsSettingsSectionProps {
   // Mercado Pago
   mercadopagoEnabled: boolean;
   onMercadopagoEnabledChange: (val: boolean) => void;
+  mercadopagoBinaryMode?: boolean;
+  onMercadopagoBinaryModeChange?: (val: boolean) => void;
+  mercadopagoMaxInstallments?: string;
+  onMercadopagoMaxInstallmentsChange?: (val: string) => void;
+  mercadopagoOfflineExpirationDays?: string;
+  onMercadopagoOfflineExpirationDaysChange?: (val: string) => void;
   // Transferencia Bancaria
   transferEnabled: boolean;
   onTransferEnabledChange: (val: boolean) => void;
@@ -102,6 +108,7 @@ export interface PaymentsSettingsSectionProps {
 
 interface ServerPaymentStatus {
   configured: boolean;
+  liveTokenConfigured?: boolean;
   tokenMasked: string | null;
   publicKeyConfigured: boolean;
   publicKey: string | null;
@@ -122,6 +129,12 @@ interface DiagnosticResult {
 export function PaymentsSettingsSection({
   mercadopagoEnabled,
   onMercadopagoEnabledChange,
+  mercadopagoBinaryMode = false,
+  onMercadopagoBinaryModeChange,
+  mercadopagoMaxInstallments = "",
+  onMercadopagoMaxInstallmentsChange,
+  mercadopagoOfflineExpirationDays = "",
+  onMercadopagoOfflineExpirationDaysChange,
   transferEnabled,
   onTransferEnabledChange,
   transferBankName,
@@ -505,6 +518,83 @@ export function PaymentsSettingsSection({
                 </span>
               </div>
             )}
+
+            {/* Estado de claves SDK/Webhook en servidor (sin exponer secretos) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
+              <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-between gap-2">
+                <span className="text-zinc-400">Access Token</span>
+                <span className={`font-semibold ${serverStatus?.liveTokenConfigured ? "text-emerald-400" : "text-amber-400"}`}>
+                  {serverStatus?.liveTokenConfigured ? `Activo (${serverStatus.environment})` : "Simulado / Test"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-between gap-2">
+                <span className="text-zinc-400">Public Key (SDK V2)</span>
+                <span className={`font-semibold ${serverStatus?.publicKeyConfigured ? "text-emerald-400" : "text-amber-400"}`}>
+                  {serverStatus?.publicKeyConfigured ? "Configurada" : "Pendiente"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-between gap-2">
+                <span className="text-zinc-400">Webhook HMAC</span>
+                <span className={`font-semibold ${serverStatus?.webhookSecretConfigured ? "text-emerald-400" : "text-amber-400"}`}>
+                  {serverStatus?.webhookSecretConfigured ? "Activo" : "Pendiente"}
+                </span>
+              </div>
+            </div>
+
+            {/* Parámetros comerciales de preferencia Checkout Pro */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-zinc-900 border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={mercadopagoBinaryMode}
+                  onChange={(e) => onMercadopagoBinaryModeChange?.(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-sky-400 cursor-pointer"
+                />
+                <span className="space-y-0.5">
+                  <span className="text-xs font-semibold text-zinc-200 block">
+                    Aprobación instantánea (binary_mode)
+                  </span>
+                  <span className="text-[11px] text-zinc-400 block leading-snug">
+                    Evita pagos en revisión: aprueba o rechaza en el acto.
+                  </span>
+                </span>
+              </label>
+
+              <div className="space-y-1">
+                <label htmlFor="mpMaxInstallmentsSelect" className="text-xs font-medium text-zinc-300 block">
+                  Tope máximo de cuotas
+                </label>
+                <select
+                  id="mpMaxInstallmentsSelect"
+                  value={mercadopagoMaxInstallments}
+                  onChange={(e) => onMercadopagoMaxInstallmentsChange?.(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-sky-400"
+                >
+                  <option value="">Sin límite (según tarjeta)</option>
+                  <option value="1">Solo 1 pago</option>
+                  <option value="3">Hasta 3 cuotas</option>
+                  <option value="6">Hasta 6 cuotas</option>
+                  <option value="9">Hasta 9 cuotas</option>
+                  <option value="12">Hasta 12 cuotas</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="mpOfflineExpInput" className="text-xs font-medium text-zinc-300 block">
+                  Vencimiento pagos en efectivo (días)
+                </label>
+                <input
+                  id="mpOfflineExpInput"
+                  type="number"
+                  min={1}
+                  max={30}
+                  placeholder="Ej. 3 (opcional)"
+                  value={mercadopagoOfflineExpirationDays}
+                  onChange={(e) => onMercadopagoOfflineExpirationDaysChange?.(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2 text-xs text-zinc-100 focus:outline-none focus:border-sky-400"
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>

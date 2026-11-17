@@ -16,9 +16,11 @@
  */
 
 import { OrderNotFoundError, ValidationError } from "../domain/errors";
-import { Order } from "../domain/order/types";
+import { Order, OrderTimelineEvent } from "../domain/order/types";
+import { appendOrderTimelineEvent } from "../domain/order/rules";
 import {
   BankTransferDetails,
+  GatewayPaymentDetails,
   PaymentMethod,
   PaymentMethodConfig,
   PaymentPreferenceResult,
@@ -34,11 +36,25 @@ import {
   commitOrderStockDeduction,
   hasOrderDeductedStock,
   notifyOrderPaymentAccepted,
+  notifyOrderRefunded,
   updateOrderStatus,
 } from "./order.service";
 import { getShowroomSettings } from "./settings.service";
 
 const pendingOrderReconciliations = new Map<number, Promise<void>>();
+
+export function getConfiguredMercadoPagoPublicKey(): string | null {
+  const env = getEnv();
+  const key = process.env.MP_PUBLIC_KEY || env.MP_PUBLIC_KEY;
+  if (
+    !key ||
+    key.startsWith("TEST-00000000") ||
+    key.startsWith("test_mock_")
+  ) {
+    return null;
+  }
+  return key.trim();
+}
 
 function buildMercadoPagoAdapter(baseUrl?: string): MercadoPagoPaymentAdapter {
   const env = getEnv();
@@ -184,13 +200,46 @@ export async function createOrderPaymentPreference(
   if (method === "MERCADOPAGO") {
     const adapter = buildMercadoPagoAdapter(options?.baseUrl);
 
-    const result = await adapter.createPaymentPreference(order, options);
+    const result = await adapter.createPaymentPreference(order, {
+      ...options,
+      brandName: settings.showroomName,
+      reservationHours: settings.reservationHours,
+      categoryId: settings.businessVertical || "fashion",
+      mpSettings: {
+        binaryMode: settings.mercadopagoBinaryMode,
+        maxInstallments: settings.mercadopagoMaxInstallments,
+        excludedPaymentTypes: settings.mercadopagoExcludedPaymentTypes,
+        offlineExpirationDays: settings.mercadopagoOfflineExpirationDays,
+      },
+    });
+    const now = Math.floor(Date.now() / 1000);
     if (result.preferenceId && deps.orderRepo.updatePayment) {
+      const mergedDetails: GatewayPaymentDetails = {
+        ...(order.paymentDetails || { provider: "MERCADOPAGO" }),
+        provider: "MERCADOPAGO",
+        preferenceId: result.preferenceId,
+      };
       await deps.orderRepo.updatePayment(order.id, {
         paymentStatus: "PENDING",
         paymentExternalId: result.preferenceId,
-        updatedAt: Math.floor(Date.now() / 1000),
+        paymentDetails: mergedDetails,
+        updatedAt: now,
       });
+    }
+    if (typeof deps.orderRepo.updateTimeline === "function") {
+      const timeline = appendOrderTimelineEvent(order.timeline, {
+        at: now,
+        type: "PAYMENT_PREFERENCE_CREATED",
+        title: "Preferencia de pago generada en Mercado Pago",
+        description: result.preferenceId
+          ? `Preferencia ${result.preferenceId} lista para abonar.`
+          : "Enlace de pago generado en Mercado Pago.",
+        actor: "MERCADOPAGO",
+        meta: {
+          preferenceId: result.preferenceId || null,
+        },
+      });
+      await deps.orderRepo.updateTimeline(order.id, timeline, now);
     }
     return result;
   }
@@ -288,13 +337,37 @@ async function withOrderReconciliationLock(orderId: number, work: () => Promise<
   }
 }
 
+function formatGatewayDetailsSummary(details?: GatewayPaymentDetails | null): string | null {
+  if (!details) return null;
+  const parts: string[] = [];
+  if (details.paymentMethodId) {
+    parts.push(
+      details.cardLastFour
+        ? `${details.paymentMethodId.toUpperCase()} ···· ${details.cardLastFour}`
+        : details.paymentMethodId.toUpperCase()
+    );
+  }
+  if (details.installments && details.installments > 0) {
+    parts.push(
+      details.installments === 1
+        ? "1 pago"
+        : `${details.installments} cuotas`
+    );
+  }
+  if (details.paymentId) {
+    parts.push(`ID ${details.paymentId}`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 /**
  * Registra el "Pago Aceptado" (AUTHORIZED) proveniente del callback/webhook de la pasarela,
- * descuenta el stock diferido de forma atómica si aún no se debitó y envía el correo de Pago Aceptado (SRP).
+ * descuenta el stock diferido de forma atómica si aún no se debitó, guarda detalles completos y actualiza el timeline (SRP).
  */
 async function reconcileAcceptedGatewayPayment(
   result: PaymentVerificationResult,
-  deps: GlobalAppDeps
+  deps: GlobalAppDeps,
+  source: "WEBHOOK" | "RETURN" = "WEBHOOK"
 ): Promise<void> {
   if (!result.orderCode) return;
 
@@ -316,12 +389,56 @@ async function reconcileAcceptedGatewayPayment(
 
     const wasAlreadyAccepted = order.paymentStatus === "AUTHORIZED";
     const now = Math.floor(Date.now() / 1000);
+    let nextTimeline: OrderTimelineEvent[] = order.timeline ?? [];
+
+    const mergedDetails: GatewayPaymentDetails = {
+      ...(order.paymentDetails || { provider: "MERCADOPAGO" }),
+      ...(result.paymentDetails || {}),
+      provider: "MERCADOPAGO",
+      paymentId: result.paymentDetails?.paymentId || result.externalId,
+    };
+
+    const detailsSummary = formatGatewayDetailsSummary(mergedDetails);
+    if (!wasAlreadyAccepted) {
+      nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+        at: now,
+        type: source === "RETURN" ? "PAYMENT_GATEWAY_RETURN" : "PAYMENT_WEBHOOK_RECEIVED",
+        title:
+          source === "RETURN"
+            ? "Retorno aprobado verificado con Mercado Pago"
+            : "Webhook aprobado recibido de Mercado Pago",
+        description: detailsSummary || `Pago ${result.externalId} verificado correctamente.`,
+        actor: "MERCADOPAGO",
+        meta: {
+          paymentId: result.externalId,
+          installments: mergedDetails.installments ?? null,
+          paymentMethodId: mergedDetails.paymentMethodId ?? null,
+        },
+      });
+    }
 
     if (!hasOrderDeductedStock(order)) {
       await commitOrderStockDeduction(order, deps, now * 1000);
       if (order.status === "CANCELLED") {
         await deps.orderRepo.updateStatus(order.id, "PENDING", now);
       }
+      nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+        at: now,
+        type: "STOCK_DEDUCTED",
+        title: "Stock descontado tras aprobación",
+        description: "Las unidades de la orden se descontaron al acreditarse la operación.",
+        actor: "SYSTEM",
+      });
+    }
+
+    if (!wasAlreadyAccepted) {
+      nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+        at: now,
+        type: "PAYMENT_AUTHORIZED",
+        title: "Pago aceptado (pendiente de confirmación final)",
+        description: detailsSummary,
+        actor: "MERCADOPAGO",
+      });
     }
 
     let updatedOrder = order;
@@ -329,12 +446,29 @@ async function reconcileAcceptedGatewayPayment(
       updatedOrder = await deps.orderRepo.updatePayment(order.id, {
         paymentStatus: "AUTHORIZED",
         paymentExternalId: result.externalId,
+        paymentDetails: mergedDetails,
         updatedAt: now,
       });
     }
 
     if (!wasAlreadyAccepted) {
-      notifyOrderPaymentAccepted(updatedOrder, deps);
+      if (deps.emailService && updatedOrder.customerEmail) {
+        nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+          at: now,
+          type: "EMAIL_SENT",
+          title: "Correo de Pago Aceptado enviado",
+          description: `Notificación enviada a ${updatedOrder.customerEmail}.`,
+          actor: "SYSTEM",
+        });
+      }
+      notifyOrderPaymentAccepted({ ...updatedOrder, paymentDetails: mergedDetails }, deps);
+    }
+
+    if (
+      typeof deps.orderRepo.updateTimeline === "function" &&
+      nextTimeline.length > (order.timeline?.length || 0)
+    ) {
+      await deps.orderRepo.updateTimeline(order.id, nextTimeline, now);
     }
   });
 }
@@ -344,23 +478,53 @@ async function reconcileAcceptedGatewayPayment(
  */
 async function reconcileRejectedGatewayPayment(
   result: PaymentVerificationResult,
-  deps: GlobalAppDeps
+  deps: GlobalAppDeps,
+  source: "WEBHOOK" | "RETURN" = "WEBHOOK"
 ): Promise<void> {
   if (!result.orderCode) return;
   const order = await deps.orderRepo.findByCode(result.orderCode);
   if (!order || order.paymentStatus === "PAID") return;
 
+  const now = Math.floor(Date.now() / 1000);
+  const mergedDetails: GatewayPaymentDetails = {
+    ...(order.paymentDetails || { provider: "MERCADOPAGO" }),
+    ...(result.paymentDetails || {}),
+    provider: "MERCADOPAGO",
+    paymentId: result.paymentDetails?.paymentId || result.externalId,
+  };
+
   if (deps.orderRepo.updatePayment) {
     await deps.orderRepo.updatePayment(order.id, {
       paymentStatus: "REJECTED",
       paymentExternalId: result.externalId,
-      updatedAt: Math.floor(Date.now() / 1000),
+      paymentDetails: mergedDetails,
+      updatedAt: now,
     });
+  }
+
+  if (typeof deps.orderRepo.updateTimeline === "function") {
+    const timeline = appendOrderTimelineEvent(order.timeline, {
+      at: now,
+      type: "PAYMENT_REJECTED",
+      title:
+        source === "RETURN"
+          ? "Pago rechazado al volver de Mercado Pago"
+          : "Webhook de rechazo recibido",
+      description: mergedDetails.statusDetail
+        ? `Motivo informado: ${mergedDetails.statusDetail}`
+        : `La operación ${result.externalId} fue rechazada.`,
+      actor: "MERCADOPAGO",
+      meta: {
+        paymentId: result.externalId,
+        statusDetail: mergedDetails.statusDetail ?? null,
+      },
+    });
+    await deps.orderRepo.updateTimeline(order.id, timeline, now);
   }
 }
 
 /**
- * Verifica directamente con la API de Mercado Pago el retorno del cliente tras pagar en Checkout Pro
+ * Verifica directamente con la API de Mercado Pago el retorno del cliente tras pagar
  * para conciliar la orden y descontar stock solo cuando la operación resulta aprobada (SRP).
  */
 async function verifyAndReconcileMercadoPagoReturn(
@@ -388,9 +552,9 @@ async function verifyAndReconcileMercadoPagoReturn(
   }
 
   if (verification.status === "AUTHORIZED" || verification.status === "PAID") {
-    await reconcileAcceptedGatewayPayment({ ...verification, orderCode }, deps);
+    await reconcileAcceptedGatewayPayment({ ...verification, orderCode }, deps, "RETURN");
   } else if (verification.status === "REJECTED") {
-    await reconcileRejectedGatewayPayment({ ...verification, orderCode }, deps);
+    await reconcileRejectedGatewayPayment({ ...verification, orderCode }, deps, "RETURN");
   }
 }
 
@@ -503,6 +667,7 @@ export async function getCheckoutSandboxOrderSummary(
     paymentDiscountCents: order.paymentDiscountCents || 0,
     paymentMethod: order.paymentMethod || "MERCADOPAGO",
     paymentStatus: order.paymentStatus || "PENDING",
+    paymentDetails: order.paymentDetails ?? null,
     status: order.status,
     externalCheckoutUrl,
     items: hydratedItems,
@@ -547,6 +712,16 @@ export async function cancelAbandonedGatewayOrder(
         updatedAt: now,
       });
     }
+    if (typeof deps.orderRepo.updateTimeline === "function") {
+      const timeline = appendOrderTimelineEvent(order.timeline, {
+        at: now,
+        type: "ORDER_CANCELLED",
+        title: "Intento de pago abandonado / cancelado",
+        description: "El comprador volvió al checkout sin completar el pago en pasarela.",
+        actor: "BUYER",
+      });
+      await deps.orderRepo.updateTimeline(order.id, timeline, now);
+    }
   }
 }
 
@@ -564,9 +739,9 @@ export async function processPaymentWebhook(
 
     const result = await adapter.processWebhook(payload, headers);
     if (result && (result.status === "AUTHORIZED" || result.status === "PAID")) {
-      await reconcileAcceptedGatewayPayment(result, deps);
+      await reconcileAcceptedGatewayPayment(result, deps, "WEBHOOK");
     } else if (result && result.status === "REJECTED") {
-      await reconcileRejectedGatewayPayment(result, deps);
+      await reconcileRejectedGatewayPayment(result, deps, "WEBHOOK");
     }
     return result;
   }
@@ -575,9 +750,218 @@ export async function processPaymentWebhook(
 }
 
 /**
- * Marca manualmente el estado de pago de una orden desde el Backoffice (ej. al confirmar pago).
- * - Si pasa a AUTHORIZED ("Pago Aceptado"): descuenta stock si estaba diferido, actualiza paymentStatus y envía el correo de Pago Aceptado.
- * - Si pasa a PAID ("Pago Confirmado"): descuenta stock si estaba diferido, actualiza orden y cobro a PAID y envía el correo de Pago Confirmado.
+ * Ejecuta la cancelación o reembolso total de un cobro desde el Backoffice (incluyendo API de Mercado Pago si aplica),
+ * restituye stock si estaba descontado, actualiza el timeline y envía correo de aviso al cliente (SRP).
+ */
+export async function refundOrCancelOrderPayment(
+  orderId: number,
+  deps: GlobalAppDeps,
+  options?: { reason?: string }
+): Promise<Order> {
+  const order = await deps.orderRepo.findById(orderId);
+  if (!order) {
+    throw new OrderNotFoundError(orderId);
+  }
+
+  if (order.paymentStatus === "REFUNDED") {
+    return order;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const wasCapturedOrAuthorized =
+    order.paymentStatus === "AUTHORIZED" || order.paymentStatus === "PAID";
+  let nextTimeline: OrderTimelineEvent[] = order.timeline ?? [];
+  let updatedDetails: GatewayPaymentDetails = {
+    ...(order.paymentDetails || { provider: order.paymentMethod || "MANUAL" }),
+  };
+
+  if (order.paymentMethod === "MERCADOPAGO") {
+    const candidatePaymentId =
+      order.paymentDetails?.paymentId ||
+      (order.paymentExternalId &&
+      order.paymentExternalId !== order.paymentDetails?.preferenceId &&
+      !order.paymentExternalId.startsWith("mock_pref_")
+        ? order.paymentExternalId
+        : null);
+
+    if (candidatePaymentId) {
+      const adapter = buildMercadoPagoAdapter();
+      const idempotencyKey = `refund_ord_${order.code}_${now}`;
+      if (wasCapturedOrAuthorized) {
+        const refundRes = await adapter.refundPayment(candidatePaymentId, undefined, idempotencyKey);
+        updatedDetails = {
+          ...updatedDetails,
+          provider: "MERCADOPAGO",
+          paymentId: candidatePaymentId,
+          refundId: refundRes.refundId || updatedDetails.refundId || null,
+          refundedAmountCents: refundRes.refundedAmountCents ?? order.totalCents,
+          refundedAt: now,
+          statusDetail: refundRes.details?.statusDetail || "refunded",
+        };
+      } else {
+        const cancelRes = await adapter.cancelPayment(candidatePaymentId, idempotencyKey);
+        updatedDetails = {
+          ...updatedDetails,
+          provider: "MERCADOPAGO",
+          paymentId: candidatePaymentId,
+          cancelledAt: now,
+          statusDetail: cancelRes.details?.statusDetail || "by_collector",
+        };
+      }
+    } else if (wasCapturedOrAuthorized) {
+      updatedDetails = {
+        ...updatedDetails,
+        refundedAmountCents: order.totalCents,
+        refundedAt: now,
+        statusDetail: "manual_refund",
+      };
+    } else {
+      updatedDetails = {
+        ...updatedDetails,
+        cancelledAt: now,
+        statusDetail: "cancelled_before_payment",
+      };
+    }
+  } else if (wasCapturedOrAuthorized) {
+    updatedDetails = {
+      ...updatedDetails,
+      refundedAmountCents: order.totalCents,
+      refundedAt: now,
+      statusDetail: "manual_refund",
+    };
+  }
+
+  if (wasCapturedOrAuthorized) {
+    nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+      at: now,
+      type: "PAYMENT_REFUNDED",
+      title: "Pago reembolsado al comprador",
+      description: updatedDetails.refundId
+        ? `Reembolso confirmado en Mercado Pago (ID ${updatedDetails.refundId}).`
+        : options?.reason || "Devolución total registrada desde el panel administrativo.",
+      actor: "ADMIN",
+      meta: {
+        refundId: updatedDetails.refundId ?? null,
+        amountCents: updatedDetails.refundedAmountCents ?? order.totalCents,
+      },
+    });
+  } else {
+    nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+      at: now,
+      type: "PAYMENT_CANCELLED",
+      title: "Cobro pendiente cancelado",
+      description: options?.reason || "Operación anulada antes de la acreditación.",
+      actor: "ADMIN",
+    });
+  }
+
+  if (hasOrderDeductedStock(order) && deps.productRepo) {
+    for (const item of order.items || []) {
+      if (item.productId) {
+        await deps.productRepo.restoreStock(
+          item.productId,
+          item.colorName,
+          item.size,
+          item.quantity,
+          now * 1000
+        );
+      }
+    }
+    nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+      at: now,
+      type: "STOCK_RESTORED",
+      title: "Stock restituido tras cancelación / reembolso",
+      description: "Las prendas de esta orden volvieron al catálogo disponible.",
+      actor: "SYSTEM",
+    });
+  }
+
+  const nextPaymentStatus: PaymentStatus = wasCapturedOrAuthorized ? "REFUNDED" : "REJECTED";
+  if (deps.orderRepo.updatePayment) {
+    await deps.orderRepo.updatePayment(order.id, {
+      paymentStatus: nextPaymentStatus,
+      paymentDetails: updatedDetails,
+      updatedAt: now,
+    });
+  }
+
+  if (order.status !== "CANCELLED") {
+    await deps.orderRepo.updateStatus(order.id, "CANCELLED", now);
+    nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+      at: now,
+      type: "ORDER_CANCELLED",
+      title: "Orden cancelada",
+      description: wasCapturedOrAuthorized
+        ? "Orden cerrada y marcada como cancelada tras emitir el reembolso."
+        : "Orden cancelada desde administración.",
+      actor: "ADMIN",
+    });
+  }
+
+  if (order.customerEmail && deps.emailService) {
+    nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+      at: now,
+      type: "EMAIL_SENT",
+      title: wasCapturedOrAuthorized
+        ? "Correo de reembolso enviado al cliente"
+        : "Correo de cancelación enviado al cliente",
+      description: `Notificación enviada a ${order.customerEmail}.`,
+      actor: "SYSTEM",
+    });
+  }
+
+  if (typeof deps.orderRepo.updateTimeline === "function") {
+    await deps.orderRepo.updateTimeline(order.id, nextTimeline, now);
+  }
+
+  const refreshed = (await deps.orderRepo.findById(order.id))!;
+
+  if (wasCapturedOrAuthorized) {
+    notifyOrderRefunded(refreshed, deps);
+  } else if (deps.emailService && refreshed.customerEmail) {
+    getShowroomSettings(deps)
+      .then((settings) =>
+        deps.emailService?.sendOrderCancelledEmail?.(refreshed.customerEmail!, {
+          orderId: refreshed.id,
+          orderCode: refreshed.code,
+          formattedCode: `#ORD-${refreshed.code.toString().padStart(3, "0")}`,
+          customerName: refreshed.customerName,
+          customerEmail: refreshed.customerEmail!,
+          customerPhone: refreshed.customerPhone,
+          deliveryMethod: refreshed.deliveryMethod,
+          deliveryAddress: refreshed.deliveryAddress,
+          deliveryNotes: refreshed.deliveryNotes,
+          items: (refreshed.items || []).map((i) => ({
+            productTitle: i.productTitle,
+            productCode: i.productCode,
+            colorName: i.colorName,
+            size: i.size,
+            quantity: i.quantity,
+            unitPriceCents: i.unitPriceCents,
+            photoUrl: i.photoUrl,
+          })),
+          subtotalCents: refreshed.subtotalCents,
+          shippingCents: refreshed.shippingCents,
+          discountCents: refreshed.discountCents,
+          totalCents: refreshed.totalCents,
+          currency: refreshed.currency || "ARS",
+          paymentMethod: refreshed.paymentMethod || "MERCADOPAGO",
+          paymentStatus: refreshed.paymentStatus || "REJECTED",
+          paymentDetails: refreshed.paymentDetails ?? null,
+          showroomAddress: settings.address,
+          brandName: settings.showroomName,
+          supportWhatsapp: settings.whatsappNumber,
+          emailCustomization: settings.emailCustomization,
+        })
+      )
+      .catch(() => {});
+  }
+
+  return refreshed;
+}
+
+/**
+ * Marca manualmente el estado de pago de una orden desde el Backoffice (ej. al confirmar pago o reembolsar).
  */
 export async function markOrderPaymentManually(
   orderId: number,
@@ -587,6 +971,10 @@ export async function markOrderPaymentManually(
   const order = await deps.orderRepo.findById(orderId);
   if (!order) {
     throw new OrderNotFoundError(orderId);
+  }
+
+  if (paymentStatus === "REFUNDED") {
+    return refundOrCancelOrderPayment(orderId, deps);
   }
 
   if (paymentStatus === "PAID") {
@@ -608,6 +996,21 @@ export async function markOrderPaymentManually(
       paymentStatus,
       updatedAt: now,
     });
+  }
+
+  if (typeof deps.orderRepo.updateTimeline === "function") {
+    const timeline = appendOrderTimelineEvent(order.timeline, {
+      at: now,
+      type: paymentStatus === "AUTHORIZED" ? "PAYMENT_AUTHORIZED" : paymentStatus === "REJECTED" ? "PAYMENT_REJECTED" : "PAYMENT_WEBHOOK_RECEIVED",
+      title:
+        paymentStatus === "AUTHORIZED"
+          ? "Cobro marcado manualmente como Aceptado"
+          : paymentStatus === "REJECTED"
+          ? "Cobro marcado manualmente como Rechazado"
+          : "Estado de cobro revertido a Pendiente",
+      actor: "ADMIN",
+    });
+    await deps.orderRepo.updateTimeline(order.id, timeline, now);
   }
 
   const refreshed = (await deps.orderRepo.findById(orderId))!;

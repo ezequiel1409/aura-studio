@@ -266,6 +266,8 @@ export const orders = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     code: integer("code").notNull().unique(),
     customerName: text("customer_name").notNull(),
+    customerFirstName: text("customer_first_name"),
+    customerLastName: text("customer_last_name"),
     customerPhone: text("customer_phone").notNull(),
     customerEmail: text("customer_email").notNull().default(""),
     customerDni: text("customer_dni").notNull().default(""),
@@ -273,6 +275,7 @@ export const orders = sqliteTable(
       enum: ["HOME_DELIVERY", "MOTORCYCLE", "PICKUP"],
     }).notNull(),
     deliveryAddress: text("delivery_address"),
+    postalCode: text("postal_code"),
     deliveryNotes: text("delivery_notes"),
     subtotalCents: integer("subtotal_cents").notNull(),
     discountCents: integer("discount_cents").notNull().default(0),
@@ -306,7 +309,9 @@ export const orders = sqliteTable(
       .notNull()
       .default("PENDING"),
     paymentExternalId: text("payment_external_id"),
+    paymentDetailsJson: text("payment_details_json"),
     paymentDiscountCents: integer("payment_discount_cents").notNull().default(0),
+    timelineJson: text("timeline_json"),
     customerId: integer("customer_id").references(() => customers.id, {
       onDelete: "set null",
     }),

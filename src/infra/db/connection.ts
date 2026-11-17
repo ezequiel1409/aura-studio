@@ -243,6 +243,26 @@ export function getDb(): DbClient {
       if (!hasTransferReceiptUploadedAt) {
         sqlite.exec("ALTER TABLE orders ADD COLUMN transfer_receipt_uploaded_at integer;");
       }
+      const hasCustomerFirstName = pragmaOrderCols.some((col) => col.name === "customer_first_name");
+      if (!hasCustomerFirstName) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN customer_first_name text;");
+      }
+      const hasCustomerLastName = pragmaOrderCols.some((col) => col.name === "customer_last_name");
+      if (!hasCustomerLastName) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN customer_last_name text;");
+      }
+      const hasPostalCode = pragmaOrderCols.some((col) => col.name === "postal_code");
+      if (!hasPostalCode) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN postal_code text;");
+      }
+      const hasPaymentDetailsJson = pragmaOrderCols.some((col) => col.name === "payment_details_json");
+      if (!hasPaymentDetailsJson) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN payment_details_json text;");
+      }
+      const hasTimelineJson = pragmaOrderCols.some((col) => col.name === "timeline_json");
+      if (!hasTimelineJson) {
+        sqlite.exec("ALTER TABLE orders ADD COLUMN timeline_json text;");
+      }
 
       const pragmaCustomerCols = sqlite.prepare("PRAGMA table_info(customers)").all() as Array<{ name: string }>;
       if (pragmaCustomerCols.length > 0) {

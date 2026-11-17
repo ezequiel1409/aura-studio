@@ -5,6 +5,7 @@ export type EmailEventTrigger =
   | "order_shipped"
   | "order_delivered"
   | "order_cancelled"
+  | "order_refunded"
   | "cart_abandoned"
   | "product_abandoned"
   | "new_arrivals"
@@ -170,6 +171,27 @@ export const DEFAULT_EMAIL_CUSTOMIZATION: EmailCustomizationConfig = {
         "{{nombre}}",
         "{{codigo_pedido}}",
         "{{nombre_tienda}}",
+        "{{catalogo_url}}",
+      ],
+    },
+    {
+      id: "order_refunded",
+      trigger: "order_refunded",
+      name: "Pago Reembolsado",
+      description: "Confirmación al cliente cuando se emite la devolución total o cancelación del cobro en la pasarela.",
+      enabled: true,
+      subject: "Reembolso procesado para tu pedido {{codigo_pedido}} - {{nombre_tienda}}",
+      headline: "Procesamos tu reembolso",
+      bodyText:
+        "Te confirmamos que realizamos la devolución correspondiente a tu pedido {{codigo_pedido}} por un total de {{total}}. El reintegro se verá reflejado en el mismo medio de pago según los plazos de tu tarjeta o cuenta.",
+      buttonText: "Volver a Explorar el Catálogo",
+      buttonUrl: "{{catalogo_url}}",
+      triggerCondition: "Cuando se reembolsa un pago desde el panel de administración.",
+      availableVariables: [
+        "{{nombre}}",
+        "{{codigo_pedido}}",
+        "{{nombre_tienda}}",
+        "{{total}}",
         "{{catalogo_url}}",
       ],
     },

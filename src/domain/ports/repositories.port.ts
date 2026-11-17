@@ -192,8 +192,8 @@ export interface IPasswordResetTokenRepository {
   markAsUsed(id: number, usedAt: number): Promise<void>;
 }
 
-import { Order, OrderItem, OrderStatus } from "../order/types";
-import { PaymentStatus } from "../payment/types";
+import { Order, OrderItem, OrderStatus, OrderTimelineEvent } from "../order/types";
+import { GatewayPaymentDetails, PaymentStatus } from "../payment/types";
 import { Customer, CustomerAddress, CustomerStatus } from "../customer/types";
 import { Commerce } from "../commerce/types";
 
@@ -214,7 +214,16 @@ export interface IOrderRepository {
   listByCustomer(customerId: number): Promise<Order[]>;
   linkGuestOrdersByEmail?(email: string, customerId: number): Promise<number>;
   updateStatus(id: number, status: OrderStatus, updatedAt: number): Promise<Order>;
-  updatePayment?(id: number, data: { paymentStatus: PaymentStatus; paymentExternalId?: string | null; updatedAt: number }): Promise<Order>;
+  updatePayment?(
+    id: number,
+    data: {
+      paymentStatus: PaymentStatus;
+      paymentExternalId?: string | null;
+      paymentDetails?: GatewayPaymentDetails | null;
+      updatedAt: number;
+    }
+  ): Promise<Order>;
+  updateTimeline?(id: number, timeline: OrderTimelineEvent[], updatedAt: number): Promise<Order>;
   updateTransferReceipt?(id: number, receiptUrl: string, uploadedAt: number): Promise<Order>;
   getSummaryCounts?(): Promise<OrderSummaryCounts>;
 }

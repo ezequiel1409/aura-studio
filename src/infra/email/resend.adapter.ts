@@ -11,6 +11,7 @@ import {
   generateOrderDeliveredTemplate,
   generateOrderPaidTemplate,
   generateOrderPaymentAcceptedTemplate,
+  generateOrderRefundedTemplate,
   generateOrderShippedTemplate,
 } from "../../lib/email/order-templates";
 import { logger, maskEmail } from "../../lib/logger";
@@ -380,6 +381,24 @@ Si no solicitaste este cambio, puedes ignorar este mensaje.
     }
 
     const { subject, html, text } = generateOrderCancelledTemplate(data);
+    return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
+  }
+
+  async sendOrderRefundedEmail(
+    toOrData: string | OrderEmailData,
+    maybeData?: OrderEmailData
+  ): Promise<SendEmailResult> {
+    const to = typeof toOrData === "string" ? toOrData : toOrData.customerEmail;
+    const data = typeof toOrData === "string" ? maybeData! : toOrData;
+
+    if (data.emailCustomization?.events) {
+      const ev = data.emailCustomization.events.find((e) => e.trigger === "order_refunded");
+      if (ev && !ev.enabled) {
+        return { success: true, messageId: "skipped-disabled-order_refunded" };
+      }
+    }
+
+    const { subject, html, text } = generateOrderRefundedTemplate(data);
     return this.sendEmail({ to, subject, html, text, fromName: data.brandName });
   }
 

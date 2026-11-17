@@ -45,11 +45,40 @@ export interface PaymentPreferenceResult {
   discountCents?: number;
 }
 
+export interface GatewayPaymentDetails {
+  provider: string;
+  preferenceId?: string | null;
+  paymentId?: string | null;
+  paymentMethodId?: string | null;
+  paymentTypeId?: string | null;
+  installments?: number | null;
+  installmentAmountCents?: number | null;
+  transactionAmountCents?: number | null;
+  totalPaidCents?: number | null;
+  cardLastFour?: string | null;
+  cardFirstSix?: string | null;
+  statusDetail?: string | null;
+  dateApproved?: string | null;
+  refundId?: string | null;
+  refundedAmountCents?: number | null;
+  refundedAt?: number | null;
+  cancelledAt?: number | null;
+}
+
+export interface GatewayActionResult {
+  externalId: string;
+  status: PaymentStatus;
+  refundId?: string | null;
+  refundedAmountCents?: number | null;
+  details?: GatewayPaymentDetails;
+}
+
 export interface PaymentVerificationResult {
   orderCode?: number;
   externalId: string;
   status: PaymentStatus;
   amountCents: number;
   paymentDate?: number;
+  paymentDetails?: GatewayPaymentDetails;
   details?: Record<string, unknown>;
 }

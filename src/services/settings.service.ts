@@ -381,6 +381,10 @@ export interface ShowroomSettings {
   customTermsText?: string | null;
   // Métodos de pago (BR-47) - Gestión Segura a Nivel Servidor
   mercadopagoEnabled: boolean;
+  mercadopagoBinaryMode?: boolean;
+  mercadopagoMaxInstallments?: number | null;
+  mercadopagoExcludedPaymentTypes?: string[];
+  mercadopagoOfflineExpirationDays?: number | null;
   paywayEnabled?: boolean;
   paywayEnvironment?: "sandbox" | "production";
   paywayCuotaSimpleEnabled?: boolean;
@@ -442,6 +446,10 @@ export interface UpdateShowroomSettingsInput {
   contentWidth?: StoreContentWidth | null;
   customTermsText?: string | null;
   mercadopagoEnabled?: boolean;
+  mercadopagoBinaryMode?: boolean;
+  mercadopagoMaxInstallments?: number | null;
+  mercadopagoExcludedPaymentTypes?: string[];
+  mercadopagoOfflineExpirationDays?: number | null;
   paywayEnabled?: boolean;
   paywayEnvironment?: "sandbox" | "production";
   paywayCuotaSimpleEnabled?: boolean;
@@ -542,6 +550,10 @@ export async function getShowroomSettings(
   let storedContentWidth: string | null = null;
   let storedCustomTermsText: string | null = null;
   let storedMercadopagoEnabled: string | null = null;
+  let storedMercadopagoBinaryMode: string | null = null;
+  let storedMercadopagoMaxInstallments: string | null = null;
+  let storedMercadopagoExcludedPaymentTypes: string | null = null;
+  let storedMercadopagoOfflineExpirationDays: string | null = null;
   let storedPaywayEnabled: string | null = null;
   let storedPaywayEnvironment: string | null = null;
   let storedPaywayCuotaSimpleEnabled: string | null = null;
@@ -599,6 +611,10 @@ export async function getShowroomSettings(
       storedContentWidth = all["content_width"] ?? null;
       storedCustomTermsText = all["custom_terms_text"] ?? null;
       storedMercadopagoEnabled = all["mercadopago_enabled"] ?? null;
+      storedMercadopagoBinaryMode = all["mercadopago_binary_mode"] ?? null;
+      storedMercadopagoMaxInstallments = all["mercadopago_max_installments"] ?? null;
+      storedMercadopagoExcludedPaymentTypes = all["mercadopago_excluded_payment_types"] ?? null;
+      storedMercadopagoOfflineExpirationDays = all["mercadopago_offline_expiration_days"] ?? null;
       storedPaywayEnabled = all["payway_enabled"] ?? null;
       storedPaywayEnvironment = all["payway_environment"] ?? null;
       storedPaywayCuotaSimpleEnabled = all["payway_cuota_simple_enabled"] ?? null;
@@ -654,6 +670,10 @@ export async function getShowroomSettings(
         storedContentWidth,
         storedCustomTermsText,
         storedMercadopagoEnabled,
+        storedMercadopagoBinaryMode,
+        storedMercadopagoMaxInstallments,
+        storedMercadopagoExcludedPaymentTypes,
+        storedMercadopagoOfflineExpirationDays,
         storedPaywayEnabled,
         storedPaywayEnvironment,
         storedPaywayCuotaSimpleEnabled,
@@ -708,6 +728,10 @@ export async function getShowroomSettings(
         settingsRepo.get("content_width"),
         settingsRepo.get("custom_terms_text"),
         settingsRepo.get("mercadopago_enabled"),
+        settingsRepo.get("mercadopago_binary_mode"),
+        settingsRepo.get("mercadopago_max_installments"),
+        settingsRepo.get("mercadopago_excluded_payment_types"),
+        settingsRepo.get("mercadopago_offline_expiration_days"),
         settingsRepo.get("payway_enabled"),
         settingsRepo.get("payway_environment"),
         settingsRepo.get("payway_cuota_simple_enabled"),
@@ -808,6 +832,16 @@ export async function getShowroomSettings(
     customTermsText: storedCustomTermsText && storedCustomTermsText.trim() ? storedCustomTermsText.trim() : null,
     // Métodos de pago (Solo habilitados si el comercio los activó explícitamente en el backoffice)
     mercadopagoEnabled: storedMercadopagoEnabled === "1",
+    mercadopagoBinaryMode: storedMercadopagoBinaryMode === "1",
+    mercadopagoMaxInstallments: (() => {
+      const parsed = storedMercadopagoMaxInstallments ? parseInt(storedMercadopagoMaxInstallments, 10) : NaN;
+      return !Number.isNaN(parsed) && parsed > 0 ? parsed : null;
+    })(),
+    mercadopagoExcludedPaymentTypes: safeJsonParse<string[]>(storedMercadopagoExcludedPaymentTypes, []),
+    mercadopagoOfflineExpirationDays: (() => {
+      const parsed = storedMercadopagoOfflineExpirationDays ? parseInt(storedMercadopagoOfflineExpirationDays, 10) : NaN;
+      return !Number.isNaN(parsed) && parsed > 0 ? parsed : null;
+    })(),
     paywayEnabled: storedPaywayEnabled === "1",
     paywayEnvironment: (storedPaywayEnvironment === "production" ? "production" : "sandbox") as "sandbox" | "production",
     paywayCuotaSimpleEnabled: storedPaywayCuotaSimpleEnabled !== "0",
@@ -1031,6 +1065,33 @@ export async function updateShowroomSettings(
   // Métodos de pago (BR-47)
   if (input.mercadopagoEnabled !== undefined) {
     await settingsRepo.set("mercadopago_enabled", input.mercadopagoEnabled ? "1" : "0");
+  }
+
+  if (input.mercadopagoBinaryMode !== undefined) {
+    await settingsRepo.set("mercadopago_binary_mode", input.mercadopagoBinaryMode ? "1" : "0");
+  }
+
+  if (input.mercadopagoMaxInstallments !== undefined) {
+    const val =
+      input.mercadopagoMaxInstallments && input.mercadopagoMaxInstallments > 0
+        ? String(Math.min(24, Math.floor(input.mercadopagoMaxInstallments)))
+        : "";
+    await settingsRepo.set("mercadopago_max_installments", val);
+  }
+
+  if (input.mercadopagoExcludedPaymentTypes !== undefined) {
+    const cleanTypes = Array.isArray(input.mercadopagoExcludedPaymentTypes)
+      ? input.mercadopagoExcludedPaymentTypes.map((t) => String(t).trim()).filter(Boolean)
+      : [];
+    await settingsRepo.set("mercadopago_excluded_payment_types", JSON.stringify(cleanTypes));
+  }
+
+  if (input.mercadopagoOfflineExpirationDays !== undefined) {
+    const days =
+      input.mercadopagoOfflineExpirationDays && input.mercadopagoOfflineExpirationDays > 0
+        ? String(Math.min(30, Math.floor(input.mercadopagoOfflineExpirationDays)))
+        : "";
+    await settingsRepo.set("mercadopago_offline_expiration_days", days);
   }
 
   if (input.paywayEnabled !== undefined) {

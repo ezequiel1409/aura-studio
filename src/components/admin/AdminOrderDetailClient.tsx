@@ -16,6 +16,7 @@ import {
   MessageCircle,
   Package,
   Printer,
+  RotateCcw,
   ShoppingBag,
   User,
 } from "lucide-react";
@@ -28,6 +29,8 @@ import { useAutoDismiss } from "../../hooks/useAutoDismiss";
 import { AdminFeedbackBanner } from "./ui/AdminFeedbackBanner";
 import { ModalDialog } from "./ui/ModalDialog";
 import { OrderClaimCard } from "./orders/OrderClaimCard";
+import { OrderFlowTimelineCard } from "./orders/OrderFlowTimelineCard";
+import { PaymentProcessorIcon } from "../cart/PaymentProcessorIcon";
 import {
   getDeliveryMethodMeta,
   getOrderWhatsAppLink,
@@ -50,6 +53,9 @@ export function AdminOrderDetailClient({
   const [order, setOrder] = useState<Order>(initialOrder);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [isRefundingPayment, setIsRefundingPayment] = useState(false);
   const [isInspectingClaim, setIsInspectingClaim] = useState(false);
   const [rejectionClaim, setRejectionClaim] = useState<OrderClaim | null>(null);
   const [rejectionReason, setRejectionReason] = useState(
@@ -93,6 +99,9 @@ export function AdminOrderDetailClient({
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "No se pudo actualizar el estado");
       }
+      if (data.order) {
+        setOrder(data.order);
+      }
       window.dispatchEvent(new Event(ADMIN_ORDERS_UPDATED_EVENT));
       setToastMessage(
         `Estado actualizado a "${ORDER_STATUS_CONFIG[newStatus].detailLabel}" exitosamente`
@@ -125,6 +134,9 @@ export function AdminOrderDetailClient({
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "No se pudo actualizar el estado de cobro");
       }
+      if (data.order) {
+        setOrder(data.order);
+      }
       window.dispatchEvent(new Event(ADMIN_ORDERS_UPDATED_EVENT));
       setToastMessage(
         `Cobro actualizado a "${PAYMENT_STATUS_CONFIG[newPaymentStatus]?.label || newPaymentStatus}" exitosamente`
@@ -134,6 +146,42 @@ export function AdminOrderDetailClient({
       setErrorMessage(err instanceof Error ? err.message : "Error al actualizar el cobro");
     } finally {
       setIsUpdatingPayment(false);
+    }
+  };
+
+  const handleRefundOrCancelGateway = async () => {
+    setIsRefundingPayment(true);
+    setErrorMessage(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}/payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "REFUND_OR_CANCEL",
+          reason: refundReason.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "No se pudo procesar el reembolso / cancelación.");
+      }
+      if (data.order) {
+        setOrder(data.order);
+      }
+      setRefundModalOpen(false);
+      setRefundReason("");
+      window.dispatchEvent(new Event(ADMIN_ORDERS_UPDATED_EVENT));
+      setToastMessage(
+        data.order?.paymentStatus === "REFUNDED"
+          ? "Reembolso procesado, stock restituido y correo enviado al cliente."
+          : "Cobro pendiente cancelado y correo enviado al cliente."
+      );
+    } catch (err: unknown) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Error al procesar la cancelación / reembolso"
+      );
+    } finally {
+      setIsRefundingPayment(false);
     }
   };
 
@@ -409,6 +457,9 @@ export function AdminOrderDetailClient({
               </p>
             </section>
           )}
+
+          {/* Flujo y Trazabilidad completa de la orden */}
+          <OrderFlowTimelineCard order={order} />
         </div>
 
         {/* Columna Derecha (1/3): Datos del Comprador, Logística, Mensajes Rápidos y Estado */}
@@ -444,7 +495,11 @@ export function AdminOrderDetailClient({
                   const Icon = methodCfg.icon;
                   return (
                     <>
-                      <Icon className={`h-4 w-4 ${methodCfg.color} shrink-0`} />
+                      {order.paymentMethod === "MERCADOPAGO" ? (
+                        <PaymentProcessorIcon method="MERCADOPAGO" className="h-5 w-5 shrink-0" />
+                      ) : (
+                        <Icon className={`h-4 w-4 ${methodCfg.color} shrink-0`} />
+                      )}
                       <div className="min-w-0 flex-1">
                         <span className="font-semibold text-zinc-200 block truncate">
                           {methodCfg.label}
@@ -459,6 +514,76 @@ export function AdminOrderDetailClient({
                   );
                 })()}
               </div>
+
+              {/* Detalle enriquecido de pasarela (Mercado Pago: medio, cuotas, tarjeta, IDs y reembolso) */}
+              {order.paymentDetails && (
+                <div className="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/90 space-y-1.5 text-[11px]">
+                  {order.paymentDetails.paymentMethodId && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-zinc-400">Medio utilizado:</span>
+                      <span className="font-semibold text-zinc-200">
+                        {order.paymentDetails.paymentMethodId.toUpperCase()}
+                        {order.paymentDetails.paymentTypeId ? ` (${order.paymentDetails.paymentTypeId})` : ""}
+                        {order.paymentDetails.cardLastFour ? ` ···· ${order.paymentDetails.cardLastFour}` : ""}
+                      </span>
+                    </div>
+                  )}
+
+                  {order.paymentDetails.installments && order.paymentDetails.installments > 0 && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-zinc-400">Cuotas:</span>
+                      <span className="font-semibold text-sky-300">
+                        {order.paymentDetails.installments === 1
+                          ? "1 pago sin recargo"
+                          : order.paymentDetails.installmentAmountCents
+                          ? `${order.paymentDetails.installments} cuotas de ${formatPriceARS(order.paymentDetails.installmentAmountCents, order.currency)}`
+                          : `${order.paymentDetails.installments} cuotas`}
+                      </span>
+                    </div>
+                  )}
+
+                  {order.paymentDetails.totalPaidCents &&
+                    order.paymentDetails.totalPaidCents > 0 &&
+                    order.paymentDetails.totalPaidCents !== order.totalCents && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-zinc-400">Total abonado (incl. financiación):</span>
+                        <span className="font-mono font-semibold text-amber-300">
+                          {formatPriceARS(order.paymentDetails.totalPaidCents, order.currency)}
+                        </span>
+                      </div>
+                    )}
+
+                  {order.paymentDetails.paymentId && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-zinc-400">Payment ID:</span>
+                      <span className="font-mono text-zinc-300">{order.paymentDetails.paymentId}</span>
+                    </div>
+                  )}
+
+                  {order.paymentDetails.preferenceId && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-zinc-400">Preferencia:</span>
+                      <span className="font-mono text-[10px] text-zinc-400 truncate max-w-[170px]" title={order.paymentDetails.preferenceId}>
+                        {order.paymentDetails.preferenceId}
+                      </span>
+                    </div>
+                  )}
+
+                  {order.paymentDetails.statusDetail && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-zinc-400">Detalle estado:</span>
+                      <span className="font-mono text-[10px] text-zinc-300">{order.paymentDetails.statusDetail}</span>
+                    </div>
+                  )}
+
+                  {order.paymentDetails.refundId && (
+                    <div className="pt-1.5 mt-1 border-t border-zinc-800 flex items-center justify-between gap-2 text-blue-300">
+                      <span>Reembolso MP ID:</span>
+                      <span className="font-mono font-semibold">{order.paymentDetails.refundId}</span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Comprobante de Transferencia Bancaria */}
               {order.paymentMethod === "TRANSFER" && (
@@ -550,6 +675,29 @@ export function AdminOrderDetailClient({
                   </button>
                 </div>
               )}
+
+              {/* Cancelación o Reembolso directo en Pasarela / Backoffice */}
+              {(order.paymentStatus === "AUTHORIZED" ||
+                order.paymentStatus === "PAID" ||
+                (order.paymentMethod === "MERCADOPAGO" &&
+                  order.paymentStatus === "PENDING" &&
+                  Boolean(order.paymentDetails?.paymentId))) && (
+                  <button
+                    type="button"
+                    disabled={isUpdatingPayment || isRefundingPayment}
+                    onClick={() => setRefundModalOpen(true)}
+                    className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-rose-800/70 bg-rose-950/30 hover:bg-rose-950/60 text-rose-300 font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    <span>
+                      {order.paymentStatus === "PENDING"
+                        ? "Cancelar cobro pendiente en Mercado Pago"
+                        : order.paymentMethod === "MERCADOPAGO"
+                        ? "Reembolsar en Mercado Pago y cancelar orden"
+                        : "Registrar reembolso y cancelar orden"}
+                    </span>
+                  </button>
+                )}
             </div>
           </section>
 
@@ -779,6 +927,69 @@ export function AdminOrderDetailClient({
                 if (rejectionError) setRejectionError(null);
               }}
               placeholder="Ej: Manchas de maquillaje, olor a perfume o sin etiqueta original."
+              className="w-full rounded-xl bg-zinc-950 border border-zinc-700 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:outline-none leading-relaxed"
+            />
+          </div>
+        </div>
+      </ModalDialog>
+
+      <ModalDialog
+        isOpen={refundModalOpen}
+        onClose={() => setRefundModalOpen(false)}
+        title={
+          order.paymentStatus === "PENDING"
+            ? "Cancelar cobro pendiente"
+            : "Confirmar reembolso y cancelación"
+        }
+        subtitle={`Orden ${formattedCode} · ${order.customerName} · ${formatPriceARS(order.totalCents, order.currency)}`}
+        closeDisabled={isRefundingPayment}
+        footer={
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <button
+              type="button"
+              disabled={isRefundingPayment}
+              onClick={() => setRefundModalOpen(false)}
+              className="min-h-[44px] px-4 py-2 rounded-xl border border-zinc-700 text-xs font-semibold text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer"
+            >
+              Volver
+            </button>
+            <button
+              type="button"
+              disabled={isRefundingPayment}
+              onClick={() => void handleRefundOrCancelGateway()}
+              className="min-h-[44px] px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5"
+            >
+              {isRefundingPayment && <Loader2 size={13} className="animate-spin" />}
+              <span>
+                {order.paymentStatus === "PENDING"
+                  ? "Confirmar cancelación y avisar al cliente"
+                  : "Ejecutar reembolso, restituir stock y avisar al cliente"}
+              </span>
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-xs text-zinc-300">
+          <p className="leading-relaxed text-zinc-400">
+            {order.paymentMethod === "MERCADOPAGO" && order.paymentDetails?.paymentId
+              ? order.paymentStatus === "PENDING"
+                ? `Se cancelará el pago #${order.paymentDetails.paymentId} en Mercado Pago, se cerrará la orden y se enviará un correo de aviso a ${order.customerEmail}.`
+                : `Se emitirá el reembolso total en Mercado Pago sobre el pago #${order.paymentDetails.paymentId}, se devolverán las prendas al stock, la orden pasará a Cancelada y se enviará un correo de confirmación al cliente.`
+              : `Se registrará el reembolso en la orden, se restituirá el stock descontado y se enviará un correo de confirmación a ${order.customerEmail}.`}
+          </p>
+          <div>
+            <label
+              htmlFor="mp-refund-reason"
+              className="block text-xs font-semibold text-zinc-300 mb-1.5"
+            >
+              Motivo u observación interna (opcional):
+            </label>
+            <textarea
+              id="mp-refund-reason"
+              rows={2}
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              placeholder="Ej: Devolución solicitada por el comprador antes del despacho."
               className="w-full rounded-xl bg-zinc-950 border border-zinc-700 px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:border-amber-400 focus:outline-none leading-relaxed"
             />
           </div>

@@ -61,6 +61,23 @@ export async function POST(req: NextRequest) {
         contentWidth: body.contentWidth,
         customTermsText: body.customTermsText,
         mercadopagoEnabled: body.mercadopagoEnabled !== undefined ? Boolean(body.mercadopagoEnabled) : undefined,
+        mercadopagoBinaryMode: body.mercadopagoBinaryMode !== undefined ? Boolean(body.mercadopagoBinaryMode) : undefined,
+        mercadopagoMaxInstallments:
+          body.mercadopagoMaxInstallments !== undefined
+            ? body.mercadopagoMaxInstallments === null || body.mercadopagoMaxInstallments === ""
+              ? null
+              : Number(body.mercadopagoMaxInstallments)
+            : undefined,
+        mercadopagoExcludedPaymentTypes:
+          Array.isArray(body.mercadopagoExcludedPaymentTypes)
+            ? body.mercadopagoExcludedPaymentTypes
+            : undefined,
+        mercadopagoOfflineExpirationDays:
+          body.mercadopagoOfflineExpirationDays !== undefined
+            ? body.mercadopagoOfflineExpirationDays === null || body.mercadopagoOfflineExpirationDays === ""
+              ? null
+              : Number(body.mercadopagoOfflineExpirationDays)
+            : undefined,
         paywayEnabled: body.paywayEnabled !== undefined ? Boolean(body.paywayEnabled) : undefined,
         paywayEnvironment: body.paywayEnvironment,
         paywayCuotaSimpleEnabled: body.paywayCuotaSimpleEnabled !== undefined ? Boolean(body.paywayCuotaSimpleEnabled) : undefined,

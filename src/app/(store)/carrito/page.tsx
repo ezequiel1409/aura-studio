@@ -1,7 +1,10 @@
 import { Metadata } from "next";
 import { getProductServiceDeps } from "../../../infra/db/connection";
 import { getShowroomSettings } from "../../../services/settings.service";
-import { getAvailablePaymentMethods } from "../../../services/payment.service";
+import {
+  getAvailablePaymentMethods,
+  getConfiguredMercadoPagoPublicKey,
+} from "../../../services/payment.service";
 import { CartPageClient } from "../../../components/cart/CartPageClient";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -41,6 +44,7 @@ export default async function CarritoPage() {
         ordersPaused={settings.ordersPaused}
         ordersPausedNotice={settings.ordersPausedNotice}
         initialPaymentMethods={availablePaymentMethods}
+        mpPublicKey={getConfiguredMercadoPagoPublicKey()}
         initialBankDetails={
           settings.transferEnabled
             ? {

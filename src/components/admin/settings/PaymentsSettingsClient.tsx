@@ -21,6 +21,17 @@ export function PaymentsSettingsClient({
   const [mercadopagoEnabled, setMercadopagoEnabled] = useState(
     initialSettings.mercadopagoEnabled ?? false
   );
+  const [mercadopagoBinaryMode, setMercadopagoBinaryMode] = useState(
+    initialSettings.mercadopagoBinaryMode ?? false
+  );
+  const [mercadopagoMaxInstallments, setMercadopagoMaxInstallments] = useState<string>(
+    initialSettings.mercadopagoMaxInstallments ? String(initialSettings.mercadopagoMaxInstallments) : ""
+  );
+  const [mercadopagoOfflineExpirationDays, setMercadopagoOfflineExpirationDays] = useState<string>(
+    initialSettings.mercadopagoOfflineExpirationDays
+      ? String(initialSettings.mercadopagoOfflineExpirationDays)
+      : ""
+  );
 
   // 2. Transferencia Bancaria
   const [transferEnabled, setTransferEnabled] = useState(
@@ -91,6 +102,13 @@ export function PaymentsSettingsClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mercadopagoEnabled,
+          mercadopagoBinaryMode,
+          mercadopagoMaxInstallments: mercadopagoMaxInstallments
+            ? Number(mercadopagoMaxInstallments)
+            : null,
+          mercadopagoOfflineExpirationDays: mercadopagoOfflineExpirationDays
+            ? Number(mercadopagoOfflineExpirationDays)
+            : null,
           transferEnabled,
           transferBankName: transferBankName.trim(),
           transferAccountHolder: transferAccountHolder.trim(),
@@ -168,6 +186,12 @@ export function PaymentsSettingsClient({
         <PaymentsSettingsSection
           mercadopagoEnabled={mercadopagoEnabled}
           onMercadopagoEnabledChange={setMercadopagoEnabled}
+          mercadopagoBinaryMode={mercadopagoBinaryMode}
+          onMercadopagoBinaryModeChange={setMercadopagoBinaryMode}
+          mercadopagoMaxInstallments={mercadopagoMaxInstallments}
+          onMercadopagoMaxInstallmentsChange={setMercadopagoMaxInstallments}
+          mercadopagoOfflineExpirationDays={mercadopagoOfflineExpirationDays}
+          onMercadopagoOfflineExpirationDaysChange={setMercadopagoOfflineExpirationDays}
           transferEnabled={transferEnabled}
           onTransferEnabledChange={setTransferEnabled}
           transferBankName={transferBankName}

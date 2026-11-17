@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getProductServiceDeps } from "../../../../infra/db/connection";
-import { getAvailablePaymentMethods } from "../../../../services/payment.service";
+import {
+  getAvailablePaymentMethods,
+  getConfiguredMercadoPagoPublicKey,
+} from "../../../../services/payment.service";
 import { getShowroomSettings } from "../../../../services/settings.service";
 
 export async function GET() {
@@ -13,6 +16,7 @@ export async function GET() {
 
     return NextResponse.json({
       methods,
+      mpPublicKey: getConfiguredMercadoPagoPublicKey(),
       bankDetails: settings.transferEnabled
         ? {
             bankName: settings.transferBankName,

@@ -1,4 +1,5 @@
 import { EmailCustomizationConfig } from "../email/customization";
+import { GatewayPaymentDetails } from "../payment/types";
 
 export interface SendEmailOptions {
   to: string;
@@ -46,6 +47,7 @@ export interface OrderEmailData {
   currency: string;
   paymentMethod: string;
   paymentStatus: string;
+  paymentDetails?: GatewayPaymentDetails | null;
   bankDetails?: {
     bankName?: string | null;
     accountHolder?: string | null;
@@ -74,5 +76,6 @@ export interface IEmailService {
   sendOrderShippedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendOrderDeliveredEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendOrderCancelledEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
+  sendOrderRefundedEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
   sendAdminNewOrderAlertEmail?(toOrData: string | OrderEmailData, maybeData?: OrderEmailData): Promise<SendEmailResult>;
 }

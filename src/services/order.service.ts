@@ -2,6 +2,7 @@ import {
   CreateOrderInput,
   Order,
   OrderStatus,
+  appendOrderTimelineEvent,
   validateCreateOrderInput,
   parseOrderCode,
 } from "../domain/order";
@@ -51,6 +52,7 @@ async function buildOrderEmailData(order: Order, settings: ShowroomSettings, bas
     currency: order.currency || "ARS",
     paymentMethod: order.paymentMethod || "COORDINATE",
     paymentStatus: order.paymentStatus || "PENDING",
+    paymentDetails: order.paymentDetails ?? null,
     bankDetails: {
       bankName: settings.transferBankName,
       accountHolder: settings.transferAccountHolder,
@@ -283,17 +285,33 @@ export async function createOrder(
     const nextCode = await deps.counterRepo.getNextSequence("order");
     const now = Math.floor(Date.now() / 1000);
 
-    // 4. Persistir orden y sus ítems en la base de datos
+    // 4. Persistir orden y sus ítems en la base de datos con evento inicial del timeline
+    const initialTimeline = appendOrderTimelineEvent([], {
+      at: now,
+      type: "ORDER_CREATED",
+      title: "Orden creada en el checkout",
+      description: `Método seleccionado: ${validated.paymentMethod} · Total ${(authoritativeTotalCents / 100).toLocaleString("es-AR")} ARS`,
+      actor: "BUYER",
+      meta: {
+        paymentMethod: validated.paymentMethod,
+        deliveryMethod: validated.deliveryMethod,
+        totalCents: authoritativeTotalCents,
+      },
+    });
+
     let order = await deps.orderRepo.create({
       code: nextCode,
       customerId: validated.customerId,
       commerceId: validated.commerceId,
       customerName: validated.customerName,
+      customerFirstName: validated.customerFirstName,
+      customerLastName: validated.customerLastName,
       customerPhone: validated.customerPhone,
       customerEmail: validated.customerEmail,
       customerDni: validated.customerDni,
       deliveryMethod: validated.deliveryMethod,
       deliveryAddress: validated.deliveryAddress,
+      postalCode: validated.postalCode,
       deliveryNotes: validated.deliveryNotes,
       subtotalCents: authoritativeSubtotalCents,
       discountCents: authoritativeDiscountCents,
@@ -305,6 +323,7 @@ export async function createOrder(
       paymentMethod: validated.paymentMethod,
       paymentStatus: "PENDING",
       paymentDiscountCents: authoritativePaymentDiscountCents,
+      timeline: initialTimeline,
       transferReceiptUrl: null,
       transferReceiptUploadedAt: null,
       notes: validated.notes,
@@ -877,6 +896,7 @@ export async function updateOrderStatus(
   }
 
   const now = Math.floor(Date.now() / 1000);
+  let nextTimeline = existing.timeline ?? [];
 
   // Si pasa a CANCELLED y no estaba cancelada antes, restaurar stock solo si ya se había descontado
   if (
@@ -896,16 +916,62 @@ export async function updateOrderStatus(
         );
       }
     }
+    nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+      at: now,
+      type: "STOCK_RESTORED",
+      title: "Stock restituido al catálogo",
+      description: "Se devolvieron las unidades de la orden cancelada al inventario.",
+      actor: "SYSTEM",
+    });
   }
 
   // Si pasa a PAID y aún no había descontado stock (ej. orden de Mercado Pago en PENDING), descontarlo ahora
   if (status === "PAID" && existing.status !== "CANCELLED" && !hasOrderDeductedStock(existing)) {
     await commitOrderStockDeduction(existing, deps, now * 1000);
+    nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+      at: now,
+      type: "STOCK_DEDUCTED",
+      title: "Stock descontado",
+      description: "Unidades reservadas descontadas del inventario al acreditarse el pago.",
+      actor: "SYSTEM",
+    });
   }
 
   // Si pasa a PAID y paymentStatus no estaba en PAID, actualizar estado de cobro
   if (status === "PAID" && existing.paymentStatus !== "PAID" && typeof deps.orderRepo.updatePayment === "function") {
     await deps.orderRepo.updatePayment(id, { paymentStatus: "PAID", updatedAt: now });
+  }
+
+  if (status !== existing.status) {
+    if (status === "PAID") {
+      nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+        at: now,
+        type: "PAYMENT_PAID",
+        title: "Pago confirmado y acreditado",
+        description: "Cobro validado definitivamente desde el panel o pasarela.",
+        actor: "ADMIN",
+      });
+    } else if (status === "CONFIRMED") {
+      nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+        at: now,
+        type: "ORDER_CONFIRMED",
+        title: "Pedido confirmado / en preparación",
+        description: "Orden marcada como lista para despacho o retiro.",
+        actor: "ADMIN",
+      });
+    } else if (status === "CANCELLED") {
+      nextTimeline = appendOrderTimelineEvent(nextTimeline, {
+        at: now,
+        type: "ORDER_CANCELLED",
+        title: "Orden cancelada",
+        description: "La orden fue anulada desde administración.",
+        actor: "ADMIN",
+      });
+    }
+  }
+
+  if (typeof deps.orderRepo.updateTimeline === "function" && nextTimeline.length > (existing.timeline?.length || 0)) {
+    await deps.orderRepo.updateTimeline(id, nextTimeline, now);
   }
 
   const updated = await deps.orderRepo.updateStatus(id, status, now);
@@ -952,4 +1018,26 @@ export function notifyOrderPaymentAccepted(order: Order, deps: GlobalAppDeps): v
       });
     })
     .catch(() => {});
+}
+
+/**
+ * Envía de forma no-bloqueante el correo de reembolso al cliente cuando se procesa una devolución (SRP).
+ */
+export function notifyOrderRefunded(order: Order, deps: GlobalAppDeps): void {
+  if (!deps.emailService || !order.customerEmail) {
+    return;
+  }
+
+  getShowroomSettings(deps)
+    .then(async (settings) => {
+      const emailData = await buildOrderEmailData(order, settings);
+      if (typeof deps.emailService?.sendOrderRefundedEmail === "function") {
+        await deps.emailService.sendOrderRefundedEmail(order.customerEmail!, emailData);
+      } else if (typeof deps.emailService?.sendOrderCancelledEmail === "function") {
+        await deps.emailService.sendOrderCancelledEmail(order.customerEmail!, emailData);
+      }
+    })
+    .catch((err) => {
+      console.error("[Email] Error al enviar email de reembolso:", err);
+    });
 }

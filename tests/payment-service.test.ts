@@ -6,9 +6,42 @@ import {
   getCheckoutSandboxOrderSummary,
   markOrderPaymentManually,
   processPaymentWebhook,
+  refundOrCancelOrderPayment,
 } from "../src/services/payment.service";
 import { GlobalAppDeps } from "../src/infra/db/connection";
-import { Order } from "../src/domain/order/types";
+import { Order, OrderStatus, OrderTimelineEvent } from "../src/domain/order/types";
+import { GatewayPaymentDetails, PaymentStatus } from "../src/domain/payment/types";
+import {
+  IOrderRepository,
+  IProductRepository,
+  ISettingsRepository,
+} from "../src/domain/ports/repositories.port";
+
+interface CapturedPreferencePayload {
+  payer: {
+    name?: string;
+    surname?: string;
+    email?: string;
+    address?: {
+      street_name?: string;
+      street_number?: string;
+      zip_code?: string;
+    };
+  };
+  shipments?: {
+    mode?: string;
+    local_pickup?: boolean;
+    cost?: number;
+  };
+  items: Array<{ id?: string; title?: string; unit_price?: number; quantity?: number }>;
+  binary_mode?: boolean;
+  payment_methods?: {
+    installments?: number;
+  };
+  expires?: boolean;
+  date_of_expiration?: string;
+  notification_url?: string;
+}
 
 describe("Payment Service (BR-14, BR-47, AR-16)", () => {
   const mockOrder: Order = {
@@ -50,19 +83,35 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
   const createMockDeps = (orderData: Order = mockOrder): GlobalAppDeps => {
     let currentOrder = { ...orderData };
     return {
-      db: {} as any,
+      db: {} as unknown as GlobalAppDeps["db"],
       orderRepo: {
         findById: vi.fn(async (id: number) => (currentOrder.id === id ? currentOrder : null)),
         findByCode: vi.fn(async (code: number) => (currentOrder.code === code ? currentOrder : null)),
-        updateStatus: vi.fn(async (id: number, status: any, updatedAt: number) => {
+        updateStatus: vi.fn(async (_id: number, status: OrderStatus, updatedAt: number) => {
           currentOrder = { ...currentOrder, status, updatedAt };
           return currentOrder;
         }),
-        updatePayment: vi.fn(async (id: number, data: any) => {
-          currentOrder = { ...currentOrder, ...data };
-          return currentOrder;
-        }),
-      } as any,
+        updatePayment: vi.fn(
+          async (
+            _id: number,
+            data: {
+              paymentStatus: PaymentStatus;
+              paymentExternalId?: string | null;
+              paymentDetails?: GatewayPaymentDetails | null;
+              updatedAt: number;
+            }
+          ) => {
+            currentOrder = { ...currentOrder, ...data };
+            return currentOrder;
+          }
+        ),
+        updateTimeline: vi.fn(
+          async (_id: number, timeline: OrderTimelineEvent[], updatedAt: number) => {
+            currentOrder = { ...currentOrder, timeline, updatedAt };
+            return currentOrder;
+          }
+        ),
+      } as unknown as IOrderRepository,
       settingsRepo: {
         get: vi.fn(async (key: string) => {
           const map: Record<string, string> = {
@@ -86,7 +135,7 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
           whatsapp_payment_enabled: "1",
         })),
         set: vi.fn(),
-      } as any,
+      } as unknown as ISettingsRepository,
     } as unknown as GlobalAppDeps;
   };
 
@@ -106,7 +155,7 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
 
   it("getAvailablePaymentMethods excluye Mercado Pago si está deshabilitado en backoffice (mercadopago_enabled === '0')", async () => {
     const deps = createMockDeps();
-    (deps.settingsRepo!.getAll as any).mockResolvedValueOnce({
+    vi.mocked(deps.settingsRepo!.getAll!).mockResolvedValueOnce({
       mercadopago_enabled: "0",
       transfer_enabled: "1",
       cash_enabled: "1",
@@ -466,11 +515,18 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
       );
 
       expect(webhookResult?.status).toBe("AUTHORIZED");
-      expect(deps.orderRepo.updatePayment).toHaveBeenCalledWith(mockOrder.id, {
-        paymentStatus: "AUTHORIZED",
-        paymentExternalId: "mp_pay_900",
-        updatedAt: expect.any(Number),
-      });
+      expect(deps.orderRepo.updatePayment).toHaveBeenCalledWith(
+        mockOrder.id,
+        expect.objectContaining({
+          paymentStatus: "AUTHORIZED",
+          paymentExternalId: "mp_pay_900",
+          paymentDetails: expect.objectContaining({
+            provider: "MERCADOPAGO",
+            paymentId: "mp_pay_900",
+          }),
+          updatedAt: expect.any(Number),
+        })
+      );
       expect(deps.orderRepo.updateStatus).not.toHaveBeenCalledWith(
         mockOrder.id,
         "PAID",
@@ -519,7 +575,7 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     deps.productRepo = {
       decrementStock: decrementStockMock,
       restoreStock: restoreStockMock,
-    } as any;
+    } as unknown as IProductRepository;
     const sendCancelledSpy = vi.fn().mockResolvedValue(undefined);
     deps.emailService = {
       sendEmail: vi.fn().mockResolvedValue(undefined),
@@ -547,7 +603,7 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
     freshDeps.productRepo = {
       decrementStock: decrementStockMock,
       restoreStock: restoreStockMock,
-    } as any;
+    } as unknown as IProductRepository;
 
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(
@@ -573,6 +629,220 @@ describe("Payment Service (BR-14, BR-47, AR-16)", () => {
 
       expect(summary.paymentStatus).toBe("AUTHORIZED");
       expect(decrementStockMock).toHaveBeenCalledTimes(1);
+    } finally {
+      if (prevToken === undefined) {
+        delete process.env.MP_ACCESS_TOKEN;
+      } else {
+        process.env.MP_ACCESS_TOKEN = prevToken;
+      }
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("MercadoPagoPaymentAdapter construye preferencia oficial con payer.surname, address, shipments, expires y configuración admin", async () => {
+    const { MercadoPagoPaymentAdapter } = await import(
+      "../src/infra/payments/mercadopago/mercadopago.adapter"
+    );
+    let capturedBody: CapturedPreferencePayload | null = null;
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementationOnce(async (_url, init) => {
+      capturedBody = JSON.parse(String(init?.body || "{}")) as CapturedPreferencePayload;
+      return new Response(
+        JSON.stringify({
+          id: "pref_full_quality_101",
+          init_point: "https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref_full_quality_101",
+          sandbox_init_point: "https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=pref_full_quality_101",
+        }),
+        { status: 200 }
+      );
+    });
+
+    try {
+      const adapter = new MercadoPagoPaymentAdapter({
+        accessToken: "APP_USR-live-test-key",
+        brandName: "Mi Marca",
+      });
+      const orderWithSplitName: Order = {
+        ...mockOrder,
+        paymentMethod: "MERCADOPAGO",
+        customerName: "Clara Benitez",
+        customerFirstName: "Clara",
+        customerLastName: "Benitez",
+        postalCode: "1425",
+        deliveryAddress: "Av. Santa Fe 2450",
+        discountCents: 0,
+        paymentDiscountCents: 0,
+        shippingCents: 450000,
+        totalCents: 5450000,
+      };
+
+      const pref = await adapter.createPaymentPreference(orderWithSplitName, {
+        baseUrl: "https://shop.ejemplo.com",
+        reservationHours: 24,
+        mpSettings: {
+          binaryMode: true,
+          maxInstallments: 6,
+          offlineExpirationDays: 3,
+        },
+      });
+
+      expect(pref.preferenceId).toBe("pref_full_quality_101");
+      expect(capturedBody).not.toBeNull();
+      expect(capturedBody!.payer.name).toBe("Clara");
+      expect(capturedBody!.payer.surname).toBe("Benitez");
+      expect(capturedBody!.payer.email).toBe("martina@example.com");
+      expect(capturedBody!.payer.address).toEqual({
+        street_name: "Av. Santa Fe",
+        street_number: "2450",
+        zip_code: "1425",
+      });
+      expect(capturedBody!.shipments).toEqual(
+        expect.objectContaining({
+          mode: "not_specified",
+          local_pickup: false,
+          cost: 4500,
+        })
+      );
+      expect(capturedBody!.items.some((i) => i.id === "shipping")).toBe(false);
+      expect(capturedBody!.binary_mode).toBe(true);
+      expect(capturedBody!.payment_methods?.installments).toBe(6);
+      expect(capturedBody!.expires).toBe(true);
+      expect(capturedBody!.date_of_expiration).toBeDefined();
+      expect(capturedBody!.notification_url).toBe("https://shop.ejemplo.com/api/payments/webhook/mercadopago");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("normaliza data.id alfanumérico en HMAC, guarda cuotas/tarjeta/paymentId y procesa reembolso con email + restock + timeline", async () => {
+    const { MercadoPagoWebhookVerifier } = await import(
+      "../src/infra/payments/mercadopago/mercadopago.adapter"
+    );
+
+    // 1. Verificar normalización a minúsculas según especificación oficial MP
+    const verifier = new MercadoPagoWebhookVerifier();
+    const manifestUpper = verifier.buildManifest("ORD01UPPERCASE", "req-1", "1700000200");
+    expect(manifestUpper).toBe("id:ord01uppercase;request-id:req-1;ts:1700000200;");
+
+    const restoreStockMock = vi.fn().mockResolvedValue({
+      newStock: 5,
+      totalProductStock: 5,
+      newProductStatus: "AVAILABLE",
+    });
+    const decrementStockMock = vi.fn().mockResolvedValue({
+      remainingStock: 4,
+      totalProductStock: 4,
+      newProductStatus: "AVAILABLE",
+    });
+    const sendAcceptedSpy = vi.fn().mockResolvedValue({ success: true });
+    const sendRefundedSpy = vi.fn().mockResolvedValue({ success: true });
+
+    const deps = createMockDeps({
+      ...mockOrder,
+      paymentMethod: "MERCADOPAGO",
+      paymentStatus: "PENDING",
+      status: "PENDING",
+      timeline: [
+        {
+          id: "order_created_1",
+          at: 1700000000,
+          type: "ORDER_CREATED",
+          title: "Orden creada",
+          actor: "BUYER",
+        },
+      ],
+    });
+    deps.productRepo = {
+      decrementStock: decrementStockMock,
+      restoreStock: restoreStockMock,
+    } as unknown as IProductRepository;
+    deps.emailService = {
+      sendEmail: vi.fn().mockResolvedValue({ success: true }),
+      sendOrderCreatedEmail: vi.fn().mockResolvedValue({ success: true }),
+      sendOrderPaymentAcceptedEmail: sendAcceptedSpy,
+      sendOrderPaidEmail: vi.fn().mockResolvedValue({ success: true }),
+      sendOrderShippedEmail: vi.fn().mockResolvedValue({ success: true }),
+      sendOrderCancelledEmail: vi.fn().mockResolvedValue({ success: true }),
+      sendOrderRefundedEmail: sendRefundedSpy,
+      sendAdminNewOrderAlertEmail: vi.fn().mockResolvedValue({ success: true }),
+      sendPasswordResetEmail: vi.fn().mockResolvedValue({ success: true }),
+    };
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 987654321,
+            status: "approved",
+            status_detail: "accredited",
+            transaction_amount: mockOrder.totalCents / 100,
+            external_reference: `ORD-0${mockOrder.code}`,
+            payment_method_id: "visa",
+            payment_type_id: "credit_card",
+            installments: 3,
+            card: { last_four_digits: "4509", first_six_digits: "450995" },
+            transaction_details: {
+              installment_amount: 18500,
+              total_paid_amount: 55500,
+            },
+            date_approved: "2026-11-17T14:00:00.000-03:00",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 555111222,
+            payment_id: 987654321,
+            amount: mockOrder.totalCents / 100,
+            status: "approved",
+          }),
+          { status: 201 }
+        )
+      );
+
+    const prevToken = process.env.MP_ACCESS_TOKEN;
+    process.env.MP_ACCESS_TOKEN = "APP_USR-live-sandbox-key";
+
+    try {
+      // 2. Entrar webhook con pago en 3 cuotas y detalles de tarjeta
+      await processPaymentWebhook("mercadopago", { data: { id: "987654321" } }, {}, deps);
+
+      const afterWebhook = await deps.orderRepo.findById(mockOrder.id);
+      expect(afterWebhook?.paymentStatus).toBe("AUTHORIZED");
+      expect(afterWebhook?.paymentDetails).toEqual(
+        expect.objectContaining({
+          paymentId: "987654321",
+          paymentMethodId: "visa",
+          paymentTypeId: "credit_card",
+          installments: 3,
+          installmentAmountCents: 1850000,
+          totalPaidCents: 5550000,
+          cardLastFour: "4509",
+          statusDetail: "accredited",
+        })
+      );
+      expect(afterWebhook?.timeline?.some((e) => e.type === "PAYMENT_WEBHOOK_RECEIVED")).toBe(true);
+      expect(afterWebhook?.timeline?.some((e) => e.type === "STOCK_DEDUCTED")).toBe(true);
+      expect(afterWebhook?.timeline?.some((e) => e.type === "PAYMENT_AUTHORIZED")).toBe(true);
+
+      // 3. Reembolsar desde panel admin
+      const refundedOrder = await refundOrCancelOrderPayment(mockOrder.id, deps, {
+        reason: "Devolución solicitada",
+      });
+
+      expect(refundedOrder.paymentStatus).toBe("REFUNDED");
+      expect(refundedOrder.status).toBe("CANCELLED");
+      expect(refundedOrder.paymentDetails?.refundId).toBe("555111222");
+      expect(restoreStockMock).toHaveBeenCalledTimes(1);
+      expect(refundedOrder.timeline?.some((e) => e.type === "PAYMENT_REFUNDED")).toBe(true);
+      expect(refundedOrder.timeline?.some((e) => e.type === "STOCK_RESTORED")).toBe(true);
+      expect(refundedOrder.timeline?.some((e) => e.type === "ORDER_CANCELLED")).toBe(true);
+
+      await new Promise((r) => setTimeout(r, 20));
+      expect(sendRefundedSpy).toHaveBeenCalledTimes(1);
     } finally {
       if (prevToken === undefined) {
         delete process.env.MP_ACCESS_TOKEN;
