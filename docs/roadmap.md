@@ -117,6 +117,20 @@ src/infra/payments/
   - Pagos online: la acreditación confirmada por webhook dispara la transición atómica de la orden a `PAID` y bloquea/descuenta el stock definitivamente en base de datos.
   - Transferencias: la orden se crea en estado `PENDING` reservando stock temporalmente; el cliente sube su comprobante y la administradora confirma el cobro desde el panel para pasar a `PAID`.
 
+### 4.3. Experiencia de Onboarding de Pagos por Comercio (Próxima iteración)
+
+Para consolidar el modelo multi-comercio white-label donde cada emprendimiento opera con su propia instancia/fork y su propia cuenta de Mercado Pago (**Forma 1 · Credenciales propias por comercio**), se planifica optimizar la experiencia de alta inicial:
+
+- **Asistente y copia rápida de Webhook en `/admin/tienda/pagos`**:
+  - Mostrar dinámicamente la URL de notificaciones del comercio (`https://<dominio-del-comercio>/api/payments/webhook/mercadopago`) con botón **Copiar** en un clic y detalle de los tópicos obligatorios (`payment`, `merchant_order`).
+- **Checklist guiado en Backoffice para credenciales propias**:
+  - Instructivo paso a paso embebido en la tarjeta de Mercado Pago sobre cómo crear la aplicación Checkout Pro en Mercado Pago Developers, verificar correspondencia de entorno (`Test` vs. `Producción`) entre `MP_ACCESS_TOKEN` y `MP_PUBLIC_KEY`, y validar las variables de entorno / secrets del servidor.
+  - Acciones correctivas contextuales junto a cada estado de diagnóstico (`Access Token`, `Public Key (SDK V2)`, `Webhook HMAC`) y el botón **Comprobar estado**.
+- **Documentación de alta para clientes**:
+  - Guía breve y neutra para entregar al emprendimiento durante el onboarding asistido inicial.
+- **Evolución futura en Fase 10 (Opcional · Escalado SaaS autoservicio con OAuth)**:
+  - Cuando el volumen de altas justifique onboarding sin asistencia, incorporar flujo **OAuth Marketplace** centralizado en el orquestador (`Redirect URI` única, renovación automática cada 180 días mediante `refresh_token` con `offline_access`, enrutamiento de webhooks por `user_id` y soporte opcional de `marketplace_fee`).
+
 ---
 
 ## 5. Módulo Financiero en Backoffice & Marco Legal de Facturación (Fase 8)
